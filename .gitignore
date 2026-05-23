@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Xcode build artifacts
+build/
+DerivedData/
+*.swp
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Xcode project regenerated from project.yml via xcodegen
+*.xcodeproj
+
+# SwiftPM
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Harness logs (CLI execution output)
+logs/
+
+# Local tool caches
+.codex/
+.gemini/
+.claude/
