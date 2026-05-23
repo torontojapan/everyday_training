@@ -35,6 +35,7 @@ protocol NotificationScheduling: AnyObject, Sendable {
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
 }
 
+extension UNUserNotificationCenter: @retroactive @unchecked Sendable {}
 extension UNUserNotificationCenter: NotificationScheduling {}
 
 @MainActor
