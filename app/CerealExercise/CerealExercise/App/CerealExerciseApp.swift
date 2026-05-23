@@ -13,6 +13,14 @@ struct CerealExerciseApp: App {
     }
 }
 
+private enum InitialRoute: String {
+    case home
+    case record
+    case history
+    case settings
+    case notificationSettings = "notification-settings"
+}
+
 private struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store: WorkoutStore?
@@ -21,12 +29,17 @@ private struct HomeRootView: View {
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
     private var skipNotificationPrompt: Bool { launchArgs.contains("--no-notification-prompt") }
     private var shouldSeedDemoData: Bool { launchArgs.contains("--seed-demo-data") }
+    private var initialRoute: InitialRoute {
+        guard let idx = launchArgs.firstIndex(of: "--initial-route"), idx + 1 < launchArgs.count else {
+            return .home
+        }
+        return InitialRoute(rawValue: launchArgs[idx + 1]) ?? .home
+    }
 
     var body: some View {
         Group {
             if let store {
-                HomeView()
-                    .environment(store)
+                routedView(store: store)
             } else {
                 ProgressView()
                     .tint(Palette.primary)
@@ -48,6 +61,33 @@ private struct HomeRootView: View {
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active, let store else { return }
             publishAndSchedule(using: store)
+        }
+    }
+
+    @ViewBuilder
+    private func routedView(store: WorkoutStore) -> some View {
+        switch initialRoute {
+        case .home:
+            HomeView()
+                .environment(store)
+        case .record:
+            NavigationStack {
+                RecordEntryView { _ in }
+                    .environment(store)
+            }
+        case .history:
+            NavigationStack {
+                HistoryView()
+                    .environment(store)
+            }
+        case .settings:
+            NavigationStack {
+                SettingsView()
+            }
+        case .notificationSettings:
+            NavigationStack {
+                NotificationSettingsView()
+            }
         }
     }
 
