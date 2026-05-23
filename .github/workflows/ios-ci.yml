@@ -30,49 +30,38 @@ jobs:
       - name: List available iOS Simulators
         run: xcrun simctl list devices available | grep -E "iPhone" | head -20
 
-      - name: Pick first available iPhone Simulator
-        id: pick-sim
-        run: |
-          DEST=$(xcrun simctl list devices available --json \
-            | python3 -c '
-import json, sys
-data = json.load(sys.stdin)
-for runtime, devs in data["devices"].items():
-    if "iOS" not in runtime:
-        continue
-    for d in devs:
-        if d.get("isAvailable") and "iPhone" in d.get("name", ""):
-            print(d["name"])
-            sys.exit(0)
-')
-          if [ -z "$DEST" ]; then
-            echo "No iPhone simulator found" >&2
-            exit 1
-          fi
-          echo "destination_name=$DEST" >> "$GITHUB_OUTPUT"
-          echo "Selected: $DEST"
-
       - name: Build
         working-directory: app/CerealExercise
         run: |
+          set -euo pipefail
+          DEST_NAME=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.isAvailable) | select(.name | startswith("iPhone"))] | .[0].name')
+          if [ -z "$DEST_NAME" ] || [ "$DEST_NAME" = "null" ]; then
+            echo "No iPhone simulator available"
+            exit 1
+          fi
+          echo "Destination: $DEST_NAME"
           xcodebuild \
             -project CerealExercise.xcodeproj \
             -scheme CerealExercise \
-            -destination "platform=iOS Simulator,name=${{ steps.pick-sim.outputs.destination_name }}" \
+            -destination "platform=iOS Simulator,name=$DEST_NAME" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build | xcbeautify --renderer github-actions || (echo "Build failed"; exit 1)
+            build
 
       - name: Test
         working-directory: app/CerealExercise
         run: |
+          set -euo pipefail
+          DEST_NAME=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.isAvailable) | select(.name | startswith("iPhone"))] | .[0].name')
           xcodebuild \
             -project CerealExercise.xcodeproj \
             -scheme CerealExercise \
-            -destination "platform=iOS Simulator,name=${{ steps.pick-sim.outputs.destination_name }}" \
+            -destination "platform=iOS Simulator,name=$DEST_NAME" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            test | xcbeautify --renderer github-actions || (echo "Tests failed"; exit 1)
+            test
 
       - name: Upload Test Results on Failure
         if: failure()
