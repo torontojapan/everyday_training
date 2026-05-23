@@ -1,6 +1,8 @@
 import Foundation
 import UserNotifications
 
+extension UNNotificationSettings: @retroactive @unchecked Sendable {}
+
 @MainActor
 protocol NotificationPermissionManaging: AnyObject {
     func requestAuthorizationIfNeeded() async
