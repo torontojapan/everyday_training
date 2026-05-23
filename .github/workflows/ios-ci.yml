@@ -1,0 +1,84 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (iOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: app/CerealExercise
+        run: xcodegen generate
+
+      - name: List available iOS Simulators
+        run: xcrun simctl list devices available | grep -E "iPhone" | head -20
+
+      - name: Pick first available iPhone Simulator
+        id: pick-sim
+        run: |
+          DEST=$(xcrun simctl list devices available --json \
+            | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+for runtime, devs in data["devices"].items():
+    if "iOS" not in runtime:
+        continue
+    for d in devs:
+        if d.get("isAvailable") and "iPhone" in d.get("name", ""):
+            print(d["name"])
+            sys.exit(0)
+')
+          if [ -z "$DEST" ]; then
+            echo "No iPhone simulator found" >&2
+            exit 1
+          fi
+          echo "destination_name=$DEST" >> "$GITHUB_OUTPUT"
+          echo "Selected: $DEST"
+
+      - name: Build
+        working-directory: app/CerealExercise
+        run: |
+          xcodebuild \
+            -project CerealExercise.xcodeproj \
+            -scheme CerealExercise \
+            -destination "platform=iOS Simulator,name=${{ steps.pick-sim.outputs.destination_name }}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | xcbeautify --renderer github-actions || (echo "Build failed"; exit 1)
+
+      - name: Test
+        working-directory: app/CerealExercise
+        run: |
+          xcodebuild \
+            -project CerealExercise.xcodeproj \
+            -scheme CerealExercise \
+            -destination "platform=iOS Simulator,name=${{ steps.pick-sim.outputs.destination_name }}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            test | xcbeautify --renderer github-actions || (echo "Tests failed"; exit 1)
+
+      - name: Upload Test Results on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
+          if-no-files-found: ignore
