@@ -32,8 +32,16 @@ final class RecordEntryViewModel {
     var selectedCategory: WorkoutCategory = .strength
     var drafts: [ExerciseDraft] = [ExerciseDraft()]
     var memo = ""
+    var weightInput = ""
     var validationMessage: String?
     private var historyProvider: ExerciseHistoryProvider?
+
+    var parsedWeight: Double? {
+        let trimmed = weightInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard let value = Double(trimmed), value > 0, value < 500 else { return nil }
+        return value
+    }
 
     var canSave: Bool {
         !validExercises.isEmpty
@@ -70,6 +78,7 @@ final class RecordEntryViewModel {
         let firstId = drafts.first?.id ?? UUID()
         drafts = [ExerciseDraft(id: firstId)]
         memo = ""
+        weightInput = ""
         validationMessage = nil
     }
 
@@ -87,7 +96,7 @@ final class RecordEntryViewModel {
         drafts.removeAll { $0.id == id }
     }
 
-    func save(to store: WorkoutStore) -> WorkoutRecord? {
+    func save(to store: WorkoutStore, weightStore: WeightStore? = nil) -> WorkoutRecord? {
         let exercises = validExercises
         guard !exercises.isEmpty else {
             validationMessage = "種目名を1つ以上入力してください"
@@ -96,6 +105,12 @@ final class RecordEntryViewModel {
 
         let trimmedMemo = memo.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = store.add(category: selectedCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
+
+        // Persist optional weight entry alongside the workout record.
+        if let weightStore, let weight = parsedWeight {
+            _ = weightStore.add(date: store.today, weightKilograms: weight, memo: nil)
+        }
+
         validationMessage = nil
         return record
     }

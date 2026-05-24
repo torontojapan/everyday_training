@@ -50,6 +50,8 @@ struct HomeView: View {
                             usedDays: viewModel.lifetimeStats.usedDays
                         )
 
+                        weightEntry
+
                         monthlyReviewEntry
                     }
                     .padding(20)
@@ -214,6 +216,33 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("monthly-review-button")
+    }
+
+    private var weightEntry: some View {
+        NavigationLink {
+            WeightView()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "scalemass.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("体重の推移をみる")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("グラフで増減を一目で確認")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("weight-link-home")
     }
 
     private var remainingTimeText: String {

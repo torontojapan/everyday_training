@@ -2,8 +2,10 @@ import SwiftUI
 
 struct RecordEntryView: View {
     @Environment(WorkoutStore.self) private var store
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = RecordEntryViewModel()
+    @State private var weightStore: WeightStore?
     @State private var pendingSavedRecord: WorkoutRecord?
     @State private var isShowingSaveOptions = false
     private let hapticFeedback = HapticFeedbackController()
@@ -52,6 +54,24 @@ struct RecordEntryView: View {
                     }
                 }
 
+                Section("今日の体重 (任意)") {
+                    HStack {
+                        TextField("体重 (kg)", text: $viewModel.weightInput)
+                            .keyboardType(.decimalPad)
+                        Text("kg")
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                    if let latest = weightStore?.latest {
+                        Text("前回: \(String(format: "%.1f", latest.weightKilograms)) kg")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    } else {
+                        Text("体重を入れるとグラフに反映されます")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+
                 Section("メモ") {
                     TextField("体調や気分など", text: $viewModel.memo, axis: .vertical)
                         .lineLimit(3...5)
@@ -67,7 +87,7 @@ struct RecordEntryView: View {
 
                 Section {
                     PrimaryButton("保存", systemImage: "checkmark.circle.fill") {
-                        if let record = viewModel.save(to: store) {
+                        if let record = viewModel.save(to: store, weightStore: weightStore) {
                             hapticFeedback.success()
                             pendingSavedRecord = record
                             isShowingSaveOptions = true
@@ -101,6 +121,9 @@ struct RecordEntryView: View {
             }
             .onAppear {
                 viewModel.updateHistoryProvider(store: store)
+                if weightStore == nil {
+                    weightStore = WeightStore(context: modelContext)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

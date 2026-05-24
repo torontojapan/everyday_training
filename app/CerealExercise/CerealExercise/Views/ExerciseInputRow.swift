@@ -52,8 +52,12 @@ struct ExerciseInputRow: View {
                     .keyboardType(.numberPad)
             }
 
-            TextField("種目メモ", text: $draft.memo, axis: .vertical)
-                .lineLimit(1...3)
+            TextField("種目メモ (例: 体調メモ、回数アップ等)", text: $draft.memo)
+                .textInputAutocapitalization(.never)
+                .submitLabel(.done)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Palette.chipBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .font(Typography.body)
         .padding(.vertical, 6)
