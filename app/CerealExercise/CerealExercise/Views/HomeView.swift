@@ -50,16 +50,6 @@ struct HomeView: View {
                             usedDays: viewModel.lifetimeStats.usedDays
                         )
 
-                        RewardCard(
-                            decoration: viewModel.catDecoration,
-                            ticketAvailable: viewModel.rescueTicketAvailable,
-                            onUseTicket: {
-                                _ = viewModel.useRescueTicketToday()
-                                viewModel.refresh(records: store.records)
-                            },
-                            showUseTicketButton: viewModel.todayStatus == .todayPending
-                        )
-
                         monthlyReviewEntry
                     }
                     .padding(20)

@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingWidgetGuide = false
+    private let rescueTicketStore = RescueTicketStore()
     var onClose: (() -> Void)? = nil
 
     var body: some View {
@@ -13,6 +14,19 @@ struct SettingsView: View {
                 } label: {
                     Label("通知設定", systemImage: "bell.badge.fill")
                         .foregroundStyle(Palette.textPrimary)
+                }
+            }
+
+            Section("保険チケット") {
+                rescueTicketRow
+                if rescueTicketStore.hasTicketAvailable(today: Date()) {
+                    Button {
+                        _ = rescueTicketStore.useTicket(on: Date())
+                    } label: {
+                        Label("今日に1枚使う", systemImage: "ticket.fill")
+                            .foregroundStyle(Palette.primaryDeep)
+                    }
+                    .accessibilityIdentifier("rescue-use-button-settings")
                 }
             }
 
@@ -59,6 +73,25 @@ struct SettingsView: View {
         .sheet(isPresented: $isShowingWidgetGuide) {
             WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
         }
+    }
+
+    private var rescueTicketRow: some View {
+        let available = rescueTicketStore.hasTicketAvailable(today: Date())
+        return HStack(spacing: 12) {
+            Image(systemName: available ? "ticket.fill" : "ticket")
+                .font(.system(size: 22))
+                .foregroundStyle(available ? Palette.primary : Palette.textSecondary.opacity(0.5))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(available ? "今月 1枚 残り" : "今月のチケットは使用済み")
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.textPrimary)
+                Text("忙しい日に1日だけ連続記録を守れます")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
     }
 
     private var widgetPromotionRow: some View {
