@@ -41,13 +41,18 @@ struct HomeView: View {
                             WeeklyHighlightCard(summary: viewModel.weeklySummary)
                         }
 
+                        LifetimeStatsCard(
+                            achievedDays: viewModel.lifetimeStats.achievedDays,
+                            usedDays: viewModel.lifetimeStats.usedDays
+                        )
+
                         CatMessageView(message: viewModel.catMessage, state: viewModel.catState)
                     }
                     .padding(20)
                 }
             }
             .navigationTitle("GOエクササイズ")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
@@ -108,9 +113,8 @@ struct HomeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("今日も少しずつ")
-                .font(Typography.title)
-                .foregroundStyle(Palette.textPrimary)
-                .minimumScaleFactor(0.8)
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textSecondary)
 
             HStack {
                 StreakBadgeView(streak: viewModel.streak.currentStreak) {

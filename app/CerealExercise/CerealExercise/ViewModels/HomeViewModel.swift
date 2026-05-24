@@ -16,6 +16,8 @@ final class HomeViewModel {
     var catMessage = CatMessage(emoji: "🐱", text: "今日も1分だけやってみよ？")
     var catState: CatState = .waitingMorning
     var streakExtendedThisRun = false
+    var lifetimeStats = LifetimeStatsCalculator.Stats(achievedDays: 0, usedDays: 1)
+    private let usageTracker = LifetimeUsageTracker()
 
     init(dateProvider: any DateProviding = SystemDateProvider(), calendar: Calendar = .mondayFirst) {
         self.dateProvider = dateProvider
@@ -44,6 +46,13 @@ final class HomeViewModel {
             calendar: calendar
         )
         catMessage = CatMessageProvider.message(for: catState, seedDate: today, calendar: calendar)
+        let firstUse = usageTracker.firstUseDate(records: records, fallback: today)
+        lifetimeStats = LifetimeStatsCalculator.calculate(
+            records: records,
+            firstUseDate: firstUse,
+            today: today,
+            calendar: calendar
+        )
     }
 
     private func yesterdayAchieved(records: [WorkoutRecord], today: Date) -> Bool {

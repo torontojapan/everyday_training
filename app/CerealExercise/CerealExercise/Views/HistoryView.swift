@@ -13,10 +13,12 @@ struct HistoryView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                MonthlyCalendarView(records: store.records, today: store.today)
+
                 if viewModel.groupedByDate.isEmpty {
                     EmptyStateView(message: "まだ記録がないよ。今日から始めよう")
-                        .padding(.top, 40)
+                        .padding(.top, 20)
                 } else {
                     ForEach(viewModel.groupedByDate.indices, id: \.self) { index in
                         let date = viewModel.groupedByDate[index].0
