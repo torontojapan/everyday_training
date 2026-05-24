@@ -1,0 +1,197 @@
+import SwiftUI
+
+struct StreakShareSheet: View {
+    let streak: Int
+    @Environment(\.dismiss) private var dismiss
+    @State private var renderedImage: Image?
+    @State private var renderedUIImage: UIImage?
+
+    private var level: StreakLevel { StreakLevel(streak: streak) }
+    private var appName: String { "シリアルエクササイズ" }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: level.gradientColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        StreakShareCard(streak: streak, appName: appName)
+                            .padding(.top, 24)
+
+                        if let renderedImage {
+                            ShareLink(
+                                item: renderedImage,
+                                preview: SharePreview(
+                                    "\(streak)日連続運動達成！",
+                                    image: renderedImage
+                                )
+                            ) {
+                                Label("SNSで共有", systemImage: "square.and.arrow.up")
+                                    .font(Typography.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 32)
+                                    .padding(.vertical, 14)
+                                    .background(.black.opacity(0.45), in: Capsule())
+                            }
+                        } else {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.vertical, 20)
+                        }
+
+                        if let uiImage = renderedUIImage {
+                            Button {
+                                saveToPhotos(uiImage)
+                            } label: {
+                                Label("写真に保存", systemImage: "photo.badge.plus")
+                                    .font(Typography.body)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 12)
+                                    .background(.white.opacity(0.2), in: Capsule())
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("達成記録")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("閉じる") { dismiss() }
+                        .foregroundStyle(.white)
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .task {
+                renderImage()
+            }
+        }
+    }
+
+    @MainActor
+    private func renderImage() {
+        let card = StreakShareCard(streak: streak, appName: appName)
+            .frame(width: 600, height: 800)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
+        if let uiImage = renderer.uiImage {
+            renderedUIImage = uiImage
+            renderedImage = Image(uiImage: uiImage)
+        }
+    }
+
+    private func saveToPhotos(_ image: UIImage) {
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+    }
+}
+
+struct StreakShareCard: View {
+    let streak: Int
+    let appName: String
+
+    private var level: StreakLevel { StreakLevel(streak: streak) }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            if let badge = level.badgeText {
+                Text(badge)
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .tracking(2)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.45), in: Capsule())
+            }
+
+            Text(level.headline)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 4) {
+                Text(String(repeating: "🔥", count: level.fireCount))
+                    .font(.system(size: 28))
+            }
+
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text("\(streak)")
+                    .font(.system(size: 110, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+                Text("日連続")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+
+            ZStack {
+                ForEach(0..<level.sparkleCount, id: \.self) { idx in
+                    sparkle(at: idx)
+                }
+                catImage
+                    .frame(width: 180, height: 180)
+            }
+            .frame(height: 220)
+
+            Text(appName)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.top, 8)
+
+            Text("CerealExercise")
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.7))
+                .tracking(1.5)
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity)
+        .background(
+            ZStack {
+                LinearGradient(
+                    colors: level.gradientColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(0.85)
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .strokeBorder(.white.opacity(0.35), lineWidth: 2)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 22, y: 10)
+    }
+
+    @ViewBuilder
+    private var catImage: some View {
+        if UIImage(named: level.catStateAssetName) != nil {
+            Image(level.catStateAssetName)
+                .resizable()
+                .scaledToFit()
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.45), lineWidth: 3))
+        } else {
+            Text(level.fallbackEmoji)
+                .font(.system(size: 100))
+        }
+    }
+
+    private func sparkle(at index: Int) -> some View {
+        let angle = Double(index) / Double(max(1, level.sparkleCount)) * 360
+        let radius: CGFloat = 110 + CGFloat(index % 3) * 12
+        let size: CGFloat = 12 + CGFloat(index % 4) * 4
+        return Text("✨")
+            .font(.system(size: size))
+            .offset(
+                x: cos(angle * .pi / 180) * radius,
+                y: sin(angle * .pi / 180) * radius
+            )
+    }
+}

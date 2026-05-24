@@ -20,6 +20,7 @@ private enum InitialRoute: String {
     case history
     case settings
     case notificationSettings = "notification-settings"
+    case streakShare = "streak-share"
 }
 
 private struct HomeRootView: View {
@@ -100,6 +101,13 @@ private struct HomeRootView: View {
             NavigationStack {
                 NotificationSettingsView()
             }
+        case .streakShare:
+            let streak = StreakCalculator.currentStreak(
+                records: store.records,
+                today: Date(),
+                calendar: .mondayFirst
+            )
+            StreakShareSheet(streak: max(1, streak))
         }
     }
 

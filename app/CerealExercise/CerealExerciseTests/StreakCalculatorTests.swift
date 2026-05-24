@@ -4,13 +4,13 @@ import XCTest
 final class StreakCalculatorTests: XCTestCase {
     private let calendar = Calendar.mondayFirst
 
-    func testCurrentStreakCountsTodayAchievement() {
+    func testCurrentStreakCountsOnlyAchievedDays() {
         let today = date(day: 20)
         let records = [record(day: 20), record(day: 19)]
 
         let streak = StreakCalculator.currentStreak(records: records, today: today, calendar: calendar)
 
-        XCTAssertEqual(streak, 3)
+        XCTAssertEqual(streak, 2, "Only actual workout days are counted")
     }
 
     func testCurrentStreakStopsAtThirdMissedDayInWeek() {
@@ -22,13 +22,15 @@ final class StreakCalculatorTests: XCTestCase {
         XCTAssertEqual(streak, 1)
     }
 
-    func testRestDaysMaintainStreak() {
+    func testRestDaysAreSkippedButStreakIsPreserved() {
+        // 5/20 achieved, 5/19 rest (auto), 5/18 achieved
+        // Streak = 2 (rest days do not count, but they do not break the streak)
         let today = date(day: 20)
         let records = [record(day: 20), record(day: 18)]
 
         let streak = StreakCalculator.currentStreak(records: records, today: today, calendar: calendar)
 
-        XCTAssertEqual(streak, 3)
+        XCTAssertEqual(streak, 2)
     }
 
     func testPendingTodayReturnsZeroWhenNoRecord() {
@@ -41,13 +43,15 @@ final class StreakCalculatorTests: XCTestCase {
     }
 
     func testStreakStateTracksLongestStreakAndLastAchievedDate() {
+        // 5/18, 5/20, 5/21 achieved; 5/19 rest (skipped).
+        // Streak preserved across the rest day → current=3, longest=3.
         let today = date(day: 21)
         let records = [record(day: 18), record(day: 20), record(day: 21)]
 
         let state = StreakCalculator.streakState(records: records, today: today, lookbackDays: 7, calendar: calendar)
 
-        XCTAssertEqual(state.currentStreak, 4)
-        XCTAssertEqual(state.longestStreak, 4)
+        XCTAssertEqual(state.currentStreak, 3)
+        XCTAssertEqual(state.longestStreak, 3)
         XCTAssertEqual(state.lastAchievedDate, today)
     }
 

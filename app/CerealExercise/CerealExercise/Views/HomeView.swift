@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var completedRecord: WorkoutRecord?
     @State private var completedStreakExtendedThisRun = false
     @State private var selectedDayEntry: DailyStatusEntry?
+    @State private var isShowingStreakShare = false
     private let calendar = Calendar.mondayFirst
 
     var body: some View {
@@ -98,6 +99,9 @@ struct HomeView: View {
                     status: entry.status
                 )
             }
+            .sheet(isPresented: $isShowingStreakShare) {
+                StreakShareSheet(streak: viewModel.streak.currentStreak)
+            }
         }
     }
 
@@ -109,7 +113,10 @@ struct HomeView: View {
                 .minimumScaleFactor(0.8)
 
             HStack {
-                StreakBadgeView(streak: viewModel.streak.currentStreak)
+                StreakBadgeView(streak: viewModel.streak.currentStreak) {
+                    guard viewModel.streak.currentStreak > 0 else { return }
+                    isShowingStreakShare = true
+                }
                 Spacer()
                 Text(remainingTimeText)
                     .font(Typography.caption)

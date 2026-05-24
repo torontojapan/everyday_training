@@ -26,15 +26,19 @@ enum StreakCalculator {
                 calendar: calendar
             )
 
-            if status == .achieved || status == .todayAchieved || status == .rest {
+            switch status {
+            case .achieved, .todayAchieved:
                 streak += 1
-                guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else {
-                    return streak
-                }
-                cursor = previous
-            } else {
+            case .rest:
+                break  // skip — does not count, but does not break the streak
+            default:
                 return streak
             }
+
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else {
+                return streak
+            }
+            cursor = previous
         }
     }
 
@@ -70,13 +74,14 @@ enum StreakCalculator {
                 calendar: calendar
             )
 
-            if status == .achieved || status == .todayAchieved || status == .rest {
+            switch status {
+            case .achieved, .todayAchieved:
                 running += 1
                 longest = max(longest, running)
-                if status == .achieved || status == .todayAchieved {
-                    lastAchievedDate = cursor
-                }
-            } else {
+                lastAchievedDate = cursor
+            case .rest:
+                break  // skip — running is preserved
+            default:
                 running = 0
             }
 
