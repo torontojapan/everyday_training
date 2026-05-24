@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConfettiView: View {
     private let pieces: [ConfettiPiece]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isFalling = false
 
     init(count: Int = 30) {
@@ -17,17 +18,19 @@ struct ConfettiView: View {
                         .frame(width: piece.size, height: piece.size)
                         .position(
                             x: geometry.size.width * piece.xRatio,
-                            y: isFalling ? geometry.size.height * piece.endYRatio : -24
+                            y: reduceMotion ? geometry.size.height * 0.18 : (isFalling ? geometry.size.height * piece.endYRatio : -24)
                         )
-                        .opacity(isFalling ? 0 : 1)
+                        .opacity(reduceMotion ? 0.45 : (isFalling ? 0 : 1))
                         .animation(
-                            .easeOut(duration: piece.duration).delay(piece.delay),
+                            Motion.animation(.easeOut(duration: piece.duration).delay(piece.delay), reduceMotion: reduceMotion),
                             value: isFalling
                         )
                 }
             }
             .onAppear {
-                isFalling = true
+                if !reduceMotion {
+                    isFalling = true
+                }
             }
         }
         .allowsHitTesting(false)

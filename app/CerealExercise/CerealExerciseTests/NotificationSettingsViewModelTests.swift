@@ -1,3 +1,4 @@
+import UserNotifications
 import XCTest
 @testable import CerealExercise
 
@@ -92,8 +93,13 @@ private final class NotificationSettingsSchedulerSpy: NotificationSettingsSchedu
 
 private final class NotificationPermissionManagerSpy: NotificationPermissionManaging {
     private(set) var requestCount = 0
+    var status: UNAuthorizationStatus = .authorized
 
     func requestAuthorizationIfNeeded() async {
         requestCount += 1
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        status
     }
 }

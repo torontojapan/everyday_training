@@ -11,6 +11,8 @@ final class HomeViewModel {
     var progress = WeeklyProgress(achievedCount: 0, totalDays: 7)
     var streak = StreakState(currentStreak: 0, longestStreak: 0, lastAchievedDate: nil)
     var todayStatus: DailyStatus = .todayPending
+    var todaySummary = ExerciseTrendSummary.DailySummary(categoryCounts: [:], exerciseCount: 0, totalDurationSeconds: 0)
+    var weeklySummary = ExerciseTrendSummary.WeeklySummary(usedCategories: [], totalDurationSeconds: 0, topExerciseNames: [])
     var catMessage = CatMessage(emoji: "🐱", text: "今日も1分だけやってみよ？")
     var catState: CatState = .waitingMorning
     var streakExtendedThisRun = false
@@ -27,6 +29,12 @@ final class HomeViewModel {
         progress = WeeklyProgressCalculator.progress(from: statuses)
         streak = StreakCalculator.streakState(records: records, today: today, calendar: calendar)
         todayStatus = statuses.first { calendar.isDate($0.date, inSameDayAs: today) }?.status ?? .todayPending
+        todaySummary = ExerciseTrendSummary.today(records: records, today: today, calendar: calendar)
+        if let week = calendar.dateInterval(of: .weekOfYear, for: today) {
+            weeklySummary = ExerciseTrendSummary.week(records: records, week: week, calendar: calendar)
+        } else {
+            weeklySummary = ExerciseTrendSummary.WeeklySummary(usedCategories: [], totalDurationSeconds: 0, topExerciseNames: [])
+        }
         self.streakExtendedThisRun = streakExtendedThisRun && streak.currentStreak > 1
         catState = CatStateResolver.resolve(
             todayStatus: todayStatus,

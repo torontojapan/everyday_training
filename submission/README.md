@@ -27,6 +27,59 @@
 
 3. iPad / 6.5" の場合は新規 Simulator を作成して同手順
 
+### 個別画面の direct launch (launch arg `--initial-route`)
+
+Phase 3.5 で initial-route 対応済み。直接特定画面で起動可能:
+
+```bash
+# 記録入力画面
+xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+  --seed-demo-data --no-notification-prompt --initial-route record
+
+# 履歴画面
+xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+  --seed-demo-data --no-notification-prompt --initial-route history
+
+# 設定画面
+xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+  --seed-demo-data --no-notification-prompt --initial-route settings
+
+# 通知設定画面
+xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+  --seed-demo-data --no-notification-prompt --initial-route notification-settings
+```
+
+### Widget スクショ撮影手順 (手動操作必須)
+
+`xcrun simctl` には UI tap 自動化が含まれないため、ホーム画面ウィジェットの追加は **Simulator 上で手動操作** が必要です。
+
+1. **デモモード起動 + Home Screen に戻る**
+   ```bash
+   xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise --seed-demo-data --no-notification-prompt
+   sleep 2
+   # アプリを kill して Home Screen を露出
+   xcrun simctl terminate "$DEVICE_UDID" com.serial.cerealexercise
+   ```
+   または Simulator のメニューバーで `Device > Home` (Cmd+Shift+H)
+
+2. **Widget Gallery を開く**
+   - ホーム画面の空白部分を **長押し** (option キー + ホールドで Long press シミュレート、または Simulator メニューの `Device > Touch > Long Press`)
+   - 左上の **「+」** ボタンをタップ
+
+3. **シリアルエクササイズを検索**
+   - 検索欄に `シリアル` または `Cereal` と入力
+   - Small / Medium / どちらかをタップ
+
+4. **「ウィジェットを追加」** をタップ
+
+5. **スクショ撮影**
+   ```bash
+   xcrun simctl io "$DEVICE_UDID" screenshot \
+     submission/screenshots/widgets/small_home.png
+   ```
+
+> Small Widget は今日の残り時間 + 円形プログレス (達成率) + 猫キャラ。Medium Widget は達成率の数字 + メッセージ + 猫。両方タップでアプリ起動 (要件 §24.6)。
+
 ## プライバシーポリシー URL のホスト
 
 GitHub Pages を使う場合 (リポジトリ Settings → Pages):

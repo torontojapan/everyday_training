@@ -29,6 +29,14 @@ struct HomeView: View {
                             WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar)
                         }
 
+                        if viewModel.todayStatus == .todayAchieved, viewModel.todaySummary.hasExerciseData {
+                            TodayAchievementSummaryCard(summary: viewModel.todaySummary)
+                        }
+
+                        if viewModel.weeklySummary.hasExerciseData {
+                            WeeklyHighlightCard(summary: viewModel.weeklySummary)
+                        }
+
                         CatMessageView(message: viewModel.catMessage, state: viewModel.catState)
                     }
                     .padding(20)

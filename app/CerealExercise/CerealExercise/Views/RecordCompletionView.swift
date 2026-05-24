@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordCompletionView: View {
     @Environment(WorkoutStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let record: WorkoutRecord
     let streakExtendedThisRun: Bool
 
@@ -10,6 +11,7 @@ struct RecordCompletionView: View {
     @State private var streakPulse = false
     @State private var showsConfetti = true
     @State private var fireBurst = false
+    private let hapticFeedback = HapticFeedbackController()
 
     init(record: WorkoutRecord, streakExtendedThisRun: Bool = false) {
         self.record = record
@@ -66,12 +68,12 @@ struct RecordCompletionView: View {
                 .padding(20)
             }
 
-            if showsConfetti {
+            if showsConfetti && !reduceMotion {
                 ConfettiView()
                     .transition(.opacity)
             }
 
-            if streakExtendedThisRun {
+            if streakExtendedThisRun && !reduceMotion {
                 fireOverlay
             }
         }
@@ -79,13 +81,14 @@ struct RecordCompletionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             store.fetchRecords()
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {
+            hapticFeedback.success()
+            withAnimation(Motion.animation(.spring(response: 0.45, dampingFraction: 0.72), reduceMotion: reduceMotion)) {
                 contentVisible = true
             }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true)) {
+            withAnimation(Motion.animation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true), reduceMotion: reduceMotion)) {
                 streakPulse = true
             }
-            withAnimation(Motion.bouncy.repeatCount(3, autoreverses: true)) {
+            withAnimation(Motion.animation(Motion.bouncy.repeatCount(3, autoreverses: true), reduceMotion: reduceMotion)) {
                 fireBurst = true
             }
             Task { @MainActor in

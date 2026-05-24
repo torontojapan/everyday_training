@@ -67,6 +67,12 @@ final class RecordEntryViewModel {
         drafts.append(ExerciseDraft())
     }
 
+    func resetAfterSave() {
+        drafts = [ExerciseDraft()]
+        memo = ""
+        validationMessage = nil
+    }
+
     func updateHistoryProvider(store: WorkoutStore) {
         historyProvider = ExerciseHistoryProvider(store: store)
     }

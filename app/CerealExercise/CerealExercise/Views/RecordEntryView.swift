@@ -4,6 +4,9 @@ struct RecordEntryView: View {
     @Environment(WorkoutStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = RecordEntryViewModel()
+    @State private var pendingSavedRecord: WorkoutRecord?
+    @State private var isShowingSaveOptions = false
+    private let hapticFeedback = HapticFeedbackController()
     let onSaved: (WorkoutRecord) -> Void
 
     var body: some View {
@@ -35,6 +38,12 @@ struct RecordEntryView: View {
                         )
                     }
 
+                    if viewModel.suggestions(for: viewModel.selectedCategory).isEmpty {
+                        Text("履歴がたまると、ここによく使う種目が出ます")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+
                     Button {
                         viewModel.addExercise()
                     } label: {
@@ -59,7 +68,11 @@ struct RecordEntryView: View {
                 Section {
                     PrimaryButton("保存", systemImage: "checkmark.circle.fill") {
                         if let record = viewModel.save(to: store) {
-                            onSaved(record)
+                            hapticFeedback.success()
+                            pendingSavedRecord = record
+                            isShowingSaveOptions = true
+                        } else {
+                            hapticFeedback.warning()
                         }
                     }
                     .disabled(!viewModel.canSave)
@@ -71,6 +84,21 @@ struct RecordEntryView: View {
             .background(Palette.background)
             .navigationTitle("今日の記録")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog("保存しました", isPresented: $isShowingSaveOptions, titleVisibility: .visible, presenting: pendingSavedRecord) { record in
+                Button("続けて記録") {
+                    viewModel.resetAfterSave()
+                    pendingSavedRecord = nil
+                }
+                Button("完了画面を開く") {
+                    onSaved(record)
+                    pendingSavedRecord = nil
+                }
+                Button("キャンセル", role: .cancel) {
+                    pendingSavedRecord = nil
+                }
+            } message: { _ in
+                Text("次の操作を選んでください")
+            }
             .onAppear {
                 viewModel.updateHistoryProvider(store: store)
             }

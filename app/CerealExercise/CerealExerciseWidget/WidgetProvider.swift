@@ -15,18 +15,9 @@ struct WidgetProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<WidgetEntry>) -> Void) {
         let now = Date()
         let snapshot = store.read()
-        let oneHourLater = calendar.date(byAdding: .hour, value: 1, to: now) ?? now
-        let endOfDay = endOfDayMinusOneMinute(from: now)
-        let entries = [now, oneHourLater, endOfDay].map { date in
+        let entries = WidgetTimelineDates.entryDates(from: now, calendar: calendar).map { date in
             WidgetEntry(date: date, snapshot: snapshot)
         }
-
         completion(Timeline(entries: entries, policy: .atEnd))
-    }
-
-    private func endOfDayMinusOneMinute(from date: Date) -> Date {
-        let start = calendar.startOfDay(for: date)
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: start) ?? date
-        return calendar.date(byAdding: .minute, value: -1, to: tomorrow) ?? date
     }
 }

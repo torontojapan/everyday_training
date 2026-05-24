@@ -43,6 +43,7 @@ targets:
       - path: CerealExercise/Models/CatState.swift
       - path: CerealExercise/Models/WidgetSnapshot.swift
       - path: CerealExercise/Services/SharedSnapshotStore.swift
+      - path: CerealExercise/Services/WidgetTimelineDates.swift
     info:
       path: CerealExerciseWidget/Info.plist
       properties:

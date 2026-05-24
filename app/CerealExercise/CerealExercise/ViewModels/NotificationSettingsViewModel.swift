@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 @MainActor
 protocol NotificationSettingsScheduling: AnyObject {
@@ -34,6 +35,7 @@ final class NotificationSettingsViewModel {
     private(set) var notificationCount: Int
     private(set) var firstTime: Date
     private(set) var secondTime: Date
+    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
     init(
         store: NotificationSettingsStore = NotificationSettingsStore(),
@@ -60,6 +62,14 @@ final class NotificationSettingsViewModel {
         Calendar.current.dateComponents([.hour, .minute], from: secondTime)
     }
 
+    var shouldShowPermissionWarning: Bool {
+        authorizationStatus == .denied || authorizationStatus == .notDetermined
+    }
+
+    func refreshAuthorizationStatus() async {
+        authorizationStatus = await permissionManager.authorizationStatus()
+    }
+
     func setEnabled(_ enabled: Bool) async {
         isEnabled = enabled
         if enabled {
@@ -67,6 +77,7 @@ final class NotificationSettingsViewModel {
                 notificationCount = 1
             }
             await permissionManager.requestAuthorizationIfNeeded()
+            await refreshAuthorizationStatus()
         } else {
             notificationCount = 0
         }
@@ -78,6 +89,7 @@ final class NotificationSettingsViewModel {
         isEnabled = notificationCount > 0
         if isEnabled {
             await permissionManager.requestAuthorizationIfNeeded()
+            await refreshAuthorizationStatus()
         }
         await persistAndApply()
     }

@@ -1,21 +1,27 @@
 import SwiftUI
-import UIKit
 
 struct PrimaryButton: View {
     let title: String
     let systemImage: String?
     let action: () -> Void
+    private let hapticFeedback: any HapticFeedbackProviding
     @GestureState private var isPressed = false
 
-    init(_ title: String, systemImage: String? = nil, action: @escaping () -> Void) {
+    init(
+        _ title: String,
+        systemImage: String? = nil,
+        hapticFeedback: any HapticFeedbackProviding = HapticFeedback(),
+        action: @escaping () -> Void
+    ) {
         self.title = title
         self.systemImage = systemImage
+        self.hapticFeedback = hapticFeedback
         self.action = action
     }
 
     var body: some View {
         Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+            hapticFeedback.tap()
             action()
         } label: {
             Label(title, systemImage: systemImage ?? "checkmark.circle.fill")

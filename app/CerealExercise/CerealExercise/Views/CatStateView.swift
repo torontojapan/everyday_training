@@ -4,6 +4,7 @@ import UIKit
 struct CatStateView: View {
     let state: CatState
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAnimated = false
 
     var body: some View {
@@ -14,11 +15,12 @@ struct CatStateView: View {
             Circle()
                 .strokeBorder(borderColor, lineWidth: 2)
         }
-        .offset(y: verticalOffset)
-        .scaleEffect(scale)
-        .rotationEffect(.degrees(rotation))
+        .offset(y: Motion.offset(verticalOffset, reduceMotion: reduceMotion))
+        .scaleEffect(Motion.scale(scale, reduceMotion: reduceMotion))
+        .rotationEffect(.degrees(Motion.rotation(rotation, reduceMotion: reduceMotion)))
         .accessibilityLabel("猫キャラクター \(state.displayName)")
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(animation.repeatForever(autoreverses: true)) {
                 isAnimated = true
             }

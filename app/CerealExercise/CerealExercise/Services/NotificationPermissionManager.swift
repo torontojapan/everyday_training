@@ -6,6 +6,7 @@ extension UNNotificationSettings: @retroactive @unchecked Sendable {}
 @MainActor
 protocol NotificationPermissionManaging: AnyObject {
     func requestAuthorizationIfNeeded() async
+    func authorizationStatus() async -> UNAuthorizationStatus
 }
 
 @MainActor

@@ -1,10 +1,19 @@
 import SwiftUI
+import UIKit
 
 struct NotificationSettingsView: View {
+    @Environment(\.openURL) private var openURL
     @State private var viewModel = NotificationSettingsViewModel()
 
     var body: some View {
         Form {
+            if viewModel.shouldShowPermissionWarning {
+                Section {
+                    permissionWarningBanner
+                }
+                .listRowBackground(Color.clear)
+            }
+
             Section("通知") {
                 Toggle("通知ON/OFF", isOn: enabledBinding)
 
@@ -17,10 +26,10 @@ struct NotificationSettingsView: View {
             }
 
             Section("通知時間") {
-                DatePicker("通知時間1", selection: firstTimeBinding, displayedComponents: .hourAndMinute)
+                timePickerRow(title: "通知時間1", selection: firstTimeBinding)
 
                 if viewModel.notificationCount > 1 {
-                    DatePicker("通知時間2", selection: secondTimeBinding, displayedComponents: .hourAndMinute)
+                    timePickerRow(title: "通知時間2", selection: secondTimeBinding)
                 }
             }
 
@@ -34,6 +43,44 @@ struct NotificationSettingsView: View {
         .background(Palette.background)
         .navigationTitle("通知設定")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.refreshAuthorizationStatus()
+        }
+    }
+
+    private var permissionWarningBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("通知が許可されていません", systemImage: "exclamationmark.triangle.fill")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.primaryDeep)
+
+            Text("リマインドを受け取るには、iOSの設定で通知を許可してください。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+
+            Button {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                openURL(url)
+            } label: {
+                Label("設定アプリを開く", systemImage: "gearshape.fill")
+                    .font(Typography.caption)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func timePickerRow(title: String, selection: Binding<Date>) -> some View {
+        HStack(spacing: 8) {
+            DatePicker(title, selection: selection, displayedComponents: .hourAndMinute)
+                .datePickerStyle(.compact)
+
+            Image(systemName: "chevron.right")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .accessibilityHidden(true)
+        }
     }
 
     private var enabledBinding: Binding<Bool> {

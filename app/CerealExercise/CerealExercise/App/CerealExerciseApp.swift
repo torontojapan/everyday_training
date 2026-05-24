@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 @main
 struct CerealExerciseApp: App {
@@ -68,8 +69,13 @@ private struct HomeRootView: View {
     private func routedView(store: WorkoutStore) -> some View {
         switch initialRoute {
         case .home:
-            HomeView()
-                .environment(store)
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                RootSplitView()
+                    .environment(store)
+            } else {
+                HomeView()
+                    .environment(store)
+            }
         case .record:
             NavigationStack {
                 RecordEntryView { _ in }
