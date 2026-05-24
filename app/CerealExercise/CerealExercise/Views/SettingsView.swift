@@ -17,6 +17,16 @@ struct SettingsView: View {
                 }
             }
 
+            Section("体重管理") {
+                NavigationLink {
+                    WeightView()
+                } label: {
+                    Label("体重を記録・グラフで見る", systemImage: "scalemass.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("weight-link")
+            }
+
             Section("保険チケット") {
                 rescueTicketRow
                 if rescueTicketStore.hasTicketAvailable(today: Date()) {

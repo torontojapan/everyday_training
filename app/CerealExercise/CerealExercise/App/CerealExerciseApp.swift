@@ -10,7 +10,7 @@ struct CerealExerciseApp: App {
         WindowGroup {
             HomeRootView(scenePhase: scenePhase)
         }
-        .modelContainer(for: WorkoutRecord.self)
+        .modelContainer(for: [WorkoutRecord.self, WeightEntry.self])
     }
 }
 

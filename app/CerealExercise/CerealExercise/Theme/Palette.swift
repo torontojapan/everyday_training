@@ -21,6 +21,7 @@ enum Palette {
         case .strength: primaryDeep
         case .yoga: Color(red: 0.58, green: 0.55, blue: 0.82)
         case .stretch: Color(red: 0.42, green: 0.66, blue: 0.52)
+        case .fasciaRelease: Color(red: 0.85, green: 0.55, blue: 0.40)
         case .other: historyAccent
         }
     }

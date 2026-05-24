@@ -51,6 +51,17 @@ enum DefaultExerciseSuggestions {
                 "股関節ストレッチ",
                 "背中ストレッチ"
             ]
+        case .fasciaRelease:
+            return [
+                "フォームローラー (背中)",
+                "フォームローラー (太もも)",
+                "フォームローラー (ふくらはぎ)",
+                "テニスボール (肩甲骨)",
+                "テニスボール (足裏)",
+                "ボール (お尻)",
+                "首・肩ほぐし",
+                "腰回り"
+            ]
         case .other:
             return []
         }
