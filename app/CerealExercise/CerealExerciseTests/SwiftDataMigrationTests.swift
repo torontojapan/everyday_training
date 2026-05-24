@@ -79,7 +79,7 @@ final class SwiftDataMigrationTests: XCTestCase {
 
 private enum TestMigration {
     enum V1: VersionedSchema {
-        static let versionIdentifier = Schema.Version(1, 0, 0)
+        nonisolated(unsafe) static let versionIdentifier = Schema.Version(1, 0, 0)
         static var models: [any PersistentModel.Type] { [WorkoutSample.self] }
 
         @Model
@@ -94,7 +94,7 @@ private enum TestMigration {
     }
 
     enum V2: VersionedSchema {
-        static let versionIdentifier = Schema.Version(2, 0, 0)
+        nonisolated(unsafe) static let versionIdentifier = Schema.Version(2, 0, 0)
         static var models: [any PersistentModel.Type] { [WorkoutSample.self] }
 
         @Model
