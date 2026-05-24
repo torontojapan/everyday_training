@@ -184,7 +184,7 @@ struct StreakShareCard: View {
                 .foregroundStyle(.white.opacity(0.92))
                 .padding(.top, 8)
 
-            Text("CerealExercise")
+            Text("GO Exercise")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))
                 .tracking(1.5)
