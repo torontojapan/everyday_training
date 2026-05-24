@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var monthlyReview: MonthlyReviewBuilder.Review?
     @State private var presentedMilestone: Milestone?
     private let calendar = Calendar.mondayFirst
+    private let monthlyReviewTracker = MonthlyReviewTracker()
 
     var body: some View {
         NavigationStack {
@@ -20,24 +21,21 @@ struct HomeView: View {
                 Palette.background.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 20) {
                         header
+
+                        // Cat front-and-center so users greet 猫 first thing.
+                        CatMessageView(
+                            message: viewModel.catMessage,
+                            state: viewModel.catState,
+                            decoration: viewModel.catDecoration
+                        )
 
                         PrimaryButton("今日の運動を記録する", systemImage: "plus.circle.fill") {
                             isShowingEntry = true
                         }
 
-                        rescueTicketRow
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("今週 \(viewModel.progress.achievedCount)/\(viewModel.progress.totalDays) 達成")
-                                .font(Typography.headline)
-                                .foregroundStyle(Palette.textPrimary)
-
-                            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
-                                selectedDayEntry = entry
-                            }
-                        }
+                        weeklyCalendarSection
 
                         if viewModel.todayStatus == .todayAchieved, viewModel.todaySummary.hasExerciseData {
                             TodayAchievementSummaryCard(summary: viewModel.todaySummary)
@@ -52,22 +50,17 @@ struct HomeView: View {
                             usedDays: viewModel.lifetimeStats.usedDays
                         )
 
-                        decorationRow
+                        RewardCard(
+                            decoration: viewModel.catDecoration,
+                            ticketAvailable: viewModel.rescueTicketAvailable,
+                            onUseTicket: {
+                                _ = viewModel.useRescueTicketToday()
+                                viewModel.refresh(records: store.records)
+                            },
+                            showUseTicketButton: viewModel.todayStatus == .todayPending
+                        )
 
-                        Button {
-                            buildAndPresentMonthlyReview()
-                        } label: {
-                            Label("先月のレビューを見る", systemImage: "doc.text.image")
-                                .font(Typography.body)
-                                .foregroundStyle(Palette.primaryDeep)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("monthly-review-button")
-
-                        CatMessageView(message: viewModel.catMessage, state: viewModel.catState, decoration: viewModel.catDecoration)
+                        monthlyReviewEntry
                     }
                     .padding(20)
                 }
@@ -102,9 +95,7 @@ struct HomeView: View {
             .onAppear {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records)
-                if presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
-                    presentedMilestone = milestone
-                }
+                handleAutoPresentations()
             }
             .sheet(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records)
@@ -125,8 +116,15 @@ struct HomeView: View {
                 .environment(store)
             }
             .navigationDestination(item: $completedRecord) { record in
-                RecordCompletionView(record: record, streakExtendedThisRun: completedStreakExtendedThisRun)
-                    .environment(store)
+                RecordCompletionView(
+                    record: record,
+                    streakExtendedThisRun: completedStreakExtendedThisRun,
+                    onRecordAnother: {
+                        completedRecord = nil
+                        isShowingEntry = true
+                    }
+                )
+                .environment(store)
             }
             .sheet(item: $selectedDayEntry) { entry in
                 DayDetailSheet(
@@ -164,82 +162,68 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("今日も少しずつ")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.textSecondary)
-
-            HStack {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("今日も少しずつ")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textSecondary)
                 StreakBadgeView(streak: viewModel.streak.currentStreak) {
                     guard viewModel.streak.currentStreak > 0 else { return }
                     isShowingStreakShare = true
                 }
-                Spacer()
-                Text(remainingTimeText)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Palette.surface, in: Capsule())
-            }
-        }
-    }
-
-    private var rescueTicketRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: viewModel.rescueTicketAvailable ? "ticket.fill" : "ticket")
-                .foregroundStyle(viewModel.rescueTicketAvailable ? Palette.primary : Palette.textSecondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(viewModel.rescueTicketAvailable ? "今月の保険チケット 1枚" : "今月のチケットは使用済み")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textPrimary)
-                Text("忙しい日も連続記録を 1日だけ守れます")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
             }
             Spacer()
-            if viewModel.rescueTicketAvailable, viewModel.todayStatus == .todayPending {
-                Button("今日に使う") {
-                    _ = viewModel.useRescueTicketToday()
-                    viewModel.refresh(records: store.records)
-                }
+            Text(remainingTimeText)
                 .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Palette.primary, in: Capsule())
-                .foregroundStyle(.white)
-                .accessibilityIdentifier("rescue-use-button")
-            }
+                .padding(.vertical, 8)
+                .background(Palette.surface, in: Capsule())
         }
-        .padding(14)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var decorationRow: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(viewModel.catDecoration.accentColor.opacity(0.2))
-                    .frame(width: 44, height: 44)
-                if !viewModel.catDecoration.symbolName.isEmpty {
-                    Image(systemName: viewModel.catDecoration.symbolName)
-                        .foregroundStyle(viewModel.catDecoration.accentColor)
-                } else {
-                    Text("🐱").font(.system(size: 22))
-                }
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("現在の装飾: \(viewModel.catDecoration.displayName)")
-                    .font(Typography.body)
+    private var weeklyCalendarSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("今週")
+                    .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
-                Text(viewModel.catDecoration.unlockHint)
-                    .font(Typography.caption)
+                Spacer()
+                Text("\(viewModel.progress.achievedCount) / \(viewModel.progress.totalDays) 日達成")
+                    .font(Typography.body)
                     .foregroundStyle(Palette.textSecondary)
             }
-            Spacer()
+            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
+                selectedDayEntry = entry
+            }
         }
-        .padding(14)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var monthlyReviewEntry: some View {
+        Button {
+            buildAndPresentMonthlyReview()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "doc.text.image")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("先月のレビューを見る")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("一ヶ月のがんばりをカードでサマリー、SNSでもシェアできます")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("monthly-review-button")
     }
 
     private var remainingTimeText: String {
@@ -253,6 +237,20 @@ struct HomeView: View {
         let previousMonth = calendar.date(byAdding: .month, value: -1, to: today) ?? today
         monthlyReview = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, calendar: calendar)
         isShowingMonthlyReview = true
+        monthlyReviewTracker.markPresented(today: today)
+    }
+
+    private func handleAutoPresentations() {
+        let skipAuto = ProcessInfo.processInfo.arguments.contains("--skip-milestones")
+        if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
+            presentedMilestone = milestone
+            return  // show one auto-sheet at a time
+        }
+        if !skipAuto, presentedMilestone == nil,
+           monthlyReviewTracker.shouldAutoPresent(today: store.today) {
+            // Auto-present last month's review on the first home appearance of a new month.
+            buildAndPresentMonthlyReview()
+        }
     }
 }
 

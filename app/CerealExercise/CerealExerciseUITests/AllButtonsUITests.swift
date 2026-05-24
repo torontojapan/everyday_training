@@ -35,7 +35,7 @@ final class AllButtonsUITests: XCTestCase {
 
     private func launchApp(scenario: String = "long-streak", route: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
-        var args = ["--seed-demo-data", "--no-notification-prompt", "--seed-scenario", scenario]
+        var args = ["--seed-demo-data", "--no-notification-prompt", "--skip-milestones", "--seed-scenario", scenario]
         if let route {
             args.append(contentsOf: ["--initial-route", route])
         }

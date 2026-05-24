@@ -6,6 +6,7 @@ struct RecordCompletionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let record: WorkoutRecord
     let streakExtendedThisRun: Bool
+    let onRecordAnother: (() -> Void)?
 
     @State private var contentVisible = false
     @State private var streakPulse = false
@@ -13,9 +14,14 @@ struct RecordCompletionView: View {
     @State private var fireBurst = false
     private let hapticFeedback = HapticFeedbackController()
 
-    init(record: WorkoutRecord, streakExtendedThisRun: Bool = false) {
+    init(
+        record: WorkoutRecord,
+        streakExtendedThisRun: Bool = false,
+        onRecordAnother: (() -> Void)? = nil
+    ) {
         self.record = record
         self.streakExtendedThisRun = streakExtendedThisRun
+        self.onRecordAnother = onRecordAnother
     }
 
     private var streak: Int {
@@ -60,6 +66,25 @@ struct RecordCompletionView: View {
 
                     StreakBadgeView(streak: streak)
                         .scaleEffect(streakPulse ? 1.18 : 1)
+
+                    if let onRecordAnother {
+                        Button {
+                            onRecordAnother()
+                        } label: {
+                            Label("もう一種目を記録する", systemImage: "plus.circle")
+                                .font(Typography.headline)
+                                .foregroundStyle(Palette.primaryDeep)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(Palette.primary.opacity(0.5), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("record-another-button")
+                    }
 
                     PrimaryButton("ホームへ戻る", systemImage: "house.fill") {
                         dismiss()

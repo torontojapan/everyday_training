@@ -88,20 +88,11 @@ enum DemoDataSeeder {
     }
 
     private static func seedStreakBroken(context: ModelContext, todayStart: Date, calendar: Calendar) {
-        // 3 週間前から 2 週間前は連続達成
+        // 3 週間前から 2 週間前は連続達成、今週は完全に空にして streak を確実に切る。
+        // (今日が月曜のときに月曜だけ achieved で streak=1 になってしまうのを避ける)
         for offset in 14...20 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
             insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
-        }
-        // 今週: 月火だけ達成、水〜日は空 → 週3回未記録で streak 途切れ
-        let week = calendar.weekInterval(containing: todayStart)
-        guard let monday = calendar.date(byAdding: .day, value: 0, to: week.start),
-              let tuesday = calendar.date(byAdding: .day, value: 1, to: week.start) else { return }
-        if monday <= todayStart {
-            insertRecord(context: context, date: monday, templateIndex: 0, calendar: calendar)
-        }
-        if tuesday <= todayStart {
-            insertRecord(context: context, date: tuesday, templateIndex: 1, calendar: calendar)
         }
     }
 
