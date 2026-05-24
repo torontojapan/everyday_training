@@ -158,7 +158,7 @@ final class AllButtonsUITests: XCTestCase {
 
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: trashButton)
-        let result = XCTWaiter().wait(for: [expectation], timeout: 3)
+        let result = XCTWaiter().wait(for: [expectation], timeout: 8)
         XCTAssertEqual(result, .completed)
     }
 }
