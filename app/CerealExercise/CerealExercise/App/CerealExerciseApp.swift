@@ -23,10 +23,16 @@ private enum InitialRoute: String {
     case streakShare = "streak-share"
 }
 
+@MainActor
+@Observable
+private final class RouteState {
+    var override: InitialRoute? = nil
+}
+
 private struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store: WorkoutStore?
-    @State private var routeOverride: InitialRoute?
+    @State private var routeState = RouteState()
     let scenePhase: ScenePhase
 
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
@@ -75,7 +81,7 @@ private struct HomeRootView: View {
 
     @ViewBuilder
     private func routedView(store: WorkoutStore) -> some View {
-        let activeRoute = routeOverride ?? initialRoute
+        let activeRoute = routeState.override ?? initialRoute
         switch activeRoute {
         case .home:
             if UIDevice.current.userInterfaceIdiom == .pad {
@@ -91,13 +97,15 @@ private struct HomeRootView: View {
                     .environment(store)
             }
         case .history:
+            let state = routeState
             NavigationStack {
-                HistoryView()
+                HistoryView(onClose: { state.override = .home })
                     .environment(store)
             }
         case .settings:
+            let state = routeState
             NavigationStack {
-                SettingsView()
+                SettingsView(onClose: { state.override = .home })
             }
         case .notificationSettings:
             NavigationStack {
@@ -109,13 +117,14 @@ private struct HomeRootView: View {
                 today: Date(),
                 calendar: .mondayFirst
             )
+            let state = routeState
             StreakShareSheet(
                 streak: max(1, streak),
                 isPresented: Binding(
-                    get: { activeRoute == .streakShare },
+                    get: { (state.override ?? initialRoute) == .streakShare },
                     set: { isPresented in
                         if !isPresented {
-                            routeOverride = .home
+                            state.override = .home
                         }
                     }
                 )

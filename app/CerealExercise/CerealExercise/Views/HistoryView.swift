@@ -5,6 +5,7 @@ struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = HistoryViewModel()
     @State private var selectedDay: SelectedDay?
+    var onClose: (() -> Void)? = nil
 
     private let calendar = Calendar.mondayFirst
     private let dateFormatter: DateFormatter = {
@@ -56,7 +57,11 @@ struct HistoryView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    dismiss()
+                    if let onClose {
+                        onClose()
+                    } else {
+                        dismiss()
+                    }
                 } label: {
                     Label("ホーム", systemImage: "chevron.left")
                         .labelStyle(.titleAndIcon)
