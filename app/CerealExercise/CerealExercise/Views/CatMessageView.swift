@@ -3,15 +3,17 @@ import SwiftUI
 struct CatMessageView: View {
     let message: CatMessage
     let state: CatState
+    let decoration: CatDecoration
 
-    init(message: CatMessage, state: CatState = .waitingMorning) {
+    init(message: CatMessage, state: CatState = .waitingMorning, decoration: CatDecoration = .none) {
         self.message = message
         self.state = state
+        self.decoration = decoration
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            CatStateView(state: state)
+            CatStateView(state: state, decoration: decoration)
 
             Text("「\(message.text)」")
                 .font(Typography.body)

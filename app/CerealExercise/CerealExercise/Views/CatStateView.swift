@@ -3,6 +3,7 @@ import UIKit
 
 struct CatStateView: View {
     let state: CatState
+    var decoration: CatDecoration = .none
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAnimated = false
@@ -29,15 +30,18 @@ struct CatStateView: View {
 
     @ViewBuilder
     private var character: some View {
-        let assetName = "cat_\(state.rawValue)"
-        if UIImage(named: assetName) != nil {
-            Image(assetName)
-                .resizable()
-                .scaledToFit()
-                .padding(8)
-        } else {
-            Text(state.emoji)
-                .font(.system(size: state == .streakExtended ? 40 : 46))
+        ZStack {
+            let assetName = "cat_\(state.rawValue)"
+            if UIImage(named: assetName) != nil {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(8)
+            } else {
+                Text(state.emoji)
+                    .font(.system(size: state == .streakExtended ? 40 : 46))
+            }
+            CatDecorationOverlay(decoration: decoration)
         }
     }
 

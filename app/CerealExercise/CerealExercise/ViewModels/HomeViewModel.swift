@@ -17,7 +17,14 @@ final class HomeViewModel {
     var catState: CatState = .waitingMorning
     var streakExtendedThisRun = false
     var lifetimeStats = LifetimeStatsCalculator.Stats(achievedDays: 0, usedDays: 1)
+    var catDecoration: CatDecoration = .none
+    var achievements: [Achievement] = []
+    var rescueTicketAvailable = true
+    var pendingMilestone: Milestone?
+    var firstUseDate: Date = Date()
     private let usageTracker = LifetimeUsageTracker()
+    private let rescueTicketStore = RescueTicketStore()
+    private let milestoneDetector = MilestoneDetector()
 
     init(dateProvider: any DateProviding = SystemDateProvider(), calendar: Calendar = .mondayFirst) {
         self.dateProvider = dateProvider
@@ -47,12 +54,40 @@ final class HomeViewModel {
         )
         catMessage = CatMessageProvider.message(for: catState, seedDate: today, calendar: calendar)
         let firstUse = usageTracker.firstUseDate(records: records, fallback: today)
+        firstUseDate = firstUse
         lifetimeStats = LifetimeStatsCalculator.calculate(
             records: records,
             firstUseDate: firstUse,
             today: today,
             calendar: calendar
         )
+        catDecoration = CatDecoration(totalAchievedDays: lifetimeStats.achievedDays)
+        achievements = AchievementCatalog.evaluate(
+            records: records,
+            streak: streak,
+            lifetime: lifetimeStats,
+            calendar: calendar
+        )
+        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today)
+        pendingMilestone = milestoneDetector.nextPending(
+            records: records,
+            firstUseDate: firstUse,
+            today: today,
+            lifetimeAchieved: lifetimeStats.achievedDays,
+            currentStreak: streak.currentStreak
+        )
+    }
+
+    func acknowledgeMilestone(_ milestone: Milestone) {
+        milestoneDetector.acknowledge(milestone)
+        pendingMilestone = nil
+    }
+
+    func useRescueTicketToday() -> Bool {
+        let today = calendar.startOfDay(for: dateProvider.currentDate())
+        let used = rescueTicketStore.useTicket(on: today)
+        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today)
+        return used
     }
 
     private func yesterdayAchieved(records: [WorkoutRecord], today: Date) -> Bool {
