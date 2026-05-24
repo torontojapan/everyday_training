@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(WorkoutStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = HistoryViewModel()
     @State private var selectedDay: SelectedDay?
 
@@ -51,6 +52,19 @@ struct HistoryView: View {
         .background(Palette.background)
         .navigationTitle("履歴")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("ホーム", systemImage: "chevron.left")
+                        .labelStyle(.titleAndIcon)
+                        .font(Typography.body)
+                }
+                .accessibilityLabel("ホームへ戻る")
+            }
+        }
         .onAppear {
             store.fetchRecords()
             viewModel.refresh(records: store.records)

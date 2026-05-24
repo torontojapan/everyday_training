@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var isShowingWidgetGuide = false
 
     var body: some View {
@@ -37,6 +38,19 @@ struct SettingsView: View {
         .background(Palette.background)
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("ホーム", systemImage: "chevron.left")
+                        .labelStyle(.titleAndIcon)
+                        .font(Typography.body)
+                }
+                .accessibilityLabel("ホームへ戻る")
+            }
+        }
         .sheet(isPresented: $isShowingWidgetGuide) {
             WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
         }
