@@ -5,74 +5,96 @@ struct StreakShareSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
+    @State private var saveBannerText: String?
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     private var appName: String { "シリアルエクササイズ" }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: level.gradientColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        ZStack(alignment: .top) {
+            LinearGradient(
+                colors: level.gradientColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        StreakShareCard(streak: streak, appName: appName)
-                            .padding(.top, 24)
+            ScrollView {
+                VStack(spacing: 24) {
+                    Spacer().frame(height: 56)
 
-                        if let renderedImage {
-                            ShareLink(
-                                item: renderedImage,
-                                preview: SharePreview(
-                                    "\(streak)日連続運動達成！",
-                                    image: renderedImage
-                                )
-                            ) {
-                                Label("SNSで共有", systemImage: "square.and.arrow.up")
-                                    .font(Typography.headline)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 32)
-                                    .padding(.vertical, 14)
-                                    .background(.black.opacity(0.45), in: Capsule())
-                            }
-                        } else {
-                            ProgressView()
-                                .tint(.white)
-                                .padding(.vertical, 20)
+                    StreakShareCard(streak: streak, appName: appName)
+
+                    if let renderedImage {
+                        ShareLink(
+                            item: renderedImage,
+                            preview: SharePreview(
+                                "\(streak)日連続運動達成!",
+                                image: renderedImage
+                            )
+                        ) {
+                            Label("SNSで共有", systemImage: "square.and.arrow.up")
+                                .font(Typography.headline)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 14)
+                                .background(.black.opacity(0.45), in: Capsule())
                         }
+                    } else {
+                        ProgressView()
+                            .tint(.white)
+                            .padding(.vertical, 20)
+                    }
 
-                        if let uiImage = renderedUIImage {
-                            Button {
-                                saveToPhotos(uiImage)
-                            } label: {
-                                Label("写真に保存", systemImage: "photo.badge.plus")
-                                    .font(Typography.body)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 28)
-                                    .padding(.vertical, 12)
-                                    .background(.white.opacity(0.2), in: Capsule())
-                            }
+                    if let uiImage = renderedUIImage {
+                        Button {
+                            saveToPhotos(uiImage)
+                        } label: {
+                            Label("写真に保存", systemImage: "photo.badge.plus")
+                                .font(Typography.body)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 28)
+                                .padding(.vertical, 12)
+                                .background(.white.opacity(0.2), in: Capsule())
                         }
                     }
-                    .padding(20)
+
+                    if let saveBannerText {
+                        Text(saveBannerText)
+                            .font(Typography.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(.black.opacity(0.45), in: Capsule())
+                    }
+
+                    Spacer().frame(height: 40)
                 }
+                .padding(20)
             }
-            .navigationTitle("達成記録")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("閉じる") { dismiss() }
-                        .foregroundStyle(.white)
-                }
+
+            closeButtonOverlay
+        }
+        .task {
+            renderImage()
+        }
+    }
+
+    private var closeButtonOverlay: some View {
+        HStack {
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(.black.opacity(0.45), in: Circle())
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .task {
-                renderImage()
-            }
+            .accessibilityLabel("閉じる")
+            .padding(.top, 12)
+            .padding(.trailing, 16)
         }
     }
 
@@ -91,6 +113,7 @@ struct StreakShareSheet: View {
 
     private func saveToPhotos(_ image: UIImage) {
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        saveBannerText = "写真に保存しました"
     }
 }
 
