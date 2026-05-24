@@ -104,15 +104,15 @@ enum StreakLevel {
     var shareMessage: String {
         switch self {
         case .zero:
-            return "シリアルエクササイズで運動を始めました🐱"
+            return "GOエクササイズで運動を始めました🐱"
         case .sprout:
-            return "シリアルエクササイズで運動継続中🐱"
+            return "GOエクササイズで運動継続中🐱"
         case .week, .twoWeeks:
-            return "シリアルエクササイズで運動続けてます🔥"
+            return "GOエクササイズで運動続けてます🔥"
         case .month, .century:
-            return "シリアルエクササイズで運動の習慣化に成功🔥🔥"
+            return "GOエクササイズで運動の習慣化に成功🔥🔥"
         case .legend:
-            return "シリアルエクササイズで1年連続達成しました✨ #LEGEND"
+            return "GOエクササイズで1年連続達成しました✨ #LEGEND"
         }
     }
 }

@@ -46,7 +46,7 @@ struct HomeView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("シリアルエクササイズ")
+            .navigationTitle("GOエクササイズ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {

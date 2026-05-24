@@ -17,7 +17,7 @@ struct CerealExerciseWidget: Widget {
                 .containerBackground(Color(red: 1.00, green: 0.97, blue: 0.93), for: .widget)
                 .widgetURL(URL(string: "cerealexercise://record"))
         }
-        .configurationDisplayName("シリアルエクササイズ")
+        .configurationDisplayName("GOエクササイズ")
         .description("今日の残り時間、週間達成率、猫メッセージを表示します。")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

@@ -66,7 +66,7 @@ xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
    - ホーム画面の空白部分を **長押し** (option キー + ホールドで Long press シミュレート、または Simulator メニューの `Device > Touch > Long Press`)
    - 左上の **「+」** ボタンをタップ
 
-3. **シリアルエクササイズを検索**
+3. **GOエクササイズを検索**
    - 検索欄に `シリアル` または `Cereal` と入力
    - Small / Medium / どちらかをタップ
 

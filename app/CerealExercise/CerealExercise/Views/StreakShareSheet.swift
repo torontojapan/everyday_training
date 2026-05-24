@@ -14,7 +14,7 @@ struct StreakShareSheet: View {
     }
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
-    private var appName: String { "シリアルエクササイズ" }
+    private var appName: String { "GOエクササイズ" }
 
     var body: some View {
         ZStack(alignment: .top) {

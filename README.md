@@ -1,4 +1,4 @@
-# シリアルエクササイズ (Cereal Exercise)
+# GOエクササイズ (GO Exercise)
 
 猫キャラクターと一緒に毎日1分から運動を習慣化する iOS アプリ。
 

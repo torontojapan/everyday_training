@@ -20,7 +20,7 @@ targets:
     info:
       path: CerealExercise/Resources/Info.plist
       properties:
-        CFBundleDisplayName: シリアルエクササイズ
+        CFBundleDisplayName: GOエクササイズ
         UILaunchScreen: {}
         CFBundleURLTypes:
           - CFBundleURLName: com.serial.cerealexercise
@@ -47,7 +47,7 @@ targets:
     info:
       path: CerealExerciseWidget/Info.plist
       properties:
-        CFBundleDisplayName: シリアルエクササイズWidget
+        CFBundleDisplayName: GOエクササイズWidget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

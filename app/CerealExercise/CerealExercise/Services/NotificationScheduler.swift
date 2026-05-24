@@ -107,7 +107,7 @@ final class NotificationScheduler {
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = "シリアルエクササイズ"
+        content.title = "GOエクササイズ"
         content.body = NotificationMessageProvider.message(
             for: slot,
             currentStreak: currentStreak,

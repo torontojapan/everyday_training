@@ -43,7 +43,7 @@ final class StreakLevelTests: XCTestCase {
     func testShareMessageContainsAppName() {
         for streak in [1, 7, 14, 30, 100, 365] {
             XCTAssertTrue(
-                StreakLevel(streak: streak).shareMessage.contains("シリアルエクササイズ"),
+                StreakLevel(streak: streak).shareMessage.contains("GOエクササイズ"),
                 "streak=\(streak) message must mention app name"
             )
         }
