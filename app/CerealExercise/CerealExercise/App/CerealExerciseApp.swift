@@ -26,6 +26,7 @@ private enum InitialRoute: String {
 private struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store: WorkoutStore?
+    @State private var routeOverride: InitialRoute?
     let scenePhase: ScenePhase
 
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
@@ -74,7 +75,8 @@ private struct HomeRootView: View {
 
     @ViewBuilder
     private func routedView(store: WorkoutStore) -> some View {
-        switch initialRoute {
+        let activeRoute = routeOverride ?? initialRoute
+        switch activeRoute {
         case .home:
             if UIDevice.current.userInterfaceIdiom == .pad {
                 RootSplitView()
@@ -107,7 +109,17 @@ private struct HomeRootView: View {
                 today: Date(),
                 calendar: .mondayFirst
             )
-            StreakShareSheet(streak: max(1, streak))
+            StreakShareSheet(
+                streak: max(1, streak),
+                isPresented: Binding(
+                    get: { activeRoute == .streakShare },
+                    set: { isPresented in
+                        if !isPresented {
+                            routeOverride = .home
+                        }
+                    }
+                )
+            )
         }
     }
 
