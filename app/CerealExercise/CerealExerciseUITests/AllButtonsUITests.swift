@@ -25,6 +25,7 @@ import XCTest
 //   handler and the records filter are exercised through HomeView and
 //   integration. Sheet dismiss itself is verified in StreakShareCloseUITests.
 
+@MainActor
 final class AllButtonsUITests: XCTestCase {
 
     override func setUp() {
