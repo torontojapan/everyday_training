@@ -60,3 +60,9 @@ targets:
     sources: CerealExerciseTests
     dependencies:
       - target: CerealExercise
+  CerealExerciseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: CerealExerciseUITests
+    dependencies:
+      - target: CerealExercise
