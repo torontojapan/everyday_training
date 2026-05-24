@@ -46,8 +46,6 @@ struct ExerciseInputRow: View {
             HStack(spacing: 12) {
                 TextField("分", text: $draft.minutes)
                     .keyboardType(.numberPad)
-                TextField("秒", text: $draft.seconds)
-                    .keyboardType(.numberPad)
                 TextField("回数", text: $draft.reps)
                     .keyboardType(.numberPad)
                 TextField("セット", text: $draft.sets)

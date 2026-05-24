@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var isShowingEntry = false
     @State private var completedRecord: WorkoutRecord?
     @State private var completedStreakExtendedThisRun = false
+    @State private var selectedDayEntry: DailyStatusEntry?
     private let calendar = Calendar.mondayFirst
 
     var body: some View {
@@ -26,7 +27,9 @@ struct HomeView: View {
                                 .font(Typography.headline)
                                 .foregroundStyle(Palette.textPrimary)
 
-                            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar)
+                            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
+                                selectedDayEntry = entry
+                            }
                         }
 
                         if viewModel.todayStatus == .todayAchieved, viewModel.todaySummary.hasExerciseData {
@@ -87,6 +90,13 @@ struct HomeView: View {
             .navigationDestination(item: $completedRecord) { record in
                 RecordCompletionView(record: record, streakExtendedThisRun: completedStreakExtendedThisRun)
                     .environment(store)
+            }
+            .sheet(item: $selectedDayEntry) { entry in
+                DayDetailSheet(
+                    date: entry.date,
+                    records: store.records.filter { calendar.isDate($0.date, inSameDayAs: entry.date) },
+                    status: entry.status
+                )
             }
         }
     }

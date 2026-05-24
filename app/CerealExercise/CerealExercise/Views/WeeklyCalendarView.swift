@@ -4,6 +4,7 @@ struct WeeklyCalendarView: View {
     let statuses: [DailyStatusEntry]
     let today: Date
     var calendar: Calendar = .mondayFirst
+    var onDayTap: ((DailyStatusEntry) -> Void)? = nil
 
     private let weekdays = ["月", "火", "水", "木", "金", "土", "日"]
     private let weekdayLabels = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
@@ -13,20 +14,16 @@ struct WeeklyCalendarView: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(Array(statuses.enumerated()), id: \.element.id) { index, entry in
-                VStack(spacing: 8) {
-                    Text(weekdays.indices.contains(index) ? weekdays[index] : "")
-                        .font(Typography.caption)
-                    Text(entry.status.symbol)
-                        .font(.system(.headline, design: .rounded, weight: .bold))
-                        .frame(width: 38, height: 38)
-                        .background(background(for: entry), in: Circle())
+                Button {
+                    onDayTap?(entry)
+                } label: {
+                    cell(index: index, entry: entry)
                 }
-                .foregroundStyle(Palette.textPrimary)
-                .frame(maxWidth: .infinity)
-                .scaleEffect(calendar.isDate(entry.date, inSameDayAs: today) && todayBreathes ? 1.05 : 1)
+                .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(weekdayLabels.indices.contains(index) ? weekdayLabels[index] : "曜日")
                 .accessibilityValue(accessibilityValue(for: entry))
+                .accessibilityHint("タップでこの日の記録を表示")
             }
         }
         .padding(12)
@@ -36,6 +33,21 @@ struct WeeklyCalendarView: View {
                 todayBreathes = true
             }
         }
+    }
+
+    private func cell(index: Int, entry: DailyStatusEntry) -> some View {
+        VStack(spacing: 8) {
+            Text(weekdays.indices.contains(index) ? weekdays[index] : "")
+                .font(Typography.caption)
+            Text(entry.status.symbol)
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .frame(width: 38, height: 38)
+                .background(background(for: entry), in: Circle())
+        }
+        .foregroundStyle(Palette.textPrimary)
+        .frame(maxWidth: .infinity)
+        .scaleEffect(calendar.isDate(entry.date, inSameDayAs: today) && todayBreathes ? 1.05 : 1)
+        .contentShape(Rectangle())
     }
 
     private func background(for entry: DailyStatusEntry) -> Color {

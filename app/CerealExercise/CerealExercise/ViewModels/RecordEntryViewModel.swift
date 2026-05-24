@@ -8,7 +8,6 @@ final class RecordEntryViewModel {
         let id: UUID
         var name: String
         var minutes: String
-        var seconds: String
         var reps: String
         var sets: String
         var memo: String
@@ -17,7 +16,6 @@ final class RecordEntryViewModel {
             id: UUID = UUID(),
             name: String = "",
             minutes: String = "",
-            seconds: String = "",
             reps: String = "",
             sets: String = "",
             memo: String = ""
@@ -25,7 +23,6 @@ final class RecordEntryViewModel {
             self.id = id
             self.name = name
             self.minutes = minutes
-            self.seconds = seconds
             self.reps = reps
             self.sets = sets
             self.memo = memo
@@ -48,8 +45,7 @@ final class RecordEntryViewModel {
             guard !name.isEmpty else { return nil }
 
             let minutes = Int(draft.minutes.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-            let seconds = Int(draft.seconds.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-            let duration = minutes * 60 + seconds
+            let duration = minutes * 60
             let trimmedMemo = draft.memo.trimmingCharacters(in: .whitespacesAndNewlines)
 
             return ExerciseItem(
@@ -68,7 +64,11 @@ final class RecordEntryViewModel {
     }
 
     func resetAfterSave() {
-        drafts = [ExerciseDraft()]
+        // Keep the first draft's id so the ForEach in RecordEntryView does not
+        // re-create the row (which would invalidate text-field bindings and
+        // leave the Save button visually stuck).
+        let firstId = drafts.first?.id ?? UUID()
+        drafts = [ExerciseDraft(id: firstId)]
         memo = ""
         validationMessage = nil
     }
@@ -78,7 +78,8 @@ final class RecordEntryViewModel {
     }
 
     func suggestions(for category: WorkoutCategory) -> [String] {
-        historyProvider?.topExerciseNames(for: category, limit: 8) ?? []
+        let history = historyProvider?.topExerciseNames(for: category, limit: 12) ?? []
+        return DefaultExerciseSuggestions.merged(history: history, category: category, limit: 12)
     }
 
     func removeExercise(id: UUID) {
