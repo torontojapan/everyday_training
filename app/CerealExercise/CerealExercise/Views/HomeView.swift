@@ -100,7 +100,7 @@ struct HomeView: View {
                 )
             }
             .sheet(isPresented: $isShowingStreakShare) {
-                StreakShareSheet(streak: viewModel.streak.currentStreak)
+                StreakShareSheet(streak: viewModel.streak.currentStreak, isPresented: $isShowingStreakShare)
             }
         }
     }

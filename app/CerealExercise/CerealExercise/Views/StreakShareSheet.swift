@@ -2,10 +2,16 @@ import SwiftUI
 
 struct StreakShareSheet: View {
     let streak: Int
+    @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+
+    init(streak: Int, isPresented: Binding<Bool> = .constant(true)) {
+        self.streak = streak
+        self._isPresented = isPresented
+    }
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     private var appName: String { "シリアルエクササイズ" }
@@ -84,17 +90,26 @@ struct StreakShareSheet: View {
         HStack {
             Spacer()
             Button {
+                // Belt-and-suspenders close. The Binding flips the parent's
+                // isPresented so the sheet definitely dismisses, and dismiss()
+                // is kept as a fallback for environments where Binding is
+                // .constant(true) (e.g. direct launch via --initial-route).
+                isPresented = false
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .heavy))
+                    .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(.black.opacity(0.45), in: Circle())
+                    .frame(width: 44, height: 44)
+                    .background(.black.opacity(0.55), in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 1))
             }
             .accessibilityLabel("閉じる")
             .padding(.top, 12)
             .padding(.trailing, 16)
+            .contentShape(Circle())
+            .buttonStyle(.plain)
+            .zIndex(10)
         }
     }
 
