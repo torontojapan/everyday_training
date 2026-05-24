@@ -22,6 +22,7 @@ struct WeeklyCalendarView: View {
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(weekdayLabels.indices.contains(index) ? weekdayLabels[index] : "曜日")
+                .accessibilityIdentifier("weekday-\(index)")
                 .accessibilityValue(accessibilityValue(for: entry))
                 .accessibilityHint("タップでこの日の記録を表示")
             }

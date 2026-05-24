@@ -32,6 +32,8 @@ struct PrimaryButton: View {
                 .background(Palette.primary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(title)
         .scaleEffect(isPressed ? 0.96 : 1)
         .animation(Motion.snappy, value: isPressed)
         .simultaneousGesture(

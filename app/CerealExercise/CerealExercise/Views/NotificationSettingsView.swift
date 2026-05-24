@@ -16,6 +16,7 @@ struct NotificationSettingsView: View {
 
             Section("通知") {
                 Toggle("通知ON/OFF", isOn: enabledBinding)
+                    .accessibilityIdentifier("notif-toggle")
 
                 Picker("通知回数", selection: countBinding) {
                     Text("OFF").tag(0)
