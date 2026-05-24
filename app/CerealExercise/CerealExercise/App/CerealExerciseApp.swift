@@ -30,6 +30,12 @@ private struct HomeRootView: View {
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
     private var skipNotificationPrompt: Bool { launchArgs.contains("--no-notification-prompt") }
     private var shouldSeedDemoData: Bool { launchArgs.contains("--seed-demo-data") }
+    private var demoScenario: DemoScenario {
+        guard let idx = launchArgs.firstIndex(of: "--seed-scenario"), idx + 1 < launchArgs.count else {
+            return .basic
+        }
+        return DemoScenario(rawValue: launchArgs[idx + 1]) ?? .basic
+    }
     private var initialRoute: InitialRoute {
         guard let idx = launchArgs.firstIndex(of: "--initial-route"), idx + 1 < launchArgs.count else {
             return .home
@@ -46,7 +52,7 @@ private struct HomeRootView: View {
                     .tint(Palette.primary)
                     .task {
                         if shouldSeedDemoData {
-                            DemoDataSeeder.seed(context: modelContext, today: Date())
+                            DemoDataSeeder.seed(context: modelContext, today: Date(), scenario: demoScenario)
                         }
                         let newStore = WorkoutStore(context: modelContext)
                         store = newStore
