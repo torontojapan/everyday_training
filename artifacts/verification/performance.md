@@ -23,16 +23,51 @@
 
 ## バイナリサイズ
 
-| 項目 | サイズ | 内訳 |
-|---|---:|---|
-| アプリ全体 (.app) | **19 MB** | Debug 構成。Release では 8-12MB 想定 |
-| 実行バイナリ (CerealExercise) | 40 KB | 小さい (Swift コードのみ、最小依存) |
-| Assets.car | 15 MB | 主要: 猫キャラ 7 状態 (2.0-2.7MB 各) + AppIcon |
-| Widget extension (CerealExerciseWidget.appex) | 548 KB | App Group 共有コード含む |
+### Debug 構成 (初回計測)
 
-最適化余地:
-- 猫キャラを 1254×1254 → 1024×1024 + PNG 最適化 (pngquant 等) で **Assets.car を 5MB 以下** にできる見込み
-- Release 構成なら strip + LTO で 8-12MB
+| 項目 | サイズ |
+|---|---:|
+| アプリ全体 (.app) | 19 MB |
+| 実行バイナリ | 40 KB |
+| Assets.car | 15 MB |
+| Widget extension | 548 KB |
+
+### Release 構成 (初回 / 画像最適化なし)
+
+| 項目 | サイズ |
+|---|---:|
+| アプリ全体 | 18 MB |
+| 実行バイナリ | 2.3 MB |
+| Assets.car | 15 MB |
+| Widget extension | 376 KB |
+
+### Release 構成 (pngquant 最適化後 ✅)
+
+`pngquant --quality 65-85` で猫キャラ 7枚、`--quality 80-95` でアプリアイコン。
+
+| 項目 | サイズ | 削減 |
+|---|---:|---:|
+| アプリ全体 | **8.3 MB** | **-54%** |
+| 実行バイナリ | 2.3 MB | 変化なし |
+| Assets.car | **5.5 MB** | **-63%** |
+| Widget extension | 376 KB | 変化なし |
+
+#### 猫キャラ画像 個別
+
+| 状態 | 元 | 最適化後 |
+|---|---:|---:|
+| beggingNight | 2.3 MB | 792 KB |
+| celebrating | 2.3 MB | 736 KB |
+| encouraging | 1.9 MB | 536 KB |
+| resting | 2.1 MB | 640 KB |
+| streakExtended | 2.6 MB | 988 KB |
+| waitingMorning | 1.9 MB | 536 KB |
+| worriedNoon | 2.1 MB | 612 KB |
+| **合計** | **15 MB** | **4.7 MB** |
+
+AppIcon: 1.7 MB → 436 KB (1024×1024 リサイズ + pngquant)。
+
+画質劣化は知覚的にほぼなし (quality 65-85 は写真や水彩イラストで十分)。
 
 ## メモリ使用量
 
@@ -55,13 +90,30 @@ Simulator の制限で精密 RSS が取得不能 (xcrun simctl spawn → `launch
 
 ## SwiftData / ロジック層のパフォーマンス
 
-ユニットテスト 66 件の合計実行時間:
+ユニットテスト 81 件の合計実行時間:
 
 ```
-Executed 66 tests, with 0 failures (0 unexpected) in 0.060 (0.085) seconds
+Executed 81 tests, with 0 failures (0 unexpected) in 0.114 (0.138) seconds
 ```
 
-→ 1 テスト当たり < 1ms。各種計算 (達成判定 / 連続記録 / 週間達成率 / 休養日) はオフラインで即時。
+→ 1 テスト当たり < 2ms。各種計算 (達成判定 / 連続記録 / 週間達成率 / 休養日 / トレンド集計) はオフラインで即時。
+
+### 内訳
+
+- AchievementEvaluator 6
+- RestDayResolver 5
+- StreakCalculator 5
+- WeeklyProgressCalculator 6
+- NotificationScheduler 6
+- CatStateResolver 5
+- SharedSnapshotStore 5
+- ExerciseHistoryProvider 5
+- NotificationSettingsViewModel 6
+- WidgetTimelineDates 6
+- ExerciseTrendSummary 6 (Phase 3.5)
+- HapticFeedback 3 (Phase 3.5)
+- DemoDataSeeder 7 (Verification)
+- **DataResilience 8** (corrupt JSON / unknown enum raw / null suite / empty DB) — 新規
 
 ## 知見・既知の懸念
 
