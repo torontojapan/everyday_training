@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import UserNotifications
+
+private let notificationLogger = Logger(subsystem: "com.serial.cerealexercise", category: "NotificationScheduler")
 
 struct NotificationTime: Equatable, Sendable {
     let hour: Int
@@ -116,7 +119,14 @@ final class NotificationScheduler {
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+        } catch {
+            // Surface the failure via os_log so it shows up in Console.app
+            // without crashing the app. Common causes: permission denied,
+            // App Group / entitlement mismatch, or trigger malformed.
+            notificationLogger.error("Failed to schedule notification \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
     }
 }
 
