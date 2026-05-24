@@ -140,6 +140,32 @@ final class AllButtonsUITests: XCTestCase {
         XCTAssertEqual(value, "プランク", "Tapping the chip should fill the exercise name")
     }
 
+    // MARK: - History monthly calendar day tap → DayDetailSheet
+
+    func testHistoryMonthlyCalendarDayTapOpensDetailSheet() throws {
+        let app = launchApp(route: "history")
+        dismissNotificationDialogIfPresent(app)
+
+        // Wait for the calendar to load by checking that 履歴 title is up.
+        let calendarHeader = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '月'")).firstMatch
+        XCTAssertTrue(calendarHeader.waitForExistence(timeout: 8))
+
+        // Tap any day cell whose accessibility label contains both '月' and '日'.
+        let dayCell = app.buttons
+            .containing(NSPredicate(format: "label CONTAINS '月' AND label CONTAINS '日'"))
+            .firstMatch
+        XCTAssertTrue(dayCell.waitForExistence(timeout: 5))
+        dayCell.tap()
+
+        // DayDetailSheet opens with 閉じる button.
+        let closeButton = app.buttons["閉じる"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
+
+        // Returned to history (calendar header still visible).
+        XCTAssertTrue(calendarHeader.waitForExistence(timeout: 5))
+    }
+
     // MARK: - Add / remove exercise row
 
     func testAddAndRemoveExerciseRow() throws {

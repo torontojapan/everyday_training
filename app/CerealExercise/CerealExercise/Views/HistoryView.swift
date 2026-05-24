@@ -3,7 +3,9 @@ import SwiftUI
 struct HistoryView: View {
     @Environment(WorkoutStore.self) private var store
     @State private var viewModel = HistoryViewModel()
+    @State private var selectedDay: SelectedDay?
 
+    private let calendar = Calendar.mondayFirst
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
@@ -11,10 +13,19 @@ struct HistoryView: View {
         return formatter
     }()
 
+    private struct SelectedDay: Identifiable {
+        let date: Date
+        let status: DailyStatus
+        let records: [WorkoutRecord]
+        var id: Date { date }
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                MonthlyCalendarView(records: store.records, today: store.today)
+                MonthlyCalendarView(records: store.records, today: store.today) { date in
+                    open(date: date)
+                }
 
                 if viewModel.groupedByDate.isEmpty {
                     EmptyStateView(message: "まだ記録がないよ。今日から始めよう")
@@ -44,5 +55,21 @@ struct HistoryView: View {
             store.fetchRecords()
             viewModel.refresh(records: store.records)
         }
+        .sheet(item: $selectedDay) { day in
+            DayDetailSheet(date: day.date, records: day.records, status: day.status)
+        }
+    }
+
+    private func open(date: Date) {
+        let records = store.records.filter { calendar.isDate($0.date, inSameDayAs: date) }
+        let restDays = RestDayResolver.restDaySet(for: date, records: store.records, today: store.today, calendar: calendar)
+        let status = AchievementEvaluator.dailyStatus(
+            for: date,
+            records: store.records,
+            restDays: restDays,
+            today: store.today,
+            calendar: calendar
+        )
+        selectedDay = SelectedDay(date: date, status: status, records: records)
     }
 }
