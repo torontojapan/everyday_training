@@ -61,6 +61,11 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 4.0 | 保険チケット / 装飾 / バッジ / 月次レビュー / 記念日 |
 | 4.1 | UX 整理 + 完了画面「もう一種目」 |
 | 4.2 | 筋膜リリース + 体重管理 + 体調・周期 |
+| 4.3 | テーマカラー 5 種 / 保険チケットカレンダー UI / 体調 ON で +1 枚 |
+| 5.0 | 友達機能 MVP (Mock + UI 完成) |
+| 5.1 | 4 段階祝祭演出 (CelebrationOverlay + ShimmerText) |
+| 5.2 | 効果音 + CoreHaptics + 自動休養日ルール明記 |
+| 5.3 | 友達ボタンをホーム toolbar に移動、バッジ削除、設定順最適化 |
 
 ## ビルド
 
@@ -84,8 +89,9 @@ xcodebuild \
   test
 ```
 
-現状: ユニット 113 + UI 8 = **121 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット 121 + UI 8 = **129 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
 
-## 進捗・知見
+## 進捗・残タスク
 
-[`MEMORY.md`](MEMORY.md) に逐次記録。
+- 完了履歴: [`MEMORY.md`](MEMORY.md)
+- これからやること: [`NEXT_STEPS.md`](NEXT_STEPS.md)
