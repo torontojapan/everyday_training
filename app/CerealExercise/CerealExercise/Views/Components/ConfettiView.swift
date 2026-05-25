@@ -47,6 +47,7 @@ private struct ConfettiPiece: Identifiable {
     let duration: Double
     let color: Color
 
+    @MainActor
     init(index: Int) {
         xRatio = CGFloat((index * 37) % 100) / 100
         endYRatio = 0.35 + CGFloat((index * 19) % 65) / 100

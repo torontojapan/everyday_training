@@ -57,6 +57,7 @@ enum StreakLevel {
         }
     }
 
+    @MainActor
     var gradientColors: [Color] {
         switch self {
         case .zero, .sprout:

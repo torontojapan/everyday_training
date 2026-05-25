@@ -5,12 +5,16 @@ import UIKit
 @main
 struct CerealExerciseApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @State private var themeStore = ThemeStore.shared
 
     var body: some Scene {
         WindowGroup {
             HomeRootView(scenePhase: scenePhase)
+                .environment(themeStore)
+                .preferredColorScheme(themeStore.theme.preferredColorScheme)
+                .tint(themeStore.theme.primary)
         }
-        .modelContainer(for: [WorkoutRecord.self, WeightEntry.self])
+        .modelContainer(for: [WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
     }
 }
 

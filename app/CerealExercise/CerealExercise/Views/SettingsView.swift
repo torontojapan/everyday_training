@@ -29,6 +29,16 @@ struct SettingsView: View {
                 }
             }
 
+            Section("外観") {
+                NavigationLink {
+                    ThemeSettingsView()
+                } label: {
+                    Label("テーマカラー", systemImage: "paintpalette.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("theme-link")
+            }
+
             Section("体調・周期") {
                 Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
                     .accessibilityIdentifier("cycle-tracking-toggle")
