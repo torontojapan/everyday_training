@@ -22,29 +22,40 @@ struct RecordEntryView: View {
         NavigationStack {
             Form {
                 Section("カテゴリ") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(WorkoutCategory.allCases) { category in
-                                CategoryChip(category: category, isSelected: viewModel.selectedCategory == category) {
-                                    viewModel.selectedCategory = category
-                                }
+                    // 横スクロール chip → 2 行グリッド。全 6 カテゴリが
+                    // 一目で見え、選択中は強調 + checkmark で「単一選択」が
+                    // 視覚的に伝わる。
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(WorkoutCategory.allCases) { category in
+                            CategoryChip(category: category, isSelected: viewModel.selectedCategory == category) {
+                                viewModel.selectedCategory = category
                             }
                         }
-                        .padding(.vertical, 4)
                     }
+                    .padding(.vertical, 4)
                     .listRowBackground(Color.clear)
                 }
 
                 Section("種目") {
-                    ForEach($viewModel.drafts) { $draft in
-                        ExerciseInputRow(
-                            draft: $draft,
-                            suggestions: viewModel.suggestions(for: viewModel.selectedCategory),
-                            canRemove: viewModel.drafts.count > 1,
-                            onRemove: {
-                                viewModel.removeExercise(id: draft.id)
+                    ForEach(Array($viewModel.drafts.enumerated()), id: \.element.id) { index, $draft in
+                        VStack(alignment: .leading, spacing: 4) {
+                            // 種目 N ラベル: 複数追加時に「どれを編集中か」
+                            // 視覚的に明示。1 種目だけならラベルは省略。
+                            if viewModel.drafts.count > 1 {
+                                Text("種目 \(index + 1)")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .textCase(nil)
                             }
-                        )
+                            ExerciseInputRow(
+                                draft: $draft,
+                                suggestions: viewModel.suggestions(for: viewModel.selectedCategory),
+                                canRemove: viewModel.drafts.count > 1,
+                                onRemove: {
+                                    viewModel.removeExercise(id: draft.id)
+                                }
+                            )
+                        }
                     }
 
                     if viewModel.suggestions(for: viewModel.selectedCategory).isEmpty {
@@ -100,18 +111,34 @@ struct RecordEntryView: View {
                 }
 
                 Section {
-                    PrimaryButton("保存", systemImage: "checkmark.circle.fill") {
-                        if let record = viewModel.save(to: store, weightStore: weightStore) {
-                            menstrualStore?.set(menstrualToday, on: store.today)
-                            hapticFeedback.success()
-                            pendingSavedRecord = record
-                            isShowingSaveOptions = true
-                        } else {
-                            hapticFeedback.warning()
+                    VStack(alignment: .leading, spacing: 8) {
+                        PrimaryButton("保存", systemImage: "checkmark.circle.fill") {
+                            if let record = viewModel.save(to: store, weightStore: weightStore) {
+                                menstrualStore?.set(menstrualToday, on: store.today)
+                                hapticFeedback.success()
+                                pendingSavedRecord = record
+                                isShowingSaveOptions = true
+                            } else {
+                                hapticFeedback.warning()
+                            }
+                        }
+                        .disabled(!viewModel.canSave)
+                        .opacity(viewModel.canSave ? 1 : 0.55)
+
+                        // 保存できない時に「なぜ押せないか」をその場で説明。
+                        // 以前は disabled = silent でユーザーが詰まりやすかった。
+                        if let reason = viewModel.disabledReason {
+                            HStack(spacing: 6) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundStyle(Palette.textSecondary)
+                                Text(reason)
+                                    .font(Typography.caption)
+                                    .foregroundStyle(Palette.textSecondary)
+                            }
+                            .padding(.horizontal, 4)
+                            .accessibilityIdentifier("save-disabled-reason")
                         }
                     }
-                    .disabled(!viewModel.canSave)
-                    .opacity(viewModel.canSave ? 1 : 0.55)
                     .listRowBackground(Color.clear)
                 }
             }

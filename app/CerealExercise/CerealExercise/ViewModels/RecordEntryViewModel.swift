@@ -43,8 +43,30 @@ final class RecordEntryViewModel {
         return value
     }
 
+    /// True if the user typed something into the weight field but it doesn't
+    /// parse as a valid kg value. Shown as inline guidance so users don't lose
+    /// their input silently when the record saves.
+    var hasWeightInputButInvalid: Bool {
+        let trimmed = weightInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return parsedWeight == nil
+    }
+
     var canSave: Bool {
-        !validExercises.isEmpty
+        !validExercises.isEmpty && !hasWeightInputButInvalid
+    }
+
+    /// One-line explanation of why the Save button is disabled. nil when
+    /// canSave == true. Surfaced under the save button so users aren't left
+    /// staring at a grayed-out control with no hint.
+    var disabledReason: String? {
+        if validExercises.isEmpty {
+            return "種目名を1つ以上入力してください"
+        }
+        if hasWeightInputButInvalid {
+            return "体重は 0〜500 kg の数値で入力してください"
+        }
+        return nil
     }
 
     var validExercises: [ExerciseItem] {
