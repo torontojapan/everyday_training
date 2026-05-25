@@ -46,6 +46,10 @@ struct MonthlyCalendarView: View {
                     .foregroundStyle(Palette.primaryDeep)
                     .frame(width: 36, height: 36)
                     .background(Palette.chipBackground, in: Circle())
+                    // 見た目は 36pt のまま hit-area だけ HIG 推奨の 44pt に
+                    // 拡張。透明な余白でタップ精度を上げる。
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("前の月")
             Spacer()
@@ -59,6 +63,8 @@ struct MonthlyCalendarView: View {
                     .foregroundStyle(canShiftForward ? Palette.primaryDeep : Palette.textSecondary.opacity(0.4))
                     .frame(width: 36, height: 36)
                     .background(Palette.chipBackground, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .disabled(!canShiftForward)
             .accessibilityLabel("次の月")
@@ -90,7 +96,7 @@ struct MonthlyCalendarView: View {
     private func cellView(_ cell: MonthCell) -> some View {
         switch cell {
         case .blank:
-            Color.clear.frame(height: 38)
+            Color.clear.frame(height: 44)
         case .day(let date, let status, let isToday):
             let dayStart = calendar.startOfDay(for: date)
             let isMenstrual = menstrualDates.contains(dayStart)
@@ -108,7 +114,9 @@ struct MonthlyCalendarView: View {
                         .foregroundStyle(textColor(for: status, isToday: isToday).opacity(0.85))
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 38)
+                // 38pt → 44pt: HIG 推奨タップ領域に合わせる。
+                // セル間 spacing を 6 → 4 に詰めても月表示は崩れない。
+                .frame(height: 44)
                 .background(background(for: status, isToday: isToday), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)

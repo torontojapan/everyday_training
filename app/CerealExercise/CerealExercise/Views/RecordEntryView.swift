@@ -119,6 +119,23 @@ struct RecordEntryView: View {
             .background(Palette.background)
             .navigationTitle("今日の記録")
             .navigationBarTitleDisplayMode(.inline)
+            // iOS の number/decimal pad は標準で「完了」ボタンが出ないため、
+            // 全 numeric TextField の上に共通ツールバーを差し込む。これがない
+            // と入力後にキーボードが画面下に居座り、保存ボタンが押せない。
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完了") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                    .fontWeight(.semibold)
+                    .accessibilityIdentifier("keyboard-done")
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
             .confirmationDialog("保存しました", isPresented: $isShowingSaveOptions, titleVisibility: .visible, presenting: pendingSavedRecord) { record in
                 Button("続けて記録") {
                     viewModel.resetAfterSave()

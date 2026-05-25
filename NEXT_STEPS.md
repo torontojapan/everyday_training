@@ -56,7 +56,7 @@
 | 15 | 週間ランキング (オプトイン) | 5.9 | ✅ 完了 (Mock) |
 | 16 | 友達からの達成 push 通知 | (CloudKit + Push 後) | pending |
 | 17 | Duolingo 風リーグ・昇格システム | 5.10 | ✅ 完了 (Mock) |
-| 18 | 簡易チャット (CloudKit Shared DB) | 5.12 | pending |
+| 18 | ~~簡易チャット (CloudKit Shared DB)~~ | — | ❌ スコープ外 (2026-05-25 にスキップ決定) |
 | 19 | Android 版検討 (CloudKit を破棄して Supabase 移行) | 6.0 | pending |
 
 ### 🔵 P3 — メンテナンス

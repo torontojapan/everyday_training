@@ -385,6 +385,8 @@ struct FriendsView: View {
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .background(Palette.chipBackground, in: Capsule())
                                 .foregroundStyle(Palette.textPrimary)
+                                .frame(minHeight: 44)   // HIG タップ領域確保
+                                .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("cheer-\(kind.rawValue)-\(friend.friendCode)")
