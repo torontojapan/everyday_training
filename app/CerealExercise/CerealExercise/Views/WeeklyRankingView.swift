@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// 友達 + 自分の今週達成日数で並ぶランキング画面。
-/// 上位 3 位はメダル装飾、自分の位置はハイライト。
+/// 友達 + 自分の **今週** の頑張りを順位化する画面。
+/// 順位の根拠 (連続日数 → 時間) をヘッダーに明示し、自分の順位は
+/// 「N 位 / 全 M 人中」のサマリーカードで一目で分かるようにしてある。
 struct WeeklyRankingView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
 
     private var entries: [WeeklyRankingEntry] {
-        // 自分が weeklyAchievements を持っていない (Mock 状態) ことを想定し、
-        // myProfile に空配列を補ったコピーを渡す。
         var me = friendsStore.profile
         if me?.weeklyAchievements == nil {
             me?.weeklyAchievements = Array(repeating: false, count: 7)
@@ -16,25 +15,25 @@ struct WeeklyRankingView: View {
         return WeeklyRankingCalculator.rank(friends: friendsStore.friends, myProfile: me)
     }
 
+    private var myEntry: WeeklyRankingEntry? { entries.first(where: { $0.isMe }) }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                headerCard
+            VStack(alignment: .leading, spacing: 18) {
+                rulesCard
+                if let me = myEntry {
+                    mySummaryCard(me)
+                }
 
                 if entries.isEmpty {
                     EmptyStateView(message: "ランキングを表示するには、友達を追加してください。")
                 } else {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 8) {
                         ForEach(entries) { entry in
                             rankRow(entry)
                         }
                     }
                 }
-
-                Text("月曜日にリセットされ、今週の達成日数 (休養日含む) で順位が決まります。")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .padding(.top, 8)
             }
             .padding(20)
         }
@@ -43,44 +42,105 @@ struct WeeklyRankingView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var headerCard: some View {
-        // テーマトークン Palette.settingsAccent (金色系) を使用。
-        // 以前は Color(red: 0.9, ...) のハードコードだったので、ダーク
-        // テーマ等で見え方が浮く可能性があった。
-        let trophyColor = Palette.settingsAccent
-        return HStack(spacing: 14) {
-            Image(systemName: "trophy.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(trophyColor)
-                .frame(width: 64, height: 64)
-                .background(trophyColor.opacity(0.18), in: Circle())
-            VStack(alignment: .leading, spacing: 4) {
-                Text("今週のがんばり")
-                    .font(Typography.headline)
-                    .foregroundStyle(Palette.textPrimary)
-                Text("友達 + あなたで競い合おう")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+    // MARK: - Rules header
+
+    /// 順位ルールを「最初に」見せる。下に置くと、ユーザーは「何で並んで
+    /// るんだろう?」と混乱したまま表を読むことになる。
+    private var rulesCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("今週の順位ルール", systemImage: "trophy.fill")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.settingsAccent)
+            HStack(alignment: .top, spacing: 8) {
+                rankPriorityPill(number: 1, label: "連続日数が長い", color: Palette.primary)
+                rankPriorityPill(number: 2, label: "運動時間が長い", color: Palette.settingsAccent)
             }
-            Spacer()
+            Text("毎週月曜日にリセットされます。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
         }
-        .padding(16)
+        .padding(14)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func rankRow(_ entry: WeeklyRankingEntry) -> some View {
-        HStack(spacing: 14) {
-            rankBadge(entry.rank)
+    private func rankPriorityPill(number: Int, label: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Text("\(number)")
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(color, in: Circle())
+            Text(label)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textPrimary)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(color.opacity(0.10), in: Capsule())
+    }
 
+    // MARK: - My summary
+
+    /// 「あなたは今 何位 / 全 N 人中」をでかく見せるサマリーカード。
+    /// 順位リストの長文を読まなくても自分の立ち位置が一発で分かる。
+    private func mySummaryCard(_ me: WeeklyRankingEntry) -> some View {
+        HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(tierColor(entry.profile.decorationTier).opacity(0.25))
+                    .fill(Palette.primary.opacity(0.18))
+                    .frame(width: 64, height: 64)
+                VStack(spacing: 0) {
+                    Text("\(me.rank)")
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundStyle(Palette.primaryDeep)
+                        .monospacedDigit()
+                    Text("位")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("あなたは \(me.rank) 位 / 全 \(entries.count) 人中")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textPrimary)
+                HStack(spacing: 12) {
+                    Label("\(me.profile.currentStreak) 日連続", systemImage: "flame.fill")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.primaryDeep)
+                    Label("\(me.weeklyMinutes) 分", systemImage: "clock.fill")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [Palette.primary.opacity(0.18), Palette.primary.opacity(0.06)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Palette.primary.opacity(0.4), lineWidth: 1.5)
+        )
+    }
+
+    // MARK: - Rank list
+
+    private func rankRow(_ entry: WeeklyRankingEntry) -> some View {
+        HStack(spacing: 12) {
+            rankBadge(entry.rank)
+            ZStack {
+                Circle()
+                    .fill(Palette.chipBackground.opacity(0.7))
                     .frame(width: 44, height: 44)
                 Text("🐱")
                     .font(.system(size: 22))
             }
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(entry.profile.displayName)
                         .font(Typography.headline)
@@ -93,29 +153,27 @@ struct WeeklyRankingView: View {
                             .foregroundStyle(.white)
                     }
                 }
-                Text("🔥 \(entry.profile.currentStreak) 日連続")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+                // ★ 順位の根拠を毎行に表示。連続日数と運動時間が
+                //   一目で比較でき、「なぜこの順位か」が読み取れる。
+                HStack(spacing: 10) {
+                    Label("\(entry.profile.currentStreak)", systemImage: "flame.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.primaryDeep)
+                        .monospacedDigit()
+                    Label("\(entry.weeklyMinutes)分", systemImage: "clock.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.textSecondary)
+                        .monospacedDigit()
+                }
             }
-
             Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(entry.weeklyAchievedCount)")
-                    .font(.system(.title2, design: .rounded, weight: .heavy))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.primaryDeep)
-                Text("/ 7 日")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-            }
         }
-        .padding(14)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(entry.isMe ? Palette.primary.opacity(0.10) : Palette.surface)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(entry.isMe ? Palette.primary.opacity(0.08) : Palette.surface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .strokeBorder(entry.isMe ? Palette.primary : .clear, lineWidth: 2)
                 )
         )
@@ -124,34 +182,33 @@ struct WeeklyRankingView: View {
     }
 
     private func accessibilityLabel(for entry: WeeklyRankingEntry) -> String {
-        let suffix = entry.isMe ? " あなた" : ""
-        return "\(entry.rank) 位、\(entry.profile.displayName)、今週 \(entry.weeklyAchievedCount) 日達成\(suffix)"
+        let me = entry.isMe ? "あなた、" : ""
+        return "\(me)\(entry.rank) 位、\(entry.profile.displayName)、" +
+               "連続 \(entry.profile.currentStreak) 日、今週 \(entry.weeklyMinutes) 分"
     }
 
     private func rankBadge(_ rank: Int) -> some View {
-        let (emoji, bg): (String, Color) = {
+        let (emoji, label, bg): (String?, String?, Color) = {
             switch rank {
-            case 1: return ("🥇", Color(red: 1.00, green: 0.84, blue: 0.30).opacity(0.25))
-            case 2: return ("🥈", Color(red: 0.75, green: 0.75, blue: 0.78).opacity(0.30))
-            case 3: return ("🥉", Color(red: 0.80, green: 0.55, blue: 0.30).opacity(0.30))
-            default: return ("\(rank)", Palette.chipBackground)
+            case 1: return ("🥇", nil, Color(red: 1.00, green: 0.84, blue: 0.30).opacity(0.30))
+            case 2: return ("🥈", nil, Color(red: 0.75, green: 0.75, blue: 0.78).opacity(0.32))
+            case 3: return ("🥉", nil, Color(red: 0.80, green: 0.55, blue: 0.30).opacity(0.32))
+            default: return (nil, "\(rank)", Palette.chipBackground)
             }
         }()
-        return Text(emoji)
-            .font(rank <= 3 ? .system(size: 22) : .system(.headline, design: .rounded, weight: .heavy))
-            .foregroundStyle(rank <= 3 ? .primary : Palette.textPrimary)
-            .frame(width: 36, height: 36)
-            .background(bg, in: Circle())
-            .accessibilityLabel("\(rank) 位")
-    }
-
-    private func tierColor(_ tier: Int) -> Color {
-        switch tier {
-        case 1: return Palette.primary
-        case 2: return Palette.settingsAccent
-        case 3: return Color(red: 0.90, green: 0.60, blue: 0.20)
-        case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
-        default: return Palette.textSecondary
+        return ZStack {
+            Circle()
+                .fill(bg)
+                .frame(width: 40, height: 40)
+            if let emoji {
+                Text(emoji).font(.system(size: 22))
+            } else if let label {
+                Text(label)
+                    .font(.system(.headline, design: .rounded, weight: .heavy))
+                    .foregroundStyle(Palette.textPrimary)
+                    .monospacedDigit()
+            }
         }
+        .accessibilityLabel("\(rank) 位")
     }
 }

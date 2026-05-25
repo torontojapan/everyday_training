@@ -3,53 +3,50 @@ import Foundation
 struct WeeklyRankingEntry: Identifiable, Hashable, Sendable {
     var id: String { profile.friendCode }
     let profile: FriendProfile
+    /// 今週の達成日数 (0..7)。
     let weeklyAchievedCount: Int
+    /// 今週の合計運動時間 (分)。共有していない友達は 0。
+    let weeklyMinutes: Int
     let rank: Int
     let isMe: Bool
 }
 
 enum WeeklyRankingCalculator {
-    /// Build a ranked list of `friends + myProfile` for the current week.
-    /// Sort key: weekly achieved count desc, tiebreaker = currentStreak desc.
-    /// Each entry exposes its 1-based rank with **dense ranking** so ties
-    /// share the same number ("1 1 3" not "1 1 2") — this matches user
-    /// intuition: if two friends are tied for #1, the next one is #3.
+    /// 順位の決め方:
+    ///   1. **今の連続記録 (currentStreak) 降順** — 第一基準。続けている人ほど上。
+    ///   2. **今週の合計運動時間 (weeklyTotalMinutes) 降順** — 同点ブレーカー。
+    ///   3. **今週の達成日数 (weeklyAchievementsOrEmpty) 降順** — 第三ブレーカー。
+    ///   4. friendCode の辞書順 — 完全に等しい場合の安定化。
+    ///
+    /// 同じ rank が並ばないように dense ranking ではなく **strict ranking**
+    /// で 1 つずつ番号を振る (連番 1, 2, 3, ...)。週間ランキングはチーム戦
+    /// ではなく個人戦の比較なので「同率 1 位」より「微差でも順位が出る」
+    /// 方が運動モチベーションになる。
     static func rank(friends: [FriendProfile], myProfile: FriendProfile?) -> [WeeklyRankingEntry] {
         var all = friends
-        if let me = myProfile {
-            all.append(me)
-        }
+        if let me = myProfile { all.append(me) }
 
         let sorted = all.sorted { lhs, rhs in
-            let lhsCount = lhs.weeklyAchievementsOrEmpty.filter { $0 }.count
-            let rhsCount = rhs.weeklyAchievementsOrEmpty.filter { $0 }.count
-            if lhsCount != rhsCount { return lhsCount > rhsCount }
-            if lhs.currentStreak != rhs.currentStreak { return lhs.currentStreak > rhs.currentStreak }
-            // Stable: lexicographic on friendCode so the order is deterministic
-            // for screenshots / tests.
+            if lhs.currentStreak != rhs.currentStreak {
+                return lhs.currentStreak > rhs.currentStreak
+            }
+            let lm = lhs.weeklyTotalMinutes ?? 0
+            let rm = rhs.weeklyTotalMinutes ?? 0
+            if lm != rm { return lm > rm }
+            let lc = lhs.weeklyAchievementsOrEmpty.filter { $0 }.count
+            let rc = rhs.weeklyAchievementsOrEmpty.filter { $0 }.count
+            if lc != rc { return lc > rc }
             return lhs.friendCode < rhs.friendCode
         }
 
-        var entries: [WeeklyRankingEntry] = []
-        var currentRank = 0
-        var lastCount = -1
-        var lastStreak = -1
-        for (index, profile) in sorted.enumerated() {
-            let count = profile.weeklyAchievementsOrEmpty.filter { $0 }.count
-            // Tie definition: same achievement count AND same streak. Otherwise
-            // they get distinct ranks even if the achievement count matches.
-            if count != lastCount || profile.currentStreak != lastStreak {
-                currentRank = index + 1
-                lastCount = count
-                lastStreak = profile.currentStreak
-            }
-            entries.append(WeeklyRankingEntry(
+        return sorted.enumerated().map { index, profile in
+            WeeklyRankingEntry(
                 profile: profile,
-                weeklyAchievedCount: count,
-                rank: currentRank,
+                weeklyAchievedCount: profile.weeklyAchievementsOrEmpty.filter { $0 }.count,
+                weeklyMinutes: profile.weeklyTotalMinutes ?? 0,
+                rank: index + 1,
                 isMe: myProfile?.friendCode == profile.friendCode
-            ))
+            )
         }
-        return entries
     }
 }

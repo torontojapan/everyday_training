@@ -179,17 +179,6 @@ private struct HomeRootView: View {
                         }
                     }
             }
-        case .league:
-            let state = routeState
-            NavigationStack {
-                LeagueView()
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("閉じる") { state.override = .home }
-                                .accessibilityIdentifier("league-deeplink-close")
-                        }
-                    }
-            }
         }
     }
 

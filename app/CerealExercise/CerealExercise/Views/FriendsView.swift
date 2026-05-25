@@ -310,29 +310,23 @@ struct FriendsView: View {
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 if !friendsStore.friends.isEmpty {
+                    // 「ランキング」をテキストつき chip に。アイコンだけだと
+                    // 何が起きるか分かりにくいので、視認性を優先。
                     NavigationLink {
                         WeeklyRankingView()
                             .environment(friendsStore)
                     } label: {
-                        Image(systemName: "trophy.fill")
-                            .font(Typography.caption)
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(Color(red: 0.90, green: 0.60, blue: 0.20).opacity(0.18), in: Capsule())
-                            .foregroundStyle(Color(red: 0.78, green: 0.50, blue: 0.15))
+                        HStack(spacing: 4) {
+                            Image(systemName: "trophy.fill")
+                            Text("順位を見る")
+                        }
+                        .font(Typography.caption)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(Palette.settingsAccent.opacity(0.18), in: Capsule())
+                        .foregroundStyle(Palette.settingsAccent)
                     }
                     .accessibilityLabel("週間ランキング")
                     .accessibilityIdentifier("weekly-ranking-link")
-                    NavigationLink {
-                        LeagueView()
-                            .environment(friendsStore)
-                    } label: {
-                        Text(LeagueStore.shared.currentLeague.emoji)
-                            .font(.system(size: 14))
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(LeagueStore.shared.currentLeague.color.opacity(0.20), in: Capsule())
-                    }
-                    .accessibilityLabel("リーグ")
-                    .accessibilityIdentifier("league-link")
                     sortMenu
                 }
             }

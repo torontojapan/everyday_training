@@ -15,7 +15,6 @@ enum AppRoute: String {
     case streakShare = "streak-share"
     case friends
     case weeklyRanking = "weekly-ranking"
-    case league
 }
 
 @MainActor

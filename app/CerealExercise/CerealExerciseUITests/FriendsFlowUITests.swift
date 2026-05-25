@@ -35,7 +35,7 @@ final class FriendsFlowUITests: XCTestCase {
         XCTAssertTrue(signIn.waitForExistence(timeout: 8), "サインインボタンが表示されるはず")
     }
 
-    func testFriendsSignedInShowsRankingAndLeagueLinks() {
+    func testFriendsSignedInShowsRankingLink() {
         let app = launch(route: "friends",
                           extra: ["--mock-force-signed-out", "--mock-seed-friends"])
 
@@ -43,9 +43,6 @@ final class FriendsFlowUITests: XCTestCase {
         let ranking = app.buttons.matching(identifier: "weekly-ranking-link").firstMatch
         XCTAssertTrue(ranking.waitForExistence(timeout: 8),
                       "週間ランキングへのリンクが表示されるはず")
-
-        let league = app.buttons.matching(identifier: "league-link").firstMatch
-        XCTAssertTrue(league.exists, "リーグへのリンクが表示されるはず")
     }
 
     // MARK: - Friend detail navigation

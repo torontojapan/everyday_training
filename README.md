@@ -23,8 +23,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 5 テーマカラー (peach / sky / midnight / sunshine / forest)
 - **友達と共有** (友達コード / QR / ユーザー名検索、連続記録 + 今日のメニュー共有、4 種スタンプ応援、友達詳細シートで週カレンダー / 装飾ランク / 最終更新時刻も確認)
 - **詳細共有 opt-in** (回数・時間・セット数も友達と共有可能、デフォルトは種目名のみ)
-- **週間ランキング** (友達 + 自分の今週達成日数で順位表示、金銀銅メダル)
-- **Duolingo 風 5 段階リーグ** (ブロンズ→シルバー→ゴールド→プラチナ→ダイヤモンド、月末に上位 2 名昇格・下位 1 名降格、昇格演出)
+- **週間ランキング** (友達 + 自分を連続日数 → 運動時間で順位表示、金銀銅メダル + 自分の順位サマリー)
 
 ## ディレクトリ
 
@@ -67,6 +66,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 5.10 | Duolingo 風 5 段階リーグ (ブロンズ→ダイヤモンド): `League` enum / `LeagueStore` (月跨ぎ検知) / `LeagueRules` (上位 2 名昇格・下位 1 名降格) / LeagueView + 昇格演出 toast |
 | 5.11 | UI test 拡充: Friends flow (5 件) + Settings links (1 件)、UI total 8 → 14 件 |
 | 6.0 | UI/UX 改善 (Claude + Codex + Gemini 3 モデル横断レビュー → 7 batch 実装): 数字 keyboard 完了ボタン / 入力欄ラベル / 44pt tap area / カテゴリ Segmented / 種目 N ラベル / 体重 validation / 達成済 CTA 切替 / 連続記録 chip share アイコン / 友達カード簡素化 + cheer bottom sheet / QR DisclosureGroup / Section.footer / reduceMotion 対応 / monospacedDigit / 月カレンダー凡例 / 履歴日付フォーマット / 「先月のレビュー」disabled state |
+| 6.1 | リーグ機能を廃止 (複雑すぎる)、週間ランキングを再設計: ソート基準を「連続日数 → 運動時間」のシンプル 2 段に / 順位ルールカードを最上部 / 「あなたは N 位 / 全 M 人中」サマリーカード / 各行に🔥連続 + ⏱時間で順位根拠を明示 |
 
 ## ビルド
 

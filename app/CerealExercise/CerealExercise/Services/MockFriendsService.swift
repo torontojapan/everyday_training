@@ -43,7 +43,7 @@ final class MockFriendsService: FriendsService {
             weeklyAchievements: Array(repeating: false, count: 7),
             connectedSince: now(),
             todayExerciseDetails: nil,
-            monthlyAchievedDays: 0
+            weeklyTotalMinutes: 0
         )
         myProfile = profile
         persistProfile()
@@ -155,7 +155,7 @@ final class MockFriendsService: FriendsService {
                               SharedExerciseDetail(name: "腕立て伏せ", reps: 10, sets: 3),
                               SharedExerciseDetail(name: "プランク", durationMinutes: 2, sets: 3)
                           ],
-                          monthlyAchievedDays: 22),
+                          weeklyTotalMinutes: 180),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
                           currentStreak: 12, totalAchievedDays: 35,
@@ -166,7 +166,7 @@ final class MockFriendsService: FriendsService {
                           weeklyAchievements: [true, false, true, true, true, false, true],
                           connectedSince: nil,
                           todayExerciseDetails: nil,
-                          monthlyAchievedDays: 15),  // 詳細共有 OFF の友達
+                          weeklyTotalMinutes: 95),  // 詳細共有 OFF の友達
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
                           currentStreak: 7, totalAchievedDays: 21,
@@ -177,7 +177,7 @@ final class MockFriendsService: FriendsService {
                           weeklyAchievements: [true, true, true, true, true, true, false],
                           connectedSince: nil,
                           todayExerciseDetails: nil,
-                          monthlyAchievedDays: 18),
+                          weeklyTotalMinutes: 60),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
                           currentStreak: 100, totalAchievedDays: 312,
@@ -190,7 +190,7 @@ final class MockFriendsService: FriendsService {
                           todayExerciseDetails: [
                               SharedExerciseDetail(name: "ジョギング", durationMinutes: 45)
                           ],
-                          monthlyAchievedDays: 26)
+                          weeklyTotalMinutes: 225)
         ]
     }
 }

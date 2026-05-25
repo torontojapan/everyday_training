@@ -5,8 +5,9 @@ import XCTest
 final class WeeklyRankingCalculatorTests: XCTestCase {
 
     private func make(_ code: String,
-                      weeklyDays: Int,
-                      streak: Int = 0) -> FriendProfile {
+                      streak: Int = 0,
+                      minutes: Int = 0,
+                      weeklyDays: Int = 0) -> FriendProfile {
         var weekly = Array(repeating: false, count: 7)
         for i in 0..<min(weeklyDays, 7) { weekly[i] = true }
         return FriendProfile(
@@ -15,44 +16,58 @@ final class WeeklyRankingCalculatorTests: XCTestCase {
             todayAchieved: false, todayCategoryName: nil, todayExerciseNames: [],
             decorationTier: 0, lastUpdated: Date(),
             weeklyAchievements: weekly, connectedSince: nil,
-            todayExerciseDetails: nil
+            todayExerciseDetails: nil, weeklyTotalMinutes: minutes
         )
     }
 
-    func testRanksByWeeklyAchievedDescending() {
-        let a = make("A", weeklyDays: 3)
-        let b = make("B", weeklyDays: 7)
-        let c = make("C", weeklyDays: 5)
+    // MARK: - Primary sort: currentStreak
+
+    func testRanksByStreakDescending() {
+        let a = make("A", streak: 5)
+        let b = make("B", streak: 30)
+        let c = make("C", streak: 10)
         let ranked = WeeklyRankingCalculator.rank(friends: [a, b, c], myProfile: nil)
         XCTAssertEqual(ranked.map(\.profile.friendCode), ["B", "C", "A"])
         XCTAssertEqual(ranked.map(\.rank), [1, 2, 3])
     }
 
-    func testIncludesMyProfile() {
-        let a = make("A", weeklyDays: 4)
-        let me = make("ME", weeklyDays: 6)
+    // MARK: - Secondary sort: weeklyTotalMinutes
+
+    func testStreakTieBrokenByMinutes() {
+        let a = make("A", streak: 10, minutes: 60)
+        let b = make("B", streak: 10, minutes: 180)
+        let ranked = WeeklyRankingCalculator.rank(friends: [a, b], myProfile: nil)
+        XCTAssertEqual(ranked.map(\.profile.friendCode), ["B", "A"])
+    }
+
+    // MARK: - Tertiary: weeklyAchievedCount
+
+    func testStreakAndMinutesTieBrokenByWeeklyDays() {
+        let a = make("AAA", streak: 10, minutes: 100, weeklyDays: 3)
+        let b = make("BBB", streak: 10, minutes: 100, weeklyDays: 6)
+        let ranked = WeeklyRankingCalculator.rank(friends: [a, b], myProfile: nil)
+        XCTAssertEqual(ranked.map(\.profile.friendCode), ["BBB", "AAA"])
+    }
+
+    // MARK: - My profile inclusion
+
+    func testIncludesAndFlagsMe() {
+        let a = make("A", streak: 4)
+        let me = make("ME", streak: 12)
         let ranked = WeeklyRankingCalculator.rank(friends: [a], myProfile: me)
         XCTAssertEqual(ranked.count, 2)
         XCTAssertEqual(ranked.first?.profile.friendCode, "ME")
         XCTAssertTrue(ranked.first?.isMe ?? false)
     }
 
-    func testTiebreakOnStreak() {
-        let a = make("A", weeklyDays: 5, streak: 3)
-        let b = make("B", weeklyDays: 5, streak: 12)
-        let ranked = WeeklyRankingCalculator.rank(friends: [a, b], myProfile: nil)
-        XCTAssertEqual(ranked.map(\.profile.friendCode), ["B", "A"])
+    func testEntryExposesMinutesAndWeeklyCount() {
+        let p = make("P", streak: 7, minutes: 95, weeklyDays: 4)
+        let ranked = WeeklyRankingCalculator.rank(friends: [p], myProfile: nil)
+        XCTAssertEqual(ranked.first?.weeklyMinutes, 95)
+        XCTAssertEqual(ranked.first?.weeklyAchievedCount, 4)
     }
 
-    func testDenseRankingForFullTie() {
-        // Two friends fully tied (same weekly count + same streak) share rank
-        // 1; the next one is rank 3, not rank 2.
-        let a = make("AAA", weeklyDays: 7, streak: 10)
-        let b = make("BBB", weeklyDays: 7, streak: 10)
-        let c = make("CCC", weeklyDays: 5, streak: 5)
-        let ranked = WeeklyRankingCalculator.rank(friends: [a, b, c], myProfile: nil)
-        XCTAssertEqual(ranked.map(\.rank), [1, 1, 3])
-    }
+    // MARK: - Edge cases
 
     func testEmptyInputYieldsEmptyRanking() {
         let ranked = WeeklyRankingCalculator.rank(friends: [], myProfile: nil)
@@ -60,25 +75,31 @@ final class WeeklyRankingCalculatorTests: XCTestCase {
     }
 
     func testOnlyMeYieldsRank1() {
-        let me = make("ME", weeklyDays: 2)
+        let me = make("ME", streak: 2)
         let ranked = WeeklyRankingCalculator.rank(friends: [], myProfile: me)
         XCTAssertEqual(ranked.count, 1)
         XCTAssertEqual(ranked.first?.rank, 1)
         XCTAssertTrue(ranked.first?.isMe ?? false)
     }
 
-    func testWeeklyAchievedCountIsCorrect() {
-        let p = make("P", weeklyDays: 4)
-        let ranked = WeeklyRankingCalculator.rank(friends: [p], myProfile: nil)
-        XCTAssertEqual(ranked.first?.weeklyAchievedCount, 4)
+    /// Strict ranking: each tied entry still receives a distinct rank number
+    /// (1, 2, 3 ...). We dropped dense ranking on purpose — fitness rivalry
+    /// is more motivating when ties get nudged into distinct positions by
+    /// the fallback sort (friendCode lex).
+    func testFullTieGetsDistinctRanksByFallback() {
+        let a = make("AAA", streak: 10, minutes: 60, weeklyDays: 5)
+        let b = make("BBB", streak: 10, minutes: 60, weeklyDays: 5)
+        let ranked = WeeklyRankingCalculator.rank(friends: [a, b], myProfile: nil)
+        XCTAssertEqual(ranked.map(\.rank), [1, 2], "every position is distinct")
+        XCTAssertEqual(ranked.map(\.profile.friendCode), ["AAA", "BBB"], "fallback sorts by friendCode")
     }
 
-    func testProfilesMissingWeeklyAchievementsAreTreatedAsZero() {
-        var bare = make("BARE", weeklyDays: 0)
-        bare.weeklyAchievements = nil
-        let other = make("OTHER", weeklyDays: 3)
+    func testMissingWeeklyMinutesTreatedAsZero() {
+        var bare = make("BARE", streak: 5)
+        bare.weeklyTotalMinutes = nil
+        let other = make("OTHER", streak: 5, minutes: 30)
         let ranked = WeeklyRankingCalculator.rank(friends: [bare, other], myProfile: nil)
-        XCTAssertEqual(ranked.map(\.profile.friendCode), ["OTHER", "BARE"])
-        XCTAssertEqual(ranked.last?.weeklyAchievedCount, 0)
+        XCTAssertEqual(ranked.first?.profile.friendCode, "OTHER")
+        XCTAssertEqual(ranked.last?.weeklyMinutes, 0)
     }
 }

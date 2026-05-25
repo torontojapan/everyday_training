@@ -20,8 +20,9 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     /// 詳細共有 ON の友達のみセットされる。回数/時間/セット数を含む。
     /// nil = 共有していない、空配列 = 共有 ON だが今日まだ記録なし。
     var todayExerciseDetails: [SharedExerciseDetail]?
-    /// 月内の達成日数。リーグ判定に使用。Codable 互換のため optional。
-    var monthlyAchievedDays: Int?
+    /// 今週 (月→日) の合計運動時間 (分)。週間ランキングの tiebreak に使用。
+    /// Codable 互換のため optional。
+    var weeklyTotalMinutes: Int?
 
     var weeklyAchievementsOrEmpty: [Bool] {
         let raw = weeklyAchievements ?? []
