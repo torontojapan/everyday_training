@@ -31,17 +31,16 @@ struct CatStateView: View {
     @ViewBuilder
     private var character: some View {
         ZStack {
-            let assetName = "cat_\(state.rawValue)"
+            // Phase 6.3 で新キャラに刷新。背景透過 (白) のオレンジトラ猫
+            // キャラなので、scale 1.0 + scaledToFill + Circle clip で被写体
+            // が円内をほぼ満たす。daily variant rotation で同じ state でも
+            // 複数のポーズが出る。
+            let assetName = state.assetName()
             if UIImage(named: assetName) != nil {
-                // 以前は scaledToFit + padding(8) で表示していたが、AI 生成
-                // 元画像の被写体周囲に背景 (窓 / 花瓶 / 紙吹雪など) が含まれて
-                // いたため、円フレーム内で猫が小さく見え「余白がある」印象に
-                // なっていた。scaledToFill + clipShape(Circle) で円形マスクし、
-                // さらに状態ごとに被写体サイズに合わせて scale を補正する。
                 Image(assetName)
                     .resizable()
                     .scaledToFill()
-                    .scaleEffect(imageScale(for: state))
+                    .scaleEffect(1.05)
                     .frame(width: 72, height: 72)
                     .clipShape(Circle())
             } else {
@@ -49,20 +48,6 @@ struct CatStateView: View {
                     .font(.system(size: state == .streakExtended ? 40 : 46))
             }
             CatDecorationOverlay(decoration: decoration)
-        }
-    }
-
-    /// 各 AI 生成画像で被写体 (猫) が占める割合が違うため、円形マスクで
-    /// 切り抜く際に「被写体がフレーム一杯に入る」よう状態ごとに微調整。
-    private func imageScale(for state: CatState) -> CGFloat {
-        switch state {
-        case .waitingMorning: return 1.25   // 背景に窓+花瓶があり猫が小さめ
-        case .streakExtended: return 1.30   // 周囲に炎装飾が多く猫が小さめ
-        case .beggingNight:   return 1.20   // 背景に植物+ランタン
-        case .worriedNoon:    return 1.15   // 花の装飾あり
-        case .encouraging:    return 1.15   // 比較的余白少なめ
-        case .celebrating:    return 1.20   // 紙吹雪あるが猫が大きめ
-        case .resting:        return 1.20   // 背景シンプル、猫が中央
         }
     }
 
