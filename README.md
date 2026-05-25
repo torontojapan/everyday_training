@@ -66,6 +66,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 5.9 | 週間ランキング画面: `WeeklyRankingCalculator` (dense ranking, tiebreak on streak) + WeeklyRankingView (金銀銅メダル + 自分ハイライト) |
 | 5.10 | Duolingo 風 5 段階リーグ (ブロンズ→ダイヤモンド): `League` enum / `LeagueStore` (月跨ぎ検知) / `LeagueRules` (上位 2 名昇格・下位 1 名降格) / LeagueView + 昇格演出 toast |
 | 5.11 | UI test 拡充: Friends flow (5 件) + Settings links (1 件)、UI total 8 → 14 件 |
+| 6.0 | UI/UX 改善 (Claude + Codex + Gemini 3 モデル横断レビュー → 7 batch 実装): 数字 keyboard 完了ボタン / 入力欄ラベル / 44pt tap area / カテゴリ Segmented / 種目 N ラベル / 体重 validation / 達成済 CTA 切替 / 連続記録 chip share アイコン / 友達カード簡素化 + cheer bottom sheet / QR DisclosureGroup / Section.footer / reduceMotion 対応 / monospacedDigit / 月カレンダー凡例 / 履歴日付フォーマット / 「先月のレビュー」disabled state |
 
 ## ビルド
 
