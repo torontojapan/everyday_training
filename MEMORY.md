@@ -91,5 +91,100 @@
 - Codex は `gpt-5-codex` (?) を使用し、Phase 1 で 95K tokens 程度を消費
 - WorkoutRecord.exercises の getter で毎回 JSON decode は性能リスク (将来必要ならキャッシュ)
 - StreakCalculator.streakState は lookbackDays=365 で重い (使用箇所限定して呼ぶ)
-- 画像生成 API キー未設定のため、猫キャラはひとまず emoji + SF Symbol で表情差分を表現
 - App Group `group.com.serial.cerealexercise` は Apple Developer ポータルでの作成が実機テスト時に必要
+- Codex は実は `image_generation` を内蔵 (`codex features list` で stable) — ChatGPT 認証経由で画像生成可。8 枚を 1 コマンドで作成成功
+
+## 2026-05-24 〜 2026-05-25 (継続セッション)
+
+### Phase 3.5: UI/UX 改善 (中優先)
+
+- ホーム余白活用 (TodayAchievementSummaryCard / WeeklyHighlightCard)
+- iPad NavigationSplitView (RootSplitView)
+- 保存後 ConfirmationDialog (続けて記録 / 完了画面 / キャンセル)
+- DatePicker chevron + 通知未許可 warning banner
+- サジェスト空状態
+- ハプティクス (protocol DI 可)
+- Reduce Motion 対応
+- Gemini Evaluate: **PASS** (8 項目すべて ✅、改善提案なし)
+
+### Phase 3.6: 細かい改善
+
+- 王道筋トレ種目候補 12 種 (+ 全カテゴリで 8 種ずつ)
+- 記録入力から「秒」欄を削除 (分単位のみ)
+- 「続けて記録」後の保存ボタン bug 修正 (resetAfterSave で first id 保持)
+- 週間カレンダー曜日タップで DayDetailSheet
+
+### Phase 3.7: 連続記録ロジック + シェア画面
+
+- 連続記録は **実際に運動した日のみカウント** (休養日はスキップ、破壊しない)
+- StreakBadgeView 化 (タップで SNS 共有可能なシェア画面)
+- StreakLevel 6 段階 (sprout / week / twoWeeks / month / century / legend)
+- 日数別装飾 (見出し / 火 emoji 数 / sparkle / バッジ / グラデ)
+- ImageRenderer + ShareLink で画像化共有
+
+### Phase 3.8: ブランド改名 + Widget 促進
+
+- 全テキストで「シリアルエクササイズ」→「**GOエクササイズ**」(英字も「GO Exercise」)
+- Bundle ID, target 名 (CerealExercise) は維持 (TestFlight 互換性のため)
+- 設定画面に「ホーム画面ウィジェット」セクション + 「追加方法を見る」ボタン → 5 ステップ案内 Sheet
+- Widget テスト拡充 (WidgetSnapshotFactoryTests 6 + WidgetSnapshotPublisherTests 3)
+
+### Phase 3.9: ホーム改善 + 履歴月間カレンダー
+
+- 休養日 symbol 「休」維持 (一度「/」にしたが要望で revert)
+- 累計 運動日数/利用日数 表示 (LifetimeStatsCard)
+- ホームヘッダーのサービス名を左揃え (.large 表示)
+- 履歴ページに月間カレンダー (MonthlyCalendarView、前後月ナビ、達成色、今日ハイライト)
+- HistoryView/SettingsView に明示「< ホーム」back button
+
+### Phase 4.0: 5 エンゲージメント機能
+
+- **保険チケット** (月1回、未達成日を救う) — RescueTicketStore
+- **猫の装飾** (累計達成日で豪華に) — CatDecoration (バンダナ→ヘッドバンド→メダル→王冠)
+- **アチーブメントバッジ** (15 種) — AchievementCatalog + AchievementsListView (toolbar rosette)
+- **月次レビュー** (前月サマリー + SNS シェア) — MonthlyReviewBuilder + Sheet
+- **記念日演出** (1周年/累計100日/連続100日) — MilestoneDetector + 起動時 Sheet
+- Cat decoration は CatStateView で自動オーバーレイ (猫の頭)
+
+### Phase 4.1: UX 整理
+
+- 猫メッセージをホーム最上部に (視覚アンカー)
+- RewardCard 新設 → ユーザー要望で削除 (装飾は猫頭に自動表示で十分、保険チケットは設定へ)
+- 月次レビュー自動表示 (MonthlyReviewTracker で月1回)
+- 記録完了画面に「もう一種目を記録する」追加
+
+### Phase 4.2: 体重 + 体調管理
+
+- WorkoutCategory に **`fasciaRelease`** (筋膜リリース) 追加 + 種目候補 8 種
+- **体重管理機能** (WeightEntry @Model + WeightStore + WeightView)
+  - Swift Charts で推移グラフ
+  - 30 日変化、減量は緑表示
+  - 設定 + ホーム下部から到達 (NavigationLink)
+- 記録入力画面に「**今日の体重 (任意)**」セクション → 同日保存でグラフ反映
+- 種目メモ input bug 修正 (axis: .vertical → 単行 TextField + 背景 pill)
+- **体調・周期記録** (オプトイン、Toggle のみ) — MenstrualEntry + 履歴カレンダーに ★
+
+### CI / リリース基盤
+
+- CI: GitHub Actions (macos-15) で xcodebuild build + test、ノートPC同等
+- リポジトリ Public + GitHub Pages (privacy / terms / support 公開) — `https://torontojapan.github.io/everyday_training/`
+- App Store 提出パッケージ (submission/) 完備、メタデータ・スクショ全サイズ・アイコン (Codex 生成画像) 揃い済み
+
+### 最終状態 (2026-05-25)
+
+| 項目 | 値 |
+|---|---:|
+| Swift files | 103 |
+| ユニットテスト | 113 (全 PASS) |
+| UI テスト | 8 (全 PASS) |
+| 累計 commits | 39 |
+| カテゴリ数 | 6 (有酸素 / 筋トレ / ヨガ / ストレッチ / 筋膜リリース / その他) |
+| §24 受け入れ条件 | 30/30 ✅ |
+| Release アプリサイズ | 8.3 MB (Assets.car 5.5 MB) |
+| CI status | ✓ green |
+
+### この後 (人間アクション待ち)
+
+1. Apple Developer Program 加入 ($99/年)
+2. App Store Connect でアプリ作成 + メタデータ・スクショ登録 (submission/ から)
+3. TestFlight ベータ配信 + App Review 提出
