@@ -27,6 +27,7 @@ struct FriendsView: View {
     @State private var detailFriend: FriendProfile?
     @State private var cheerToast: String?
     @State private var cheerToastToken: UUID?
+    @State private var pendingRemovalFriend: FriendProfile?
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     var body: some View {
@@ -79,6 +80,25 @@ struct FriendsView: View {
         .sheet(item: $detailFriend) { friend in
             FriendDetailView(friend: friend)
                 .environment(friendsStore)
+        }
+        .confirmationDialog(
+            pendingRemovalFriend.map { "\($0.displayName) を友達から外しますか？" } ?? "",
+            isPresented: Binding(
+                get: { pendingRemovalFriend != nil },
+                set: { if !$0 { pendingRemovalFriend = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRemovalFriend
+        ) { friend in
+            Button("友達を解除", role: .destructive) {
+                Task { await friendsStore.remove(friend) }
+                pendingRemovalFriend = nil
+            }
+            Button("キャンセル", role: .cancel) {
+                pendingRemovalFriend = nil
+            }
+        } message: { _ in
+            Text("再度つながるには友達コードで申請が必要です。")
         }
     }
 
@@ -412,7 +432,9 @@ struct FriendsView: View {
                 Label("詳細を見る", systemImage: "person.crop.circle.fill")
             }
             Button(role: .destructive) {
-                Task { await friendsStore.remove(friend) }
+                // 即実行ではなく confirmation dialog 経由に変える。
+                // 誤タップで「友達解除」が起きると Undo できない。
+                pendingRemovalFriend = friend
             } label: {
                 Label("友達を解除", systemImage: "person.crop.circle.badge.minus")
             }

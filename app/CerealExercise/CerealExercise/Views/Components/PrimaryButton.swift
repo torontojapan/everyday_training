@@ -5,7 +5,6 @@ struct PrimaryButton: View {
     let systemImage: String?
     let action: () -> Void
     private let hapticFeedback: any HapticFeedbackProviding
-    @GestureState private var isPressed = false
 
     init(
         _ title: String,
@@ -31,16 +30,22 @@ struct PrimaryButton: View {
                 .foregroundStyle(.white)
                 .background(Palette.primary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableScaleButtonStyle())
         .accessibilityLabel(title)
         .accessibilityIdentifier(title)
-        .scaleEffect(isPressed ? 0.96 : 1)
-        .animation(Motion.snappy, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, state, _ in
-                    state = true
-                }
-        )
+    }
+}
+
+/// Use the ButtonStyle's own isPressed signal instead of a
+/// DragGesture(minimumDistance: 0). The drag gesture variant intercepts
+/// scroll views and forms, making them feel sluggish; ButtonStyle is the
+/// native SwiftUI way to react to press state.
+struct PressableScaleButtonStyle: ButtonStyle {
+    var pressedScale: CGFloat = 0.96
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? pressedScale : 1)
+            .animation(Motion.snappy, value: configuration.isPressed)
     }
 }

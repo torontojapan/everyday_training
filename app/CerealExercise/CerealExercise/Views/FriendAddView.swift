@@ -7,6 +7,7 @@ struct FriendAddView: View {
     @State private var searchQuery = ""
     @State private var searchResults: [FriendProfile] = []
     @State private var isSearching = false
+    @State private var hasSearched = false   // 検索ボタンを押すまで「結果なし」を出さない
     @State private var resultMessage: String?
 
     var body: some View {
@@ -51,7 +52,9 @@ struct FriendAddView: View {
                         Spacer()
                     }
                 }
-                if searchResults.isEmpty && !isSearching && !searchQuery.isEmpty {
+                // hasSearched ガード: 入力した瞬間に「見つかりません」が
+                // 出るバグを防ぐ。検索ボタンを押した後のみ空結果を表示。
+                if hasSearched && searchResults.isEmpty && !isSearching {
                     Text("該当するユーザーは見つかりませんでした")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
@@ -109,5 +112,6 @@ struct FriendAddView: View {
         isSearching = true
         searchResults = await friendsStore.search(searchQuery)
         isSearching = false
+        hasSearched = true
     }
 }
