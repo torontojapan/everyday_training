@@ -2,11 +2,31 @@ import CoreImage.CIFilterBuiltins
 import SwiftUI
 import UIKit
 
+enum FriendSortOrder: String, CaseIterable, Identifiable {
+    case streakDesc        // 連続日数の多い順
+    case todayFirst        // 今日達成済みを先頭に
+    case recentlyUpdated   // 最終更新が新しい順
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .streakDesc: return "連続日数順"
+        case .todayFirst: return "今日達成順"
+        case .recentlyUpdated: return "更新順"
+        }
+    }
+}
+
 struct FriendsView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingAdd = false
     @State private var isShowingSignIn = false
+    @State private var sortOrder: FriendSortOrder = .streakDesc
+    @State private var detailFriend: FriendProfile?
+    @State private var cheerToast: String?
+    private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     var body: some View {
         Group {
@@ -21,7 +41,30 @@ struct FriendsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await friendsStore.refresh()
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("--mock-open-friend-detail") {
+                // open the highest-streak friend so screenshots show a rich profile
+                let best = FriendSorter.sort(friendsStore.friends, by: .streakDesc).first
+                detailFriend = best
+            }
+            if args.contains("--mock-open-friend-add") {
+                isShowingAdd = true
+            }
         }
+        .overlay(alignment: .top) {
+            if let cheerToast {
+                Text(cheerToast)
+                    .font(Typography.caption)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(.thinMaterial, in: Capsule())
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.top, 6)
+                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .accessibilityIdentifier("friend-cheer-toast")
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: cheerToast)
         .sheet(isPresented: $isShowingAdd) {
             NavigationStack {
                 FriendAddView()
@@ -30,6 +73,10 @@ struct FriendsView: View {
         }
         .sheet(isPresented: $isShowingSignIn) {
             FriendsSignInSheet(isPresented: $isShowingSignIn)
+                .environment(friendsStore)
+        }
+        .sheet(item: $detailFriend) { friend in
+            FriendDetailView(friend: friend)
                 .environment(friendsStore)
         }
     }
@@ -91,6 +138,9 @@ struct FriendsView: View {
                 .padding(.top, 20)
             }
             .padding(20)
+        }
+        .refreshable {
+            await friendsStore.refresh()
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -201,88 +251,168 @@ struct FriendsView: View {
 
     private var friendsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("友達 (\(friendsStore.friends.count))")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.textPrimary)
+            HStack {
+                Text("友達 (\(friendsStore.friends.count))")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textPrimary)
+                Spacer()
+                if !friendsStore.friends.isEmpty {
+                    sortMenu
+                }
+            }
             if friendsStore.friends.isEmpty {
                 EmptyStateView(message: "友達コードでつながろう。右上の + から追加できます。")
             } else {
-                ForEach(friendsStore.friends) { friend in
+                ForEach(sortedFriends) { friend in
                     friendCard(friend)
                 }
             }
         }
     }
 
+    private var sortMenu: some View {
+        Menu {
+            Picker("並び順", selection: $sortOrder) {
+                ForEach(FriendSortOrder.allCases) { order in
+                    Text(order.label).tag(order)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.arrow.down")
+                Text(sortOrder.label)
+            }
+            .font(Typography.caption)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Palette.chipBackground, in: Capsule())
+            .foregroundStyle(Palette.textPrimary)
+        }
+        .accessibilityIdentifier("friend-sort-menu")
+    }
+
+    private var sortedFriends: [FriendProfile] {
+        FriendSorter.sort(friendsStore.friends, by: sortOrder)
+    }
+
     private func friendCard(_ friend: FriendProfile) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                avatar(tier: friend.decorationTier)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(friend.displayName)
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("@\(friend.username)")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("🔥 \(friend.currentStreak)")
-                        .font(.system(.title3, design: .rounded, weight: .heavy))
-                        .foregroundStyle(Palette.primaryDeep)
-                    Text("累計 \(friend.totalAchievedDays)日")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-            }
-            HStack(spacing: 6) {
-                if friend.todayAchieved {
-                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Palette.success)
-                    Text("今日:")
-                        .font(Typography.caption).foregroundStyle(Palette.textSecondary)
-                    if let cat = friend.todayCategoryName {
-                        Text(cat)
-                            .font(Typography.caption)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Palette.chipBackground, in: Capsule())
-                            .foregroundStyle(Palette.primaryDeep)
-                    }
-                    Text(friend.todayExerciseNames.joined(separator: " / "))
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textPrimary)
-                        .lineLimit(2)
-                } else {
-                    Image(systemName: "hourglass").foregroundStyle(Palette.textSecondary)
-                    Text("今日はまだ未達成").font(Typography.caption).foregroundStyle(Palette.textSecondary)
-                }
-                Spacer()
-            }
-            HStack(spacing: 10) {
-                ForEach(CheerKind.allCases, id: \.self) { kind in
-                    Button {
-                        Task { await friendsStore.cheer(kind, to: friend.friendCode) }
-                    } label: {
-                        Text("\(kind.emoji) \(kind.label)")
-                            .font(Typography.caption)
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(Palette.chipBackground, in: Capsule())
+        Button {
+            detailFriend = friend
+            hapticFeedback.tap()
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    avatar(tier: friend.decorationTier)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(friend.displayName)
+                            .font(Typography.headline)
                             .foregroundStyle(Palette.textPrimary)
+                        Text("@\(friend.username)")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                        Text(relativeUpdated(friend.lastUpdated))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(Palette.textSecondary)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("🔥 \(friend.currentStreak)")
+                            .font(.system(.title3, design: .rounded, weight: .heavy))
+                            .foregroundStyle(Palette.primaryDeep)
+                        Text("累計 \(friend.totalAchievedDays)日")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
                 }
-                Spacer()
+
+                HStack(spacing: 6) {
+                    if friend.todayAchieved {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(Palette.success)
+                        Text("今日:")
+                            .font(Typography.caption).foregroundStyle(Palette.textSecondary)
+                        if let cat = friend.todayCategoryName {
+                            Text(cat)
+                                .font(Typography.caption)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Palette.chipBackground, in: Capsule())
+                                .foregroundStyle(Palette.primaryDeep)
+                        }
+                        Text(friend.todayExerciseNames.joined(separator: " / "))
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textPrimary)
+                            .lineLimit(2)
+                    } else {
+                        Image(systemName: "hourglass").foregroundStyle(Palette.textSecondary)
+                        Text("今日はまだ未達成").font(Typography.caption).foregroundStyle(Palette.textSecondary)
+                    }
+                    Spacer()
+                }
+
+                // 週間ストリップ (一目で活動の波が分かる)
+                FriendWeekStripView(weekly: friend.weeklyAchievementsOrEmpty, today: todayWeekdayIndex)
+                    .padding(.top, 2)
+
+                HStack(spacing: 10) {
+                    ForEach(CheerKind.allCases, id: \.self) { kind in
+                        Button {
+                            Task { await sendCheer(kind, to: friend) }
+                        } label: {
+                            Text("\(kind.emoji) \(kind.label)")
+                                .font(Typography.caption)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(Palette.chipBackground, in: Capsule())
+                                .foregroundStyle(Palette.textPrimary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("cheer-\(kind.rawValue)-\(friend.friendCode)")
+                    }
+                    Spacer()
+                }
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary.opacity(0.5))
+                    .padding(.top, 14).padding(.trailing, 12)
+                    .accessibilityHidden(true)
             }
         }
-        .padding(14)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("friend-card-\(friend.friendCode)")
+        .accessibilityHint("タップで詳細を表示")
         .contextMenu {
+            Button { detailFriend = friend } label: {
+                Label("詳細を見る", systemImage: "person.crop.circle.fill")
+            }
             Button(role: .destructive) {
                 Task { await friendsStore.remove(friend) }
             } label: {
                 Label("友達を解除", systemImage: "person.crop.circle.badge.minus")
             }
         }
+    }
+
+    private func sendCheer(_ kind: CheerKind, to friend: FriendProfile) async {
+        hapticFeedback.success()
+        await friendsStore.cheer(kind, to: friend.friendCode)
+        cheerToast = "\(kind.emoji) \(friend.displayName) に \(kind.label) を送りました"
+        try? await Task.sleep(for: .seconds(2.0))
+        if cheerToast?.contains(friend.displayName) == true {
+            cheerToast = nil
+        }
+    }
+
+    private var todayWeekdayIndex: Int {
+        let wd = Calendar.mondayFirst.component(.weekday, from: Date())
+        return (wd + 5) % 7
+    }
+
+    private func relativeUpdated(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.unitsStyle = .short
+        return "更新 \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
     private func avatar(tier: Int, small: Bool = false) -> some View {
@@ -320,6 +450,31 @@ struct FriendsView: View {
 
     private func shareText(for profile: FriendProfile) -> String {
         "GOエクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n@\(profile.username) (🔥 \(profile.currentStreak)日連続)"
+    }
+}
+
+// MARK: - Friend sorting
+
+enum FriendSorter {
+    static func sort(_ friends: [FriendProfile], by order: FriendSortOrder) -> [FriendProfile] {
+        switch order {
+        case .streakDesc:
+            return friends.sorted { lhs, rhs in
+                if lhs.currentStreak != rhs.currentStreak {
+                    return lhs.currentStreak > rhs.currentStreak
+                }
+                return lhs.totalAchievedDays > rhs.totalAchievedDays
+            }
+        case .todayFirst:
+            return friends.sorted { lhs, rhs in
+                if lhs.todayAchieved != rhs.todayAchieved {
+                    return lhs.todayAchieved && !rhs.todayAchieved
+                }
+                return lhs.currentStreak > rhs.currentStreak
+            }
+        case .recentlyUpdated:
+            return friends.sorted { $0.lastUpdated > $1.lastUpdated }
+        }
     }
 }
 

@@ -4,22 +4,26 @@ import Foundation
 /// Lets the UI be built and tested without an iCloud account.
 @MainActor
 final class MockFriendsService: FriendsService {
-    static let profileKey = "mock.friends.myProfile"
+    /// `.v2` 以降は weeklyAchievements / connectedSince を含むため互換性確保のためキー bump。
+    static let profileKey = "mock.friends.myProfile.v2"
 
     private(set) var myProfile: FriendProfile?
     private var friends: [String: FriendProfile] = [:]   // friendCode → profile
     private var requests: [String: FriendRequest] = [:]  // id → request
+    private(set) var sentCheers: [(kind: CheerKind, code: String, at: Date)] = []
 
     private var defaults: UserDefaults
     private var demoPool: [FriendProfile]
+    private var now: () -> Date
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, now: @escaping () -> Date = Date.init) {
         self.defaults = defaults
+        self.now = now
         if let data = defaults.data(forKey: Self.profileKey),
            let decoded = try? JSONDecoder().decode(StoredProfile.self, from: data) {
             self.myProfile = decoded.profile
         }
-        self.demoPool = Self.seedDemoPool()
+        self.demoPool = Self.seedDemoPool(now: now())
     }
 
     func signIn(displayName: String, username: String) async throws {
@@ -35,18 +39,24 @@ final class MockFriendsService: FriendsService {
             todayCategoryName: nil,
             todayExerciseNames: [],
             decorationTier: 0,
-            lastUpdated: Date()
+            lastUpdated: now(),
+            weeklyAchievements: Array(repeating: false, count: 7),
+            connectedSince: now()
         )
         myProfile = profile
         persistProfile()
 
-        // Pre-seed one pending request and one friend so the UI has data.
+        // Pre-seed one pending request and a few friends so the UI has rich data to show.
         if requests.isEmpty {
             let sample = demoPool.removeFirst()
-            requests[sample.friendCode] = FriendRequest(id: sample.friendCode, fromProfile: sample, requestedAt: Date())
+            requests[sample.friendCode] = FriendRequest(id: sample.friendCode, fromProfile: sample, requestedAt: now())
         }
-        if friends.isEmpty, let pre = demoPool.first {
-            friends[pre.friendCode] = pre
+        if friends.isEmpty {
+            // Seed two friends so the friend list isn't lonely on first open.
+            for _ in 0..<min(2, demoPool.count) {
+                let pre = demoPool.removeFirst()
+                friends[pre.friendCode] = pre
+            }
         }
     }
 
@@ -54,6 +64,7 @@ final class MockFriendsService: FriendsService {
         myProfile = nil
         friends.removeAll()
         requests.removeAll()
+        sentCheers.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
     }
 
@@ -77,12 +88,16 @@ final class MockFriendsService: FriendsService {
         if friends[match.friendCode] != nil { throw FriendsServiceError.alreadyFriends }
         // In real CloudKit this would write a request to the target's private DB.
         // Mock: just auto-accept on their behalf.
-        friends[match.friendCode] = match
+        var newFriend = match
+        newFriend.connectedSince = now()
+        friends[match.friendCode] = newFriend
         demoPool.removeAll { $0.friendCode == match.friendCode }
     }
 
     func acceptRequest(_ request: FriendRequest) async throws {
-        friends[request.fromProfile.friendCode] = request.fromProfile
+        var added = request.fromProfile
+        added.connectedSince = now()
+        friends[request.fromProfile.friendCode] = added
         requests.removeValue(forKey: request.id)
     }
 
@@ -106,7 +121,7 @@ final class MockFriendsService: FriendsService {
     }
 
     func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {
-        // No-op in mock; would write a Cheer record in CloudKit Public DB.
+        sentCheers.append((kind, friendCode, now()))
     }
 
     // MARK: - Helpers
@@ -121,33 +136,45 @@ final class MockFriendsService: FriendsService {
         defaults.set(data, forKey: Self.profileKey)
     }
 
-    private static func seedDemoPool() -> [FriendProfile] {
-        [
+    private static func seedDemoPool(now: Date) -> [FriendProfile] {
+        let minute: TimeInterval = 60
+        return [
             FriendProfile(id: "AKIRA1", friendCode: "AKIRA1",
                           username: "akira_t", displayName: "あきら",
                           currentStreak: 42, totalAchievedDays: 168,
                           todayAchieved: true, todayCategoryName: "筋トレ",
                           todayExerciseNames: ["スクワット", "腕立て伏せ", "プランク"],
-                          decorationTier: 2, lastUpdated: Date()),
+                          decorationTier: 2,
+                          lastUpdated: now.addingTimeInterval(-4 * minute),
+                          weeklyAchievements: [true, true, false, true, true, true, true],
+                          connectedSince: nil),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
                           currentStreak: 12, totalAchievedDays: 35,
                           todayAchieved: true, todayCategoryName: "ヨガ",
                           todayExerciseNames: ["太陽礼拝"],
-                          decorationTier: 1, lastUpdated: Date()),
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-22 * minute),
+                          weeklyAchievements: [true, false, true, true, true, false, true],
+                          connectedSince: nil),
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
                           currentStreak: 7, totalAchievedDays: 21,
                           todayAchieved: false, todayCategoryName: nil,
                           todayExerciseNames: [],
-                          decorationTier: 1, lastUpdated: Date()),
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-9 * 60 * minute),
+                          weeklyAchievements: [true, true, true, true, true, true, false],
+                          connectedSince: nil),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
                           currentStreak: 100, totalAchievedDays: 312,
                           todayAchieved: true, todayCategoryName: "有酸素",
                           todayExerciseNames: ["ジョギング"],
-                          decorationTier: 3, lastUpdated: Date())
+                          decorationTier: 3,
+                          lastUpdated: now.addingTimeInterval(-2 * minute),
+                          weeklyAchievements: [true, true, true, true, true, true, true],
+                          connectedSince: nil)
         ]
     }
 }
-

@@ -21,7 +21,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 体重管理 (記録 + 推移グラフ)
 - 体調・周期記録 (オプトイン、生理日に履歴カレンダーで ★)
 - 5 テーマカラー (peach / sky / midnight / sunshine / forest)
-- **友達と共有** (友達コード / QR / ユーザー名検索、連続記録 + 今日のメニュー共有、4 種スタンプ応援)
+- **友達と共有** (友達コード / QR / ユーザー名検索、連続記録 + 今日のメニュー共有、4 種スタンプ応援、友達詳細シートで週カレンダー / 装飾ランク / 最終更新時刻も確認)
 
 ## ディレクトリ
 
@@ -55,6 +55,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 5.1 | 4 段階祝祭演出 (CelebrationOverlay + ShimmerText) |
 | 5.2 | 効果音 + CoreHaptics + 自動休養日ルール明記 |
 | 5.3 | 友達ボタンをホーム toolbar に移動、バッジ削除、設定順最適化 |
+| 5.4 | 友達状態確認の完成版: FriendDetailView (週カレンダー / 装飾名 / cheer + 視覚フィードバック) / FriendsView 並び替え・refreshable・相対時刻 / FriendsStore を root 注入 |
 
 ## ビルド
 
@@ -78,7 +79,7 @@ xcodebuild \
   test
 ```
 
-現状: ユニット 121 + UI 8 = **129 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット **136** + UI 8 = **144 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
 
 ## 進捗・残タスク
 

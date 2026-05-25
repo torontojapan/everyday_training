@@ -58,11 +58,17 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources: CerealExerciseTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: CerealExercise
   CerealExerciseUITests:
     type: bundle.ui-testing
     platform: iOS
     sources: CerealExerciseUITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: CerealExercise

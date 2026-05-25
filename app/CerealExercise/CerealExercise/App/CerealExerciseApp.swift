@@ -6,13 +6,21 @@ import UIKit
 struct CerealExerciseApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var themeStore = ThemeStore.shared
+    @State private var friendsStore = FriendsStore(service: MockFriendsService())
 
     var body: some Scene {
         WindowGroup {
             HomeRootView(scenePhase: scenePhase)
                 .environment(themeStore)
+                .environment(friendsStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
+                .task {
+                    if ProcessInfo.processInfo.arguments.contains("--mock-seed-friends"),
+                       friendsStore.profile == nil {
+                        await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
+                    }
+                }
         }
         .modelContainer(for: [WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
     }
@@ -25,6 +33,7 @@ private enum InitialRoute: String {
     case settings
     case notificationSettings = "notification-settings"
     case streakShare = "streak-share"
+    case friends
 }
 
 @MainActor
@@ -133,6 +142,10 @@ private struct HomeRootView: View {
                     }
                 )
             )
+        case .friends:
+            NavigationStack {
+                FriendsView()
+            }
         }
     }
 

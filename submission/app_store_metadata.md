@@ -2,6 +2,8 @@
 
 App Store Connect の各フィールドにそのまま貼れる形でまとめています。
 
+**最終更新: 2026-05-25 (Phase 5.4 友達機能完成版)**
+
 ---
 
 ## 基本情報
@@ -9,8 +11,10 @@ App Store Connect の各フィールドにそのまま貼れる形でまとめ�
 | 項目 | 値 |
 |---|---|
 | アプリ名 | GOエクササイズ |
-| サブタイトル (30字) | 毎日1分から猫と運動習慣 |
+| サブタイトル (30字) | 猫と毎日1分から運動習慣を続ける |
 | Bundle Identifier | com.serial.cerealexercise |
+| バージョン | 1.0.0 |
+| ビルド | 1 |
 | カテゴリ (Primary) | ヘルスケア / フィットネス |
 | カテゴリ (Secondary) | ライフスタイル |
 | 年齢区分 | 4+ |
@@ -21,10 +25,18 @@ App Store Connect の各フィールドにそのまま貼れる形でまとめ�
 
 ---
 
+## プロモーションテキスト (170字以内、リリース後もアップデート可)
+
+```
+🐱 今日も1分だけやってみよ？ 友達と連続記録を共有して、おたがいに「がんばれ」を送り合おう。猫と一緒なら、運動も楽しく続く。
+```
+
+---
+
 ## キーワード (100字以内, カンマ区切り)
 
 ```
-運動,習慣化,筋トレ,有酸素,ヨガ,ストレッチ,記録,連続,猫,かわいい,ダイエット,健康,毎日,1分,ウィジェット
+運動,習慣化,筋トレ,有酸素,ヨガ,ストレッチ,記録,連続,猫,友達,応援,ダイエット,健康,毎日,1分
 ```
 
 ---
@@ -41,6 +53,7 @@ GOエクササイズは、かわいい猫キャラクターと一緒に
 ・運動を始めたいけど、なかなか続かない
 ・筋トレ・ヨガ・ストレッチを軽く記録したい
 ・数値だけのアプリは続かなかった
+・友達と一緒に応援し合いながら続けたい
 ・猫と一緒だと頑張れる気がする
 
 ■ GOエクササイズの特長
@@ -59,7 +72,18 @@ GOエクササイズは、かわいい猫キャラクターと一緒に
 
 🐱 7つの表情で寄り添う猫キャラクター
 朝はにこにこ、夜はそわそわ「お願い」、達成したら大喜び。
-連続記録を更新した日には大ジャンプで祝います。
+連続記録が伸びるたびに、バンダナ → ヘッドバンド → メダル → 王冠と装飾もレベルアップ。
+
+🎉 4段階の祝祭演出
+特別な節目には、効果音 + 振動 + アニメーションで盛大にお祝い。
+100日連続・1周年など、達成感がしっかり残ります。
+
+👥 友達と連続記録を共有
+6桁の友達コードや QR コードで簡単につながる。
+お互いの連続記録 / 今日のメニュー / 週間達成を一覧で確認できて、
+「がんばれ」「すごい」「拍手」「応援」の 4 種スタンプで応援し合えます。
+共有されるのはカテゴリと種目名のみ。
+体重・体調などプライベートな記録は端末内にとどまります。
 
 📲 ウィジェットで毎日リマインド
 ホーム画面に「あと何時間」「今週の達成率」「猫メッセージ」を表示。
@@ -70,28 +94,33 @@ GOエクササイズは、かわいい猫キャラクターと一緒に
 頻度・時間はいつでも変更できます。
 
 📓 シンプルな記録
-カテゴリ(筋トレ/有酸素/ヨガ/ストレッチ/その他)を選び、
+カテゴリ(筋トレ/有酸素/ヨガ/ストレッチ/筋膜リリース/その他)を選び、
 種目・時間・回数・セット数・メモを記録するだけ。
 複数種目もまとめて記録できます。
 
+⚖️ 体重 / 体調記録 (任意)
+体重の推移をグラフで確認。
+体調・周期 ON で保険チケットが月 2 枚に。
+
+🎨 5 種類のテーマカラー
+peach / sky / midnight / sunshine / forest から選択可能。
+
 ■ プライバシー
-記録は端末内のみに保存。
-アカウント登録不要、すぐに始められます。
-クラウド同期は将来アップデートで提供予定。
+運動記録・体重・体調などは端末内のみに保存。
+友達機能をオンにした場合のみ、表示名と連続記録などが iCloud (CloudKit) に保存され、友達と共有されます。詳細はプライバシーポリシーをご覧ください。
 
 ■ 今後のアップデート予定
-・iCloud 同期 / Apple ログイン
 ・Apple Watch アプリ
 ・Apple ヘルスケア連携
-・月間カレンダー
-・AI による種目提案
+・週間ランキング (オプトイン)
+・友達からの達成 push 通知
 
 🐱「無理しなくていいから、ちょっとだけやろ？」
 ```
 
 ---
 
-## What's New in this Version (4000字以内, 初回)
+## What's New in this Version (4000字以内, 初回 v1.0.0)
 
 ```
 GOエクササイズが App Store に登場！
@@ -99,13 +128,16 @@ GOエクササイズが App Store に登場！
 🔥 毎日1分から続けられる、猫と一緒の運動習慣化アプリです。
 
 【主な機能】
-・運動記録 (筋トレ・有酸素・ヨガ・ストレッチ・その他)
-・連続記録 / 週間達成率
-・週2回までの自動休養日判定
-・7状態の猫キャラクターによる声かけ
+・運動記録 (筋トレ・有酸素・ヨガ・ストレッチ・筋膜リリース・その他)
+・連続記録 / 週間達成率 / 月間カレンダー
+・週2回までの自動休養日判定 + 保険チケット (月1〜2枚)
+・7状態の猫キャラ + 4段階の装飾 (バンダナ→王冠)
+・4段階の祝祭演出 (効果音 + 振動 + アニメーション)
 ・1日2回のやさしい通知 (時刻変更可)
 ・ホーム画面ウィジェット (Small / Medium)
-・履歴 / 通知設定
+・体重 / 体調 (オプトイン) 記録
+・5 種類のテーマカラー
+・👥 友達機能: 友達コード / QR / ユーザー名検索でつながり、連続記録と今日の運動を共有、4 種スタンプで応援
 
 🐱「今日も1分だけやってみよ？」
 ```
@@ -114,31 +146,51 @@ GOエクササイズが App Store に登場！
 
 ## サポート / マーケティング情報
 
-| 項目 | 値 (テンプレート) |
+| 項目 | 値 |
 |---|---|
 | サポート URL | https://torontojapan.github.io/everyday_training/support |
 | マーケティング URL | https://torontojapan.github.io/everyday_training/ |
 | プライバシーポリシー URL | https://torontojapan.github.io/everyday_training/privacy |
+| 利用規約 URL | https://torontojapan.github.io/everyday_training/terms |
 | 著作権表示 | © 2026 torontojapan |
 | サポート連絡先 | 218350578+torontojapan@users.noreply.github.com |
 
-※ URL は GitHub Pages 公開を想定。`docs/` ブランチに `submission/PrivacyPolicy.md` をホスト推奨。
+※ URL は GitHub Pages 公開を想定。`docs/` ディレクトリが Pages にホストされる。
 
 ---
 
 ## プライバシー (App Privacy)
 
-App Store Connect 入力ガイド:
+App Store Connect の "App Privacy" セクション入力ガイド。
+友達機能をオンにした場合に **「データを収集する」(Data Collected)** が該当します。
 
-| カテゴリ | 値 |
-|---|---|
-| アカウント登録 | 不要 |
-| 収集データ | なし (端末内のみ保存、外部送信なし) |
-| トラッキング | なし |
-| サードパーティ SDK | なし |
-| ヘルスケア連携 | 将来アップデートで追加予定 (現バージョンは未使用) |
+### Data Linked to User (ユーザーに紐づく)
 
-App Privacy セクションでは **「データを収集しない」(Data Not Collected)** を選択。
+| カテゴリ | データタイプ | 用途 | トラッキング |
+|---|---|---|---|
+| User Content | Other User Content (友達コード, 表示名, ユーザー名, 連続記録, 今日のメニュー名, 装飾ランク) | App Functionality (友達機能) | いいえ |
+| Identifiers | User ID (Sign in with Apple の匿名識別子) | App Functionality (アカウント同定) | いいえ |
+
+### Data Not Collected (収集しない)
+
+- Contact Info (Name, Email Address, Phone Number, Physical Address)
+- Health & Fitness (体重・体調は端末内のみ)
+- Financial Info
+- Location
+- Sensitive Info
+- Contacts
+- Browsing History / Search History
+- Purchases
+- Usage Data / Diagnostics (解析 SDK 一切なし)
+
+### Tracking
+
+`Used to Track You: No` (トラッキング目的では一切使用しません)
+
+### 友達機能 OFF 時の扱い
+
+ユーザーが友達機能のサインインを行っていない場合、本アプリは **データを一切収集しません** (Data Not Collected)。
+プライバシーラベルは「友達機能を利用した場合」に該当する項目を全て申告する必要があるため、上記項目をオンにしておきます。
 
 ---
 
@@ -148,18 +200,28 @@ App Store では以下サイズが必須/推奨:
 
 | デバイス | サイズ (px) | 推奨枚数 | このリポジトリでの保存先 |
 |---|---|---|---|
-| iPhone 6.7" (iPhone 15 Pro Max) | 1290 × 2796 | 3-10 枚 | submission/screenshots/iphone-6.7/ |
-| iPhone 6.5" (iPhone 11 Pro Max) | 1242 × 2688 | optional | submission/screenshots/iphone-6.5/ |
+| iPhone 6.9" (iPhone 17 Pro Max) | 1320 × 2868 | 3-10 枚 (必須) | submission/screenshots/iphone-6.9/ |
+| iPhone 6.7" (iPhone 15 Pro Max) | 1290 × 2796 | optional (互換用) | submission/screenshots/iphone-6.7/ |
 | iPad 13" (iPad Pro M4) | 2064 × 2752 | 3-10 枚 (iPad配信時) | submission/screenshots/ipad-13/ |
 
-撮影元は Xcode Simulator (`xcrun simctl io <UDID> screenshot`)。
-推奨ショット (各サイズ 5-6 枚):
-1. ホーム画面 (12日連続 + 週間カレンダー + 猫)
+撮影元は Xcode Simulator (`xcrun simctl io booted screenshot`)。
+推奨ショット (各サイズ 6 枚):
+
+1. ホーム画面 (連続記録 + 週間カレンダー + 猫)
 2. 記録入力 (カテゴリ選択 + 種目入力)
 3. 達成完了画面 (祝福アニメ)
-4. 履歴一覧
-5. 通知設定 / ウィジェットプレビュー
-6. アプリアイコン拡大ヒーロー (任意)
+4. 友達一覧 (友達コード + QR + 友達カード) ← Phase 5.4
+5. 友達詳細 (週カレンダー + cheer ボタン)  ← Phase 5.4
+6. 月間カレンダー (履歴ビュー)
+
+Phase 5.4 で撮影済み:
+- submission/screenshots/phase5_4_friends/01_home.png
+- submission/screenshots/phase5_4_friends/02_friends_signed_out.png
+- submission/screenshots/phase5_4_friends/03_friends_signed_in.png
+- submission/screenshots/phase5_4_friends/04_friend_detail.png
+- submission/screenshots/phase5_4_friends/05_friend_add.png
+
+App Store 提出時は最終アイコンに差し替えた後、iPhone 17 Pro Max (6.9") で取り直し推奨。
 
 ---
 
@@ -168,6 +230,25 @@ App Store では以下サイズが必須/推奨:
 | 項目 | 値 |
 |---|---|
 | 連絡先 | 上記サポート連絡先と同じ |
-| ログイン情報 | 不要 (アカウント登録なし) |
-| デモモード起動方法 | アプリ起動引数 `--seed-demo-data --no-notification-prompt` で 12日連続 + サンプル種目を投入 |
-| 備考 | データは端末内のみ。外部送信・SDK 一切なし。連続記録は SwiftData による Local Storage |
+| ログイン情報 | 不要 (アカウント登録なし、友達機能のみ Sign in with Apple) |
+| デモアカウント | 不要 (mock seed argument で完全な体験を再現可) |
+| デモモード起動方法 | アプリ起動引数: `--seed-demo-data --no-notification-prompt --mock-seed-friends` で 12日連続 + サンプル種目 + 友達 2 名 + 申請 1 件を投入 |
+| 友達機能のテスト方法 | 友達機能をテストするには iCloud アカウントが必要ですが、本アプリ内蔵の Mock サービスにより `--mock-seed-friends` 起動引数で UI フローを完全に再現できます (CloudKit 実装は次バージョン v1.1 で予定) |
+| 備考 | 友達機能 v1.0 はローカル Mock のみ。CloudKit 本実装は v1.1 で予定。それまでは友達コード / QR / 共有 UI のローカル動作確認のみ可能 |
+
+---
+
+## ビルド / アーカイブ手順
+
+```bash
+cd app/CerealExercise
+xcodegen generate
+xcodebuild -project CerealExercise.xcodeproj \
+  -scheme CerealExercise \
+  -configuration Release \
+  -destination "generic/platform=iOS" \
+  -archivePath ./build/CerealExercise.xcarchive \
+  archive
+```
+
+注意: Apple Developer Program 加入後、`project.yml` の `DEVELOPMENT_TEAM` を設定する必要があります。
