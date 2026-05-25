@@ -99,12 +99,7 @@ struct MilestoneCelebrationSheet: View {
             }
         }
         .onAppear {
-            switch celebrationLevel {
-            case .heroic, .legendary:
-                hapticFeedback.milestone()
-            default:
-                hapticFeedback.heroic()
-            }
+            CelebrationCenter.shared.fire(celebrationLevel)
             withAnimation(Motion.animation(.spring(response: 0.6, dampingFraction: 0.55), reduceMotion: reduceMotion)) {
                 emojiScale = 1.0
                 emojiRotation = 0

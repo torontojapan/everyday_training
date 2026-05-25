@@ -203,14 +203,7 @@ struct RecordCompletionView: View {
     }
 
     private func triggerHaptic() {
-        switch celebrationLevel {
-        case .subtle:
-            hapticFeedback.success()
-        case .standard, .heroic:
-            hapticFeedback.heroic()
-        case .legendary:
-            hapticFeedback.milestone()
-        }
+        CelebrationCenter.shared.fire(celebrationLevel)
     }
 
     private var fireOverlay: some View {

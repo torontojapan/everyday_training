@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingWidgetGuide = false
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
+    @State private var celebrationPrefs = CelebrationPreferences.shared
     private let rescueTicketStore = RescueTicketStore()
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
@@ -37,6 +38,53 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("theme-link")
+            }
+
+            Section("演出 (音・振動)") {
+                Toggle(isOn: Binding(
+                    get: { celebrationPrefs.soundEnabled },
+                    set: { celebrationPrefs.soundEnabled = $0 }
+                )) {
+                    Label("達成時の効果音", systemImage: "speaker.wave.2.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("sound-toggle")
+                Toggle(isOn: Binding(
+                    get: { celebrationPrefs.hapticEnabled },
+                    set: { celebrationPrefs.hapticEnabled = $0 }
+                )) {
+                    Label("達成時の振動", systemImage: "iphone.radiowaves.left.and.right")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("haptic-toggle")
+                Button {
+                    CelebrationCenter.shared.fire(.heroic)
+                } label: {
+                    Label("今のレベルでテスト再生", systemImage: "play.circle.fill")
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .accessibilityIdentifier("celebration-preview-button")
+                Text("達成時のサウンドは消音モード時に再生されません。振動は対応機種でのみ動作します。")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("週 2 日まで休んでも連続記録は続きます", systemImage: "moon.zzz.fill")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("ルール:")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                    bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
+                    bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
+                    bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
+                    bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
+                }
+                .padding(.vertical, 6)
+            } header: {
+                Label("自動休養日について", systemImage: "info.circle")
             }
 
             Section("体調・周期") {
@@ -110,6 +158,18 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isShowingWidgetGuide) {
             WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
+        }
+    }
+
+    private func bulletRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("•")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            Text(text)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
