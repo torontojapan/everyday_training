@@ -7,6 +7,7 @@ struct FriendDetailView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
     @State private var sentCheer: CheerKind?
+    @State private var sentCheerToken: UUID?
     @State private var cheerInFlight = false
     @State private var pendingRemoval = false
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
@@ -312,10 +313,17 @@ struct FriendDetailView: View {
         cheerInFlight = true
         hapticFeedback.success()
         await friendsStore.cheer(kind, to: friend.friendCode)
+        let token = UUID()
+        sentCheerToken = token
         sentCheer = kind
         cheerInFlight = false
         try? await Task.sleep(for: .seconds(2.4))
-        if sentCheer == kind { sentCheer = nil }
+        // Token-based dismissal so rapid taps of the same kind don't
+        // dismiss the latest toast early.
+        if sentCheerToken == token {
+            sentCheer = nil
+            sentCheerToken = nil
+        }
     }
 
     // MARK: - Remove

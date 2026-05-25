@@ -58,6 +58,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 5.4 | 友達状態確認の完成版: FriendDetailView (週カレンダー / 装飾名 / cheer + 視覚フィードバック) / FriendsView 並び替え・refreshable・相対時刻 / FriendsStore を root 注入 |
 | 5.5 | 音声演出を削除 (haptic 単独運用) / 写真保存バグ修正 (NSPhotoLibraryAddUsageDescription + ImageSaver による完了 callback 処理) |
 | 5.6 | 厳格バグ回収: URL scheme handler (`cerealexercise://...`) / 通知タップ deep link (記録画面に遷移) / SettingsView の placeholder を実リンク (privacy/terms/support) に置換 / 装飾 chip の `scribble` symbol を emoji に / deep-link 経由で開いた画面に「閉じる」ボタン |
+| 5.7 | バグ厳格回収 第二弾: 友達コード validation (6 桁固定 + 自動 sanitize) / cheer toast race (UUID トークン化) / NotificationScheduler default calendar を mondayFirst に / DemoDataSeeder の save エラーを OSLog 出力 / 演出セクションから「テスト再生」ボタン削除 |
 
 ## ビルド
 
@@ -81,7 +82,7 @@ xcodebuild \
   test
 ```
 
-現状: ユニット **145** + UI 8 = **153 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット **154** + UI 8 = **162 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
 
 ## 進捗・残タスク
 

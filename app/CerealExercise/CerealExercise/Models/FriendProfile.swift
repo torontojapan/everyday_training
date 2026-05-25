@@ -44,9 +44,30 @@ struct FriendRequest: Identifiable, Hashable, Sendable {
 }
 
 enum FriendCode {
-    /// Generates a random 6-character alphanumeric code, excluding ambiguous chars (O/0/I/1).
+    static let length = 6
+    /// 24 letters + 8 digits, omitting visually ambiguous O / 0 / I / 1.
+    static let alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    static let allowedCharacters = CharacterSet(charactersIn: alphabet)
+
+    /// Generates a random 6-character alphanumeric code, excluding ambiguous chars.
     static func generate() -> String {
-        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
-        return String((0..<6).map { _ in alphabet.randomElement() ?? "A" })
+        let chars = Array(alphabet)
+        return String((0..<length).map { _ in chars.randomElement() ?? "A" })
+    }
+}
+
+enum FriendCodeValidator {
+    /// Strip whitespace + lowercase, uppercase the rest, then keep only the
+    /// allowed alphabet, and clip to 6 chars. Used to make the input field
+    /// "self-correcting" as the user types.
+    static func sanitize(_ raw: String) -> String {
+        let upper = raw.uppercased()
+        let filtered = upper.unicodeScalars.filter { FriendCode.allowedCharacters.contains($0) }
+        return String(String.UnicodeScalarView(filtered.prefix(FriendCode.length)))
+    }
+
+    static func isValid(_ code: String) -> Bool {
+        guard code.count == FriendCode.length else { return false }
+        return code.unicodeScalars.allSatisfy { FriendCode.allowedCharacters.contains($0) }
     }
 }

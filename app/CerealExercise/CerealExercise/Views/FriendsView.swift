@@ -26,6 +26,7 @@ struct FriendsView: View {
     @State private var sortOrder: FriendSortOrder = .streakDesc
     @State private var detailFriend: FriendProfile?
     @State private var cheerToast: String?
+    @State private var cheerToastToken: UUID?
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     var body: some View {
@@ -396,10 +397,17 @@ struct FriendsView: View {
     private func sendCheer(_ kind: CheerKind, to friend: FriendProfile) async {
         hapticFeedback.success()
         await friendsStore.cheer(kind, to: friend.friendCode)
+        let token = UUID()
+        cheerToastToken = token
         cheerToast = "\(kind.emoji) \(friend.displayName) に \(kind.label) を送りました"
         try? await Task.sleep(for: .seconds(2.0))
-        if cheerToast?.contains(friend.displayName) == true {
+        // Only clear the toast if no newer cheer has replaced ours. Using a
+        // token avoids the substring race (two friends with overlapping
+        // displayName like "あき" / "あきら" would otherwise dismiss each
+        // other's toasts).
+        if cheerToastToken == token {
             cheerToast = nil
+            cheerToastToken = nil
         }
     }
 

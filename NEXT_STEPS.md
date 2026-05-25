@@ -1,6 +1,6 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-25 (Phase 5.6 — 厳格バグ回収: deep link / 設定リンク / decoration icon)
+最終更新: 2026-05-25 (Phase 5.7 — バグ厳格回収 第二弾: validation / toast race / calendar / log)
 
 このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
 
@@ -9,7 +9,7 @@
 ## 直近の状態 (要約)
 
 - **iOS アプリ本体**: 機能実装は完了 (Phase 5.6 まで)。Simulator で全画面動作確認済み。
-- **テスト**: Unit **145** / UI 8 = **153 件 PASS**。
+- **テスト**: Unit **154** / UI 8 = **162 件 PASS**。
 - **友達機能**: FriendDetailView + 週カレンダー + sort + 詳細から cheer / 削除まで完成。`FriendsStore` をアプリ root に注入済み。
 - **音声演出**: 削除済み (Phase 5.5)。haptic のみ残存。
 - **写真保存**: Info.plist 不備バグを修正 (NSPhotoLibraryAddUsageDescription 追加)。ImageSaver で完了 callback 経由のエラー処理。

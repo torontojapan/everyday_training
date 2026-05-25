@@ -55,7 +55,12 @@ final class NotificationScheduler {
         center: any NotificationScheduling = UNUserNotificationCenter.current(),
         settings: NotificationSettings = NotificationSettingsStore().load(),
         dateProvider: any DateProviding = SystemDateProvider(),
-        calendar: Calendar = .current
+        // Default to .mondayFirst to stay aligned with the rest of the app
+        // (weekly streak / progress logic all start on Monday). Using
+        // .current here used to drift week boundaries depending on the
+        // user's locale and silently de-sync notification gating from the
+        // displayed weekly progress.
+        calendar: Calendar = .mondayFirst
     ) {
         self.center = center
         self.settings = settings

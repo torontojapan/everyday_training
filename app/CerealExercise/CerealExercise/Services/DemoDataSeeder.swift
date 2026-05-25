@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let seederLogger = Logger(subsystem: "com.serial.cerealexercise", category: "DemoDataSeeder")
 
 enum DemoScenario: String {
     case basic
@@ -40,7 +43,14 @@ enum DemoDataSeeder {
             seedEdgeMinute(context: context, todayStart: todayStart, calendar: calendar)
         }
 
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            // Surface seed failures in Console.app so we can diagnose
+            // half-seeded scenarios instead of failing silently and leaving
+            // the user with a partly-populated demo state.
+            seederLogger.error("Demo data save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private static func standardTemplates() -> [(WorkoutCategory, [ExerciseItem])] {

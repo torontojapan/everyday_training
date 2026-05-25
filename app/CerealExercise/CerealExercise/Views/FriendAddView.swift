@@ -16,13 +16,22 @@ struct FriendAddView: View {
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("friend-code-field")
+                    .onChange(of: codeInput) { _, newValue in
+                        codeInput = FriendCodeValidator.sanitize(newValue)
+                    }
 
                 Button {
                     Task { await sendByCode() }
                 } label: {
                     Label("申請を送る", systemImage: "paperplane.fill")
                 }
-                .disabled(codeInput.count < 4)
+                .disabled(!FriendCodeValidator.isValid(codeInput))
+
+                if !codeInput.isEmpty && !FriendCodeValidator.isValid(codeInput) {
+                    Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
             }
 
             Section("ユーザー名で検索") {
