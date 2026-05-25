@@ -13,6 +13,10 @@ struct RecordEntryView: View {
     private let hapticFeedback = HapticFeedbackController()
     private let cycleSettings = CycleTrackingSettings()
     let onSaved: (WorkoutRecord) -> Void
+    /// Deep-link entries (URL scheme / notification tap) pass a custom close
+    /// handler so the toolbar button can route back to home. Sheet
+    /// presentations leave this nil and fall through to `dismiss()`.
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         NavigationStack {
@@ -144,7 +148,11 @@ struct RecordEntryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("閉じる") {
-                        dismiss()
+                        if let onClose {
+                            onClose()
+                        } else {
+                            dismiss()
+                        }
                     }
                 }
             }

@@ -111,14 +111,11 @@ private struct HomeRootView: View {
         case .record:
             let state = routeState
             NavigationStack {
-                RecordEntryView { _ in state.override = .home }
-                    .environment(store)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("閉じる") { state.override = .home }
-                                .accessibilityIdentifier("record-deeplink-close")
-                        }
-                    }
+                RecordEntryView(
+                    onSaved: { _ in state.override = .home },
+                    onClose: { state.override = .home }
+                )
+                .environment(store)
             }
         case .history:
             let state = routeState
@@ -168,6 +165,28 @@ private struct HomeRootView: View {
                         ToolbarItem(placement: .topBarLeading) {
                             Button("閉じる") { state.override = .home }
                                 .accessibilityIdentifier("friends-deeplink-close")
+                        }
+                    }
+            }
+        case .weeklyRanking:
+            let state = routeState
+            NavigationStack {
+                WeeklyRankingView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("閉じる") { state.override = .home }
+                                .accessibilityIdentifier("weekly-ranking-deeplink-close")
+                        }
+                    }
+            }
+        case .league:
+            let state = routeState
+            NavigationStack {
+                LeagueView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("閉じる") { state.override = .home }
+                                .accessibilityIdentifier("league-deeplink-close")
                         }
                     }
             }

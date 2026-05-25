@@ -1,6 +1,6 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-25 (Phase 5.8-5.11 — 詳細共有 / 週間ランキング / リーグ / UI test 拡充)
+最終更新: 2026-05-25 (Phase 5.8-5.11 完了 / アイコン現状版で確定)
 
 このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
 
@@ -27,11 +27,11 @@
 
 | # | タスク | 概要 | 前提 |
 |---|---|---|---|
-| 1 | **Apple Developer Program 加入** | 年 ¥12,800、code signing と CloudKit / Sign in with Apple に必須 | ユーザー作業 |
+| 1 | **Apple Developer Program 加入** | 年 ¥13,800、code signing と CloudKit / Sign in with Apple に必須。注文 W1563167588 でアクティベート待ち | ユーザー作業 |
 | 2 | ~~プライバシーポリシー / 利用規約~~ | ✅ 完了 (2026-05-25) — `docs/privacy.md` / `docs/terms.md` / submission 配下を CloudKit + 友達機能用に更新 | — |
 | 3 | ~~App Privacy ラベル草案~~ | ✅ 完了 — `submission/app_store_metadata.md` の "プライバシー" セクションに転記用テーブル記載 | — |
-| 4 | **アプリアイコン最終版差し替え** | 現状は仮アイコンの可能性。`AppIcon.appiconset` 確認 | デザイン |
-| 5 | **App Store スクリーンショット作成 (本番版)** | iPhone 6.9" 必須 (1320×2868)。Phase 5.4 で開発用 5 枚を `submission/screenshots/phase5_4_friends/` に保存済み | 最終アイコンと配色 |
+| 4 | ~~アプリアイコン~~ | ✅ 確定 (2026-05-25) — 現状の `AppIcon-1024.png` (ピンク+猫+バンダナ) で提出。色空間/色数は審査通過レベル、必要なら v1.1 で差し替え可 | — |
+| 5 | **App Store スクリーンショット作成 (本番版)** | iPhone 6.9" 必須 (1320×2868)。Phase 5.4 で開発用 5 枚を `submission/screenshots/phase5_4_friends/` に保存済み | アイコン確定済みのため着手可 |
 | 6 | ~~メタデータ準備~~ | ✅ 完了 — `submission/app_store_metadata.md` 全項目埋め済み | — |
 
 ### 🟡 P1 — CloudKit 実装 (Phase 5.0 / 5.4 を本実装に昇格)

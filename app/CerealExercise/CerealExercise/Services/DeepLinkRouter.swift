@@ -14,6 +14,8 @@ enum AppRoute: String {
     case notificationSettings = "notification-settings"
     case streakShare = "streak-share"
     case friends
+    case weeklyRanking = "weekly-ranking"
+    case league
 }
 
 @MainActor
