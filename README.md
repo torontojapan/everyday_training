@@ -15,36 +15,25 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 7 状態の猫キャラ + 累計達成日数に応じた装飾 (バンダナ→王冠)
 - 連続記録シェア画面 (SNS / 写真保存)
 - 月次レビュー (前月サマリーカード + シェア)
-- 記念日演出 (1周年 / 100日連続等)
-- アチーブメントバッジ 15 種
-- 保険チケット (月1回、忙しい日を救う)
+- 記念日演出 (1周年 / 100日連続等) + 4 段階祝祭 (subtle / standard / heroic / legendary)
+- 効果音 + CoreHaptics 多層パターン (設定で個別 ON/OFF)
+- 保険チケット (月 1 枚、体調・周期 ON で 2 枚) + カレンダー UI から日付選択
 - 体重管理 (記録 + 推移グラフ)
 - 体調・周期記録 (オプトイン、生理日に履歴カレンダーで ★)
-
-## 開発体制
-
-[`HARNESS.md`](HARNESS.md) 参照。
-
-| エージェント | CLI | 役割 |
-|---|---|---|
-| Orchestrator / Plan | Claude (本セッション) | 設計・統括 |
-| Execute | `codex exec` | SwiftUI 実装 |
-| Evaluate | `gemini -p` | 独立レビュー |
+- 5 テーマカラー (peach / sky / midnight / sunshine / forest)
+- **友達と共有** (友達コード / QR / ユーザー名検索、連続記録 + 今日のメニュー共有、4 種スタンプ応援)
 
 ## ディレクトリ
 
 | パス | 内容 |
 |---|---|
+| `app/CerealExercise/` | SwiftUI iOS アプリ本体 (Xcode プロジェクトは `xcodegen` で再生成) |
 | `specs/` | 要件定義書 |
-| `agents/` | 各エージェントのロール定義 |
-| `orchestrator/` | CLI 呼び出しラッパー |
-| `artifacts/phaseN/` | フェーズ別 Plan/Execute/Evaluate 成果物 |
-| `artifacts/verification/` | 受け入れ検証 / エッジケース / パフォーマンス |
-| `assets/` | 画像 (猫キャラ 7 状態、アイコン)、スクショ |
-| `app/CerealExercise/` | SwiftUI iOS アプリ本体 |
-| `submission/` | App Store 提出パッケージ (メタデータ、各サイズスクショ) |
+| `assets/` | 元アセット (猫キャラ 7 状態、アイコン) |
+| `submission/` | App Store 提出パッケージ (メタデータ、サイズ別スクショ、Phase 別 Simulator スクショ) |
 | `docs/` | GitHub Pages (privacy / terms / support) |
-| `logs/` | 各 CLI 実行ログ |
+| `NEXT_STEPS.md` | 残タスク・優先順位 |
+| `MEMORY.md` | プロジェクトメモ (担当 Claude 用) |
 
 ## フェーズ
 
