@@ -69,24 +69,6 @@ struct SettingsView: View {
                     .foregroundStyle(Palette.textSecondary)
             }
 
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("週 2 日まで休んでも連続記録は続きます", systemImage: "moon.zzz.fill")
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("ルール:")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                    bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
-                    bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
-                    bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
-                    bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
-                }
-                .padding(.vertical, 6)
-            } header: {
-                Label("自動休養日について", systemImage: "info.circle")
-            }
-
             Section("体調・周期") {
                 Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
                     .accessibilityIdentifier("cycle-tracking-toggle")
@@ -125,6 +107,24 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.primaryDeep)
                 }
                 .accessibilityIdentifier("widget-guide-button")
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("週 2 日まで休んでも連続記録は続きます", systemImage: "moon.zzz.fill")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("ルール:")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                    bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
+                    bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
+                    bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
+                    bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
+                }
+                .padding(.vertical, 6)
+            } header: {
+                Label("自動休養日について", systemImage: "info.circle")
             }
 
             Section("アプリ情報") {

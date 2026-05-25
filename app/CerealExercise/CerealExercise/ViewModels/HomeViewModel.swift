@@ -18,7 +18,6 @@ final class HomeViewModel {
     var streakExtendedThisRun = false
     var lifetimeStats = LifetimeStatsCalculator.Stats(achievedDays: 0, usedDays: 1)
     var catDecoration: CatDecoration = .none
-    var achievements: [Achievement] = []
     var rescueTicketAvailable = true
     var pendingMilestone: Milestone?
     var firstUseDate: Date = Date()
@@ -62,12 +61,6 @@ final class HomeViewModel {
             calendar: calendar
         )
         catDecoration = CatDecoration(totalAchievedDays: lifetimeStats.achievedDays)
-        achievements = AchievementCatalog.evaluate(
-            records: records,
-            streak: streak,
-            lifetime: lifetimeStats,
-            calendar: calendar
-        )
         rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today)
         pendingMilestone = milestoneDetector.nextPending(
             records: records,

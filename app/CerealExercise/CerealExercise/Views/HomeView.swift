@@ -8,7 +8,6 @@ struct HomeView: View {
     @State private var completedStreakExtendedThisRun = false
     @State private var selectedDayEntry: DailyStatusEntry?
     @State private var isShowingStreakShare = false
-    @State private var isShowingAchievements = false
     @State private var isShowingMonthlyReview = false
     @State private var monthlyReview: MonthlyReviewBuilder.Review?
     @State private var presentedMilestone: Milestone?
@@ -61,12 +60,13 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        isShowingAchievements = true
+                    NavigationLink {
+                        FriendsView()
                     } label: {
-                        Image(systemName: "rosette")
+                        Image(systemName: "person.2.fill")
                     }
-                    .accessibilityLabel("バッジ")
+                    .accessibilityLabel("友達")
+                    .accessibilityIdentifier("friends-home-button")
 
                     NavigationLink {
                         HistoryView()
@@ -127,13 +127,6 @@ struct HomeView: View {
             }
             .sheet(isPresented: $isShowingStreakShare) {
                 StreakShareSheet(streak: viewModel.streak.currentStreak, isPresented: $isShowingStreakShare)
-            }
-            .sheet(isPresented: $isShowingAchievements) {
-                NavigationStack {
-                    AchievementsListView(achievements: viewModel.achievements, onClose: {
-                        isShowingAchievements = false
-                    })
-                }
             }
             .sheet(isPresented: $isShowingMonthlyReview) {
                 if let review = monthlyReview {
