@@ -59,15 +59,13 @@ struct SettingsView: View {
 
             Section("保険チケット") {
                 rescueTicketRow
-                if rescueTicketStore.hasTicketAvailable(today: Date()) {
-                    Button {
-                        _ = rescueTicketStore.useTicket(on: Date())
-                    } label: {
-                        Label("今日に1枚使う", systemImage: "ticket.fill")
-                            .foregroundStyle(Palette.primaryDeep)
-                    }
-                    .accessibilityIdentifier("rescue-use-button-settings")
+                NavigationLink {
+                    RescueTicketUseView()
+                } label: {
+                    Label("使う日を選んで適用", systemImage: "calendar.badge.checkmark")
+                        .foregroundStyle(Palette.primaryDeep)
                 }
+                .accessibilityIdentifier("rescue-use-link")
             }
 
             Section("ホーム画面ウィジェット") {
