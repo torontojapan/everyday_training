@@ -12,7 +12,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 連続記録 (休養日スキップ、達成日のみカウント) + 週間 / 月間カレンダー
 - 累計運動日数 / 利用日数
 - 通知 (1日2回ローカル通知) + ホーム画面ウィジェット (Small / Medium)
-- 7 状態の猫キャラ + 累計達成日数に応じた装飾 (バンダナ→王冠)
+- 12 ポーズの猫キャラ (オレンジトラ猫のスポーティーキャラ、状態×日付で daily rotation) + 累計達成日数に応じた装飾 (バンダナ→王冠)
 - 連続記録シェア画面 (SNS / 写真保存)
 - 月次レビュー (前月サマリーカード + シェア)
 - 記念日演出 (1周年 / 100日連続等) + 4 段階祝祭 (subtle / standard / heroic / legendary)
@@ -31,7 +31,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 |---|---|
 | `app/CerealExercise/` | SwiftUI iOS アプリ本体 (Xcode プロジェクトは `xcodegen` で再生成) |
 | `specs/` | 要件定義書 |
-| `assets/` | 元アセット (猫キャラ 7 状態、アイコン) |
+| `assets/` | 元アセット (猫キャラ 12 ポーズ、アプリアイコン)。`_archive_v1_2026-05-26/` に旧 watercolor 版 7 ポーズ |
 | `submission/` | App Store 提出パッケージ (メタデータ、サイズ別スクショ、Phase 別 Simulator スクショ) |
 | `docs/` | GitHub Pages (privacy / terms / support) |
 | `NEXT_STEPS.md` | 残タスク・優先順位 |
