@@ -225,14 +225,30 @@ struct StreakShareCard: View {
     @ViewBuilder
     private var catImage: some View {
         if UIImage(named: level.catStateAssetName) != nil {
+            // CatStateView と同じ方針: scaledToFill + clipShape(Circle) で
+            // 元画像の余白 (窓 / 紙吹雪 / 炎) を物理的に切り抜く。share 用
+            // カードは 180×180 と大きいので、scaleEffect は state に応じて
+            // 1.10〜1.20 程度に控えめ。
             Image(level.catStateAssetName)
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
+                .scaleEffect(shareCatScale)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(.white.opacity(0.45), lineWidth: 3))
         } else {
             Text(level.fallbackEmoji)
                 .font(.system(size: 100))
+        }
+    }
+
+    /// シェアカードは表示サイズが 180pt と大きい (HomeView の 72pt と比べ
+    /// て倍以上) ため、CatStateView 用の scale をそのまま使うと猫が拡大
+    /// されすぎて顔のアップになる。少し控えめに抑える。
+    private var shareCatScale: CGFloat {
+        switch level.catStateAssetName {
+        case "cat_streakExtended": return 1.15   // 炎装飾を少しだけ削る
+        case "cat_celebrating":    return 1.10   // 元から余白少なめ
+        default:                   return 1.10
         }
     }
 
