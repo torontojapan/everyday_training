@@ -149,7 +149,7 @@ struct HomeView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 8) {
-                Text("今日も少しずつ")
+                Text(viewModel.todayStatus == .todayAchieved ? "今日も達成 ✨" : "今日も少しずつ")
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textSecondary)
                 StreakBadgeView(streak: viewModel.streak.currentStreak) {
@@ -158,12 +158,23 @@ struct HomeView: View {
                 }
             }
             Spacer()
-            Text(remainingTimeText)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Palette.surface, in: Capsule())
+            // 達成済みなら「今日は達成済み」、未達成なら「締切まで残り X 時間」と
+            // 表示を切り替える。同じ chip でも文脈で意味が変わる。
+            if viewModel.todayStatus == .todayAchieved {
+                Label("今日は達成済み", systemImage: "checkmark.seal.fill")
+                    .font(Typography.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Palette.success.opacity(0.18), in: Capsule())
+                    .foregroundStyle(Palette.success)
+            } else {
+                Text(remainingTimeText)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Palette.surface, in: Capsule())
+            }
         }
     }
 
@@ -241,7 +252,7 @@ struct HomeView: View {
     private var remainingTimeText: String {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: store.today) ?? Date()
         let hours = max(0, calendar.dateComponents([.hour], from: Date(), to: endOfDay).hour ?? 0)
-        return "あと\(hours)時間"
+        return "今日の締切まで あと\(hours)時間"
     }
 
     private func buildAndPresentMonthlyReview() {

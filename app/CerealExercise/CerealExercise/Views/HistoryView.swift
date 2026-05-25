@@ -13,7 +13,9 @@ struct HistoryView: View {
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "yyyy/MM/dd"
+        // 「2026/05/25」→「5月25日(月)」。曜日入りの方が
+        // 「いつのことか」直感的に把握できる。
+        formatter.dateFormat = "M月d日(E)"
         return formatter
     }()
 

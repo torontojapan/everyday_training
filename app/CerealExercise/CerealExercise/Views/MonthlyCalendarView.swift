@@ -149,12 +149,56 @@ struct MonthlyCalendarView: View {
     }
 
     private var footerSummary: some View {
-        HStack {
-            Text(summaryText)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-            Spacer()
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(summaryText)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                Spacer()
+            }
+            // 記号だけだと初見で意味が分からないので凡例を表示。
+            // 達成 / 休養 / 未達成 / ★ 体調マーク / 🎫 保険チケット。
+            legendRow
         }
+    }
+
+    private var legendRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                legendChip(symbol: "○", label: "達成")
+                legendChip(symbol: "休", label: "休養日")
+                legendChip(symbol: "×", label: "未達成")
+                if !menstrualDates.isEmpty {
+                    legendChip(symbol: "★", label: "体調")
+                }
+                if !rescuedDates.isEmpty {
+                    legendChip(systemImage: "ticket.fill", label: "保険チケット")
+                }
+            }
+        }
+    }
+
+    private func legendChip(symbol: String? = nil, systemImage: String? = nil, label: String) -> some View {
+        HStack(spacing: 4) {
+            if let symbol {
+                Text(symbol)
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .frame(width: 18, height: 18)
+                    .background(Palette.surface, in: Circle())
+                    .overlay(Circle().strokeBorder(Palette.textSecondary.opacity(0.2), lineWidth: 0.5))
+            } else if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(Palette.primaryDeep)
+                    .frame(width: 18, height: 18)
+            }
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(Palette.textSecondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Palette.chipBackground.opacity(0.5), in: Capsule())
     }
 
     // MARK: - Computed

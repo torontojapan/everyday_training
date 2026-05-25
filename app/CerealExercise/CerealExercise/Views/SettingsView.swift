@@ -41,7 +41,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("theme-link")
             }
 
-            Section("友達と共有する情報") {
+            Section {
                 Toggle(isOn: Binding(
                     get: { sharingPrefs.includeExerciseDetail },
                     set: { sharingPrefs.includeExerciseDetail = $0 }
@@ -50,12 +50,16 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("sharing-detail-toggle")
-                Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。体重・体調などの個人情報は常に共有されません。")
+                Label("体重・体調は共有されません", systemImage: "lock.fill")
                     .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+                    .foregroundStyle(Palette.success)
+            } header: {
+                Text("友達と共有する情報")
+            } footer: {
+                Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。")
             }
 
-            Section("演出 (振動)") {
+            Section {
                 Toggle(isOn: Binding(
                     get: { celebrationPrefs.hapticEnabled },
                     set: { celebrationPrefs.hapticEnabled = $0 }
@@ -64,17 +68,19 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("haptic-toggle")
+            } header: {
+                Text("演出 (振動)")
+            } footer: {
                 Text("振動は CoreHaptics 対応機種でのみ動作します。")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
             }
 
-            Section("体調・周期") {
+            Section {
                 Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
                     .accessibilityIdentifier("cycle-tracking-toggle")
-                Text("ONにすると、運動記録画面に体調メモの Toggle が出現し、履歴カレンダーに ★ マークで表示されます。")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+            } header: {
+                Text("体調・周期")
+            } footer: {
+                Text("ONにすると、運動記録画面に体調メモの項目が出現し、履歴カレンダーに ★ マークで表示されます。")
             }
 
             Section("体重管理") {
@@ -110,21 +116,21 @@ struct SettingsView: View {
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 8) {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
+                        bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
+                        bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
+                        bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
+                    }
+                    .padding(.top, 4)
+                } label: {
                     Label("週 2 日まで休んでも連続記録は続きます", systemImage: "moon.zzz.fill")
-                        .font(Typography.headline)
+                        .font(Typography.body)
                         .foregroundStyle(Palette.textPrimary)
-                    Text("ルール:")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                    bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
-                    bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
-                    bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
-                    bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
                 }
-                .padding(.vertical, 6)
             } header: {
-                Label("自動休養日について", systemImage: "info.circle")
+                Text("自動休養日")
             }
 
             Section("アプリ情報") {
