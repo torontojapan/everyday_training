@@ -57,11 +57,11 @@ final class AllButtonsUITests: XCTestCase {
         let app = launchApp()
         dismissNotificationDialogIfPresent(app)
 
-        let recordButton = app.buttons["今日の運動を記録する"]
+        let recordButton = app.buttons["primary-record-action"]
         XCTAssertTrue(recordButton.waitForExistence(timeout: 8))
         recordButton.tap()
 
-        // The entry sheet shows カテゴリ section.
+        // The entry sheet shows カテゴリ section: any chip works.
         let categoryChip = app.buttons.containing(NSPredicate(format: "label CONTAINS '筋トレ'")).firstMatch
         XCTAssertTrue(categoryChip.waitForExistence(timeout: 5))
 
@@ -75,13 +75,13 @@ final class AllButtonsUITests: XCTestCase {
         let app = launchApp()
         dismissNotificationDialogIfPresent(app)
 
-        app.buttons["今日の運動を記録する"].tap()
+        app.buttons["primary-record-action"].tap()
 
         let closeButton = app.buttons["閉じる"]
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
         closeButton.tap()
 
-        XCTAssertTrue(app.buttons["今日の運動を記録する"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["primary-record-action"].waitForExistence(timeout: 5))
     }
 
     // MARK: - History navigation
@@ -99,7 +99,7 @@ final class AllButtonsUITests: XCTestCase {
         XCTAssertTrue(backButton.waitForExistence(timeout: 5))
         backButton.tap()
 
-        XCTAssertTrue(app.buttons["今日の運動を記録する"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["primary-record-action"].waitForExistence(timeout: 5))
     }
 
     // MARK: - Settings → Notification Settings navigation
@@ -127,7 +127,7 @@ final class AllButtonsUITests: XCTestCase {
         let app = launchApp()
         dismissNotificationDialogIfPresent(app)
 
-        app.buttons["今日の運動を記録する"].tap()
+        app.buttons["primary-record-action"].tap()
 
         let plankChip = app.buttons["プランクを入力"]
         XCTAssertTrue(plankChip.waitForExistence(timeout: 5))
@@ -172,7 +172,7 @@ final class AllButtonsUITests: XCTestCase {
         let app = launchApp()
         dismissNotificationDialogIfPresent(app)
 
-        app.buttons["今日の運動を記録する"].tap()
+        app.buttons["primary-record-action"].tap()
 
         let addButton = app.buttons["種目を追加"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 5))

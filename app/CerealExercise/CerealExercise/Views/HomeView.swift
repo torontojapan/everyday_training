@@ -20,7 +20,10 @@ struct HomeView: View {
                 Palette.background.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    // 階層化された spacing: 主導線 (CTA) 周りは余白を強く
+                    // とり、補助カードは詰める。全体 20pt 一律から、用途別
+                    // spacing で視覚的優先順位を伝える。
+                    VStack(alignment: .leading, spacing: 16) {
                         header
 
                         // Cat front-and-center so users greet 猫 first thing.
@@ -29,18 +32,17 @@ struct HomeView: View {
                             state: viewModel.catState,
                             decoration: viewModel.catDecoration
                         )
+                        .padding(.bottom, 4)   // 猫の下にひと呼吸
 
-                        PrimaryButton("今日の運動を記録する", systemImage: "plus.circle.fill") {
-                            isShowingEntry = true
-                        }
+                        primaryActionButton
 
                         weeklyCalendarSection
 
+                        // 達成済みの日は今日の達成カードだけ、未達成の日は
+                        // 今週のハイライトだけ。重複を避ける。
                         if viewModel.todayStatus == .todayAchieved, viewModel.todaySummary.hasExerciseData {
                             TodayAchievementSummaryCard(summary: viewModel.todaySummary)
-                        }
-
-                        if viewModel.weeklySummary.hasExerciseData {
+                        } else if viewModel.weeklySummary.hasExerciseData {
                             WeeklyHighlightCard(summary: viewModel.weeklySummary)
                         }
 
@@ -146,6 +148,27 @@ struct HomeView: View {
         }
     }
 
+    /// 達成済みなら CTA を「もう一種目する 🔥」に変えて達成感を残しつつ
+    /// 追加記録への導線も保つ。未達成なら従来通り「今日の運動を記録する」。
+    /// どちらのラベルでも accessibilityIdentifier を固定にしているので
+    /// UI test は識別子ベースで参照する。
+    @ViewBuilder
+    private var primaryActionButton: some View {
+        if viewModel.todayStatus == .todayAchieved {
+            PrimaryButton("もう一種目する 🔥",
+                          systemImage: "plus.circle.fill",
+                          accessibilityIdentifier: "primary-record-action") {
+                isShowingEntry = true
+            }
+        } else {
+            PrimaryButton("今日の運動を記録する",
+                          systemImage: "plus.circle.fill",
+                          accessibilityIdentifier: "primary-record-action") {
+                isShowingEntry = true
+            }
+        }
+    }
+
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 8) {
@@ -196,29 +219,35 @@ struct HomeView: View {
     }
 
     private var monthlyReviewEntry: some View {
-        Button {
+        let hasPrevious = viewModel.previousMonthHasRecords
+        return Button {
             buildAndPresentMonthlyReview()
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "doc.text.image")
                     .font(.system(size: 22))
-                    .foregroundStyle(Palette.primaryDeep)
+                    .foregroundStyle(hasPrevious ? Palette.primaryDeep : Palette.textSecondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("先月のレビューを見る")
                         .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("一ヶ月のがんばりをカードでサマリー、SNSでもシェアできます")
+                        .foregroundStyle(hasPrevious ? Palette.textPrimary : Palette.textSecondary)
+                    Text(hasPrevious
+                        ? "一ヶ月のがんばりをカードでサマリー、SNSでもシェアできます"
+                        : "先月の記録はまだありません")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Palette.textSecondary)
+                if hasPrevious {
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Palette.textSecondary)
+                }
             }
             .padding(14)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(!hasPrevious)
         .accessibilityIdentifier("monthly-review-button")
     }
 

@@ -114,18 +114,19 @@ final class SettingsLinksUITests: XCTestCase {
         if deny.waitForExistence(timeout: 1) { deny.tap() }
 
         // SwiftUI Link is rendered as a button, queryable by its visible label.
-        // SettingsView is long, so swipe up until the link appears.
-        let privacy = app.buttons.matching(identifier: "プライバシーポリシー").firstMatch
+        // SettingsView grew taller in Phase 6.0 Batch 3 (Section footers + new
+        // sharing section), so swipe-up budget is bumped to 14.
+        let support = app.buttons.matching(identifier: "サポート").firstMatch
 
         var attempts = 0
-        while !privacy.waitForExistence(timeout: 1) && attempts < 8 {
+        while !support.waitForExistence(timeout: 1) && attempts < 14 {
             app.swipeUp()
             attempts += 1
         }
-        XCTAssertTrue(privacy.exists, "プライバシーポリシー Link が表示されるはず")
+        XCTAssertTrue(support.exists, "サポート Link が表示されるはず")
         XCTAssertTrue(app.buttons.matching(identifier: "利用規約").firstMatch.exists,
                       "利用規約 Link が表示されるはず")
-        XCTAssertTrue(app.buttons.matching(identifier: "サポート").firstMatch.exists,
-                      "サポート Link が表示されるはず")
+        XCTAssertTrue(app.buttons.matching(identifier: "プライバシーポリシー").firstMatch.exists,
+                      "プライバシーポリシー Link が表示されるはず")
     }
 }

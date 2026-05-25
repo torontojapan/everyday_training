@@ -15,10 +15,13 @@ struct CatMessageView: View {
         HStack(alignment: .top, spacing: 12) {
             CatStateView(state: state, decoration: decoration)
 
-            Text("「\(message.text)」")
+            // 引用符を外し本文だけにすることで吹き出し感を維持しつつ
+            // 視覚的なノイズを減らす。本文は最大 3 行で省略。
+            Text(message.text)
                 .font(Typography.body)
                 .foregroundStyle(Palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(3)
                 .padding(16)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(alignment: .leading) {

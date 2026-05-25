@@ -5,15 +5,18 @@ struct PrimaryButton: View {
     let systemImage: String?
     let action: () -> Void
     private let hapticFeedback: any HapticFeedbackProviding
+    private let identifierOverride: String?
 
     init(
         _ title: String,
         systemImage: String? = nil,
+        accessibilityIdentifier: String? = nil,
         hapticFeedback: any HapticFeedbackProviding = HapticFeedback(),
         action: @escaping () -> Void
     ) {
         self.title = title
         self.systemImage = systemImage
+        self.identifierOverride = accessibilityIdentifier
         self.hapticFeedback = hapticFeedback
         self.action = action
     }
@@ -32,7 +35,9 @@ struct PrimaryButton: View {
         }
         .buttonStyle(PressableScaleButtonStyle())
         .accessibilityLabel(title)
-        .accessibilityIdentifier(title)
+        // identifierOverride を渡せば test 用の安定 ID。指定なしなら
+        // タイトル文字列が ID になる (後方互換)。
+        .accessibilityIdentifier(identifierOverride ?? title)
     }
 }
 

@@ -21,6 +21,9 @@ final class HomeViewModel {
     var rescueTicketAvailable = true
     var pendingMilestone: Milestone?
     var firstUseDate: Date = Date()
+    /// 「先月のレビュー」ボタンを active / disabled で出し分けるために、
+    /// 前月にいずれかの記録があるかどうかを保持する。
+    var previousMonthHasRecords = false
     private let usageTracker = LifetimeUsageTracker()
     private let rescueTicketStore = RescueTicketStore()
     private let milestoneDetector = MilestoneDetector()
@@ -69,6 +72,15 @@ final class HomeViewModel {
             lifetimeAchieved: lifetimeStats.achievedDays,
             currentStreak: streak.currentStreak
         )
+        previousMonthHasRecords = Self.hasPreviousMonthRecords(records: records, today: today, calendar: calendar)
+    }
+
+    private static func hasPreviousMonthRecords(records: [WorkoutRecord], today: Date, calendar: Calendar) -> Bool {
+        guard let previousMonth = calendar.date(byAdding: .month, value: -1, to: today),
+              let interval = calendar.dateInterval(of: .month, for: previousMonth) else {
+            return false
+        }
+        return records.contains { interval.contains($0.date) }
     }
 
     func acknowledgeMilestone(_ milestone: Milestone) {
