@@ -122,9 +122,21 @@ struct SettingsView: View {
             Section("アプリ情報") {
                 LabeledContent("アプリ", value: "GOエクササイズ")
                 LabeledContent("バージョン", value: appVersion)
-                Text("利用規約・プライバシーポリシーは今後の提出準備で追加します。")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
+                    Label("プライバシーポリシー", systemImage: "hand.raised.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("privacy-policy-link")
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/terms")!) {
+                    Label("利用規約", systemImage: "doc.text.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("terms-link")
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/support")!) {
+                    Label("サポート", systemImage: "questionmark.circle.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("support-link")
             }
         }
         .scrollContentBackground(.hidden)

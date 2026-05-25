@@ -4,13 +4,16 @@ import UIKit
 
 @main
 struct CerealExerciseApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var themeStore = ThemeStore.shared
     @State private var friendsStore = FriendsStore(service: MockFriendsService())
+    @State private var routeState = RouteState()
+    @State private var router = DeepLinkRouter.shared
 
     var body: some Scene {
         WindowGroup {
-            HomeRootView(scenePhase: scenePhase)
+            HomeRootView(scenePhase: scenePhase, routeState: routeState)
                 .environment(themeStore)
                 .environment(friendsStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
@@ -21,32 +24,26 @@ struct CerealExerciseApp: App {
                         await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
                     }
                 }
+                .onOpenURL { url in
+                    if let route = DeepLinkRouter.route(from: url) {
+                        routeState.override = route
+                    }
+                }
+                .onChange(of: router.pendingRoute) { _, newRoute in
+                    guard let newRoute else { return }
+                    routeState.override = newRoute
+                    router.pendingRoute = nil
+                }
         }
         .modelContainer(for: [WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
     }
 }
 
-private enum InitialRoute: String {
-    case home
-    case record
-    case history
-    case settings
-    case notificationSettings = "notification-settings"
-    case streakShare = "streak-share"
-    case friends
-}
-
-@MainActor
-@Observable
-private final class RouteState {
-    var override: InitialRoute? = nil
-}
-
 private struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store: WorkoutStore?
-    @State private var routeState = RouteState()
     let scenePhase: ScenePhase
+    let routeState: RouteState
 
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
     private var skipNotificationPrompt: Bool { launchArgs.contains("--no-notification-prompt") }
@@ -57,11 +54,11 @@ private struct HomeRootView: View {
         }
         return DemoScenario(rawValue: launchArgs[idx + 1]) ?? .basic
     }
-    private var initialRoute: InitialRoute {
+    private var initialRoute: AppRoute {
         guard let idx = launchArgs.firstIndex(of: "--initial-route"), idx + 1 < launchArgs.count else {
             return .home
         }
-        return InitialRoute(rawValue: launchArgs[idx + 1]) ?? .home
+        return AppRoute(rawValue: launchArgs[idx + 1]) ?? .home
     }
 
     var body: some View {
@@ -105,9 +102,16 @@ private struct HomeRootView: View {
                     .environment(store)
             }
         case .record:
+            let state = routeState
             NavigationStack {
-                RecordEntryView { _ in }
+                RecordEntryView { _ in state.override = .home }
                     .environment(store)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("閉じる") { state.override = .home }
+                                .accessibilityIdentifier("record-deeplink-close")
+                        }
+                    }
             }
         case .history:
             let state = routeState
@@ -121,8 +125,15 @@ private struct HomeRootView: View {
                 SettingsView(onClose: { state.override = .home })
             }
         case .notificationSettings:
+            let state = routeState
             NavigationStack {
                 NotificationSettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("閉じる") { state.override = .home }
+                                .accessibilityIdentifier("notif-deeplink-close")
+                        }
+                    }
             }
         case .streakShare:
             let streak = StreakCalculator.currentStreak(
@@ -143,8 +154,15 @@ private struct HomeRootView: View {
                 )
             )
         case .friends:
+            let state = routeState
             NavigationStack {
                 FriendsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("閉じる") { state.override = .home }
+                                .accessibilityIdentifier("friends-deeplink-close")
+                        }
+                    }
             }
         }
     }

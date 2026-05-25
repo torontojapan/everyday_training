@@ -116,6 +116,9 @@ final class NotificationScheduler {
             calendar: calendar
         )
         content.sound = .default
+        // Tap on the reminder should jump straight to the record screen.
+        // AppDelegate reads this and forwards into DeepLinkRouter.
+        content.userInfo = ["route": AppRoute.record.rawValue]
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)

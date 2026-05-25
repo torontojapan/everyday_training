@@ -1,6 +1,6 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-25 (Phase 5.5 — 音声演出削除 + 写真保存バグ修正)
+最終更新: 2026-05-25 (Phase 5.6 — 厳格バグ回収: deep link / 設定リンク / decoration icon)
 
 このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
 
@@ -8,11 +8,14 @@
 
 ## 直近の状態 (要約)
 
-- **iOS アプリ本体**: 機能実装は完了 (Phase 5.5 まで)。Simulator で全画面動作確認済み。
-- **テスト**: Unit **138** / UI 8 = **146 件 PASS**。
+- **iOS アプリ本体**: 機能実装は完了 (Phase 5.6 まで)。Simulator で全画面動作確認済み。
+- **テスト**: Unit **145** / UI 8 = **153 件 PASS**。
 - **友達機能**: FriendDetailView + 週カレンダー + sort + 詳細から cheer / 削除まで完成。`FriendsStore` をアプリ root に注入済み。
 - **音声演出**: 削除済み (Phase 5.5)。haptic のみ残存。
 - **写真保存**: Info.plist 不備バグを修正 (NSPhotoLibraryAddUsageDescription 追加)。ImageSaver で完了 callback 経由のエラー処理。
+- **Deep link**: cerealexercise://{home|record|history|settings|friends|notification-settings|streak-share} を `.onOpenURL` で処理 (Phase 5.6)。
+- **通知タップ**: 記録画面に直接遷移するよう `AppDelegate + NotificationDelegate` を実装 (Phase 5.6)。
+- **SettingsView**: アプリ情報セクションに privacy / terms / support 実リンクを追加 (Phase 5.6)。
 - **未解決のバグ報告**: なし。
 - **プライバシーポリシー / 利用規約 / メタデータ**: CloudKit + 友達機能用に更新済み。
 

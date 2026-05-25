@@ -90,11 +90,14 @@ struct FriendDetailView: View {
             }
 
             if friend.decoration != .none {
-                Label(friend.decoration.displayName, systemImage: decorationSymbolName)
-                    .font(Typography.caption)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(tierColor.opacity(0.18), in: Capsule())
-                    .foregroundStyle(tierColor)
+                HStack(spacing: 6) {
+                    Text(friend.decoration.emoji)
+                    Text(friend.decoration.displayName)
+                }
+                .font(Typography.caption)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(tierColor.opacity(0.18), in: Capsule())
+                .foregroundStyle(tierColor)
             }
 
             Text(lastUpdatedText)
@@ -340,16 +343,6 @@ struct FriendDetailView: View {
         case 3: return Color(red: 0.90, green: 0.60, blue: 0.20)
         case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
         default: return Palette.textSecondary
-        }
-    }
-
-    private var decorationSymbolName: String {
-        switch friend.decoration {
-        case .none: return "questionmark.circle"
-        case .bandana: return "scribble"
-        case .headband: return "sportscourt.fill"
-        case .medal: return "medal.fill"
-        case .crown: return "crown.fill"
         }
     }
 

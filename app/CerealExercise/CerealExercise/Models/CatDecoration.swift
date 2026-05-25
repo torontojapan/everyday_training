@@ -42,10 +42,22 @@ enum CatDecoration: String, CaseIterable, Identifiable, Sendable {
     var symbolName: String {
         switch self {
         case .none: return ""
-        case .bandana: return "scribble"        // placeholder
+        case .bandana: return "tshirt.fill"
         case .headband: return "sportscourt.fill"
         case .medal: return "medal.fill"
         case .crown: return "crown.fill"
+        }
+    }
+
+    /// Emoji equivalent for chips/badges where an SF Symbol would look
+    /// off-brand (the cat decorations are colorful rather than glyph-like).
+    var emoji: String {
+        switch self {
+        case .none: return ""
+        case .bandana: return "🧣"
+        case .headband: return "🎀"
+        case .medal: return "🥉"
+        case .crown: return "👑"
         }
     }
 
