@@ -28,6 +28,8 @@ struct FriendsView: View {
     @State private var cheerToast: String?
     @State private var cheerToastToken: UUID?
     @State private var pendingRemovalFriend: FriendProfile?
+    @State private var isShowingMyQR = false
+    @State private var cheerTarget: FriendProfile?
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     var body: some View {
@@ -53,16 +55,18 @@ struct FriendsView: View {
                 isShowingAdd = true
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
+            // toast を下部に移動。上部は Dynamic Island / Navigation Bar
+            // と被るため、下部 safe area の少し上の方が衝突しにくい。
             if let cheerToast {
                 Text(cheerToast)
                     .font(Typography.caption)
-                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(.thinMaterial, in: Capsule())
                     .foregroundStyle(Palette.textPrimary)
-                    .padding(.top, 6)
-                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .padding(.bottom, 24)
+                    .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                     .accessibilityIdentifier("friend-cheer-toast")
             }
         }
@@ -99,6 +103,14 @@ struct FriendsView: View {
             }
         } message: { _ in
             Text("再度つながるには友達コードで申請が必要です。")
+        }
+        .sheet(item: $cheerTarget) { friend in
+            CheerPickerSheet(friend: friend) { kind in
+                cheerTarget = nil
+                Task { await sendCheer(kind, to: friend) }
+            }
+            .presentationDetents([.height(280)])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -177,7 +189,7 @@ struct FriendsView: View {
     }
 
     private func profileHeader(_ profile: FriendProfile) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             HStack(spacing: 14) {
                 avatar(tier: profile.decorationTier)
                 VStack(alignment: .leading, spacing: 4) {
@@ -194,22 +206,41 @@ struct FriendsView: View {
                 Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("あなたの友達コード")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+            // 友達コード行は常時表示、QR は折り畳み (デフォルト閉)。
+            // 以前は QR まで含めて画面の 60% を占有していたが、これで
+            // 友達リストがファーストビューに入る。
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(profile.friendCode)
-                        .font(.system(size: 28, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(Palette.primaryDeep)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("あなたの友達コード")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                        Text(profile.friendCode)
+                            .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(Palette.primaryDeep)
+                    }
                     Spacer()
                     ShareLink(item: shareText(for: profile)) {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 18))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Palette.primaryDeep)
+                            .frame(width: 44, height: 44)
+                            .background(Palette.chipBackground, in: Circle())
                     }
+                    .accessibilityLabel("友達コードを共有")
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { isShowingMyQR.toggle() }
+                    } label: {
+                        Image(systemName: isShowingMyQR ? "qrcode.viewfinder" : "qrcode")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .frame(width: 44, height: 44)
+                            .background(Palette.chipBackground, in: Circle())
+                    }
+                    .accessibilityLabel(isShowingMyQR ? "QR コードを隠す" : "QR コードを表示")
+                    .accessibilityIdentifier("toggle-my-qr")
                 }
-                if let qr = qrImage(text: profile.friendCode) {
+                if isShowingMyQR, let qr = qrImage(text: profile.friendCode) {
                     HStack {
                         Spacer()
                         Image(uiImage: qr)
@@ -221,9 +252,10 @@ struct FriendsView: View {
                             .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         Spacer()
                     }
+                    .transition(.opacity.combined(with: .scale))
                 }
             }
-            .padding(16)
+            .padding(14)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
@@ -339,6 +371,11 @@ struct FriendsView: View {
     }
 
     private func friendCard(_ friend: FriendProfile) -> some View {
+        // カードは「装飾 + 名前 + 連続 + 今日達成 + 更新」に絞る。
+        // 週カレンダー / 詳細 / cheer 4 種は詳細シートで重複していたので
+        // ここからは外す。カードタップで詳細へ、応援ボタン 1 つで cheer
+        // メニューを開く構成にする。これでカード 1 枚あたりの高さが減り、
+        // ファーストビューにより多くの友達が映る。
         Button {
             detailFriend = friend
             hapticFeedback.tap()
@@ -353,26 +390,26 @@ struct FriendsView: View {
                         Text("@\(friend.username)")
                             .font(Typography.caption)
                             .foregroundStyle(Palette.textSecondary)
-                        Text(relativeUpdated(friend.lastUpdated))
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(Palette.textSecondary)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("🔥 \(friend.currentStreak)")
                             .font(.system(.title3, design: .rounded, weight: .heavy))
                             .foregroundStyle(Palette.primaryDeep)
+                            .monospacedDigit()
                         Text("累計 \(friend.totalAchievedDays)日")
                             .font(Typography.caption)
                             .foregroundStyle(Palette.textSecondary)
                     }
                 }
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     if friend.todayAchieved {
-                        Image(systemName: "checkmark.seal.fill").foregroundStyle(Palette.success)
-                        Text("今日:")
-                            .font(Typography.caption).foregroundStyle(Palette.textSecondary)
+                        Label("今日達成", systemImage: "checkmark.seal.fill")
+                            .font(Typography.caption)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Palette.success.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Palette.success)
                         if let cat = friend.todayCategoryName {
                             Text(cat)
                                 .font(Typography.caption)
@@ -380,39 +417,31 @@ struct FriendsView: View {
                                 .background(Palette.chipBackground, in: Capsule())
                                 .foregroundStyle(Palette.primaryDeep)
                         }
-                        Text(friend.todayExerciseNames.joined(separator: " / "))
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textPrimary)
-                            .lineLimit(2)
                     } else {
-                        Image(systemName: "hourglass").foregroundStyle(Palette.textSecondary)
-                        Text("今日はまだ未達成").font(Typography.caption).foregroundStyle(Palette.textSecondary)
+                        Label("今日はまだ未達成", systemImage: "hourglass")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
                     }
                     Spacer()
+                    Text(relativeUpdated(friend.lastUpdated))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(Palette.textSecondary)
                 }
 
-                // 週間ストリップ (一目で活動の波が分かる)
-                FriendWeekStripView(weekly: friend.weeklyAchievementsOrEmpty, today: todayWeekdayIndex)
-                    .padding(.top, 2)
-
-                HStack(spacing: 10) {
-                    ForEach(CheerKind.allCases, id: \.self) { kind in
-                        Button {
-                            Task { await sendCheer(kind, to: friend) }
-                        } label: {
-                            Text("\(kind.emoji) \(kind.label)")
-                                .font(Typography.caption)
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Palette.chipBackground, in: Capsule())
-                                .foregroundStyle(Palette.textPrimary)
-                                .frame(minHeight: 44)   // HIG タップ領域確保
-                                .contentShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("cheer-\(kind.rawValue)-\(friend.friendCode)")
-                    }
-                    Spacer()
+                // 応援ボタンは bottom sheet に集約。1 つに減らすことで
+                // カードの高さが圧倒的に減る + 必要な時だけ展開される。
+                Button {
+                    cheerTarget = friend
+                } label: {
+                    Label("応援を送る", systemImage: "hands.sparkles.fill")
+                        .font(Typography.caption)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Palette.primary.opacity(0.12), in: Capsule())
+                        .foregroundStyle(Palette.primaryDeep)
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("open-cheer-sheet-\(friend.friendCode)")
             }
             .padding(14)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -505,6 +534,46 @@ struct FriendsView: View {
 
     private func shareText(for profile: FriendProfile) -> String {
         "GOエクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n@\(profile.username) (🔥 \(profile.currentStreak)日連続)"
+    }
+}
+
+// MARK: - Cheer picker sheet
+
+struct CheerPickerSheet: View {
+    let friend: FriendProfile
+    let onSend: (CheerKind) -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("\(friend.displayName) に応援を送る")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+                .padding(.top, 24)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(CheerKind.allCases, id: \.self) { kind in
+                    Button {
+                        onSend(kind)
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(kind.emoji).font(.system(size: 28))
+                            Text(kind.label)
+                                .font(Typography.body)
+                                .foregroundStyle(Palette.textPrimary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(PressableScaleButtonStyle())
+                    .accessibilityIdentifier("cheer-sheet-\(kind.rawValue)")
+                }
+            }
+            .padding(.horizontal, 20)
+
+            Spacer(minLength: 0)
+        }
+        .background(Palette.background)
     }
 }
 
