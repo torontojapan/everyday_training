@@ -3,8 +3,20 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingWidgetGuide = false
+    @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     private let rescueTicketStore = RescueTicketStore()
+    private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
+
+    private var cycleEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { cycleEnabled },
+            set: { newValue in
+                cycleEnabled = newValue
+                cycleSettings.isEnabled = newValue
+            }
+        )
+    }
 
     var body: some View {
         List {
@@ -15,6 +27,14 @@ struct SettingsView: View {
                     Label("通知設定", systemImage: "bell.badge.fill")
                         .foregroundStyle(Palette.textPrimary)
                 }
+            }
+
+            Section("体調・周期") {
+                Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
+                    .accessibilityIdentifier("cycle-tracking-toggle")
+                Text("ONにすると、運動記録画面に体調メモの Toggle が出現し、履歴カレンダーに ★ マークで表示されます。")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
             }
 
             Section("体重管理") {

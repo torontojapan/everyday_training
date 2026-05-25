@@ -6,9 +6,12 @@ struct RecordEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = RecordEntryViewModel()
     @State private var weightStore: WeightStore?
+    @State private var menstrualStore: MenstrualStore?
+    @State private var menstrualToday: Bool = false
     @State private var pendingSavedRecord: WorkoutRecord?
     @State private var isShowingSaveOptions = false
     private let hapticFeedback = HapticFeedbackController()
+    private let cycleSettings = CycleTrackingSettings()
     let onSaved: (WorkoutRecord) -> Void
 
     var body: some View {
@@ -54,6 +57,13 @@ struct RecordEntryView: View {
                     }
                 }
 
+                if cycleSettings.isEnabled {
+                    Section("体調・周期") {
+                        Toggle("今日は生理日", isOn: $menstrualToday)
+                            .accessibilityIdentifier("menstrual-toggle")
+                    }
+                }
+
                 Section("今日の体重 (任意)") {
                     HStack {
                         TextField("体重 (kg)", text: $viewModel.weightInput)
@@ -88,6 +98,7 @@ struct RecordEntryView: View {
                 Section {
                     PrimaryButton("保存", systemImage: "checkmark.circle.fill") {
                         if let record = viewModel.save(to: store, weightStore: weightStore) {
+                            menstrualStore?.set(menstrualToday, on: store.today)
                             hapticFeedback.success()
                             pendingSavedRecord = record
                             isShowingSaveOptions = true
@@ -123,6 +134,11 @@ struct RecordEntryView: View {
                 viewModel.updateHistoryProvider(store: store)
                 if weightStore == nil {
                     weightStore = WeightStore(context: modelContext)
+                }
+                if menstrualStore == nil {
+                    let mStore = MenstrualStore(context: modelContext)
+                    menstrualStore = mStore
+                    menstrualToday = mStore.isMarked(store.today)
                 }
             }
             .toolbar {

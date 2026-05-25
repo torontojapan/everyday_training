@@ -2,9 +2,11 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(WorkoutStore.self) private var store
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = HistoryViewModel()
     @State private var selectedDay: SelectedDay?
+    @State private var menstrualStore: MenstrualStore?
     var onClose: (() -> Void)? = nil
 
     private let calendar = Calendar.mondayFirst
@@ -25,7 +27,11 @@ struct HistoryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                MonthlyCalendarView(records: store.records, today: store.today) { date in
+                MonthlyCalendarView(
+                    records: store.records,
+                    today: store.today,
+                    menstrualDates: menstrualStore?.markedDates() ?? []
+                ) { date in
                     open(date: date)
                 }
 
@@ -73,6 +79,11 @@ struct HistoryView: View {
         .onAppear {
             store.fetchRecords()
             viewModel.refresh(records: store.records)
+            if menstrualStore == nil {
+                menstrualStore = MenstrualStore(context: modelContext)
+            } else {
+                menstrualStore?.fetchEntries()
+            }
         }
         .sheet(item: $selectedDay) { day in
             DayDetailSheet(date: day.date, records: day.records, status: day.status)

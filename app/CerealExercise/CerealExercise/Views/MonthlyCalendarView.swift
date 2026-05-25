@@ -3,15 +3,17 @@ import SwiftUI
 struct MonthlyCalendarView: View {
     let records: [WorkoutRecord]
     let today: Date
+    var menstrualDates: Set<Date> = []
     var onDayTap: ((Date) -> Void)? = nil
 
     @State private var currentMonth: Date
     private let calendar = Calendar.mondayFirst
     private let weekdays = ["月", "火", "水", "木", "金", "土", "日"]
 
-    init(records: [WorkoutRecord], today: Date, onDayTap: ((Date) -> Void)? = nil) {
+    init(records: [WorkoutRecord], today: Date, menstrualDates: Set<Date> = [], onDayTap: ((Date) -> Void)? = nil) {
         self.records = records
         self.today = today
+        self.menstrualDates = menstrualDates
         self.onDayTap = onDayTap
         self._currentMonth = State(initialValue: today)
     }
@@ -81,6 +83,7 @@ struct MonthlyCalendarView: View {
         case .blank:
             Color.clear.frame(height: 38)
         case .day(let date, let status, let isToday):
+            let isMenstrual = menstrualDates.contains(calendar.startOfDay(for: date))
             Button {
                 onDayTap?(date)
             } label: {
@@ -95,9 +98,19 @@ struct MonthlyCalendarView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 38)
                 .background(background(for: status, isToday: isToday), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    if isMenstrual {
+                        Text("★")
+                            .font(.system(size: 10, weight: .heavy))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .padding(.top, 1)
+                            .padding(.trailing, 3)
+                            .accessibilityHidden(true)
+                    }
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))")
+            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 体調マークあり" : "")")
         }
     }
 
