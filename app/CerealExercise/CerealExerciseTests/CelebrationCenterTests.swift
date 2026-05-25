@@ -3,27 +3,23 @@ import XCTest
 
 @MainActor
 final class CelebrationCenterTests: XCTestCase {
-    func testFireRoutesToBothSoundAndHaptic() {
-        let sound = SilentSoundController()
+    func testFireRoutesToHaptic() {
         let haptic = SilentAdvancedHapticController()
-        let center = CelebrationCenter(sound: sound, haptic: haptic)
+        let center = CelebrationCenter(haptic: haptic)
 
         center.fire(.heroic)
 
-        XCTAssertEqual(sound.played, [.heroic])
         XCTAssertEqual(haptic.played, [.heroic])
     }
 
     func testFireUsesCorrectLevel() {
-        let sound = SilentSoundController()
         let haptic = SilentAdvancedHapticController()
-        let center = CelebrationCenter(sound: sound, haptic: haptic)
+        let center = CelebrationCenter(haptic: haptic)
 
         center.fire(.subtle)
         center.fire(.standard)
         center.fire(.legendary)
 
-        XCTAssertEqual(sound.played, [.subtle, .standard, .legendary])
         XCTAssertEqual(haptic.played, [.subtle, .standard, .legendary])
     }
 }
@@ -44,19 +40,16 @@ final class CelebrationPreferencesTests: XCTestCase {
         super.tearDown()
     }
 
-    func testDefaultsToBothEnabled() {
+    func testDefaultsToHapticEnabled() {
         let prefs = CelebrationPreferences(defaults: defaults)
-        XCTAssertTrue(prefs.soundEnabled)
         XCTAssertTrue(prefs.hapticEnabled)
     }
 
     func testTogglingPersists() {
         let prefs = CelebrationPreferences(defaults: defaults)
-        prefs.soundEnabled = false
         prefs.hapticEnabled = false
 
         let reloaded = CelebrationPreferences(defaults: defaults)
-        XCTAssertFalse(reloaded.soundEnabled)
         XCTAssertFalse(reloaded.hapticEnabled)
     }
 }

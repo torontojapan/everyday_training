@@ -127,8 +127,23 @@ struct StreakShareSheet: View {
     }
 
     private func saveToPhotos(_ image: UIImage) {
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        saveBannerText = "写真に保存しました"
+        saveBannerText = "保存中..."
+        let saver = ImageSaver()
+        saver.save(image) { result in
+            switch result {
+            case .success:
+                saveBannerText = "✓ 写真に保存しました"
+            case .failure(let error):
+                // Most common case: user denied 写真追加 permission. Surface a
+                // friendly hint instead of the raw NSError string.
+                let nsError = error as NSError
+                if nsError.domain == "ALAssetsLibraryErrorDomain" || nsError.code == -3311 {
+                    saveBannerText = "写真への保存が許可されていません。設定アプリから許可してください。"
+                } else {
+                    saveBannerText = "保存に失敗しました: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 }
 

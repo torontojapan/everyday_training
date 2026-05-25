@@ -40,15 +40,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("theme-link")
             }
 
-            Section("演出 (音・振動)") {
-                Toggle(isOn: Binding(
-                    get: { celebrationPrefs.soundEnabled },
-                    set: { celebrationPrefs.soundEnabled = $0 }
-                )) {
-                    Label("達成時の効果音", systemImage: "speaker.wave.2.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("sound-toggle")
+            Section("演出 (振動)") {
                 Toggle(isOn: Binding(
                     get: { celebrationPrefs.hapticEnabled },
                     set: { celebrationPrefs.hapticEnabled = $0 }
@@ -64,7 +56,7 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.primaryDeep)
                 }
                 .accessibilityIdentifier("celebration-preview-button")
-                Text("達成時のサウンドは消音モード時に再生されません。振動は対応機種でのみ動作します。")
+                Text("振動は CoreHaptics 対応機種でのみ動作します。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }

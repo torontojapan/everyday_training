@@ -16,7 +16,7 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 連続記録シェア画面 (SNS / 写真保存)
 - 月次レビュー (前月サマリーカード + シェア)
 - 記念日演出 (1周年 / 100日連続等) + 4 段階祝祭 (subtle / standard / heroic / legendary)
-- 効果音 + CoreHaptics 多層パターン (設定で個別 ON/OFF)
+- CoreHaptics 多層パターン (設定で ON/OFF)
 - 保険チケット (月 1 枚、体調・周期 ON で 2 枚) + カレンダー UI から日付選択
 - 体重管理 (記録 + 推移グラフ)
 - 体調・周期記録 (オプトイン、生理日に履歴カレンダーで ★)
@@ -53,9 +53,10 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 4.3 | テーマカラー 5 種 / 保険チケットカレンダー UI / 体調 ON で +1 枚 |
 | 5.0 | 友達機能 MVP (Mock + UI 完成) |
 | 5.1 | 4 段階祝祭演出 (CelebrationOverlay + ShimmerText) |
-| 5.2 | 効果音 + CoreHaptics + 自動休養日ルール明記 |
+| 5.2 | CoreHaptics 多層パターン + 自動休養日ルール明記 |
 | 5.3 | 友達ボタンをホーム toolbar に移動、バッジ削除、設定順最適化 |
 | 5.4 | 友達状態確認の完成版: FriendDetailView (週カレンダー / 装飾名 / cheer + 視覚フィードバック) / FriendsView 並び替え・refreshable・相対時刻 / FriendsStore を root 注入 |
+| 5.5 | 音声演出を削除 (haptic 単独運用) / 写真保存バグ修正 (NSPhotoLibraryAddUsageDescription + ImageSaver による完了 callback 処理) |
 
 ## ビルド
 
@@ -79,7 +80,7 @@ xcodebuild \
   test
 ```
 
-現状: ユニット **136** + UI 8 = **144 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット **138** + UI 8 = **146 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
 
 ## 進捗・残タスク
 

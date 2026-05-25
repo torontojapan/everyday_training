@@ -31,6 +31,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

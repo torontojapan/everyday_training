@@ -1,6 +1,6 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-25 (Phase 5.4 友達体験完成版)
+最終更新: 2026-05-25 (Phase 5.5 — 音声演出削除 + 写真保存バグ修正)
 
 このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
 
@@ -8,10 +8,11 @@
 
 ## 直近の状態 (要約)
 
-- **iOS アプリ本体**: 機能実装は完了 (Phase 5.4 まで)。Simulator で全画面動作確認済み。
-- **テスト**: Unit **136** / UI 8 — **PASS**。
+- **iOS アプリ本体**: 機能実装は完了 (Phase 5.5 まで)。Simulator で全画面動作確認済み。
+- **テスト**: Unit **138** / UI 8 = **146 件 PASS**。
 - **友達機能**: FriendDetailView + 週カレンダー + sort + 詳細から cheer / 削除まで完成。`FriendsStore` をアプリ root に注入済み。
-- **未コミット作業**: コミット前。
+- **音声演出**: 削除済み (Phase 5.5)。haptic のみ残存。
+- **写真保存**: Info.plist 不備バグを修正 (NSPhotoLibraryAddUsageDescription 追加)。ImageSaver で完了 callback 経由のエラー処理。
 - **未解決のバグ報告**: なし。
 - **プライバシーポリシー / 利用規約 / メタデータ**: CloudKit + 友達機能用に更新済み。
 
@@ -109,7 +110,7 @@
 - 直近主要コミット:
   - (本コミット) Phase 5.4 友達体験完成: FriendDetailView + 週カレンダー + sort + FriendsStore 注入
   - `52eee5b` 友達ボタンをホーム toolbar に / バッジ削除 / 設定順最適化
-  - `84c64ca` 効果音 + CoreHaptics
+  - `84c64ca` (歴史的: 効果音 + CoreHaptics。効果音は Phase 5.5 で削除)
   - `517028f` 4 段階祝祭演出 (CelebrationOverlay)
   - `1c4aa4b` 友達機能 MVP (Mock)
   - `fea1ffc` 5 テーマカラー
