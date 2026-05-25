@@ -29,6 +29,24 @@ final class HapticFeedbackTests: XCTestCase {
 
         XCTAssertEqual(spy.events, [.tap])
     }
+
+    func testHeroicRoutesToProvider() {
+        let spy = HapticFeedbackProviderSpy()
+        let feedback = HapticFeedbackController(provider: spy)
+
+        feedback.heroic()
+
+        XCTAssertEqual(spy.events, [.heroic])
+    }
+
+    func testMilestoneRoutesToProvider() {
+        let spy = HapticFeedbackProviderSpy()
+        let feedback = HapticFeedbackController(provider: spy)
+
+        feedback.milestone()
+
+        XCTAssertEqual(spy.events, [.milestone])
+    }
 }
 
 private final class HapticFeedbackProviderSpy: HapticFeedbackProviding {
@@ -44,5 +62,13 @@ private final class HapticFeedbackProviderSpy: HapticFeedbackProviding {
 
     func tap() {
         events.append(.tap)
+    }
+
+    func heroic() {
+        events.append(.heroic)
+    }
+
+    func milestone() {
+        events.append(.milestone)
     }
 }

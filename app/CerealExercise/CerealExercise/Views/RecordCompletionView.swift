@@ -12,7 +12,25 @@ struct RecordCompletionView: View {
     @State private var streakPulse = false
     @State private var showsConfetti = true
     @State private var fireBurst = false
+    @State private var ribbonText = ""
+    @State private var ribbonAppear = false
+    @State private var catHaloScale: CGFloat = 0.4
+    @State private var catHaloOpacity: Double = 0
     private let hapticFeedback = HapticFeedbackController()
+
+    private static let praiseRibbons = [
+        "お見事！", "ナイス継続！", "今日もえらい！", "素晴らしい！", "やったね！", "完璧！", "天才！", "コツコツ最強！"
+    ]
+
+    private var celebrationLevel: CelebrationLevel {
+        let level = StreakLevel(streak: streak)
+        switch level {
+        case .zero, .sprout: return .subtle
+        case .week, .twoWeeks: return .standard
+        case .month, .century: return .heroic
+        case .legend: return .legendary
+        }
+    }
 
     init(
         record: WorkoutRecord,
@@ -34,10 +52,45 @@ struct RecordCompletionView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    CatMessageView(
-                        message: CatMessageProvider.message(for: streakExtendedThisRun ? .streakExtended : .celebrating),
-                        state: streakExtendedThisRun ? .streakExtended : .celebrating
-                    )
+                    ZStack {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [Palette.primary.opacity(0.55), Palette.primary.opacity(0.0)],
+                                    center: .center, startRadius: 0, endRadius: 180
+                                )
+                            )
+                            .frame(width: 320, height: 320)
+                            .scaleEffect(catHaloScale)
+                            .opacity(catHaloOpacity)
+                            .blendMode(.plusLighter)
+                            .allowsHitTesting(false)
+
+                        CatMessageView(
+                            message: CatMessageProvider.message(for: streakExtendedThisRun ? .streakExtended : .celebrating),
+                            state: streakExtendedThisRun ? .streakExtended : .celebrating
+                        )
+                    }
+
+                    if ribbonAppear && !ribbonText.isEmpty {
+                        Text(ribbonText)
+                            .font(.system(.title2, design: .rounded, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 1.00, green: 0.55, blue: 0.35),
+                                                 Color(red: 0.95, green: 0.32, blue: 0.60)],
+                                        startPoint: .leading, endPoint: .trailing
+                                    )
+                                )
+                            )
+                            .shadow(color: Color(red: 0.95, green: 0.32, blue: 0.60).opacity(0.4), radius: 16, x: 0, y: 6)
+                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                            .accessibilityIdentifier("praise-ribbon")
+                    }
 
                     VStack(alignment: .leading, spacing: 14) {
                         Text("今日の記録")
@@ -64,8 +117,23 @@ struct RecordCompletionView: View {
                     .scaleEffect(contentVisible ? 1 : 0.92)
                     .opacity(contentVisible ? 1 : 0)
 
-                    StreakBadgeView(streak: streak)
-                        .scaleEffect(streakPulse ? 1.18 : 1)
+                    ZStack {
+                        // Backdrop glow
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [Color(red: 1.00, green: 0.55, blue: 0.30).opacity(streakPulse ? 0.45 : 0.18), .clear],
+                                    center: .center, startRadius: 0, endRadius: 200
+                                )
+                            )
+                            .frame(width: 360, height: 220)
+                            .blendMode(.plusLighter)
+                            .allowsHitTesting(false)
+
+                        StreakBadgeView(streak: streak)
+                            .scaleEffect(streakPulse ? 1.20 : 1)
+                            .shadow(color: Palette.primary.opacity(streakPulse ? 0.55 : 0.20), radius: streakPulse ? 22 : 8, x: 0, y: 4)
+                    }
 
                     if let onRecordAnother {
                         Button {
@@ -94,7 +162,7 @@ struct RecordCompletionView: View {
             }
 
             if showsConfetti && !reduceMotion {
-                ConfettiView()
+                CelebrationOverlay(level: celebrationLevel)
                     .transition(.opacity)
             }
 
@@ -106,9 +174,17 @@ struct RecordCompletionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             store.fetchRecords()
-            hapticFeedback.success()
+            triggerHaptic()
+            ribbonText = Self.praiseRibbons.randomElement() ?? "お見事！"
             withAnimation(Motion.animation(.spring(response: 0.45, dampingFraction: 0.72), reduceMotion: reduceMotion)) {
                 contentVisible = true
+            }
+            withAnimation(.easeOut(duration: 0.5)) {
+                catHaloScale = 1.0
+                catHaloOpacity = 1.0
+            }
+            withAnimation(Motion.animation(.spring(response: 0.55, dampingFraction: 0.5).delay(0.18), reduceMotion: reduceMotion)) {
+                ribbonAppear = true
             }
             withAnimation(Motion.animation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true), reduceMotion: reduceMotion)) {
                 streakPulse = true
@@ -117,11 +193,23 @@ struct RecordCompletionView: View {
                 fireBurst = true
             }
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2))
-                withAnimation(.easeOut(duration: 0.2)) {
+                try? await Task.sleep(for: .seconds(2.6))
+                withAnimation(.easeOut(duration: 0.3)) {
                     showsConfetti = false
+                    catHaloOpacity = 0.0
                 }
             }
+        }
+    }
+
+    private func triggerHaptic() {
+        switch celebrationLevel {
+        case .subtle:
+            hapticFeedback.success()
+        case .standard, .heroic:
+            hapticFeedback.heroic()
+        case .legendary:
+            hapticFeedback.milestone()
         }
     }
 

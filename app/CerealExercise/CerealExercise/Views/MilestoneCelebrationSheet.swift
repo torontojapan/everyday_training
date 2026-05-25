@@ -5,6 +5,28 @@ struct MilestoneCelebrationSheet: View {
     @Binding var isPresented: Bool
     var onAcknowledge: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var emojiScale: CGFloat = 0.2
+    @State private var emojiRotation: Double = -25
+    @State private var headlineAppear = false
+    @State private var detailAppear = false
+    @State private var ctaAppear = false
+    private let hapticFeedback = HapticFeedbackController()
+
+    private var celebrationLevel: CelebrationLevel {
+        switch milestone {
+        case .anniversary(let years):
+            return years >= 2 ? .legendary : .heroic
+        case .lifetimeDays(let d):
+            if d >= 365 { return .legendary }
+            if d >= 100 { return .heroic }
+            return .standard
+        case .currentStreak(let d):
+            if d >= 365 { return .legendary }
+            if d >= 30 { return .heroic }
+            return .standard
+        }
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -17,23 +39,33 @@ struct MilestoneCelebrationSheet: View {
             )
             .ignoresSafeArea()
 
-            ConfettiView()
+            CelebrationOverlay(level: celebrationLevel)
+                .ignoresSafeArea()
                 .allowsHitTesting(false)
 
             ScrollView {
                 VStack(spacing: 28) {
                     Spacer().frame(height: 80)
                     Text(milestone.emoji)
-                        .font(.system(size: 96))
-                    Text(milestone.headline)
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
+                        .font(.system(size: 112))
+                        .scaleEffect(emojiScale)
+                        .rotationEffect(.degrees(emojiRotation))
+                        .shadow(color: .black.opacity(0.25), radius: 18, x: 0, y: 8)
+                    ShimmerText(
+                        text: milestone.headline,
+                        font: .system(size: 34, weight: .heavy, design: .rounded)
+                    )
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .opacity(headlineAppear ? 1 : 0)
+                    .offset(y: headlineAppear ? 0 : 20)
                     Text(milestone.detail)
                         .font(Typography.body)
-                        .foregroundStyle(.white.opacity(0.92))
+                        .foregroundStyle(.white.opacity(0.95))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
+                        .opacity(detailAppear ? 1 : 0)
+                        .offset(y: detailAppear ? 0 : 12)
 
                     PrimaryButton("受け取る", systemImage: "sparkles") {
                         onAcknowledge()
@@ -41,6 +73,8 @@ struct MilestoneCelebrationSheet: View {
                         dismiss()
                     }
                     .padding(.top, 12)
+                    .scaleEffect(ctaAppear ? 1 : 0.7)
+                    .opacity(ctaAppear ? 1 : 0)
                     Spacer().frame(height: 60)
                 }
                 .padding(24)
@@ -62,6 +96,27 @@ struct MilestoneCelebrationSheet: View {
                 .padding(.top, 12)
                 .padding(.trailing, 16)
                 .accessibilityLabel("閉じる")
+            }
+        }
+        .onAppear {
+            switch celebrationLevel {
+            case .heroic, .legendary:
+                hapticFeedback.milestone()
+            default:
+                hapticFeedback.heroic()
+            }
+            withAnimation(Motion.animation(.spring(response: 0.6, dampingFraction: 0.55), reduceMotion: reduceMotion)) {
+                emojiScale = 1.0
+                emojiRotation = 0
+            }
+            withAnimation(Motion.animation(.spring(response: 0.55, dampingFraction: 0.78).delay(0.35), reduceMotion: reduceMotion)) {
+                headlineAppear = true
+            }
+            withAnimation(Motion.animation(.easeOut(duration: 0.5).delay(0.7), reduceMotion: reduceMotion)) {
+                detailAppear = true
+            }
+            withAnimation(Motion.animation(.spring(response: 0.4, dampingFraction: 0.5).delay(1.05), reduceMotion: reduceMotion)) {
+                ctaAppear = true
             }
         }
     }
