@@ -19,7 +19,14 @@ struct CerealExerciseApp: App {
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .task {
-                    if ProcessInfo.processInfo.arguments.contains("--mock-seed-friends"),
+                    let args = ProcessInfo.processInfo.arguments
+                    // For UI tests: force a clean signed-out state, regardless
+                    // of what was persisted by a previous run on the same
+                    // simulator. Must run before any mock-seed branch.
+                    if args.contains("--mock-force-signed-out") {
+                        await friendsStore.signOut()
+                    }
+                    if args.contains("--mock-seed-friends"),
                        friendsStore.profile == nil {
                         await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
                     }

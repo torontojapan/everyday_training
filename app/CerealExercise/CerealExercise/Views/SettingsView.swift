@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var isShowingWidgetGuide = false
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     @State private var celebrationPrefs = CelebrationPreferences.shared
+    @State private var sharingPrefs = FriendSharingPreferences.shared
     private let rescueTicketStore = RescueTicketStore()
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
@@ -38,6 +39,20 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("theme-link")
+            }
+
+            Section("友達と共有する情報") {
+                Toggle(isOn: Binding(
+                    get: { sharingPrefs.includeExerciseDetail },
+                    set: { sharingPrefs.includeExerciseDetail = $0 }
+                )) {
+                    Label("回数・時間・セット数も共有", systemImage: "person.2.badge.gearshape.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("sharing-detail-toggle")
+                Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。体重・体調などの個人情報は常に共有されません。")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
             }
 
             Section("演出 (振動)") {

@@ -41,7 +41,9 @@ final class MockFriendsService: FriendsService {
             decorationTier: 0,
             lastUpdated: now(),
             weeklyAchievements: Array(repeating: false, count: 7),
-            connectedSince: now()
+            connectedSince: now(),
+            todayExerciseDetails: nil,
+            monthlyAchievedDays: 0
         )
         myProfile = profile
         persistProfile()
@@ -147,7 +149,13 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 2,
                           lastUpdated: now.addingTimeInterval(-4 * minute),
                           weeklyAchievements: [true, true, false, true, true, true, true],
-                          connectedSince: nil),
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "スクワット", reps: 20, sets: 3),
+                              SharedExerciseDetail(name: "腕立て伏せ", reps: 10, sets: 3),
+                              SharedExerciseDetail(name: "プランク", durationMinutes: 2, sets: 3)
+                          ],
+                          monthlyAchievedDays: 22),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
                           currentStreak: 12, totalAchievedDays: 35,
@@ -156,7 +164,9 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 1,
                           lastUpdated: now.addingTimeInterval(-22 * minute),
                           weeklyAchievements: [true, false, true, true, true, false, true],
-                          connectedSince: nil),
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          monthlyAchievedDays: 15),  // 詳細共有 OFF の友達
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
                           currentStreak: 7, totalAchievedDays: 21,
@@ -165,7 +175,9 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 1,
                           lastUpdated: now.addingTimeInterval(-9 * 60 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, false],
-                          connectedSince: nil),
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          monthlyAchievedDays: 18),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
                           currentStreak: 100, totalAchievedDays: 312,
@@ -174,7 +186,11 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 3,
                           lastUpdated: now.addingTimeInterval(-2 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, true],
-                          connectedSince: nil)
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "ジョギング", durationMinutes: 45)
+                          ],
+                          monthlyAchievedDays: 26)
         ]
     }
 }

@@ -17,6 +17,11 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     var weeklyAchievements: [Bool]?
     /// 友達になった日。Mock では signIn 直後に設定。
     var connectedSince: Date?
+    /// 詳細共有 ON の友達のみセットされる。回数/時間/セット数を含む。
+    /// nil = 共有していない、空配列 = 共有 ON だが今日まだ記録なし。
+    var todayExerciseDetails: [SharedExerciseDetail]?
+    /// 月内の達成日数。リーグ判定に使用。Codable 互換のため optional。
+    var monthlyAchievedDays: Int?
 
     var weeklyAchievementsOrEmpty: [Bool] {
         let raw = weeklyAchievements ?? []
@@ -34,6 +39,44 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
         case 4: return .crown
         default: return .none
         }
+    }
+}
+
+/// 友達カードに opt-in で見せる種目の詳細。本人がプライバシー設定で
+/// 共有 ON にしている場合のみ送信される。
+struct SharedExerciseDetail: Identifiable, Hashable, Sendable, Codable {
+    var id: UUID
+    var name: String
+    var durationMinutes: Int?
+    var reps: Int?
+    var sets: Int?
+
+    init(id: UUID = UUID(),
+         name: String,
+         durationMinutes: Int? = nil,
+         reps: Int? = nil,
+         sets: Int? = nil) {
+        self.id = id
+        self.name = name
+        self.durationMinutes = durationMinutes
+        self.reps = reps
+        self.sets = sets
+    }
+
+    /// 「20回 × 3セット」「10分」など、UI 表示用の人が読めるサマリー。
+    var summary: String {
+        var parts: [String] = []
+        if let reps, let sets {
+            parts.append("\(reps)回 × \(sets)セット")
+        } else if let reps {
+            parts.append("\(reps)回")
+        } else if let sets {
+            parts.append("\(sets)セット")
+        }
+        if let durationMinutes {
+            parts.append("\(durationMinutes)分")
+        }
+        return parts.joined(separator: " / ")
     }
 }
 

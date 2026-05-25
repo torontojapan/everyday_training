@@ -145,7 +145,30 @@ struct FriendDetailView: View {
                         Spacer()
                     }
                 }
-                if !friend.todayExerciseNames.isEmpty {
+                if let details = friend.todayExerciseDetails, !details.isEmpty {
+                    // 友達が「回数・時間・セット数も共有」を ON にしている場合
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(details) { detail in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 6))
+                                    .foregroundStyle(Palette.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(detail.name)
+                                        .font(Typography.body)
+                                        .foregroundStyle(Palette.textPrimary)
+                                    if !detail.summary.isEmpty {
+                                        Text(detail.summary)
+                                            .font(Typography.caption)
+                                            .foregroundStyle(Palette.textSecondary)
+                                    }
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                } else if !friend.todayExerciseNames.isEmpty {
+                    // 種目名のみ共有 (デフォルト)
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(friend.todayExerciseNames, id: \.self) { name in
                             HStack(spacing: 8) {

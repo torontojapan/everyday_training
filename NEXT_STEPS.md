@@ -1,6 +1,6 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-25 (Phase 5.7 — バグ厳格回収 第二弾: validation / toast race / calendar / log)
+最終更新: 2026-05-25 (Phase 5.8-5.11 — 詳細共有 / 週間ランキング / リーグ / UI test 拡充)
 
 このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
 
@@ -9,7 +9,7 @@
 ## 直近の状態 (要約)
 
 - **iOS アプリ本体**: 機能実装は完了 (Phase 5.6 まで)。Simulator で全画面動作確認済み。
-- **テスト**: Unit **154** / UI 8 = **162 件 PASS**。
+- **テスト**: Unit **186** / UI **14** = **200 件 PASS**。
 - **友達機能**: FriendDetailView + 週カレンダー + sort + 詳細から cheer / 削除まで完成。`FriendsStore` をアプリ root に注入済み。
 - **音声演出**: 削除済み (Phase 5.5)。haptic のみ残存。
 - **写真保存**: Info.plist 不備バグを修正 (NSPhotoLibraryAddUsageDescription 追加)。ImageSaver で完了 callback 経由のエラー処理。
@@ -50,14 +50,14 @@
 
 ### 🟢 P2 — 将来 Phase (任意)
 
-| # | タスク | フェーズ |
-|---|---|---|
-| 14 | 当日メニュー詳細共有 (回数・セットも opt-in で) | 5.5 |
-| 15 | 週間ランキング (オプトイン) | 5.6 |
-| 16 | 友達からの達成 push 通知 | 5.6 |
-| 17 | Duolingo 風リーグ・昇格システム | 5.7 |
-| 18 | 簡易チャット (CloudKit Shared DB) | 5.8 |
-| 19 | Android 版検討 (CloudKit を破棄して Supabase 移行) | 6.0 |
+| # | タスク | フェーズ | 状態 |
+|---|---|---|---|
+| 14 | 当日メニュー詳細共有 (回数・セットも opt-in で) | 5.8 | ✅ 完了 (Mock) |
+| 15 | 週間ランキング (オプトイン) | 5.9 | ✅ 完了 (Mock) |
+| 16 | 友達からの達成 push 通知 | (CloudKit + Push 後) | pending |
+| 17 | Duolingo 風リーグ・昇格システム | 5.10 | ✅ 完了 (Mock) |
+| 18 | 簡易チャット (CloudKit Shared DB) | 5.12 | pending |
+| 19 | Android 版検討 (CloudKit を破棄して Supabase 移行) | 6.0 | pending |
 
 ### 🔵 P3 — メンテナンス
 

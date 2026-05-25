@@ -22,6 +22,9 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - 体調・周期記録 (オプトイン、生理日に履歴カレンダーで ★)
 - 5 テーマカラー (peach / sky / midnight / sunshine / forest)
 - **友達と共有** (友達コード / QR / ユーザー名検索、連続記録 + 今日のメニュー共有、4 種スタンプ応援、友達詳細シートで週カレンダー / 装飾ランク / 最終更新時刻も確認)
+- **詳細共有 opt-in** (回数・時間・セット数も友達と共有可能、デフォルトは種目名のみ)
+- **週間ランキング** (友達 + 自分の今週達成日数で順位表示、金銀銅メダル)
+- **Duolingo 風 5 段階リーグ** (ブロンズ→シルバー→ゴールド→プラチナ→ダイヤモンド、月末に上位 2 名昇格・下位 1 名降格、昇格演出)
 
 ## ディレクトリ
 
@@ -59,6 +62,10 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 | 5.5 | 音声演出を削除 (haptic 単独運用) / 写真保存バグ修正 (NSPhotoLibraryAddUsageDescription + ImageSaver による完了 callback 処理) |
 | 5.6 | 厳格バグ回収: URL scheme handler (`cerealexercise://...`) / 通知タップ deep link (記録画面に遷移) / SettingsView の placeholder を実リンク (privacy/terms/support) に置換 / 装飾 chip の `scribble` symbol を emoji に / deep-link 経由で開いた画面に「閉じる」ボタン |
 | 5.7 | バグ厳格回収 第二弾: 友達コード validation (6 桁固定 + 自動 sanitize) / cheer toast race (UUID トークン化) / NotificationScheduler default calendar を mondayFirst に / DemoDataSeeder の save エラーを OSLog 出力 / 演出セクションから「テスト再生」ボタン削除 |
+| 5.8 | 当日メニュー詳細共有 (opt-in): `FriendSharingPreferences` + `SharedExerciseDetail` (回数/時間/セット) + FriendDetailView の二段表示 |
+| 5.9 | 週間ランキング画面: `WeeklyRankingCalculator` (dense ranking, tiebreak on streak) + WeeklyRankingView (金銀銅メダル + 自分ハイライト) |
+| 5.10 | Duolingo 風 5 段階リーグ (ブロンズ→ダイヤモンド): `League` enum / `LeagueStore` (月跨ぎ検知) / `LeagueRules` (上位 2 名昇格・下位 1 名降格) / LeagueView + 昇格演出 toast |
+| 5.11 | UI test 拡充: Friends flow (5 件) + Settings links (1 件)、UI total 8 → 14 件 |
 
 ## ビルド
 
@@ -82,7 +89,7 @@ xcodebuild \
   test
 ```
 
-現状: ユニット **154** + UI 8 = **162 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット **186** + UI 14 = **200 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
 
 ## 進捗・残タスク
 
