@@ -35,6 +35,7 @@ enum DemoDataSeeder {
             seedStreakBroken(context: context, todayStart: todayStart, calendar: calendar)
         case .longStreak:
             seedLongStreak(context: context, todayStart: todayStart, calendar: calendar)
+            seedMenstrualSamples(context: context, todayStart: todayStart, calendar: calendar)
         case .monthBoundary:
             seedMonthBoundary(context: context, todayStart: todayStart, calendar: calendar)
         case .empty:
@@ -88,6 +89,16 @@ enum DemoDataSeeder {
             calendar: calendar
         )
         context.insert(record)
+    }
+
+    /// Seed a 5-day stretch of menstrual entries roughly a week back. Used
+    /// alongside the long-streak workout data so the demo state on screen
+    /// shots and dev sessions clearly demonstrates the cycle tracking UI.
+    private static func seedMenstrualSamples(context: ModelContext, todayStart: Date, calendar: Calendar) {
+        for offset in 5...9 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+            context.insert(MenstrualEntry(date: day, calendar: calendar))
+        }
     }
 
     private static func seedBasic(context: ModelContext, todayStart: Date, calendar: Calendar) {

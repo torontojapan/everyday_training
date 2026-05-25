@@ -128,12 +128,12 @@ struct MonthlyCalendarView: View {
                 )
                 .overlay(alignment: .topTrailing) {
                     if isMenstrual {
-                        // ★ から滴アイコンに変更。達成スターと混同しにくく、
-                        // 生理日であることが視覚的に伝わる。色も赤系で統一。
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 10, weight: .heavy))
+                        // 生理日マーク: ★ をユーザー好みで維持しつつ、
+                        // ラベル/凡例側で「生理日」と明示することで意味を担保する。
+                        Text("★")
+                            .font(.system(size: 11, weight: .heavy))
                             .foregroundStyle(Color(red: 0.86, green: 0.36, blue: 0.45))
-                            .padding(.top, 2)
+                            .padding(.top, 1)
                             .padding(.trailing, 3)
                             .accessibilityHidden(true)
                     }
@@ -175,9 +175,11 @@ struct MonthlyCalendarView: View {
                 legendChip(symbol: "休", label: "休養日")
                 legendChip(symbol: "×", label: "未達成")
                 if !menstrualDates.isEmpty {
+                    // 星マーク本体は通常の chip の symbol スロットに収め、
+                    // 色を赤系に塗ることでカレンダー上の★と視覚的に対応させる。
                     legendChip(
-                        systemImage: "drop.fill",
-                        iconColor: Color(red: 0.86, green: 0.36, blue: 0.45),
+                        symbol: "★",
+                        symbolColor: Color(red: 0.86, green: 0.36, blue: 0.45),
                         label: "生理日"
                     )
                 }
@@ -190,6 +192,7 @@ struct MonthlyCalendarView: View {
 
     private func legendChip(
         symbol: String? = nil,
+        symbolColor: Color = Palette.textPrimary,
         systemImage: String? = nil,
         iconColor: Color = Palette.primaryDeep,
         label: String
@@ -198,6 +201,7 @@ struct MonthlyCalendarView: View {
             if let symbol {
                 Text(symbol)
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .foregroundStyle(symbolColor)
                     .frame(width: 18, height: 18)
                     .background(Palette.surface, in: Circle())
                     .overlay(Circle().strokeBorder(Palette.textSecondary.opacity(0.2), lineWidth: 0.5))
