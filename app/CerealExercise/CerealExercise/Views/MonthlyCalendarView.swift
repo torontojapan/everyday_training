@@ -4,16 +4,25 @@ struct MonthlyCalendarView: View {
     let records: [WorkoutRecord]
     let today: Date
     var menstrualDates: Set<Date> = []
+    var rescuedDates: Set<Date> = []
+    var highlightStatuses: Set<DailyStatus> = []
     var onDayTap: ((Date) -> Void)? = nil
 
     @State private var currentMonth: Date
     private let calendar = Calendar.mondayFirst
     private let weekdays = ["月", "火", "水", "木", "金", "土", "日"]
 
-    init(records: [WorkoutRecord], today: Date, menstrualDates: Set<Date> = [], onDayTap: ((Date) -> Void)? = nil) {
+    init(records: [WorkoutRecord],
+         today: Date,
+         menstrualDates: Set<Date> = [],
+         rescuedDates: Set<Date> = [],
+         highlightStatuses: Set<DailyStatus> = [],
+         onDayTap: ((Date) -> Void)? = nil) {
         self.records = records
         self.today = today
         self.menstrualDates = menstrualDates
+        self.rescuedDates = rescuedDates
+        self.highlightStatuses = highlightStatuses
         self.onDayTap = onDayTap
         self._currentMonth = State(initialValue: today)
     }
@@ -83,7 +92,10 @@ struct MonthlyCalendarView: View {
         case .blank:
             Color.clear.frame(height: 38)
         case .day(let date, let status, let isToday):
-            let isMenstrual = menstrualDates.contains(calendar.startOfDay(for: date))
+            let dayStart = calendar.startOfDay(for: date)
+            let isMenstrual = menstrualDates.contains(dayStart)
+            let isRescued = rescuedDates.contains(dayStart)
+            let isHighlighted = highlightStatuses.contains(status)
             Button {
                 onDayTap?(date)
             } label: {
@@ -98,12 +110,26 @@ struct MonthlyCalendarView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 38)
                 .background(background(for: status, isToday: isToday), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(isHighlighted ? Palette.primary : .clear, lineWidth: 2)
+                )
                 .overlay(alignment: .topTrailing) {
                     if isMenstrual {
                         Text("★")
                             .font(.system(size: 10, weight: .heavy))
                             .foregroundStyle(Palette.primaryDeep)
                             .padding(.top, 1)
+                            .padding(.trailing, 3)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if isRescued {
+                        Image(systemName: "ticket.fill")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .padding(.bottom, 2)
                             .padding(.trailing, 3)
                             .accessibilityHidden(true)
                     }

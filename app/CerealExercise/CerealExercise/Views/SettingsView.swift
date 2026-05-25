@@ -114,16 +114,18 @@ struct SettingsView: View {
     }
 
     private var rescueTicketRow: some View {
-        let available = rescueTicketStore.hasTicketAvailable(today: Date())
+        let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
+        let remaining = rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
+        let available = remaining > 0
         return HStack(spacing: 12) {
             Image(systemName: available ? "ticket.fill" : "ticket")
                 .font(.system(size: 22))
                 .foregroundStyle(available ? Palette.primary : Palette.textSecondary.opacity(0.5))
             VStack(alignment: .leading, spacing: 4) {
-                Text(available ? "今月 1枚 残り" : "今月のチケットは使用済み")
+                Text("今月 \(remaining) / \(allowance)枚 残り")
                     .font(Typography.body)
                     .foregroundStyle(Palette.textPrimary)
-                Text("忙しい日に1日だけ連続記録を守れます")
+                Text(allowance > 1 ? "忙しい日に連続記録を守れます (体調・周期 ON で +1 枚)" : "忙しい日に1日だけ連続記録を守れます")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }

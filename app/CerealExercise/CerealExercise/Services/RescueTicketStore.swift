@@ -12,10 +12,19 @@ final class RescueTicketStore {
         self.calendar = calendar
     }
 
-    /// One ticket per calendar month. Returns true if today's month has a ticket left.
-    func hasTicketAvailable(today: Date) -> Bool {
-        let key = monthKey(for: today)
-        return !usedMonthKeys().contains(key)
+    /// Returns true if the month for `today` still has a ticket left, given `allowance`.
+    /// Default allowance is 1 (baseline). Pass 2 when cycle tracking is enabled.
+    func hasTicketAvailable(today: Date, allowance: Int = 1) -> Bool {
+        usedCount(inMonthOf: today) < allowance
+    }
+
+    func usedCount(inMonthOf date: Date) -> Int {
+        let key = monthKey(for: date)
+        return rescuedDates().filter { monthKey(for: $0) == key }.count
+    }
+
+    func remainingTickets(today: Date, allowance: Int = 1) -> Int {
+        max(0, allowance - usedCount(inMonthOf: today))
     }
 
     /// Returns the set of dates (start-of-day) on which a rescue ticket was used.
@@ -24,11 +33,11 @@ final class RescueTicketStore {
         return Set(raw.map { Date(timeIntervalSince1970: $0) })
     }
 
-    /// Marks today as rescued. No-op if the month's ticket is already used.
+    /// Adds `date` to the rescued set if the month's allowance is not exhausted.
     @discardableResult
-    func useTicket(on date: Date) -> Bool {
+    func useTicket(on date: Date, allowance: Int = 1) -> Bool {
         let dayStart = calendar.startOfDay(for: date)
-        guard hasTicketAvailable(today: dayStart) else { return false }
+        guard hasTicketAvailable(today: dayStart, allowance: allowance) else { return false }
         var dates = rescuedDates()
         dates.insert(dayStart)
         defaults.set(dates.map(\.timeIntervalSince1970), forKey: Self.usedDatesKey)
@@ -45,9 +54,12 @@ final class RescueTicketStore {
         let comps = calendar.dateComponents([.year, .month], from: date)
         return "\(comps.year ?? 0)-\(comps.month ?? 0)"
     }
+}
 
-    private func usedMonthKeys() -> Set<String> {
-        let dates = rescuedDates()
-        return Set(dates.map { monthKey(for: $0) })
+@MainActor
+enum RescueTicketAllowance {
+    /// Cycle tracking グラント: ONなら 2 枚、OFFなら 1 枚。
+    static func current(cycleSettings: CycleTrackingSettings = CycleTrackingSettings()) -> Int {
+        cycleSettings.isEnabled ? 2 : 1
     }
 }

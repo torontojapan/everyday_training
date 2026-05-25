@@ -1,78 +1,85 @@
+import SwiftData
 import SwiftUI
 
 struct RescueTicketUseView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedDate: Date = Date()
-    @State private var isShowingConfirm = false
-    @State private var resultMessage: String?
+    @Environment(\.modelContext) private var modelContext
+    @State private var workoutStore: WorkoutStore?
+    @State private var pendingDate: Date?
+    @State private var resultMessage: ResultMessage?
     private let calendar = Calendar.mondayFirst
     private let store = RescueTicketStore()
 
+    private var allowance: Int { RescueTicketAllowance.current() }
     private var hasTicketAvailable: Bool {
-        store.hasTicketAvailable(today: selectedDate)
+        store.hasTicketAvailable(today: Date(), allowance: allowance)
     }
-
-    private var rescuedDates: [Date] {
-        Array(store.rescuedDates()).sorted(by: >)
-    }
+    private var remaining: Int { store.remainingTickets(today: Date(), allowance: allowance) }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 summaryCard
+                instructionCard
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("適用する日を選ぶ")
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-
-                    DatePicker(
-                        "",
-                        selection: $selectedDate,
-                        in: minDate...maxDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.graphical)
-                    .padding(12)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .tint(Palette.primary)
+                if let workoutStore {
+                    MonthlyCalendarView(
+                        records: workoutStore.records,
+                        today: workoutStore.today,
+                        rescuedDates: store.rescuedDates(),
+                        highlightStatuses: [.missed]
+                    ) { date in
+                        handleTap(on: date, store: workoutStore)
+                    }
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 200)
                 }
 
-                applyButton
+                legend
 
-                if let resultMessage {
-                    Text(resultMessage)
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textPrimary)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-
-                if !rescuedDates.isEmpty {
+                if !store.rescuedDates().isEmpty {
                     rescuedHistory
                 }
-
-                hintCard
             }
             .padding(20)
         }
         .background(Palette.background)
         .navigationTitle("保険チケットを使う")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(
-            "この日に保険チケットを適用しますか？",
-            isPresented: $isShowingConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("適用する") {
-                applyTicket()
+        .onAppear {
+            if workoutStore == nil {
+                workoutStore = WorkoutStore(context: modelContext)
             }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("\(format(selectedDate)) に1枚使うと、今月の残り枚数が0になります")
+        }
+        .confirmationDialog(
+            confirmTitle,
+            isPresented: Binding(get: { pendingDate != nil },
+                                  set: { if !$0 { pendingDate = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingDate
+        ) { date in
+            Button("適用する") {
+                apply(date: date)
+            }
+            Button("キャンセル", role: .cancel) {
+                pendingDate = nil
+            }
+        } message: { date in
+            Text("\(format(date)) に1枚使うと、今月の残り枚数が0になります。連続記録が途切れずに済みます。")
+        }
+        .alert(item: $resultMessage) { message in
+            Alert(title: Text(message.title), message: Text(message.text), dismissButton: .default(Text("OK")))
         }
     }
+
+    private var confirmTitle: String {
+        if let pendingDate {
+            return "\(format(pendingDate)) に保険チケットを適用しますか？"
+        }
+        return ""
+    }
+
+    // MARK: - Cards
 
     private var summaryCard: some View {
         HStack(spacing: 14) {
@@ -84,10 +91,10 @@ struct RescueTicketUseView: View {
                     Circle().fill(hasTicketAvailable ? Palette.primary.opacity(0.18) : Palette.chipBackground.opacity(0.5))
                 )
             VStack(alignment: .leading, spacing: 4) {
-                Text(hasTicketAvailable ? "今月のチケット: 1枚 残り" : "今月のチケット: 0枚 (使用済み)")
+                Text("今月のチケット: \(remaining) / \(allowance)枚 残り")
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
-                Text("月 1 枚配布。忙しい日に過去にさかのぼって適用できます。")
+                Text("月 \(allowance) 枚配布\(allowance > 1 ? " (体調・周期 ON で +1)" : "")。忙しい日に過去にさかのぼって適用できます。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }
@@ -97,20 +104,61 @@ struct RescueTicketUseView: View {
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    private var applyButton: some View {
-        Button {
-            isShowingConfirm = true
-        } label: {
-            Label("選んだ日に適用", systemImage: "checkmark.circle.fill")
-                .font(Typography.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(hasTicketAvailable ? Palette.primary : Palette.textSecondary.opacity(0.4),
-                            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    private var instructionCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "hand.tap.fill")
+                .foregroundStyle(Palette.primaryDeep)
+            Text("カレンダーで × の日(未達成) をタップ → 確認 → 適用")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textPrimary)
+            Spacer()
         }
-        .disabled(!hasTicketAvailable)
-        .accessibilityIdentifier("apply-rescue-button")
+        .padding(12)
+        .background(Palette.chipBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var legend: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("マークの意味")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            HStack(spacing: 14) {
+                legendItem(symbol: "×", label: "未達成 (適用可)", border: true)
+                legendItem(symbol: "○", label: "達成済み")
+                legendItem(symbol: "休", label: "自動休養")
+                Spacer()
+            }
+            HStack(spacing: 14) {
+                legendItem(icon: "ticket.fill", label: "チケット適用済み")
+                legendItem(icon: "star.fill", label: "★ 体調マーク")
+                Spacer()
+            }
+        }
+    }
+
+    private func legendItem(symbol: String, label: String, border: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Text(symbol)
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .frame(width: 22, height: 22)
+                .background(Palette.surface, in: Circle())
+                .overlay(Circle().strokeBorder(border ? Palette.primary : .clear, lineWidth: 2))
+            Text(label)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+        }
+    }
+
+    private func legendItem(icon: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(Palette.primaryDeep)
+                .frame(width: 22, height: 22)
+            Text(label)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+        }
     }
 
     private var rescuedHistory: some View {
@@ -118,61 +166,65 @@ struct RescueTicketUseView: View {
             Text("これまでに使った日")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
-            ForEach(rescuedDates, id: \.self) { date in
+            ForEach(Array(store.rescuedDates()).sorted(by: >), id: \.self) { date in
                 HStack {
-                    Image(systemName: "checkmark.seal.fill")
-                        .foregroundStyle(Palette.success)
+                    Image(systemName: "ticket.fill")
+                        .foregroundStyle(Palette.primaryDeep)
                     Text(format(date))
                         .font(Typography.body)
                         .foregroundStyle(Palette.textPrimary)
                     Spacer()
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
                 .padding(.horizontal, 12)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
     }
 
-    private var hintCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("使い方ヒント", systemImage: "lightbulb.fill")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.primaryDeep)
-            bullet("月に 1 枚、毎月初に新しいチケットが配られます")
-            bullet("適用すると、その日が未記録でも連続記録が途切れません")
-            bullet("適用済みの日は ★ などでカレンダーに表示されます")
+    // MARK: - Actions
+
+    private func handleTap(on date: Date, store: WorkoutStore) {
+        let dayStart = calendar.startOfDay(for: date)
+
+        if self.store.rescuedDates().contains(dayStart) {
+            resultMessage = ResultMessage(title: "この日には既に適用済み", text: "保険チケットは同じ日に重ねて使えません。")
+            return
         }
-        .padding(14)
-        .background(Palette.chipBackground.opacity(0.5), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
+        _ = allowance  // capture in case extended later
 
-    private func bullet(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text("・").font(Typography.caption)
-            Text(text)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
+        let restDays = RestDayResolver.restDaySet(for: date, records: store.records, today: store.today, calendar: calendar)
+        let status = AchievementEvaluator.dailyStatus(
+            for: date,
+            records: store.records,
+            restDays: restDays,
+            today: store.today,
+            calendar: calendar
+        )
+
+        switch status {
+        case .missed, .todayPending:
+            guard hasTicketAvailable else {
+                resultMessage = ResultMessage(title: "今月のチケットを使い切っています", text: "翌月になると 1 枚補充されます。")
+                return
+            }
+            pendingDate = date
+        case .achieved, .todayAchieved:
+            resultMessage = ResultMessage(title: "この日は達成済み", text: "保険チケットは未達成 (×) の日にだけ使えます。")
+        case .rest:
+            resultMessage = ResultMessage(title: "この日は自動休養日", text: "もう連続記録は維持されています。チケット不要です。")
+        case .future:
+            resultMessage = ResultMessage(title: "未来の日付", text: "チケットは過去または今日の日にだけ適用できます。")
         }
     }
 
-    // MARK: - Helpers
-
-    private var maxDate: Date {
-        calendar.startOfDay(for: Date())
-    }
-
-    private var minDate: Date {
-        // 過去 60 日まで遡れる
-        calendar.date(byAdding: .day, value: -60, to: maxDate) ?? maxDate
-    }
-
-    private func applyTicket() {
-        let success = store.useTicket(on: selectedDate)
+    private func apply(date: Date) {
+        let success = store.useTicket(on: date, allowance: allowance)
+        pendingDate = nil
         if success {
-            resultMessage = "\(format(selectedDate)) に保険チケットを適用しました ✅"
+            resultMessage = ResultMessage(title: "適用しました ✅", text: "\(format(date)) に保険チケットを使いました。連続記録が守られます。")
         } else {
-            resultMessage = "適用できませんでした。今月のチケットを使い切っています。"
+            resultMessage = ResultMessage(title: "適用できませんでした", text: "今月のチケットを使い切っています。")
         }
     }
 
@@ -182,4 +234,10 @@ struct RescueTicketUseView: View {
         formatter.dateFormat = "M月d日 (E)"
         return formatter.string(from: date)
     }
+}
+
+private struct ResultMessage: Identifiable {
+    let id = UUID()
+    let title: String
+    let text: String
 }
