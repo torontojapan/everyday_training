@@ -130,7 +130,7 @@ struct RescueTicketUseView: View {
             }
             HStack(spacing: 14) {
                 legendItem(icon: "ticket.fill", label: "チケット適用済み")
-                legendItem(icon: "star.fill", label: "★ 体調マーク")
+                legendItem(icon: "drop.fill", label: "💧 生理日")
                 Spacer()
             }
         }

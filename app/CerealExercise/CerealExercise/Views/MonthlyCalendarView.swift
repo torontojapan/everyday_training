@@ -128,10 +128,12 @@ struct MonthlyCalendarView: View {
                 )
                 .overlay(alignment: .topTrailing) {
                     if isMenstrual {
-                        Text("★")
+                        // ★ から滴アイコンに変更。達成スターと混同しにくく、
+                        // 生理日であることが視覚的に伝わる。色も赤系で統一。
+                        Image(systemName: "drop.fill")
                             .font(.system(size: 10, weight: .heavy))
-                            .foregroundStyle(Palette.primaryDeep)
-                            .padding(.top, 1)
+                            .foregroundStyle(Color(red: 0.86, green: 0.36, blue: 0.45))
+                            .padding(.top, 2)
                             .padding(.trailing, 3)
                             .accessibilityHidden(true)
                     }
@@ -148,7 +150,7 @@ struct MonthlyCalendarView: View {
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 体調マークあり" : "")")
+            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")")
         }
     }
 
@@ -173,7 +175,11 @@ struct MonthlyCalendarView: View {
                 legendChip(symbol: "休", label: "休養日")
                 legendChip(symbol: "×", label: "未達成")
                 if !menstrualDates.isEmpty {
-                    legendChip(symbol: "★", label: "体調")
+                    legendChip(
+                        systemImage: "drop.fill",
+                        iconColor: Color(red: 0.86, green: 0.36, blue: 0.45),
+                        label: "生理日"
+                    )
                 }
                 if !rescuedDates.isEmpty {
                     legendChip(systemImage: "ticket.fill", label: "保険チケット")
@@ -182,7 +188,12 @@ struct MonthlyCalendarView: View {
         }
     }
 
-    private func legendChip(symbol: String? = nil, systemImage: String? = nil, label: String) -> some View {
+    private func legendChip(
+        symbol: String? = nil,
+        systemImage: String? = nil,
+        iconColor: Color = Palette.primaryDeep,
+        label: String
+    ) -> some View {
         HStack(spacing: 4) {
             if let symbol {
                 Text(symbol)
@@ -193,7 +204,7 @@ struct MonthlyCalendarView: View {
             } else if let systemImage {
                 Image(systemName: systemImage)
                     .font(.system(size: 11, weight: .heavy))
-                    .foregroundStyle(Palette.primaryDeep)
+                    .foregroundStyle(iconColor)
                     .frame(width: 18, height: 18)
             }
             Text(label)
