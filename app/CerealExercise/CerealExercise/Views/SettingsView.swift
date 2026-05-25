@@ -49,13 +49,6 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("haptic-toggle")
-                Button {
-                    CelebrationCenter.shared.fire(.heroic)
-                } label: {
-                    Label("今のレベルでテスト再生", systemImage: "play.circle.fill")
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .accessibilityIdentifier("celebration-preview-button")
                 Text("振動は CoreHaptics 対応機種でのみ動作します。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
