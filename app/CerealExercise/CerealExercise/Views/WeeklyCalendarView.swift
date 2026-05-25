@@ -10,6 +10,7 @@ struct WeeklyCalendarView: View {
     private let weekdayLabels = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
 
     @State private var todayBreathes = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
@@ -30,6 +31,10 @@ struct WeeklyCalendarView: View {
         .padding(12)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onAppear {
+            // accessibilityReduceMotion 設定が ON のユーザーには無限
+            // アニメーションは強い不快感を与える。動かす代わりに、
+            // 後段の cell() で常時 1.05 倍にする方針 (静的強調) に切替。
+            guard !reduceMotion else { return }
             withAnimation(Motion.gentle.repeatForever(autoreverses: true)) {
                 todayBreathes = true
             }
@@ -47,7 +52,13 @@ struct WeeklyCalendarView: View {
         }
         .foregroundStyle(Palette.textPrimary)
         .frame(maxWidth: .infinity)
-        .scaleEffect(calendar.isDate(entry.date, inSameDayAs: today) && todayBreathes ? 1.05 : 1)
+        // reduceMotion 有効時は常時 1.05 倍 (静的) で「今日」を強調する。
+        // それ以外は breathing アニメで「呼吸」しているように見せる。
+        .scaleEffect(
+            calendar.isDate(entry.date, inSameDayAs: today)
+                ? (reduceMotion ? 1.05 : (todayBreathes ? 1.05 : 1))
+                : 1
+        )
         .contentShape(Rectangle())
     }
 

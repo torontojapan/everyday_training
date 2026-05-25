@@ -107,7 +107,11 @@ struct MonthlyCalendarView: View {
             } label: {
                 VStack(spacing: 2) {
                     Text("\(calendar.component(.day, from: date))")
-                        .font(.system(size: 13, weight: isToday ? .heavy : .semibold, design: .rounded))
+                        // 13pt → 14pt: 視力配慮で日付の数字を一段大きく。
+                        // Dynamic Type に対応するため `.system(size:)` 固定
+                        // ではなく relativeTo を使う。
+                        .font(.system(size: 14, weight: isToday ? .heavy : .semibold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(textColor(for: status, isToday: isToday))
                     Text(status.symbol)
                         .font(.system(size: 11, weight: .heavy, design: .rounded))

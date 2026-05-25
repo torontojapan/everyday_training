@@ -136,6 +136,7 @@ struct LeagueView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(entry.monthlyAchievedDays)")
                     .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .monospacedDigit()
                     .foregroundStyle(Palette.primaryDeep)
                 Text("日 / 月")
                     .font(Typography.caption)

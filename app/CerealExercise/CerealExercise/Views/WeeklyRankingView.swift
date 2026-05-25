@@ -44,12 +44,16 @@ struct WeeklyRankingView: View {
     }
 
     private var headerCard: some View {
-        HStack(spacing: 14) {
+        // テーマトークン Palette.settingsAccent (金色系) を使用。
+        // 以前は Color(red: 0.9, ...) のハードコードだったので、ダーク
+        // テーマ等で見え方が浮く可能性があった。
+        let trophyColor = Palette.settingsAccent
+        return HStack(spacing: 14) {
             Image(systemName: "trophy.fill")
                 .font(.system(size: 36))
-                .foregroundStyle(Color(red: 0.90, green: 0.60, blue: 0.20))
+                .foregroundStyle(trophyColor)
                 .frame(width: 64, height: 64)
-                .background(Color(red: 0.90, green: 0.60, blue: 0.20).opacity(0.18), in: Circle())
+                .background(trophyColor.opacity(0.18), in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text("今週のがんばり")
                     .font(Typography.headline)
@@ -99,6 +103,7 @@ struct WeeklyRankingView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(entry.weeklyAchievedCount)")
                     .font(.system(.title2, design: .rounded, weight: .heavy))
+                    .monospacedDigit()
                     .foregroundStyle(Palette.primaryDeep)
                 Text("/ 7 日")
                     .font(Typography.caption)
