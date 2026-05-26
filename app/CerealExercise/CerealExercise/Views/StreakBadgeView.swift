@@ -8,23 +8,24 @@ struct StreakBadgeView: View {
         Button {
             onTap?()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Text("🔥")
+                    .font(.system(size: 22))
                 Text("\(streak)日連続")
-                    .font(Typography.headline)
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .monospacedDigit()
                 if streak > 0 {
                     // タップでシェアできることを視覚的に明示。
-                    // 静的に見える chip にアフォーダンスを足す。
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 14, weight: .heavy))
                         .foregroundStyle(Palette.textSecondary)
                         .accessibilityHidden(true)
                 }
             }
             .foregroundStyle(Palette.textPrimary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Palette.secondary.opacity(0.8), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .background(Palette.secondary.opacity(0.8), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(PressableScaleButtonStyle())
         .accessibilityHint(streak > 0 ? "タップで連続記録を共有" : "連続記録はまだありません")

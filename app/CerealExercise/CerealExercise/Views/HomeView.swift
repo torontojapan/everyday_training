@@ -119,21 +119,21 @@ struct HomeView: View {
     private var statusChip: some View {
         if viewModel.todayStatus == .todayAchieved {
             Label("今日は達成済み", systemImage: "checkmark.seal.fill")
-                .font(Typography.caption)
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(Palette.success.opacity(0.18), in: Capsule())
                 .foregroundStyle(Palette.success)
         } else if viewModel.todayStatus == .rest {
             Label("今日は回復日", systemImage: "moon.zzz.fill")
-                .font(Typography.caption)
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(Palette.restDay.opacity(0.30), in: Capsule())
                 .foregroundStyle(Palette.textPrimary)
         } else {
             Text(remainingTimeText)
-                .font(Typography.caption)
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(Palette.surface, in: Capsule())
         }
     }
@@ -179,15 +179,16 @@ struct HomeView: View {
     // MARK: - Weekly mini
 
     private var weeklyMini: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("今週")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
+                    .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                    .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 Text("\(viewModel.progress.achievedCount) / \(viewModel.progress.totalDays) 日達成")
-                    .font(Typography.caption)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(Palette.textSecondary)
+                    .monospacedDigit()
             }
             WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
                 selectedDayEntry = entry
@@ -199,18 +200,21 @@ struct HomeView: View {
 
     /// Gemini 改善提案 ②: 未達成時は CTA を微妙にパルスさせて視線を誘導。
     /// 達成済みは静的 (もう急かさない)。
+    /// 共通 PrimaryButton より一回り大きい LargePrimaryCTA を使ってホーム主役感を出す。
     @ViewBuilder
     private var primaryActionButton: some View {
         if viewModel.todayStatus == .todayAchieved {
-            PrimaryButton("もう一種目する 🔥",
-                          systemImage: "plus.circle.fill",
-                          accessibilityIdentifier: "primary-record-action") {
+            LargePrimaryCTA(title: "もう一種目する 🔥",
+                            systemImage: "plus.circle.fill",
+                            identifier: "primary-record-action",
+                            pulsing: false) {
                 isShowingEntry = true
             }
         } else {
-            PulsingPrimaryButton(title: "今日の運動を記録する",
-                                 systemImage: "plus.circle.fill",
-                                 identifier: "primary-record-action") {
+            LargePrimaryCTA(title: "今日の運動を記録する",
+                            systemImage: "plus.circle.fill",
+                            identifier: "primary-record-action",
+                            pulsing: true) {
                 isShowingEntry = true
             }
         }
@@ -306,26 +310,49 @@ private struct BubbleTriangle: Shape {
     }
 }
 
-/// 未達成時の CTA を 1.05 倍にゆっくり脈動。reduceMotion 設定で停止。
-private struct PulsingPrimaryButton: View {
+/// ホーム主役の大型 CTA。共通 PrimaryButton より font/padding/icon を一段大きく作り、
+/// `pulsing: true` で未達成時のゆっくり脈動を有効化する。reduceMotion で停止。
+private struct LargePrimaryCTA: View {
     let title: String
     let systemImage: String
     let identifier: String
+    var pulsing: Bool
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
+    private let hapticFeedback = HapticFeedback()
 
     var body: some View {
-        PrimaryButton(title, systemImage: systemImage, accessibilityIdentifier: identifier, action: action)
-            .scaleEffect(reduceMotion ? 1 : (pulse ? 1.03 : 1))
-            .shadow(color: Palette.primary.opacity(pulse && !reduceMotion ? 0.40 : 0.0),
-                    radius: pulse && !reduceMotion ? 12 : 0)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
+        Button {
+            hapticFeedback.tap()
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 26, weight: .heavy))
+                Text(title)
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 22)
+            .foregroundStyle(.white)
+            .background(Palette.primary, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        }
+        .buttonStyle(PressableScaleButtonStyle())
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
+        .scaleEffect(pulsing && !reduceMotion && pulse ? 1.04 : 1)
+        .shadow(
+            color: Palette.primary.opacity(pulsing && !reduceMotion && pulse ? 0.45 : 0.20),
+            radius: pulsing && !reduceMotion && pulse ? 14 : 6,
+            y: 4
+        )
+        .onAppear {
+            guard pulsing, !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }
 
