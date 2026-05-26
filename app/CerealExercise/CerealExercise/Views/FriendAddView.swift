@@ -40,6 +40,13 @@ struct FriendAddView: View {
                     TextField("ユーザー名 (一部でも可)", text: $searchQuery)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .onChange(of: searchQuery) { _, newValue in
+                            // クリアしたら「見つかりません」と古い結果を消す
+                            if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
+                                hasSearched = false
+                                searchResults = []
+                            }
+                        }
                     Button("検索") {
                         Task { await runSearch() }
                     }
