@@ -64,10 +64,14 @@ enum CatDecoration: String, CaseIterable, Identifiable, Sendable {
     var accentColor: Color {
         switch self {
         case .none: return .clear
-        case .bandana: return Color(red: 1.00, green: 0.55, blue: 0.55)
-        case .headband: return Color(red: 0.60, green: 0.70, blue: 0.95)
-        case .medal: return Color(red: 0.90, green: 0.60, blue: 0.20)
-        case .crown: return Color(red: 1.00, green: 0.82, blue: 0.30)
+        case .bandana: return Color(red: 1.00, green: 0.55, blue: 0.55)   // 珊瑚赤
+        // 30 日達成のヘッドバンドは以前は青 (RGB 0.60/0.70/0.95) だったが、
+        // BigCatView 内で scaleEffect(2.2) されて顔の額上に「青いシミ」として
+        // 残り、ユーザーから複数回「青く滲む」と指摘されていた。
+        // 暖色系 (緑) に変更し、bandana 赤と区別できる清涼感に。
+        case .headband: return Color(red: 0.45, green: 0.78, blue: 0.55)  // フィットネス緑
+        case .medal: return Color(red: 0.90, green: 0.60, blue: 0.20)     // ブロンズ
+        case .crown: return Color(red: 1.00, green: 0.82, blue: 0.30)     // 金
         }
     }
 }
