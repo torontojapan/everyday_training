@@ -63,8 +63,8 @@ final class WeeklyRankingCalculatorTests: XCTestCase {
     func testEntryExposesMinutesAndWeeklyCount() {
         let p = make("P", streak: 7, minutes: 95, weeklyDays: 4)
         let ranked = WeeklyRankingCalculator.rank(friends: [p], myProfile: nil)
-        XCTAssertEqual(ranked.first?.weeklyMinutes, 95)
-        XCTAssertEqual(ranked.first?.weeklyAchievedCount, 4)
+        XCTAssertEqual(ranked.first?.totalMinutes, 95)
+        XCTAssertEqual(ranked.first?.achievedCount, 4)
     }
 
     // MARK: - Edge cases
@@ -100,6 +100,6 @@ final class WeeklyRankingCalculatorTests: XCTestCase {
         let other = make("OTHER", streak: 5, minutes: 30)
         let ranked = WeeklyRankingCalculator.rank(friends: [bare, other], myProfile: nil)
         XCTAssertEqual(ranked.first?.profile.friendCode, "OTHER")
-        XCTAssertEqual(ranked.last?.weeklyMinutes, 0)
+        XCTAssertEqual(ranked.last?.totalMinutes, 0)
     }
 }

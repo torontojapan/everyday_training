@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     @State private var celebrationPrefs = CelebrationPreferences.shared
     @State private var sharingPrefs = FriendSharingPreferences.shared
+    @State private var isShowingUserCatPicker = false
     private let rescueTicketStore = RescueTicketStore()
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
@@ -39,6 +40,19 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("theme-link")
+                Button {
+                    isShowingUserCatPicker = true
+                } label: {
+                    HStack {
+                        Label("自分のキャラを変更", systemImage: "cat.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                        Spacer()
+                        Text(UserCatPreferences.shared.myCat.displayName)
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+                .accessibilityIdentifier("user-cat-link")
             }
 
             Section {
@@ -176,6 +190,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isShowingWidgetGuide) {
             WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
+        }
+        .sheet(isPresented: $isShowingUserCatPicker) {
+            UserCatPickerView()
         }
     }
 

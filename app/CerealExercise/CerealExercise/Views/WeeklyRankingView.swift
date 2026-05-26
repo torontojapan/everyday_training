@@ -1,18 +1,19 @@
 import SwiftUI
 
-/// 友達 + 自分の **今週** の頑張りを順位化する画面。
-/// 順位の根拠 (連続日数 → 時間) をヘッダーに明示し、自分の順位は
-/// 「N 位 / 全 M 人中」のサマリーカードで一目で分かるようにしてある。
+/// 友達 + 自分の頑張りを順位化する画面。週間/月間のセグメントで切替。
 struct WeeklyRankingView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
+    @State private var period: RankingPeriod = .weekly
 
     private var entries: [WeeklyRankingEntry] {
         var me = friendsStore.profile
         if me?.weeklyAchievements == nil {
             me?.weeklyAchievements = Array(repeating: false, count: 7)
         }
-        return WeeklyRankingCalculator.rank(friends: friendsStore.friends, myProfile: me)
+        return WeeklyRankingCalculator.rank(friends: friendsStore.friends,
+                                             myProfile: me,
+                                             period: period)
     }
 
     private var myEntry: WeeklyRankingEntry? { entries.first(where: { $0.isMe }) }
@@ -20,6 +21,7 @@ struct WeeklyRankingView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                periodPicker
                 rulesCard
                 if let me = myEntry {
                     mySummaryCard(me)
@@ -38,8 +40,19 @@ struct WeeklyRankingView: View {
             .padding(20)
         }
         .background(Palette.background)
-        .navigationTitle("週間ランキング")
+        .navigationTitle("ランキング")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// 週間 / 月間 切替セグメント。
+    private var periodPicker: some View {
+        Picker("期間", selection: $period) {
+            ForEach(RankingPeriod.allCases) { p in
+                Text(p.label).tag(p)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("ranking-period-picker")
     }
 
     // MARK: - Rules header
@@ -48,14 +61,14 @@ struct WeeklyRankingView: View {
     /// るんだろう?」と混乱したまま表を読むことになる。
     private var rulesCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("今週の順位ルール", systemImage: "trophy.fill")
+            Label(period.rulesTitle, systemImage: "trophy.fill")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.settingsAccent)
             HStack(alignment: .top, spacing: 8) {
                 rankPriorityPill(number: 1, label: "連続日数が長い", color: Palette.primary)
                 rankPriorityPill(number: 2, label: "運動時間が長い", color: Palette.settingsAccent)
             }
-            Text("毎週月曜日にリセットされます。")
+            Text(period.resetHint)
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
         }
@@ -106,7 +119,7 @@ struct WeeklyRankingView: View {
                     Label("\(me.profile.currentStreak) 日連続", systemImage: "flame.fill")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.primaryDeep)
-                    Label("\(me.weeklyMinutes) 分", systemImage: "clock.fill")
+                    Label("\(me.totalMinutes) 分", systemImage: "clock.fill")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                 }
@@ -133,7 +146,7 @@ struct WeeklyRankingView: View {
     private func rankRow(_ entry: WeeklyRankingEntry) -> some View {
         HStack(spacing: 12) {
             rankBadge(entry.rank)
-            FriendAvatarView(friendCode: entry.profile.friendCode, size: 44)
+            FriendAvatarView(friend: entry.profile, size: 44)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(entry.profile.displayName)
@@ -154,7 +167,7 @@ struct WeeklyRankingView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Palette.primaryDeep)
                         .monospacedDigit()
-                    Label("\(entry.weeklyMinutes)分", systemImage: "clock.fill")
+                    Label("\(entry.totalMinutes)分", systemImage: "clock.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Palette.textSecondary)
                         .monospacedDigit()
@@ -178,7 +191,7 @@ struct WeeklyRankingView: View {
     private func accessibilityLabel(for entry: WeeklyRankingEntry) -> String {
         let me = entry.isMe ? "あなた、" : ""
         return "\(me)\(entry.rank) 位、\(entry.profile.displayName)、" +
-               "連続 \(entry.profile.currentStreak) 日、今週 \(entry.weeklyMinutes) 分"
+               "連続 \(entry.profile.currentStreak) 日、\(period.label) \(entry.totalMinutes) 分"
     }
 
     private func rankBadge(_ rank: Int) -> some View {

@@ -75,12 +75,16 @@ enum StreakLevel {
         }
     }
 
+    /// シェアカードに出す猫キャラ画像。Phase 6.7 以降、ユーザーが選んだ
+    /// 猫種で出すために CatState 経由で解決する。
+    @MainActor
     var catStateAssetName: String {
-        switch self {
-        case .zero, .sprout: return "cat_celebrating"
-        case .week, .twoWeeks: return "cat_celebrating"
-        case .month, .century, .legend: return "cat_streakExtended"
+        let breed = UserCatPreferences.shared.myCat
+        let state: CatState = switch self {
+        case .zero, .sprout, .week, .twoWeeks: .celebrating
+        case .month, .century, .legend: .streakExtended
         }
+        return state.assetName(breed: breed)
     }
 
     var fallbackEmoji: String {

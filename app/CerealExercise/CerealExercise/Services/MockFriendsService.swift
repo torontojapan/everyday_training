@@ -155,7 +155,10 @@ final class MockFriendsService: FriendsService {
                               SharedExerciseDetail(name: "腕立て伏せ", reps: 10, sets: 3),
                               SharedExerciseDetail(name: "プランク", durationMinutes: 2, sets: 3)
                           ],
-                          weeklyTotalMinutes: 180),
+                          weeklyTotalMinutes: 180,
+                          monthlyTotalMinutes: 620,
+                          monthlyAchievedDays: 22,
+                          myCatBreed: .silvertabby),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
                           currentStreak: 12, totalAchievedDays: 35,
@@ -166,7 +169,10 @@ final class MockFriendsService: FriendsService {
                           weeklyAchievements: [true, false, true, true, true, false, true],
                           connectedSince: nil,
                           todayExerciseDetails: nil,
-                          weeklyTotalMinutes: 95),  // 詳細共有 OFF の友達
+                          weeklyTotalMinutes: 95,
+                          monthlyTotalMinutes: 340,
+                          monthlyAchievedDays: 15,
+                          myCatBreed: .calico),   // 詳細共有 OFF の友達
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
                           currentStreak: 7, totalAchievedDays: 21,
@@ -177,7 +183,10 @@ final class MockFriendsService: FriendsService {
                           weeklyAchievements: [true, true, true, true, true, true, false],
                           connectedSince: nil,
                           todayExerciseDetails: nil,
-                          weeklyTotalMinutes: 60),
+                          weeklyTotalMinutes: 60,
+                          monthlyTotalMinutes: 210,
+                          monthlyAchievedDays: 11,
+                          myCatBreed: .tuxedo),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
                           currentStreak: 100, totalAchievedDays: 312,
@@ -190,7 +199,10 @@ final class MockFriendsService: FriendsService {
                           todayExerciseDetails: [
                               SharedExerciseDetail(name: "ジョギング", durationMinutes: 45)
                           ],
-                          weeklyTotalMinutes: 225)
+                          weeklyTotalMinutes: 225,
+                          monthlyTotalMinutes: 880,
+                          monthlyAchievedDays: 26,
+                          myCatBreed: .persian)
         ]
     }
 }

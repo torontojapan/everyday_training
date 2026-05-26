@@ -10,8 +10,6 @@ struct FriendDetailView: View {
     @State private var sentCheerToken: UUID?
     @State private var cheerInFlight = false
     @State private var pendingRemoval = false
-    @State private var isShowingAvatarPicker = false
-    @State private var avatarPickerVersion = 0   // 選択後に View をリフレッシュ
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
     private let calendar = Calendar.mondayFirst
 
@@ -38,10 +36,6 @@ struct FriendDetailView: View {
                         .accessibilityIdentifier("friend-detail-close")
                 }
             }
-            .sheet(isPresented: $isShowingAvatarPicker, onDismiss: { avatarPickerVersion += 1 }) {
-                BuddyCatPickerSheet(friendCode: friend.friendCode,
-                                    friendDisplayName: friend.displayName)
-            }
             .confirmationDialog(
                 "\(friend.displayName) を友達から外しますか？",
                 isPresented: $pendingRemoval,
@@ -63,40 +57,25 @@ struct FriendDetailView: View {
     // MARK: - Hero
 
     private var heroHeader: some View {
-        let cat = FriendAvatarResolver.resolve(for: friend.friendCode)
+        let breed = FriendAvatarResolver.resolve(for: friend)
         return VStack(spacing: 12) {
-            Button {
-                isShowingAvatarPicker = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [cat.tintColor.opacity(0.50), cat.tintColor.opacity(0.15)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 132, height: 132)
-                    Image(cat.assetName)
-                        .resizable()
-                        .scaledToFill()
-                        .scaleEffect(1.05)
-                        .frame(width: 132, height: 132)
-                        .clipShape(Circle())
-                    CatDecorationOverlay(decoration: friend.decoration)
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    // 「タップで変更できる」アフォーダンス用の小さな鉛筆バッジ
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.system(size: 26))
-                        .foregroundStyle(Palette.primaryDeep)
-                        .background(Circle().fill(Palette.surface))
-                        .offset(x: -2, y: -2)
-                }
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [breed.tintColor.opacity(0.50), breed.tintColor.opacity(0.15)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 132, height: 132)
+                Image(breed.avatarAssetName)
+                    .resizable()
+                    .scaledToFill()
+                    .scaleEffect(1.05)
+                    .frame(width: 132, height: 132)
+                    .clipShape(Circle())
+                CatDecorationOverlay(decoration: friend.decoration)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("アバターを変更 (現在: \(cat.displayName))")
-            .accessibilityIdentifier("change-buddy-avatar")
-            .id(avatarPickerVersion)
+            .accessibilityHidden(true)
 
             Text(friend.displayName)
                 .font(Typography.title)

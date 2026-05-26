@@ -23,6 +23,14 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     /// 今週 (月→日) の合計運動時間 (分)。週間ランキングの tiebreak に使用。
     /// Codable 互換のため optional。
     var weeklyTotalMinutes: Int?
+    /// 今月 (1日〜月末) の合計運動時間 (分)。月間ランキングに使用。
+    var monthlyTotalMinutes: Int?
+    /// 今月の達成日数。月間ランキングの tiebreak で使う。
+    var monthlyAchievedDays: Int?
+    /// 友達自身が設定している猫キャラ。Phase 6.7 で導入。nil なら
+    /// friendCode の安定 hash で default を表示する (古い payload との
+    /// 互換性のため optional)。
+    var myCatBreed: CatBreed?
 
     var weeklyAchievementsOrEmpty: [Bool] {
         let raw = weeklyAchievements ?? []

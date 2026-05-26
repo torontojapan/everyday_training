@@ -189,9 +189,21 @@ struct FriendsView: View {
     }
 
     private func profileHeader(_ profile: FriendProfile) -> some View {
-        VStack(spacing: 12) {
+        // 自分のアイコンは UserCatPreferences の breed を反映 (Phase 6.7)。
+        let myBreed = UserCatPreferences.shared.myCat
+        return VStack(spacing: 12) {
             HStack(spacing: 14) {
-                avatar(tier: profile.decorationTier)
+                ZStack {
+                    Circle()
+                        .fill(myBreed.tintColor.opacity(0.30))
+                        .frame(width: 56, height: 56)
+                    Image(myBreed.avatarAssetName)
+                        .resizable()
+                        .scaledToFill()
+                        .scaleEffect(1.05)
+                        .frame(width: 56, height: 56)
+                        .clipShape(Circle())
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(profile.displayName)
                         .font(Typography.title)
@@ -273,10 +285,7 @@ struct FriendsView: View {
 
     private func requestRow(_ request: FriendRequest) -> some View {
         HStack(spacing: 12) {
-            FriendAvatarView(friendCode: request.fromProfile.friendCode,
-                             size: 36,
-                             showsDecorationBorder: true,
-                             decorationTier: request.fromProfile.decorationTier)
+            FriendAvatarView(friend: request.fromProfile, size: 36, showsDecorationBorder: true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.fromProfile.displayName)
                     .font(Typography.body)
@@ -369,20 +378,13 @@ struct FriendsView: View {
 
     private func friendCard(_ friend: FriendProfile) -> some View {
         // カードは「装飾 + 名前 + 連続 + 今日達成 + 更新」に絞る。
-        // 週カレンダー / 詳細 / cheer 4 種は詳細シートで重複していたので
-        // ここからは外す。カードタップで詳細へ、応援ボタン 1 つで cheer
-        // メニューを開く構成にする。これでカード 1 枚あたりの高さが減り、
-        // ファーストビューにより多くの友達が映る。
         Button {
             detailFriend = friend
             hapticFeedback.tap()
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    FriendAvatarView(friendCode: friend.friendCode,
-                                     size: 56,
-                                     showsDecorationBorder: true,
-                                     decorationTier: friend.decorationTier)
+                    FriendAvatarView(friend: friend, size: 56, showsDecorationBorder: true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(friend.displayName)
                             .font(Typography.headline)

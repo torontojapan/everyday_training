@@ -31,13 +31,15 @@ struct CatStateView: View {
     @ViewBuilder
     private var character: some View {
         ZStack {
-            // Phase 6.3 で新キャラに刷新。背景透過 (白) のオレンジトラ猫
-            // キャラなので、scale 1.0 + scaledToFill + Circle clip で被写体
-            // が円内をほぼ満たす。daily variant rotation で同じ state でも
-            // 複数のポーズが出る。
-            let assetName = state.assetName()
-            if UIImage(named: assetName) != nil {
-                Image(assetName)
+            // Phase 6.7 でユーザーが選んだ猫種 × 状態で解決するように。
+            // orange は daily variant rotation あり、他猫種は 1 画像固定。
+            // 該当 asset がない場合は orange に fallback (Phase 6.7 で
+            // persian/scottish 等の生成が部分的に欠ける場合の救済)。
+            let breed = UserCatPreferences.shared.myCat
+            let primary = state.assetName(breed: breed)
+            let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
+            if UIImage(named: resolved) != nil {
+                Image(resolved)
                     .resizable()
                     .scaledToFill()
                     .scaleEffect(1.05)

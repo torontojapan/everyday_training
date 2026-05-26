@@ -10,6 +10,8 @@ struct CerealExerciseApp: App {
     @State private var friendsStore = FriendsStore(service: MockFriendsService())
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
+    @State private var userCatPrefs = UserCatPreferences.shared
+    @State private var isShowingOnboarding = false
 
     var body: some Scene {
         WindowGroup {
@@ -18,6 +20,18 @@ struct CerealExerciseApp: App {
                 .environment(friendsStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
+                .fullScreenCover(isPresented: $isShowingOnboarding) {
+                    UserCatPickerView(isOnboarding: true)
+                }
+                .onAppear {
+                    // 初回起動なら自分の猫キャラ選択 onboarding を出す。
+                    // UI test では --skip-onboarding で抑止可能。
+                    let args = ProcessInfo.processInfo.arguments
+                    if !args.contains("--skip-onboarding"),
+                       !userCatPrefs.hasCompletedOnboarding {
+                        isShowingOnboarding = true
+                    }
+                }
                 .task {
                     let args = ProcessInfo.processInfo.arguments
                     // For UI tests: force a clean signed-out state, regardless

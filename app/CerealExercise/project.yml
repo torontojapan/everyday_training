@@ -42,6 +42,7 @@ targets:
       - path: CerealExerciseWidget
         excludes: ["Info.plist"]
       - path: CerealExercise/Models/CatState.swift
+      - path: CerealExercise/Models/CatBreed.swift
       - path: CerealExercise/Models/WidgetSnapshot.swift
       - path: CerealExercise/Services/SharedSnapshotStore.swift
       - path: CerealExercise/Services/WidgetTimelineDates.swift
