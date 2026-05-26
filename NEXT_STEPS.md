@@ -1,14 +1,14 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-26 (Phase 7.0 Step 1-3 完了 — 大規模 UI/UX 刷新)
+最終更新: 2026-05-26 (Phase 7.0 Step 1-4 完了 — Live Activity まで実装)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 で大規模 UI/UX 刷新完了 (Step 3 まで)
-- **テスト**: Unit **172** / UI **14** = **186 件 全 PASS**
-- **最新コミット**: `453d7db` Phase 7.0 Step 1-2 スクショ更新
+- **iOS アプリ本体**: Phase 7.0 Step 1-4 完了 (Live Activity / Dynamic Island まで)
+- **テスト**: Unit **172/172 PASS**、UI **12/14 PASS** (2 件は TabView 化由来の retire 漏れ、Step 4 とは無関係)
+- **最新コミット**: `9364acb` Phase 7.0 Step 4: Live Activity
 - **Codex usage limit**: 18:11 まで生成不可 (画像 19 枚 + UX 提案 3 つ目)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 
@@ -20,9 +20,10 @@
 
 | # | タスク | 工数 | 状態 |
 |---|---|---:|---|
-| A1 | Phase 7.0 Step 4: Live Activity / Dynamic Island 常駐猫 | 2-3h | pending |
+| A1 | Phase 7.0 Step 4: Live Activity / Dynamic Island 常駐猫 | 2-3h | ✅ 完了 |
 | A2 | tuxedo / persian / scottish 残 19 画像生成 (Codex 18:11 復帰後) | 20-30m | Codex 待ち |
 | A3 | Codex UX 刷新提案 (3 LLM 目)、Antigravity はユーザー側 | 5m | Codex 待ち |
+| A4 | UI test 2 件 retire (testAddAndRemoveExerciseRow / testNavigateToHistoryAndBack) — TabView 化対応 | 30m | pending |
 
 ### 🔴 P0 — App Store 提出ブロッカー (Apple Developer 必須)
 
