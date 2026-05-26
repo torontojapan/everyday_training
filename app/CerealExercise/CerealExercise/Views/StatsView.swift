@@ -13,6 +13,7 @@ struct StatsView: View {
     @State private var selectedDay: SelectedDay?
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
+    private let rescueTicketStore = RescueTicketStore()
 
     // `.sheet(item:)` で使うため Identifiable 化したラッパー。
     // `.sheet(isPresented:)` だと state 更新と content closure の評価順序の
@@ -82,7 +83,8 @@ struct StatsView: View {
         return MonthlyCalendarView(
             records: store.records,
             today: store.today,
-            menstrualDates: markedDates
+            menstrualDates: markedDates,
+            rescuedDates: rescueTicketStore.rescuedDates()
         ) { date in
             openDay(date)
         }
@@ -97,6 +99,7 @@ struct StatsView: View {
             for: date,
             records: store.records,
             restDays: restDays,
+            rescuedDates: rescueTicketStore.rescuedDates(),
             today: store.today,
             calendar: calendar
         )

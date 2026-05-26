@@ -13,6 +13,7 @@ enum AchievementEvaluator {
         for date: Date,
         records: [WorkoutRecord],
         restDays: Set<Date>,
+        rescuedDates: Set<Date> = [],
         today: Date,
         calendar: Calendar = .mondayFirst
     ) -> DailyStatus {
@@ -30,6 +31,12 @@ enum AchievementEvaluator {
         }
 
         if achieved {
+            return .achieved
+        }
+
+        // 保険チケット使用日は achieved と同等に扱う。連続記録にカウントされ、
+        // カレンダー上は ○ + チケットアイコンで表示される。
+        if rescuedDates.contains(day) {
             return .achieved
         }
 

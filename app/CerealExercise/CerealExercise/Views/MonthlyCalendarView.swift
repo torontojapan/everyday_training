@@ -263,6 +263,7 @@ struct MonthlyCalendarView: View {
                 for: date,
                 records: records,
                 restDays: restDays,
+                rescuedDates: rescuedDates,
                 today: today,
                 calendar: calendar
             )

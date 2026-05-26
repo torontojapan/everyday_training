@@ -4,6 +4,7 @@ enum StreakCalculator {
     static func currentStreak(
         records: [WorkoutRecord],
         today: Date,
+        rescuedDates: Set<Date> = [],
         restLimit: Int = 2,
         calendar: Calendar = .mondayFirst
     ) -> Int {
@@ -22,6 +23,7 @@ enum StreakCalculator {
                 for: cursor,
                 records: records,
                 restDays: restDays,
+                rescuedDates: rescuedDates,
                 today: today,
                 calendar: calendar
             )
@@ -45,12 +47,16 @@ enum StreakCalculator {
     static func streakState(
         records: [WorkoutRecord],
         today: Date,
+        rescuedDates: Set<Date> = [],
         lookbackDays: Int = 365,
         restLimit: Int = 2,
         calendar: Calendar = .mondayFirst
     ) -> StreakState {
         let todayStart = calendar.startOfDay(for: today)
-        let current = currentStreak(records: records, today: todayStart, restLimit: restLimit, calendar: calendar)
+        let current = currentStreak(
+            records: records, today: todayStart,
+            rescuedDates: rescuedDates, restLimit: restLimit, calendar: calendar
+        )
         var longest = 0
         var running = 0
         var lastAchievedDate: Date?
@@ -70,6 +76,7 @@ enum StreakCalculator {
                 for: cursor,
                 records: records,
                 restDays: restDays,
+                rescuedDates: rescuedDates,
                 today: todayStart,
                 calendar: calendar
             )
