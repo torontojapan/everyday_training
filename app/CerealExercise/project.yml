@@ -44,8 +44,12 @@ targets:
       - path: CerealExercise/Models/CatState.swift
       - path: CerealExercise/Models/CatBreed.swift
       - path: CerealExercise/Models/WidgetSnapshot.swift
+      - path: CerealExercise/Models/WorkoutRecord.swift
+      - path: CerealExercise/Models/ExerciseItem.swift
+      - path: CerealExercise/Models/WorkoutCategory.swift
       - path: CerealExercise/Services/SharedSnapshotStore.swift
       - path: CerealExercise/Services/WidgetTimelineDates.swift
+      - path: CerealExercise/Services/DateProvider.swift
     info:
       path: CerealExerciseWidget/Info.plist
       properties:

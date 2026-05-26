@@ -27,9 +27,14 @@ struct MediumWidgetView: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.82)
 
-                Text(remainingText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(Color(red: 0.54, green: 0.47, blue: 0.39))
+                HStack {
+                    Text(remainingText)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color(red: 0.54, green: 0.47, blue: 0.39))
+                    Spacer()
+                    // Phase 7.0 Step 3: 1-tap 記録ボタン (Medium ウィジェット内)
+                    QuickRecordButtonView(snapshot: snapshot)
+                }
             }
             Spacer(minLength: 0)
         }

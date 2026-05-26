@@ -18,14 +18,8 @@ struct SmallWidgetView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            Text(statusText)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(statusColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(statusColor.opacity(0.14), in: Capsule())
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            // Phase 7.0 Step 3: 旧 status chip → 1-tap 記録ボタン or 達成済 chip
+            QuickRecordButtonView(snapshot: snapshot)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
