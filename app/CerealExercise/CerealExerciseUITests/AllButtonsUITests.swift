@@ -180,17 +180,13 @@ final class AllButtonsUITests: XCTestCase {
 
         app.buttons["primary-record-action"].tap()
 
-        // Phase 7.0: RecordEntryView は .medium / .large の half-sheet。
-        // medium のままでは「種目を追加」が画面下で hittable にならないため、
-        // drag indicator (またはタイトルバー) を上方向に swipe して large 化。
+        // RecordEntryView は fullScreenCover でフル表示されるため、
+        // drag で展開する必要はなくなった。
         let recordTitle = app.navigationBars["今日の記録"]
         XCTAssertTrue(recordTitle.waitForExistence(timeout: 5))
-        let start = recordTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05))
-        start.press(forDuration: 0.05, thenDragTo: end)
 
         let addButton = app.buttons["種目を追加"]
-        XCTAssertTrue(addButton.waitForExistence(timeout: 8))
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5))
         addButton.tap()
 
         let trashButton = app.buttons["種目を削除"].firstMatch

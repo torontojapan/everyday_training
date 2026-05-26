@@ -46,7 +46,7 @@ struct HomeView: View {
                 viewModel.refresh(records: store.records)
                 handleAutoPresentations()
             }
-            .sheet(isPresented: $isShowingEntry, onDismiss: {
+            .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records)
             }) {
                 RecordEntryView { record in
@@ -63,8 +63,6 @@ struct HomeView: View {
                     isShowingEntry = false
                 }
                 .environment(store)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
             }
             .navigationDestination(item: $completedRecord) { record in
                 RecordCompletionView(
