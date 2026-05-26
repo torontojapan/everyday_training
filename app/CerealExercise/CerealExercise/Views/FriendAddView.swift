@@ -9,6 +9,9 @@ struct FriendAddView: View {
     @State private var isSearching = false
     @State private var hasSearched = false   // 検索ボタンを押すまで「結果なし」を出さない
     @State private var resultMessage: String?
+    /// 申請を送る前に「この相手にどの猫アバターを当てるか」を選んでおける。
+    /// 申請成功時に FriendAvatarStore に保存される。
+    @State private var preselectedCat: BuddyCat = .black
 
     var body: some View {
         Form {
@@ -80,6 +83,48 @@ struct FriendAddView: View {
                 }
             }
 
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(BuddyCat.allCases) { cat in
+                            Button {
+                                preselectedCat = cat
+                            } label: {
+                                VStack(spacing: 4) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(cat.tintColor.opacity(0.30))
+                                            .frame(width: 52, height: 52)
+                                        Image(cat.assetName)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .scaleEffect(1.10)
+                                            .frame(width: 52, height: 52)
+                                            .clipShape(Circle())
+                                    }
+                                    .overlay(
+                                        Circle().strokeBorder(
+                                            preselectedCat == cat ? Palette.primaryDeep : .clear,
+                                            lineWidth: 3
+                                        )
+                                    )
+                                    Text(cat.displayName)
+                                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                                        .foregroundStyle(preselectedCat == cat ? Palette.primaryDeep : Palette.textSecondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("add-buddy-cat-\(cat.rawValue)")
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Text("相手のアバター (任意)")
+            } footer: {
+                Text("申請が承認されたら、選んだ猫が一覧 / 詳細に表示されます。後から詳細画面で変更できます。")
+            }
+
             if let resultMessage {
                 Section {
                     Text(resultMessage)
@@ -103,7 +148,9 @@ struct FriendAddView: View {
         if let err = friendsStore.lastError {
             resultMessage = err
         } else {
-            resultMessage = "\(target) に友達申請を送りました 🤝"
+            // 申請成功 → ユーザーが事前に選んだアバターを保存
+            FriendAvatarStore.shared.set(preselectedCat, for: target.uppercased())
+            resultMessage = "\(target) に友達申請を送りました 🤝 (\(preselectedCat.displayName))"
             codeInput = ""
         }
     }
