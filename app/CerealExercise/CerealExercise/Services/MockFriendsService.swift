@@ -26,7 +26,10 @@ final class MockFriendsService: FriendsService {
         self.demoPool = Self.seedDemoPool(now: now())
     }
 
-    func signIn(displayName: String, username: String) async throws {
+    func signIn(displayName rawDisplayName: String, username rawUsername: String) async throws {
+        // 空白だけの入力でサインインを通さない (空白 trim 後の判定)。
+        let displayName = rawDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = rawUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         let code = FriendCode.generate()
         let profile = FriendProfile(
             id: code,
@@ -81,10 +84,13 @@ final class MockFriendsService: FriendsService {
     }
 
     func sendRequest(to code: String) async throws {
-        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        guard let me = myProfile else { throw FriendsServiceError.notSignedIn }
         let upper = code.uppercased()
-        guard let match = demoPool.first(where: { $0.friendCode == upper })
-            ?? demoPool.first else {
+        // 自分自身のコードは追加させない (Gemini 指摘)。
+        if upper == me.friendCode { throw FriendsServiceError.cannotAddSelf }
+        // 入力コード厳格一致のみ。以前は ?? demoPool.first で先頭にフォールバック
+        // していたが、任意コードが偶然成功してしまうため Codex 指摘で撤回。
+        guard let match = demoPool.first(where: { $0.friendCode == upper }) else {
             throw FriendsServiceError.codeNotFound
         }
         if friends[match.friendCode] != nil { throw FriendsServiceError.alreadyFriends }

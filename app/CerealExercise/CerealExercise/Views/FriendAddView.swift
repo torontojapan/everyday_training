@@ -9,6 +9,7 @@ struct FriendAddView: View {
     @State private var isSearching = false
     @State private var hasSearched = false   // 検索ボタンを押すまで「結果なし」を出さない
     @State private var resultMessage: String?
+    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -41,14 +42,19 @@ struct FriendAddView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .onChange(of: searchQuery) { _, newValue in
-                            // クリアしたら「見つかりません」と古い結果を消す
+                            // クリアしたら「見つかりません」と古い結果を消し、
+                            // 進行中の検索 Task もキャンセルする (Gemini 指摘: race)。
                             if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
+                                searchTask?.cancel()
+                                searchTask = nil
+                                isSearching = false
                                 hasSearched = false
                                 searchResults = []
                             }
                         }
                     Button("検索") {
-                        Task { await runSearch() }
+                        searchTask?.cancel()
+                        searchTask = Task { await runSearch() }
                     }
                     .disabled(searchQuery.trimmingCharacters(in: .whitespaces).count < 2)
                 }
@@ -116,8 +122,14 @@ struct FriendAddView: View {
     }
 
     private func runSearch() async {
+        let query = searchQuery
         isSearching = true
-        searchResults = await friendsStore.search(searchQuery)
+        let results = await friendsStore.search(query)
+        // Task が cancel されている (= テキストがクリアされた) なら結果を反映しない
+        if Task.isCancelled { return }
+        // search 中にクエリが変わっていたら古い結果は捨てる
+        if query != searchQuery { return }
+        searchResults = results
         isSearching = false
         hasSearched = true
     }

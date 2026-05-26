@@ -280,13 +280,24 @@ struct MonthlyCalendarView: View {
     private var summaryText: String {
         let monthStart = startOfMonth(currentMonth)
         guard let range = calendar.range(of: .day, in: .month, for: monthStart) else { return "" }
-        let achievedCount = monthCells.reduce(0) { acc, cell in
-            if case let .day(_, status, _) = cell, status.countsAsAchieved {
-                return acc + 1
+        // 「達成」と「休養」を分離してカウント。以前は countsAsAchieved で合算
+        // していたため、休養しか無い月でも「N 日達成」と表示されて誤解を招いた。
+        var achievedOnly = 0
+        var restCount = 0
+        for cell in monthCells {
+            if case let .day(_, status, _) = cell {
+                if status == .achieved || status == .todayAchieved {
+                    achievedOnly += 1
+                } else if status == .rest {
+                    restCount += 1
+                }
             }
-            return acc
         }
-        return "\(calendar.component(.month, from: currentMonth))月: \(achievedCount) / \(range.count) 日達成"
+        let month = calendar.component(.month, from: currentMonth)
+        if restCount > 0 {
+            return "\(month)月: \(achievedOnly) 日達成・\(restCount) 日休養"
+        }
+        return "\(month)月: \(achievedOnly) / \(range.count) 日達成"
     }
 
     // MARK: - Helpers

@@ -659,7 +659,11 @@ struct FriendsSignInSheet: View {
                                 .padding(.vertical, 8)
                         }
                     }
-                    .disabled(displayName.isEmpty || username.isEmpty || isSubmitting)
+                    .disabled(
+                        displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        isSubmitting
+                    )
                 }
             }
             .navigationTitle("プロフィール作成")

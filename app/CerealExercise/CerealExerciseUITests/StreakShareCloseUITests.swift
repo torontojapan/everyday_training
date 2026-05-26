@@ -19,6 +19,7 @@ final class StreakShareCloseUITests: XCTestCase {
             "--seed-demo-data",
             "--no-notification-prompt",
             "--skip-milestones",
+            "--skip-onboarding",
             "--seed-scenario", "long-streak",
             "--initial-route", "streak-share"
         ]

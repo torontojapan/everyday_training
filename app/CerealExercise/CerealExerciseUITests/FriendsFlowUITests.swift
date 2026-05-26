@@ -13,6 +13,7 @@ final class FriendsFlowUITests: XCTestCase {
         app.launchArguments = [
             "--no-notification-prompt",
             "--skip-milestones",
+            "--skip-onboarding",
             "--initial-route", route
         ] + extra
         app.launch()
@@ -104,6 +105,7 @@ final class SettingsLinksUITests: XCTestCase {
         app.launchArguments = [
             "--no-notification-prompt",
             "--skip-milestones",
+            "--skip-onboarding",
             "--initial-route", "settings"
         ]
         app.launch()

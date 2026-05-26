@@ -35,7 +35,13 @@ final class AllButtonsUITests: XCTestCase {
 
     private func launchApp(scenario: String = "long-streak", route: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
-        var args = ["--seed-demo-data", "--no-notification-prompt", "--skip-milestones", "--seed-scenario", scenario]
+        // --skip-onboarding は必須。新規シミュレータ (erase 後) では
+        // UserCatPreferences が初期状態で onboarding fullScreenCover が出てしまい、
+        // primary CTA まで到達できない。
+        var args = [
+            "--seed-demo-data", "--no-notification-prompt", "--skip-milestones",
+            "--skip-onboarding", "--seed-scenario", scenario,
+        ]
         if let route {
             args.append(contentsOf: ["--initial-route", route])
         }

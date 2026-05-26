@@ -82,16 +82,15 @@ final class WeeklyRankingCalculatorTests: XCTestCase {
         XCTAssertTrue(ranked.first?.isMe ?? false)
     }
 
-    /// Strict ranking: each tied entry still receives a distinct rank number
-    /// (1, 2, 3 ...). We dropped dense ranking on purpose — fitness rivalry
-    /// is more motivating when ties get nudged into distinct positions by
-    /// the fallback sort (friendCode lex).
-    func testFullTieGetsDistinctRanksByFallback() {
+    /// Standard tie ranking: 完全同点 (streak / minutes / achievedCount すべて一致)
+    /// は同順位を与える。1, 1, 3 のような飛び順で並ぶ (Gemini 指摘で修正)。
+    /// friendCode の辞書順は安定ソートのためだけに使い、順位の根拠ではない。
+    func testFullTieGetsSameRank() {
         let a = make("AAA", streak: 10, minutes: 60, weeklyDays: 5)
         let b = make("BBB", streak: 10, minutes: 60, weeklyDays: 5)
         let ranked = WeeklyRankingCalculator.rank(friends: [a, b], myProfile: nil)
-        XCTAssertEqual(ranked.map(\.rank), [1, 2], "every position is distinct")
-        XCTAssertEqual(ranked.map(\.profile.friendCode), ["AAA", "BBB"], "fallback sorts by friendCode")
+        XCTAssertEqual(ranked.map(\.rank), [1, 1], "完全同点は同順位")
+        XCTAssertEqual(ranked.map(\.profile.friendCode), ["AAA", "BBB"], "並び順は friendCode 辞書順で安定")
     }
 
     func testMissingWeeklyMinutesTreatedAsZero() {

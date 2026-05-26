@@ -54,6 +54,7 @@ enum FriendsServiceError: LocalizedError {
     case codeNotFound
     case alreadyFriends
     case duplicateRequest
+    case cannotAddSelf
 
     var errorDescription: String? {
         switch self {
@@ -61,6 +62,7 @@ enum FriendsServiceError: LocalizedError {
         case .codeNotFound: return "そのコードのユーザーは見つかりませんでした"
         case .alreadyFriends: return "既に友達です"
         case .duplicateRequest: return "申請は既に送信済みです"
+        case .cannotAddSelf: return "自分のコードは追加できません"
         }
     }
 }
