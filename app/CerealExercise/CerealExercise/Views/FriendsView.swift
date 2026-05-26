@@ -30,7 +30,11 @@ struct FriendsView: View {
     @State private var pendingRemovalFriend: FriendProfile?
     @State private var isShowingMyQR = false
     @State private var cheerTarget: FriendProfile?
+    /// Phase 7.0: 友達画面に「リスト / 公園」切替セグメント追加。
+    @State private var displayMode: DisplayMode = .park
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
+
+    enum DisplayMode: String, CaseIterable { case park, list }
 
     var body: some View {
         Group {
@@ -322,6 +326,16 @@ struct FriendsView: View {
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 if !friendsStore.friends.isEmpty {
+                    // Phase 7.0 公園 / リスト切替
+                    Picker("表示", selection: $displayMode) {
+                        Image(systemName: "square.grid.2x2").tag(DisplayMode.park)
+                        Image(systemName: "list.bullet").tag(DisplayMode.list)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 90)
+                    .accessibilityIdentifier("friends-display-mode")
+                }
+                if !friendsStore.friends.isEmpty {
                     // 「ランキング」をテキストつき chip に。アイコンだけだと
                     // 何が起きるか分かりにくいので、視認性を優先。
                     NavigationLink {
@@ -344,6 +358,12 @@ struct FriendsView: View {
             }
             if friendsStore.friends.isEmpty {
                 EmptyStateView(message: "友達コードでつながろう。右上の + から追加できます。")
+            } else if displayMode == .park {
+                FriendsParkView(friends: sortedFriends) { friend in
+                    detailFriend = friend
+                    hapticFeedback.tap()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
                 ForEach(sortedFriends) { friend in
                     friendCard(friend)

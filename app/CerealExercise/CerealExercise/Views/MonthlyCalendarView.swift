@@ -107,15 +107,17 @@ struct MonthlyCalendarView: View {
             } label: {
                 VStack(spacing: 2) {
                     Text("\(calendar.component(.day, from: date))")
-                        // 13pt → 14pt: 視力配慮で日付の数字を一段大きく。
-                        // Dynamic Type に対応するため `.system(size:)` 固定
-                        // ではなく relativeTo を使う。
                         .font(.system(size: 14, weight: isToday ? .heavy : .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(textColor(for: status, isToday: isToday))
-                    Text(status.symbol)
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .foregroundStyle(textColor(for: status, isToday: isToday).opacity(0.85))
+                    // Positive-Only: 達成・休養・今日だけ symbol 表示。
+                    // 未達成 (×) や future (-) はあえて symbol を出さない
+                    // ことで「サボった印」を視界から消す。
+                    if shouldShowSymbol(for: status) {
+                        Text(status.symbol)
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
+                            .foregroundStyle(textColor(for: status, isToday: isToday).opacity(0.85))
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 // 38pt → 44pt: HIG 推奨タップ領域に合わせる。
@@ -300,16 +302,27 @@ struct MonthlyCalendarView: View {
         return calendar.date(from: comps) ?? date
     }
 
+    /// Phase 7.0 で Positive-Only に変更。未達成 (missed) は他のセルと
+    /// 区別しないことで「サボった日」が視界に入らないようにする。
+    /// 心理学の「What-the-Hell Effect」回避 — 過去の失敗を見ない方が
+    /// 継続率が上がる、というロジック。
     private func background(for status: DailyStatus, isToday: Bool) -> Color {
         if isToday {
             return Palette.primary.opacity(0.85)
         }
         switch status {
         case .achieved, .todayAchieved: return Palette.success.opacity(0.55)
-        case .rest: return Palette.restDay.opacity(0.6)
-        case .missed: return Palette.missed.opacity(0.18)
+        case .rest: return Palette.restDay.opacity(0.55)
+        case .missed: return Palette.surface          // 未達成は中性色 (失敗を強調しない)
         case .future: return Palette.surface
-        case .todayPending: return Palette.secondary.opacity(0.4)
+        case .todayPending: return Palette.secondary.opacity(0.40)
+        }
+    }
+
+    private func shouldShowSymbol(for status: DailyStatus) -> Bool {
+        switch status {
+        case .achieved, .todayAchieved, .rest, .todayPending: return true
+        case .missed, .future: return false   // Positive-Only
         }
     }
 
