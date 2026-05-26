@@ -13,12 +13,26 @@ struct HomeView: View {
     @State private var selectedDayEntry: DailyStatusEntry?
     @State private var isShowingStreakShare = false
     @State private var presentedMilestone: Milestone?
+    /// 猫タップで bounce する用。
+    @State private var catBounce = false
+    /// 起動時に吹き出しを pop-in させる用。
+    @State private var bubbleAppeared = false
     private let calendar = Calendar.mondayFirst
+    private let hapticFeedback = HapticFeedback()
 
     var body: some View {
         NavigationStack {
             ZStack {
                 backgroundGradient.ignoresSafeArea()
+
+                // 背景に時刻に応じたパーティクル。常時ふわふわ漂う。
+                // 達成済みなら紙吹雪も追加して祝祭感を出す。
+                AmbientParticlesView(
+                    hour: calendar.component(.hour, from: Date()),
+                    isCelebrating: viewModel.todayStatus == .todayAchieved
+                )
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // 上部に「今週 + 状態」を集約。一番目立たせたい今週の達成度を
@@ -139,14 +153,35 @@ struct HomeView: View {
     // MARK: - Cat theater (画面の主役)
 
     /// 猫を大きく見せて、横に吹き出しメッセージ。Phase 7.0 の核心。
-    /// 220 → 280pt に拡大。speech bubble の font も少しアップ。
+    /// 280pt に拡大、breath/float/sway + tap bounce を合成。
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
             BigCatView(state: viewModel.catState, decoration: viewModel.catDecoration)
                 .frame(width: 280, height: 280)
+                // タップで bounce + haptic。触れて遊べるキャラ感。
+                .scaleEffect(catBounce ? 1.08 : 1.0)
+                .onTapGesture {
+                    hapticFeedback.tap()
+                    withAnimation(.interpolatingSpring(stiffness: 320, damping: 9)) {
+                        catBounce = true
+                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(220))
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+                            catBounce = false
+                        }
+                    }
+                }
             speechBubble
                 .padding(.horizontal, 24)
+                .scaleEffect(bubbleAppeared ? 1.0 : 0.7)
+                .opacity(bubbleAppeared ? 1.0 : 0.0)
+                .onAppear {
+                    withAnimation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.15)) {
+                        bubbleAppeared = true
+                    }
+                }
             Spacer(minLength: 4)
         }
         .frame(maxWidth: .infinity)
