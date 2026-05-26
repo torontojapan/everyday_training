@@ -9,9 +9,24 @@ struct StatsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var menstrualStore: MenstrualStore?
-    @State private var monthlyReview: MonthlyReviewBuilder.Review?
-    @State private var isShowingMonthlyReview = false
+    @State private var presentedReview: PresentedReview?
+    @State private var selectedDay: SelectedDay?
     private let calendar = Calendar.mondayFirst
+
+    // `.sheet(item:)` で使うため Identifiable 化したラッパー。
+    // `.sheet(isPresented:)` だと state 更新と content closure の評価順序の
+    // 都合で「flag は true なのに review が nil → 空 sheet」になる事故が起きる。
+    private struct PresentedReview: Identifiable {
+        let review: MonthlyReviewBuilder.Review
+        var id: String { review.monthLabel }
+    }
+
+    private struct SelectedDay: Identifiable {
+        let date: Date
+        let status: DailyStatus
+        let records: [WorkoutRecord]
+        var id: Date { date }
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,12 +56,15 @@ struct StatsView: View {
                 viewModel.refresh(records: store.records)
                 if menstrualStore == nil {
                     menstrualStore = MenstrualStore(context: modelContext)
+                } else {
+                    menstrualStore?.fetchEntries()
                 }
             }
-            .sheet(isPresented: $isShowingMonthlyReview) {
-                if let review = monthlyReview {
-                    MonthlyReviewSheet(review: review, isPresented: $isShowingMonthlyReview)
-                }
+            .sheet(item: $presentedReview) { wrapper in
+                MonthlyReviewSheet(review: wrapper.review)
+            }
+            .sheet(item: $selectedDay) { day in
+                DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
         }
     }
@@ -56,7 +74,24 @@ struct StatsView: View {
             records: store.records,
             today: store.today,
             menstrualDates: menstrualStore?.markedDates() ?? []
+        ) { date in
+            openDay(date)
+        }
+    }
+
+    private func openDay(_ date: Date) {
+        let dayRecords = store.records.filter { calendar.isDate($0.date, inSameDayAs: date) }
+        let restDays = RestDayResolver.restDaySet(
+            for: date, records: store.records, today: store.today, calendar: calendar
         )
+        let status = AchievementEvaluator.dailyStatus(
+            for: date,
+            records: store.records,
+            restDays: restDays,
+            today: store.today,
+            calendar: calendar
+        )
+        selectedDay = SelectedDay(date: date, status: status, records: dayRecords)
     }
 
     private var weightEntry: some View {
@@ -91,8 +126,8 @@ struct StatsView: View {
         return Button {
             let today = store.today
             let previousMonth = calendar.date(byAdding: .month, value: -1, to: today) ?? today
-            monthlyReview = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, calendar: calendar)
-            isShowingMonthlyReview = true
+            let review = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, calendar: calendar)
+            presentedReview = PresentedReview(review: review)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "doc.text.image")

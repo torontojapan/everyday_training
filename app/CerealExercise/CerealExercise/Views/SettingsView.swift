@@ -173,19 +173,19 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    if let onClose {
-                        onClose()
-                    } else {
-                        dismiss()
+            // Phase 7.0: Tab 直下の root では「ホームへ戻る」が空振りするため、
+            // deep link 経由 (onClose 渡された場合) でのみ toolbar item を出す。
+            if onClose != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        onClose?()
+                    } label: {
+                        Label("ホーム", systemImage: "chevron.left")
+                            .labelStyle(.titleAndIcon)
+                            .font(Typography.body)
                     }
-                } label: {
-                    Label("ホーム", systemImage: "chevron.left")
-                        .labelStyle(.titleAndIcon)
-                        .font(Typography.body)
+                    .accessibilityLabel("ホームへ戻る")
                 }
-                .accessibilityLabel("ホームへ戻る")
             }
         }
         .sheet(isPresented: $isShowingWidgetGuide) {
