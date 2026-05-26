@@ -5,6 +5,7 @@ import SwiftUI
 struct CerealExerciseWidgetBundle: WidgetBundle {
     var body: some Widget {
         CerealExerciseWidget()
+        CatLiveActivity()
     }
 }
 

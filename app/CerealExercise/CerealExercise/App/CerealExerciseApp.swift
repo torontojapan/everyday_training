@@ -206,6 +206,14 @@ private struct HomeRootView: View {
         let todayStatus = statuses.first { Calendar.mondayFirst.isDate($0.date, inSameDayAs: today) }?.status ?? .todayPending
         let streak = StreakCalculator.currentStreak(records: records, today: today)
 
+        // Phase 7.0 Step 4: Live Activity を起動 or 更新。
+        let liveState = CatLiveActivityController.makeState(
+            records: records,
+            today: today,
+            catBreed: UserCatPreferences.shared.myCat
+        )
+        CatLiveActivityController.shared.ensureRunning(state: liveState)
+
         guard !skipNotificationPrompt else { return }
 
         Task { @MainActor in

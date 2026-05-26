@@ -1,3 +1,4 @@
+import ActivityKit
 import AppIntents
 import Foundation
 import SwiftData
@@ -43,6 +44,7 @@ struct QuickRecordIntent: AppIntent {
            }) {
             // 既に記録ありの日は何もしない (idempotent)。
             WidgetCenter.shared.reloadAllTimelines()
+            await Self.markLiveActivityAchieved()
             return .result()
         }
 
@@ -62,9 +64,21 @@ struct QuickRecordIntent: AppIntent {
         context.insert(record)
         try context.save()
 
-        // Widget timeline を即時更新して「達成済み」表示に切り替える。
+        // Widget timeline + Live Activity を即時更新して「達成済み」表示に切り替える。
         WidgetCenter.shared.reloadAllTimelines()
+        await Self.markLiveActivityAchieved()
         return .result()
+    }
+
+    /// Live Activity 上のボタンから記録した直後に「達成済」の見た目に切り替える。
+    /// streak / hoursLeft は次回 app open 時に正しく recompute されるので、
+    /// ここではフラグだけ立てる軽量更新。
+    private static func markLiveActivityAchieved() async {
+        for activity in Activity<CatActivityAttributes>.activities {
+            var next = activity.content.state
+            next.todayAchieved = true
+            await activity.update(.init(state: next, staleDate: activity.content.staleDate))
+        }
     }
 
     /// メインアプリ / ウィジェットが共有する SwiftData ファイル URL。
