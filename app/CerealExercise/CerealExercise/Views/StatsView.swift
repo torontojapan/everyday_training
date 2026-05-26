@@ -74,10 +74,15 @@ struct StatsView: View {
     }
 
     private var monthlyCalendarCard: some View {
-        MonthlyCalendarView(
+        // 体調・周期トラッキングが OFF のときは★を非表示。データ自体は
+        // 残しておくので再 ON で復活する。
+        let markedDates: Set<Date> = cycleSettings.isEnabled
+            ? (menstrualStore?.markedDates() ?? [])
+            : []
+        return MonthlyCalendarView(
             records: store.records,
             today: store.today,
-            menstrualDates: menstrualStore?.markedDates() ?? []
+            menstrualDates: markedDates
         ) { date in
             openDay(date)
         }

@@ -72,21 +72,59 @@ struct MonthlyReviewSheet: View {
 struct MonthlyReviewCard: View {
     let review: MonthlyReviewBuilder.Review
 
+    /// 「達成おめ」感のある celebrating ポーズの猫を載せる。
+    /// 未生成 breed は orange にフォールバック。
+    private var catImageName: String {
+        let breed = UserCatPreferences.shared.myCat
+        let primary = CatState.celebrating.assetName(breed: breed)
+        return UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: .celebrating)
+    }
+
     var body: some View {
-        VStack(spacing: 18) {
-            Text("今月のあなた")
-                .font(.system(size: 20, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
+        VStack(spacing: 16) {
+            // 上部のブランドバッジ。SNS 拡散時に「どのアプリで撮ったか」を必ず残す。
+            HStack(spacing: 6) {
+                Image(systemName: "figure.run.circle.fill")
+                    .font(.system(size: 16, weight: .heavy))
+                    .foregroundStyle(.white)
+                Text("GOエクササイズ")
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(.white.opacity(0.22), in: Capsule())
+
             Text(review.monthLabel)
-                .font(.system(size: 28, weight: .black, design: .rounded))
+                .font(.system(size: 26, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
+
+            // ユーザーが選んでいる猫キャラ。Stats から先月分を振り返るので
+            // 「celebrating」ポーズで「お疲れさま」のニュアンスを出す。
+            ZStack {
+                Circle()
+                    .fill(.white.opacity(0.25))
+                    .frame(width: 130, height: 130)
+                if UIImage(named: catImageName) != nil {
+                    Image(catImageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 130, height: 130)
+                        .clipShape(Circle())
+                } else {
+                    Text(CatState.celebrating.emoji)
+                        .font(.system(size: 80))
+                }
+            }
+            .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 3))
+            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
 
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 Text("\(review.achievedDays)")
-                    .font(.system(size: 80, weight: .black, design: .rounded))
+                    .font(.system(size: 72, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                 Text("/ \(review.totalDays) 日達成")
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
             }
 
@@ -104,10 +142,16 @@ struct MonthlyReviewCard: View {
             .padding(16)
             .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            Text("GOエクササイズ")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .padding(.top, 4)
+            // 拡散先で「アプリ名」が必ず読める最終フッター。
+            HStack(spacing: 6) {
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(.white.opacity(0.85))
+                Text("GOエクササイズ で記録")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            .padding(.top, 2)
         }
         .padding(28)
         .frame(maxWidth: .infinity)

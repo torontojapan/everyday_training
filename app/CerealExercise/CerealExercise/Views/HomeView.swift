@@ -23,19 +23,21 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     topStatusBar
                         .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                        .padding(.top, 4)
 
                     // 猫を画面のほぼ半分占有。Phase 7.0 の最大の変更点。
+                    // 余白が多すぎる指摘を受け、Spacer の minLength を 0 → 6 にして
+                    // 中央配置を残しつつ、上下マージンを切り詰めて猫を相対的に大きく見せる。
                     catTheater
                         .frame(maxHeight: .infinity)
 
                     // 週カレンダー mini と CTA はボトムに固定して片手操作圏内に。
-                    VStack(spacing: 14) {
+                    VStack(spacing: 10) {
                         weeklyMini
                         primaryActionButton
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 10)
                 }
             }
             .navigationBarHidden(true)
@@ -139,14 +141,15 @@ struct HomeView: View {
     // MARK: - Cat theater (画面の主役)
 
     /// 猫を大きく見せて、横に吹き出しメッセージ。Phase 7.0 の核心。
+    /// 220 → 280pt に拡大。speech bubble の font も少しアップ。
     private var catTheater: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 0)
+        VStack(spacing: 12) {
+            Spacer(minLength: 4)
             BigCatView(state: viewModel.catState, decoration: viewModel.catDecoration)
-                .frame(width: 220, height: 220)
+                .frame(width: 280, height: 280)
             speechBubble
-                .padding(.horizontal, 28)
-            Spacer(minLength: 0)
+                .padding(.horizontal, 24)
+            Spacer(minLength: 4)
         }
         .frame(maxWidth: .infinity)
     }
@@ -160,15 +163,15 @@ struct HomeView: View {
                 .frame(width: 18, height: 10)
                 .shadow(color: .black.opacity(0.05), radius: 2, y: -1)
             Text(viewModel.catMessage.text)
-                .font(Typography.body)
+                .font(.system(.callout, design: .rounded, weight: .semibold))
                 .foregroundStyle(Palette.textPrimary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineLimit(3)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.06), radius: 5, y: 2)
         }
         .accessibilityLabel("猫からのメッセージ: \(viewModel.catMessage.text)")
     }

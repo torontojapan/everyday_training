@@ -10,6 +10,7 @@ struct HistoryView: View {
     var onClose: (() -> Void)? = nil
 
     private let calendar = Calendar.mondayFirst
+    private let cycleSettings = CycleTrackingSettings()
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
@@ -32,7 +33,9 @@ struct HistoryView: View {
                 MonthlyCalendarView(
                     records: store.records,
                     today: store.today,
-                    menstrualDates: menstrualStore?.markedDates() ?? []
+                    menstrualDates: cycleSettings.isEnabled
+                        ? (menstrualStore?.markedDates() ?? [])
+                        : []
                 ) { date in
                     open(date: date)
                 }
