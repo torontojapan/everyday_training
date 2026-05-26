@@ -21,11 +21,11 @@ struct HomeView: View {
                 backgroundGradient.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 上部に「状態 + 今週」を集約。情報量はあるが視覚的に
-                    // 高密度に圧縮することで、中央の猫劇場により広いキャンバスを残す。
+                    // 上部に「今週 + 状態」を集約。一番目立たせたい今週の達成度を
+                    // 最上段に置き、連続記録 / 残り時間はその下にぶら下げる。
                     VStack(spacing: 12) {
-                        topStatusBar
                         weeklyMini
+                        topStatusBar
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
