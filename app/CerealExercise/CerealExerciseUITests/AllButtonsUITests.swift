@@ -90,14 +90,20 @@ final class AllButtonsUITests: XCTestCase {
         let app = launchApp()
         dismissNotificationDialogIfPresent(app)
 
-        let historyLink = app.buttons["履歴"]
-        XCTAssertTrue(historyLink.waitForExistence(timeout: 8))
-        historyLink.tap()
+        // Phase 7.0: 履歴は TabView の 2 番目のタブ。NavigationStack の
+        // push ではなく Tab 切替で開く。
+        let historyTab = app.tabBars.buttons["履歴"]
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 8))
+        historyTab.tap()
 
-        // Back chevron returns to home (NavigationStack auto back button).
-        let backButton = app.navigationBars.buttons.element(boundBy: 0)
-        XCTAssertTrue(backButton.waitForExistence(timeout: 5))
-        backButton.tap()
+        // 履歴タブの大見出しが表示されていることを確認 (タブ切替成功)。
+        let historyTitle = app.navigationBars["履歴"]
+        XCTAssertTrue(historyTitle.waitForExistence(timeout: 5))
+
+        // ホームタブを tap して戻る。
+        let homeTab = app.tabBars.buttons["ホーム"]
+        XCTAssertTrue(homeTab.waitForExistence(timeout: 5))
+        homeTab.tap()
 
         XCTAssertTrue(app.buttons["primary-record-action"].waitForExistence(timeout: 5))
     }
@@ -174,8 +180,17 @@ final class AllButtonsUITests: XCTestCase {
 
         app.buttons["primary-record-action"].tap()
 
+        // Phase 7.0: RecordEntryView は .medium / .large の half-sheet。
+        // medium のままでは「種目を追加」が画面下で hittable にならないため、
+        // drag indicator (またはタイトルバー) を上方向に swipe して large 化。
+        let recordTitle = app.navigationBars["今日の記録"]
+        XCTAssertTrue(recordTitle.waitForExistence(timeout: 5))
+        let start = recordTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05))
+        start.press(forDuration: 0.05, thenDragTo: end)
+
         let addButton = app.buttons["種目を追加"]
-        XCTAssertTrue(addButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(addButton.waitForExistence(timeout: 8))
         addButton.tap()
 
         let trashButton = app.buttons["種目を削除"].firstMatch
