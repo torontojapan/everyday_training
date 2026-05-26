@@ -133,13 +133,7 @@ struct WeeklyRankingView: View {
     private func rankRow(_ entry: WeeklyRankingEntry) -> some View {
         HStack(spacing: 12) {
             rankBadge(entry.rank)
-            ZStack {
-                Circle()
-                    .fill(Palette.chipBackground.opacity(0.7))
-                    .frame(width: 44, height: 44)
-                Text("🐱")
-                    .font(.system(size: 22))
-            }
+            FriendAvatarView(friendCode: entry.profile.friendCode, size: 44)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(entry.profile.displayName)

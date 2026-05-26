@@ -62,15 +62,19 @@ struct FriendDetailView: View {
                 Circle()
                     .fill(LinearGradient(
                         colors: [
-                            tierColor.opacity(0.45),
-                            tierColor.opacity(0.15)
+                            BuddyAvatarResolver.avatar(for: friend.friendCode).tintColor.opacity(0.50),
+                            BuddyAvatarResolver.avatar(for: friend.friendCode).tintColor.opacity(0.15)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ))
                     .frame(width: 132, height: 132)
-                Text("🐱")
-                    .font(.system(size: 78))
+                Image(BuddyAvatarResolver.avatar(for: friend.friendCode).assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .scaleEffect(1.05)
+                    .frame(width: 132, height: 132)
+                    .clipShape(Circle())
                 CatDecorationOverlay(decoration: friend.decoration)
             }
             .accessibilityHidden(true)

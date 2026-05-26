@@ -273,7 +273,10 @@ struct FriendsView: View {
 
     private func requestRow(_ request: FriendRequest) -> some View {
         HStack(spacing: 12) {
-            avatar(tier: request.fromProfile.decorationTier, small: true)
+            FriendAvatarView(friendCode: request.fromProfile.friendCode,
+                             size: 36,
+                             showsDecorationBorder: true,
+                             decorationTier: request.fromProfile.decorationTier)
             VStack(alignment: .leading, spacing: 2) {
                 Text(request.fromProfile.displayName)
                     .font(Typography.body)
@@ -376,7 +379,10 @@ struct FriendsView: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    avatar(tier: friend.decorationTier)
+                    FriendAvatarView(friendCode: friend.friendCode,
+                                     size: 56,
+                                     showsDecorationBorder: true,
+                                     decorationTier: friend.decorationTier)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(friend.displayName)
                             .font(Typography.headline)
