@@ -1,32 +1,22 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-26 (Phase 7.0 Step 1-4 完了 — Live Activity まで実装)
+最終更新: 2026-05-27 (Phase 7.0 完全完了 + 大規模 audit + 演出強化 + リポジトリ整理)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 Step 1-4 完了 (Live Activity / Dynamic Island まで)
+- **iOS アプリ本体**: Phase 7.0 完全完了 (Step 1-4 + 全 audit + 演出強化 + 保険チケット連携)
 - **テスト**: Unit **172/172** + UI **14/14** = **186 件 全 PASS**
-- **最新コミット**: `4caeced` UI test retire (Phase 7.0 仕様追従)
-- **Codex usage limit**: 18:11 まで生成不可 (画像 19 枚 + UX 提案 3 つ目)
+- **最新コミット**: `adb06fc` リポジトリ整理 (142 ファイル削除)
+- **GitHub**: `torontojapan/everyday_training` main に push 済
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 
 ---
 
 ## 残タスク (優先度順)
 
-### 🔴 P0 — Apple Developer 加入待ち中の即時タスク
-
-| # | タスク | 工数 | 状態 |
-|---|---|---:|---|
-| A1 | Phase 7.0 Step 4: Live Activity / Dynamic Island 常駐猫 | 2-3h | ✅ 完了 |
-| A2 | tuxedo / persian / scottish 残 19 画像生成 (Codex 18:11 復帰後) | 20-30m | Codex 待ち |
-| A3 | Codex UX 刷新提案 (3 LLM 目)、Antigravity はユーザー側 | 5m | Codex 待ち |
-| A4 | UI test 2 件 retire (TabView + half-sheet 仕様追従) | 30m | ✅ 完了 |
-| A5 | Phase 7.0 retire 漏れ 3 件 (履歴日付タップ / 先月レビュー / 設定の戻る) | 30m | ✅ 完了 |
-
-### 🔴 P0 — App Store 提出ブロッカー (Apple Developer 必須)
+### 🔴 P0 — App Store 提出ブロッカー
 
 | # | タスク | 担当 |
 |---|---|---|
@@ -38,62 +28,61 @@
 
 | # | タスク |
 |---|---|
-| 7 | iCloud Capability 有効化 |
-| 8 | Sign in with Apple Capability |
-| 9 | `CloudKitFriendsService` 実装 (Mock と差し替え) |
-| 10 | DEBUG=Mock / RELEASE=CloudKit 切替 |
-| 11 | Push 通知 entitlement + CKQuerySubscription |
-| 12 | iCloud 2 アカウントで実機相互テスト |
-| 13 | `weeklyAchievements` / `monthlyTotalMinutes` / `myCatBreed` の daily publish |
+| 1 | iCloud Capability 有効化 |
+| 2 | Sign in with Apple Capability |
+| 3 | `CloudKitFriendsService` 実装 (Mock と差し替え) |
+| 4 | DEBUG=Mock / RELEASE=CloudKit 切替 |
+| 5 | Push 通知 entitlement + CKQuerySubscription |
+| 6 | iCloud 2 アカウントで実機相互テスト |
+| 7 | `weeklyAchievements` / `monthlyTotalMinutes` / `myCatBreed` の daily publish |
 
-### 🟢 P2 — 将来 Phase (任意)
-
-| # | タスク | 状態 |
-|---|---|---|
-| 14 | 当日メニュー詳細共有 (Phase 5.8 完了, Mock) | ✅ |
-| 15 | 週間ランキング (Phase 5.9 完了) | ✅ |
-| 16 | 友達からの達成 push 通知 | CloudKit + Push 後 |
-| 17 | Duolingo 風リーグ | ❌ Phase 6.1 でスコープ外決定 |
-| 18 | 簡易チャット | ❌ スコープ外 |
-| 19 | Android 版検討 | 6.0 (将来) |
-
-### 🟢 P2 — Phase 7.0 拡張案 (Claude/Gemini 提案より)
+### 🟢 P2 — Phase 7.0 拡張案 (任意)
 
 | # | タスク | ソース |
 |---|---|---|
-| 20 | Siri ショートカット (App Intents 拡張) | Claude 独自 |
-| 21 | Apple Watch コンパニオン | Claude 独自 |
-| 22 | 友達と並走モード (同期セッション) | Claude 独自 |
-| 23 | アンビエントなソーシャル通知 | Gemini 独自 |
-| 24 | 「ねこ撫でた日」帳消し演出 | Gemini 独自 |
+| 8 | Siri ショートカット (App Intents 拡張) | Claude 独自 |
+| 9 | Apple Watch コンパニオン | Claude 独自 |
+| 10 | 友達と並走モード (同期セッション) | Claude 独自 |
+| 11 | アンビエントなソーシャル通知 | Gemini 独自 |
+| 12 | 「ねこ撫でた日」帳消し演出 | Gemini 独自 |
+| 13 | Codex UX 提案 (7 件) 実装検討 | `docs/ux_review/uxrevamp_codex.md` |
+| 14 | 友達からの達成 push 通知 | CloudKit + Push 後 |
+| 15 | Android 版検討 | 将来 |
+
+❌ **スコープ外**: Duolingo 風リーグ (Phase 6.1 削除)、簡易チャット
 
 ### 🔵 P3 — メンテナンス
 
 | # | タスク | 状態 |
 |---|---|---|
-| 25 | iOS 19 / Xcode 18 対応 | リリース時 |
-| 26 | Instruments 実機計測 | 実機入手後 |
+| 16 | iOS 19 / Xcode 18 対応 | リリース時 |
+| 17 | Instruments 実機計測 | 実機入手後 |
 
 ---
 
-## Phase 7.0 進捗
+## Phase 7.0 進捗 (全完了)
 
 | Step | 内容 | コミット | 状態 |
 |---|---|---|---|
 | 1 | TabView + ホーム猫劇場 + ハーフ sheet 記録 | `0edcae8` | ✅ |
 | 2 | Positive-Only Calendar + 友達公園ビュー | `69dead7` | ✅ |
 | 3 | Interactive Widget (AppIntent でアプリレス記録) | `18a5832` | ✅ |
-| 4 | Live Activity / Dynamic Island 常駐猫 | — | pending |
+| 4 | Live Activity / Dynamic Island 常駐猫 | `9364acb` | ✅ |
+| A2 | Codex 画像生成 20 枚 (tuxedo/persian/scottish) | `ab08382` | ✅ |
+| A3 | Codex UX 提案 (3 LLM 目) | `0ecb18e` | ✅ |
+| audit | Codex + Gemini 大規模 audit + 7 件修正 | `79b8d73` | ✅ |
+| 演出 | 背景パーティクル + 紙吹雪 + 猫タップ bounce + 吹き出し pop-in | `b62a23e` | ✅ |
+| 青シミ修正 | CatDecoration.headband の青色 → 緑に | `c41ac5d` | ✅ |
+| 保険チケット | AchievementEvaluator / StreakCalculator に統合 | `95cacec` | ✅ |
+| クリーンアップ | assets/ 全削除 + 古いスクショ整理 | `adb06fc` | ✅ |
 
 ---
 
 ## 次セッションで最初にやること
 
-1. **Codex 復帰確認** (18:11 以降):
-   - 残 19 画像 (tuxedo×5 + persian×7 + scottish×7) 生成 → 透過化 → install
-   - UX 刷新提案 (3 LLM 目) 取得
-2. **Phase 7.0 Step 4 (Live Activity)** を実装するか判断
-3. **Welcome メール届いていれば** P1 CloudKit 実装へ
+1. **Welcome メール届いていれば** → P1 CloudKit 実装に着手
+2. **届いていなければ** → P2 拡張案から好きなもの (Siri / Apple Watch / 並走モード / Codex 提案 7 件)
+3. NEXT_STEPS.md と memory の pending_tasks.md は同期済
 
 ---
 
@@ -101,12 +90,5 @@
 
 - `README.md` — 機能一覧 + Phase 完了表
 - `MEMORY.md` — Claude のメモリインデックス
-- `submission/screenshots/iphone-6.9/` — App Store スクショ (Phase 7.0 反映済み)
-- `docs/ux_review/uxrevamp_claude.md` / `uxrevamp_gemini.md` — UX 刷新提案
-- 直近主要コミット:
-  - `453d7db` Phase 7.0 Step 1-2 スクショ更新
-  - `18a5832` Phase 7.0 Step 3: Interactive Widget
-  - `69dead7` Phase 7.0 Step 2: Positive Calendar + 公園
-  - `0edcae8` Phase 7.0 Step 1: TabView + 猫劇場
-  - `96c653e` Phase 6.7 + 6.8: 自分のキャラ選択 + 月間ランキング
-  - `1b2121a` Phase 6.6: 10 種類の猫アバター
+- `submission/screenshots/iphone-6.9/` — App Store スクショ
+- `docs/ux_review/uxrevamp_{claude,gemini,codex,prompt}.md` — Phase 7.0 UX 刷新提案 3 LLM 分
