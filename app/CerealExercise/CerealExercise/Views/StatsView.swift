@@ -12,6 +12,7 @@ struct StatsView: View {
     @State private var presentedReview: PresentedReview?
     @State private var selectedDay: SelectedDay?
     private let calendar = Calendar.mondayFirst
+    private let cycleSettings = CycleTrackingSettings()
 
     // `.sheet(item:)` で使うため Identifiable 化したラッパー。
     // `.sheet(isPresented:)` だと state 更新と content closure の評価順序の
@@ -44,6 +45,9 @@ struct StatsView: View {
                     )
 
                     weightEntry
+                    if cycleSettings.isEnabled, let menstrualStore {
+                        menstrualEntry(store: menstrualStore)
+                    }
                     monthlyReviewEntry
                 }
                 .padding(20)
@@ -119,6 +123,36 @@ struct StatsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("weight-link-stats")
+    }
+
+    /// 設定で「体調・周期を記録する」ON のときだけ表示。
+    /// 同じ menstrualStore インスタンスを渡すので、入力した★は履歴カレンダーに
+    /// 即時反映される (@Observable の同一インスタンス共有)。
+    private func menstrualEntry(store: MenstrualStore) -> some View {
+        NavigationLink {
+            MenstrualEntryView(store: store)
+        } label: {
+            HStack(spacing: 12) {
+                Text("★")
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(Color(red: 0.86, green: 0.36, blue: 0.45))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("生理日を記録する")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("過去の日付もまとめて入力できます")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("menstrual-link-stats")
     }
 
     private var monthlyReviewEntry: some View {

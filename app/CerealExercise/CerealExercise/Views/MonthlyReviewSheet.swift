@@ -2,14 +2,8 @@ import SwiftUI
 
 struct MonthlyReviewSheet: View {
     let review: MonthlyReviewBuilder.Review
-    @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: Image?
-
-    init(review: MonthlyReviewBuilder.Review, isPresented: Binding<Bool> = .constant(true)) {
-        self.review = review
-        self._isPresented = isPresented
-    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -45,7 +39,6 @@ struct MonthlyReviewSheet: View {
             HStack {
                 Spacer()
                 Button {
-                    isPresented = false
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")

@@ -171,15 +171,13 @@ struct SettingsView: View {
         .background(Palette.background)
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(onClose != nil)
         .toolbar {
             // Phase 7.0: Tab 直下の root では「ホームへ戻る」が空振りするため、
             // deep link 経由 (onClose 渡された場合) でのみ toolbar item を出す。
-            if onClose != nil {
+            if let onClose {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        onClose?()
-                    } label: {
+                    Button(action: onClose) {
                         Label("ホーム", systemImage: "chevron.left")
                             .labelStyle(.titleAndIcon)
                             .font(Typography.body)

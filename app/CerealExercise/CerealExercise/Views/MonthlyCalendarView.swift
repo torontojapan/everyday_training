@@ -302,10 +302,9 @@ struct MonthlyCalendarView: View {
         return calendar.date(from: comps) ?? date
     }
 
-    /// Phase 7.0 で Positive-Only に変更。未達成 (missed) は他のセルと
-    /// 区別しないことで「サボった日」が視界に入らないようにする。
-    /// 心理学の「What-the-Hell Effect」回避 — 過去の失敗を見ない方が
-    /// 継続率が上がる、というロジック。
+    /// 凡例 (○ / 休 / ×) とカレンダー表示の整合性を優先。Phase 7.0 で一度
+    /// Positive-Only (× を非表示) にしたが、legend に × があるのに表示されない
+    /// 不整合をユーザーから指摘されたため、未達成は明示する方針に戻す。
     private func background(for status: DailyStatus, isToday: Bool) -> Color {
         if isToday {
             return Palette.primary.opacity(0.85)
@@ -313,7 +312,7 @@ struct MonthlyCalendarView: View {
         switch status {
         case .achieved, .todayAchieved: return Palette.success.opacity(0.55)
         case .rest: return Palette.restDay.opacity(0.55)
-        case .missed: return Palette.surface          // 未達成は中性色 (失敗を強調しない)
+        case .missed: return Palette.missed.opacity(0.18)  // 薄い赤系で「未達成」と認識可能に
         case .future: return Palette.surface
         case .todayPending: return Palette.secondary.opacity(0.40)
         }
@@ -321,8 +320,8 @@ struct MonthlyCalendarView: View {
 
     private func shouldShowSymbol(for status: DailyStatus) -> Bool {
         switch status {
-        case .achieved, .todayAchieved, .rest, .todayPending: return true
-        case .missed, .future: return false   // Positive-Only
+        case .achieved, .todayAchieved, .rest, .todayPending, .missed: return true
+        case .future: return false
         }
     }
 

@@ -25,7 +25,7 @@ struct WeeklyCalendarView: View {
                 .accessibilityLabel(weekdayLabels.indices.contains(index) ? weekdayLabels[index] : "曜日")
                 .accessibilityIdentifier("weekday-\(index)")
                 .accessibilityValue(accessibilityValue(for: entry))
-                .accessibilityHint("タップでこの日の記録を表示")
+                .accessibilityHint(onDayTap != nil ? "タップでこの日の記録を表示" : "")
             }
         }
         .padding(12)
