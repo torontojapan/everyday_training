@@ -119,7 +119,8 @@ private struct HomeRootView: View {
                 RootSplitView()
                     .environment(store)
             } else {
-                HomeView()
+                // Phase 7.0: ボトムタブを Window 直下に置く。
+                MainTabView()
                     .environment(store)
             }
         case .record:

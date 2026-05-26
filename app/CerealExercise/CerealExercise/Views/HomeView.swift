@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Phase 7.0 で「猫劇場」に再設計したホーム画面。
+/// 旧設計: ヘッダー + 猫 (72pt) + CTA + 週カレ + 達成カード + 累計 + 体重 + レビュー
+/// 新設計: 上端 chip + 巨大な猫 + 吹き出し + 「ぽちっと記録」CTA + 週カレ mini
+/// → 数字系カード (累計 / 体重 / 月次レビュー) は Stats タブへ全て移動。
 struct HomeView: View {
     @Environment(WorkoutStore.self) private var store
     @State private var viewModel = HomeViewModel()
@@ -8,84 +12,33 @@ struct HomeView: View {
     @State private var completedStreakExtendedThisRun = false
     @State private var selectedDayEntry: DailyStatusEntry?
     @State private var isShowingStreakShare = false
-    @State private var isShowingMonthlyReview = false
-    @State private var monthlyReview: MonthlyReviewBuilder.Review?
     @State private var presentedMilestone: Milestone?
     private let calendar = Calendar.mondayFirst
-    private let monthlyReviewTracker = MonthlyReviewTracker()
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Palette.background.ignoresSafeArea()
+                backgroundGradient.ignoresSafeArea()
 
-                ScrollView {
-                    // 階層化された spacing: 主導線 (CTA) 周りは余白を強く
-                    // とり、補助カードは詰める。全体 20pt 一律から、用途別
-                    // spacing で視覚的優先順位を伝える。
-                    VStack(alignment: .leading, spacing: 16) {
-                        header
+                VStack(spacing: 0) {
+                    topStatusBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
 
-                        // Cat front-and-center so users greet 猫 first thing.
-                        CatMessageView(
-                            message: viewModel.catMessage,
-                            state: viewModel.catState,
-                            decoration: viewModel.catDecoration
-                        )
-                        .padding(.bottom, 4)   // 猫の下にひと呼吸
+                    // 猫を画面のほぼ半分占有。Phase 7.0 の最大の変更点。
+                    catTheater
+                        .frame(maxHeight: .infinity)
 
+                    // 週カレンダー mini と CTA はボトムに固定して片手操作圏内に。
+                    VStack(spacing: 14) {
+                        weeklyMini
                         primaryActionButton
-
-                        weeklyCalendarSection
-
-                        // 達成済みの日は今日の達成カードだけ、未達成の日は
-                        // 今週のハイライトだけ。重複を避ける。
-                        if viewModel.todayStatus == .todayAchieved, viewModel.todaySummary.hasExerciseData {
-                            TodayAchievementSummaryCard(summary: viewModel.todaySummary)
-                        } else if viewModel.weeklySummary.hasExerciseData {
-                            WeeklyHighlightCard(summary: viewModel.weeklySummary)
-                        }
-
-                        LifetimeStatsCard(
-                            achievedDays: viewModel.lifetimeStats.achievedDays,
-                            usedDays: viewModel.lifetimeStats.usedDays
-                        )
-
-                        weightEntry
-
-                        monthlyReviewEntry
                     }
-                    .padding(20)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
                 }
             }
-            .navigationTitle("GOエクササイズ")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    NavigationLink {
-                        FriendsView()
-                    } label: {
-                        Image(systemName: "person.2.fill")
-                    }
-                    .accessibilityLabel("友達")
-                    .accessibilityIdentifier("friends-home-button")
-
-                    NavigationLink {
-                        HistoryView()
-                            .environment(store)
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                    .accessibilityLabel("履歴")
-
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                    }
-                    .accessibilityLabel("設定")
-                }
-            }
+            .navigationBarHidden(true)
             .onAppear {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records)
@@ -108,6 +61,8 @@ struct HomeView: View {
                     isShowingEntry = false
                 }
                 .environment(store)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
             .navigationDestination(item: $completedRecord) { record in
                 RecordCompletionView(
@@ -130,11 +85,6 @@ struct HomeView: View {
             .sheet(isPresented: $isShowingStreakShare) {
                 StreakShareSheet(streak: viewModel.streak.currentStreak, isPresented: $isShowingStreakShare)
             }
-            .sheet(isPresented: $isShowingMonthlyReview) {
-                if let review = monthlyReview {
-                    MonthlyReviewSheet(review: review, isPresented: $isShowingMonthlyReview)
-                }
-            }
             .sheet(item: $presentedMilestone) { milestone in
                 MilestoneCelebrationSheet(
                     milestone: milestone,
@@ -148,10 +98,104 @@ struct HomeView: View {
         }
     }
 
-    /// 達成済みなら CTA を「もう一種目する 🔥」に変えて達成感を残しつつ
-    /// 追加記録への導線も保つ。未達成なら従来通り「今日の運動を記録する」。
-    /// どちらのラベルでも accessibilityIdentifier を固定にしているので
-    /// UI test は識別子ベースで参照する。
+    // MARK: - Top status bar (連続日数 + 達成状況の chip)
+
+    /// 数字 (連続日数) は残しつつ、達成済みは「達成 ✨」の chip で表現。
+    /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
+    private var topStatusBar: some View {
+        HStack {
+            StreakBadgeView(streak: viewModel.streak.currentStreak) {
+                guard viewModel.streak.currentStreak > 0 else { return }
+                isShowingStreakShare = true
+            }
+            Spacer()
+            statusChip
+        }
+    }
+
+    @ViewBuilder
+    private var statusChip: some View {
+        if viewModel.todayStatus == .todayAchieved {
+            Label("今日は達成済み", systemImage: "checkmark.seal.fill")
+                .font(Typography.caption)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Palette.success.opacity(0.18), in: Capsule())
+                .foregroundStyle(Palette.success)
+        } else if viewModel.todayStatus == .rest {
+            Label("今日は回復日", systemImage: "moon.zzz.fill")
+                .font(Typography.caption)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Palette.restDay.opacity(0.30), in: Capsule())
+                .foregroundStyle(Palette.textPrimary)
+        } else {
+            Text(remainingTimeText)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Palette.surface, in: Capsule())
+        }
+    }
+
+    // MARK: - Cat theater (画面の主役)
+
+    /// 猫を大きく見せて、横に吹き出しメッセージ。Phase 7.0 の核心。
+    private var catTheater: some View {
+        VStack(spacing: 16) {
+            Spacer(minLength: 0)
+            BigCatView(state: viewModel.catState, decoration: viewModel.catDecoration)
+                .frame(width: 220, height: 220)
+            speechBubble
+                .padding(.horizontal, 28)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 吹き出しの上に小さな三角形のしっぽを付けて、猫の口元から
+    /// 話しているように見せる (Gemini 改善提案 ③)。
+    private var speechBubble: some View {
+        VStack(spacing: 0) {
+            BubbleTriangle()
+                .fill(Palette.surface)
+                .frame(width: 18, height: 10)
+                .shadow(color: .black.opacity(0.05), radius: 2, y: -1)
+            Text(viewModel.catMessage.text)
+                .font(Typography.body)
+                .foregroundStyle(Palette.textPrimary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(3)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+        }
+        .accessibilityLabel("猫からのメッセージ: \(viewModel.catMessage.text)")
+    }
+
+    // MARK: - Weekly mini
+
+    private var weeklyMini: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("今週")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                Spacer()
+                Text("\(viewModel.progress.achievedCount) / \(viewModel.progress.totalDays) 日達成")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
+                selectedDayEntry = entry
+            }
+        }
+    }
+
+    // MARK: - Primary CTA
+
+    /// Gemini 改善提案 ②: 未達成時は CTA を微妙にパルスさせて視線を誘導。
+    /// 達成済みは静的 (もう急かさない)。
     @ViewBuilder
     private var primaryActionButton: some View {
         if viewModel.todayStatus == .todayAchieved {
@@ -161,121 +205,35 @@ struct HomeView: View {
                 isShowingEntry = true
             }
         } else {
-            PrimaryButton("今日の運動を記録する",
-                          systemImage: "plus.circle.fill",
-                          accessibilityIdentifier: "primary-record-action") {
+            PulsingPrimaryButton(title: "今日の運動を記録する",
+                                 systemImage: "plus.circle.fill",
+                                 identifier: "primary-record-action") {
                 isShowingEntry = true
             }
         }
     }
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.todayStatus == .todayAchieved ? "今日も達成 ✨" : "今日も少しずつ")
-                    .font(Typography.headline)
-                    .foregroundStyle(Palette.textSecondary)
-                StreakBadgeView(streak: viewModel.streak.currentStreak) {
-                    guard viewModel.streak.currentStreak > 0 else { return }
-                    isShowingStreakShare = true
-                }
-            }
-            Spacer()
-            // 達成済みなら「今日は達成済み」、未達成なら「締切まで残り X 時間」と
-            // 表示を切り替える。同じ chip でも文脈で意味が変わる。
-            if viewModel.todayStatus == .todayAchieved {
-                Label("今日は達成済み", systemImage: "checkmark.seal.fill")
-                    .font(Typography.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Palette.success.opacity(0.18), in: Capsule())
-                    .foregroundStyle(Palette.success)
-            } else {
-                Text(remainingTimeText)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Palette.surface, in: Capsule())
-            }
-        }
-    }
+    // MARK: - Background
 
-    private var weeklyCalendarSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("今週")
-                    .font(Typography.headline)
-                    .foregroundStyle(Palette.textPrimary)
-                Spacer()
-                Text("\(viewModel.progress.achievedCount) / \(viewModel.progress.totalDays) 日達成")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textSecondary)
-            }
-            WeeklyCalendarView(statuses: viewModel.statuses, today: store.today, calendar: calendar) { entry in
-                selectedDayEntry = entry
-            }
+    /// 時刻に応じて hue が淡く変化する。朝はピーチ、昼はクリーム、
+    /// 夕方はオレンジ、夜は深い藍。Palette.background を base に重ねる
+    /// LinearGradient で軽く演出 (派手にしすぎない)。
+    private var backgroundGradient: some View {
+        let hour = calendar.component(.hour, from: Date())
+        let top: Color
+        let bottom: Color
+        switch hour {
+        case 5..<11:
+            top = Palette.background; bottom = Color(red: 1.00, green: 0.85, blue: 0.78)
+        case 11..<16:
+            top = Palette.background; bottom = Color(red: 1.00, green: 0.93, blue: 0.80)
+        case 16..<21:
+            top = Palette.background; bottom = Color(red: 1.00, green: 0.82, blue: 0.65)
+        default:
+            top = Palette.background; bottom = Color(red: 0.80, green: 0.83, blue: 0.93)
         }
-    }
-
-    private var monthlyReviewEntry: some View {
-        let hasPrevious = viewModel.previousMonthHasRecords
-        return Button {
-            buildAndPresentMonthlyReview()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.text.image")
-                    .font(.system(size: 22))
-                    .foregroundStyle(hasPrevious ? Palette.primaryDeep : Palette.textSecondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("先月のレビューを見る")
-                        .font(Typography.headline)
-                        .foregroundStyle(hasPrevious ? Palette.textPrimary : Palette.textSecondary)
-                    Text(hasPrevious
-                        ? "一ヶ月のがんばりをカードでサマリー、SNSでもシェアできます"
-                        : "先月の記録はまだありません")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-                Spacer()
-                if hasPrevious {
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(Palette.textSecondary)
-                }
-            }
-            .padding(14)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!hasPrevious)
-        .accessibilityIdentifier("monthly-review-button")
-    }
-
-    private var weightEntry: some View {
-        NavigationLink {
-            WeightView()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "scalemass.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Palette.primaryDeep)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("体重の推移をみる")
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("グラフで増減を一目で確認")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Palette.textSecondary)
-            }
-            .padding(14)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("weight-link-home")
+        return LinearGradient(colors: [top, bottom.opacity(0.45)],
+                              startPoint: .top, endPoint: .bottom)
     }
 
     private var remainingTimeText: String {
@@ -284,25 +242,87 @@ struct HomeView: View {
         return "今日の締切まで あと\(hours)時間"
     }
 
-    private func buildAndPresentMonthlyReview() {
-        let today = store.today
-        let previousMonth = calendar.date(byAdding: .month, value: -1, to: today) ?? today
-        monthlyReview = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, calendar: calendar)
-        isShowingMonthlyReview = true
-        monthlyReviewTracker.markPresented(today: today)
-    }
-
     private func handleAutoPresentations() {
         let skipAuto = ProcessInfo.processInfo.arguments.contains("--skip-milestones")
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
-            return  // show one auto-sheet at a time
         }
-        if !skipAuto, presentedMilestone == nil,
-           monthlyReviewTracker.shouldAutoPresent(today: store.today) {
-            // Auto-present last month's review on the first home appearance of a new month.
-            buildAndPresentMonthlyReview()
+    }
+}
+
+/// CatStateView の大型版 (220pt)。装飾もキャラ全体にスケールするように
+/// 元 CatStateView をベースに新規。タップで haptic + breathing animation。
+struct BigCatView: View {
+    let state: CatState
+    var decoration: CatDecoration = .none
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathing = false
+
+    var body: some View {
+        let breed = UserCatPreferences.shared.myCat
+        let primary = state.assetName(breed: breed)
+        let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [breed.tintColor.opacity(0.30), breed.tintColor.opacity(0.05)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+            if UIImage(named: resolved) != nil {
+                Image(resolved)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                Text(state.emoji)
+                    .font(.system(size: 120))
+            }
+            CatDecorationOverlay(decoration: decoration)
+                .scaleEffect(2.2)
         }
+        .scaleEffect(reduceMotion ? 1 : (breathing ? 1.02 : 1))
+        .accessibilityLabel("猫キャラクター \(state.displayName)")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                breathing = true
+            }
+        }
+    }
+}
+
+/// 吹き出しのしっぽ三角形。先端 (top) を猫に向けるため上を尖らせる。
+private struct BubbleTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// 未達成時の CTA を 1.05 倍にゆっくり脈動。reduceMotion 設定で停止。
+private struct PulsingPrimaryButton: View {
+    let title: String
+    let systemImage: String
+    let identifier: String
+    let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulse = false
+
+    var body: some View {
+        PrimaryButton(title, systemImage: systemImage, accessibilityIdentifier: identifier, action: action)
+            .scaleEffect(reduceMotion ? 1 : (pulse ? 1.03 : 1))
+            .shadow(color: Palette.primary.opacity(pulse && !reduceMotion ? 0.40 : 0.0),
+                    radius: pulse && !reduceMotion ? 12 : 0)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
     }
 }
 
