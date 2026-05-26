@@ -21,23 +21,23 @@ struct HomeView: View {
                 backgroundGradient.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    topStatusBar
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
+                    // 上部に「状態 + 今週」を集約。情報量はあるが視覚的に
+                    // 高密度に圧縮することで、中央の猫劇場により広いキャンバスを残す。
+                    VStack(spacing: 12) {
+                        topStatusBar
+                        weeklyMini
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
 
-                    // 猫を画面のほぼ半分占有。Phase 7.0 の最大の変更点。
-                    // 余白が多すぎる指摘を受け、Spacer の minLength を 0 → 6 にして
-                    // 中央配置を残しつつ、上下マージンを切り詰めて猫を相対的に大きく見せる。
+                    // 猫劇場。weeklyMini を上に出した分、猫は相対的に少し下に
+                    // 寄って「ステージ感」が出る。maxHeight 占有は変えず Spacer 役。
                     catTheater
                         .frame(maxHeight: .infinity)
 
-                    // 週カレンダー mini と CTA はボトムに固定して片手操作圏内に。
-                    VStack(spacing: 10) {
-                        weeklyMini
-                        primaryActionButton
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 10)
+                    primaryActionButton
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
                 }
             }
             .navigationBarHidden(true)
