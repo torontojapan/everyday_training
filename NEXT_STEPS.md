@@ -1,107 +1,97 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-26 (Phase 6.4 完了 — キャラクター刷新 + 透過化 + ストアスクショ全再撮影)
-
-このファイルは「次セッションで何から手をつけるか」をすぐ思い出すための作業メモです。完了済み機能の網羅的な一覧は `README.md` / `MEMORY.md` を参照。
+最終更新: 2026-05-26 (Phase 7.0 Step 1-3 完了 — 大規模 UI/UX 刷新)
 
 ---
 
-## 直近の状態 (要約)
+## 直近の状態
 
-- **iOS アプリ本体**: 機能実装は完了 (Phase 5.6 まで)。Simulator で全画面動作確認済み。
-- **テスト**: Unit **186** / UI **14** = **200 件 PASS**。
-- **友達機能**: FriendDetailView + 週カレンダー + sort + 詳細から cheer / 削除まで完成。`FriendsStore` をアプリ root に注入済み。
-- **音声演出**: 削除済み (Phase 5.5)。haptic のみ残存。
-- **写真保存**: Info.plist 不備バグを修正 (NSPhotoLibraryAddUsageDescription 追加)。ImageSaver で完了 callback 経由のエラー処理。
-- **Deep link**: cerealexercise://{home|record|history|settings|friends|notification-settings|streak-share} を `.onOpenURL` で処理 (Phase 5.6)。
-- **通知タップ**: 記録画面に直接遷移するよう `AppDelegate + NotificationDelegate` を実装 (Phase 5.6)。
-- **SettingsView**: アプリ情報セクションに privacy / terms / support 実リンクを追加 (Phase 5.6)。
-- **未解決のバグ報告**: なし。
-- **プライバシーポリシー / 利用規約 / メタデータ**: CloudKit + 友達機能用に更新済み。
+- **iOS アプリ本体**: Phase 7.0 で大規模 UI/UX 刷新完了 (Step 3 まで)
+- **テスト**: Unit **172** / UI **14** = **186 件 全 PASS**
+- **最新コミット**: `453d7db` Phase 7.0 Step 1-2 スクショ更新
+- **Codex usage limit**: 18:11 まで生成不可 (画像 19 枚 + UX 提案 3 つ目)
+- **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 
 ---
 
 ## 残タスク (優先度順)
 
-### 🔴 P0 — App Store 提出に必要
+### 🔴 P0 — Apple Developer 加入待ち中の即時タスク
 
-| # | タスク | 概要 | 前提 |
-|---|---|---|---|
-| 1 | **Apple Developer Program 加入** | 年 ¥13,800、code signing と CloudKit / Sign in with Apple に必須。注文 W1563167588 でアクティベート待ち | ユーザー作業 |
-| 2 | ~~プライバシーポリシー / 利用規約~~ | ✅ 完了 (2026-05-25) — `docs/privacy.md` / `docs/terms.md` / submission 配下を CloudKit + 友達機能用に更新 | — |
-| 3 | ~~App Privacy ラベル草案~~ | ✅ 完了 — `submission/app_store_metadata.md` の "プライバシー" セクションに転記用テーブル記載 | — |
-| 4 | ~~アプリアイコン~~ | ✅ 確定 (2026-05-25) — 現状の `AppIcon-1024.png` (ピンク+猫+バンダナ) で提出。色空間/色数は審査通過レベル、必要なら v1.1 で差し替え可 | — |
-| 5 | **App Store スクリーンショット作成 (本番版)** | iPhone 6.9" 必須 (1320×2868)。Phase 5.4 で開発用 5 枚を `submission/screenshots/phase5_4_friends/` に保存済み | アイコン確定済みのため着手可 |
-| 6 | ~~メタデータ準備~~ | ✅ 完了 — `submission/app_store_metadata.md` 全項目埋め済み | — |
+| # | タスク | 工数 | 状態 |
+|---|---|---:|---|
+| A1 | Phase 7.0 Step 4: Live Activity / Dynamic Island 常駐猫 | 2-3h | pending |
+| A2 | tuxedo / persian / scottish 残 19 画像生成 (Codex 18:11 復帰後) | 20-30m | Codex 待ち |
+| A3 | Codex UX 刷新提案 (3 LLM 目)、Antigravity はユーザー側 | 5m | Codex 待ち |
 
-### 🟡 P1 — CloudKit 実装 (Phase 5.0 / 5.4 を本実装に昇格)
+### 🔴 P0 — App Store 提出ブロッカー (Apple Developer 必須)
 
-現在の `FriendsService` は `MockFriendsService`。Mock で UI フロー (FriendsView / FriendDetailView / FriendAddView / Sign in) が完成しているので、`CloudKitFriendsService` に差し替えるだけで本番化できる状態。
-
-| # | タスク | 概要 |
+| # | タスク | 担当 |
 |---|---|---|
-| 7 | iCloud Capability 有効化 | `CerealExercise.entitlements` に `com.apple.developer.icloud-container-identifiers = iCloud.com.serial.cerealexercise` |
-| 8 | Sign in with Apple Capability 追加 | `AuthenticationServices` + entitlement |
-| 9 | `CloudKitFriendsService` 実装 | Public DB に `UserProfile` / `FriendRequest` / `Cheer` レコードタイプ。`FriendsService` プロトコルに準拠 |
-| 10 | `CerealExerciseApp` で本番/Mock 切替 | DEBUG=Mock, RELEASE=CloudKit |
-| 11 | Push 通知 entitlement + Subscription | 友達からの cheer / 友達申請を受信 |
-| 12 | 実機テスト | iCloud アカウント 2 つで相互承認・cheer 送受信 |
-| 13 | 週カレンダー (`weeklyAchievements`) の同期 | 毎日 publish タイミングで最新 7 日分を更新 |
+| 1 | **Apple Developer Program 加入** | ユーザー作業 (Welcome メール待ち) |
+
+(プライバシーポリシー / メタデータ / アイコン / スクショは完了済み)
+
+### 🟡 P1 — CloudKit 本実装 (Apple Developer 加入後)
+
+| # | タスク |
+|---|---|
+| 7 | iCloud Capability 有効化 |
+| 8 | Sign in with Apple Capability |
+| 9 | `CloudKitFriendsService` 実装 (Mock と差し替え) |
+| 10 | DEBUG=Mock / RELEASE=CloudKit 切替 |
+| 11 | Push 通知 entitlement + CKQuerySubscription |
+| 12 | iCloud 2 アカウントで実機相互テスト |
+| 13 | `weeklyAchievements` / `monthlyTotalMinutes` / `myCatBreed` の daily publish |
 
 ### 🟢 P2 — 将来 Phase (任意)
 
-| # | タスク | フェーズ | 状態 |
-|---|---|---|---|
-| 14 | 当日メニュー詳細共有 (回数・セットも opt-in で) | 5.8 | ✅ 完了 (Mock) |
-| 15 | 週間ランキング (オプトイン) | 5.9 | ✅ 完了 (Mock) |
-| 16 | 友達からの達成 push 通知 | (CloudKit + Push 後) | pending |
-| 17 | Duolingo 風リーグ・昇格システム | 5.10 | ✅ 完了 (Mock) |
-| 18 | ~~簡易チャット (CloudKit Shared DB)~~ | — | ❌ スコープ外 (2026-05-25 にスキップ決定) |
-| 19 | Android 版検討 (CloudKit を破棄して Supabase 移行) | 6.0 | pending |
+| # | タスク | 状態 |
+|---|---|---|
+| 14 | 当日メニュー詳細共有 (Phase 5.8 完了, Mock) | ✅ |
+| 15 | 週間ランキング (Phase 5.9 完了) | ✅ |
+| 16 | 友達からの達成 push 通知 | CloudKit + Push 後 |
+| 17 | Duolingo 風リーグ | ❌ Phase 6.1 でスコープ外決定 |
+| 18 | 簡易チャット | ❌ スコープ外 |
+| 19 | Android 版検討 | 6.0 (将来) |
+
+### 🟢 P2 — Phase 7.0 拡張案 (Claude/Gemini 提案より)
+
+| # | タスク | ソース |
+|---|---|---|
+| 20 | Siri ショートカット (App Intents 拡張) | Claude 独自 |
+| 21 | Apple Watch コンパニオン | Claude 独自 |
+| 22 | 友達と並走モード (同期セッション) | Claude 独自 |
+| 23 | アンビエントなソーシャル通知 | Gemini 独自 |
+| 24 | 「ねこ撫でた日」帳消し演出 | Gemini 独自 |
 
 ### 🔵 P3 — メンテナンス
 
 | # | タスク | 状態 |
 |---|---|---|
-| 20 | iOS 19 / Xcode 18 への対応確認 (リリース時) | pending |
-| 21 | データ移行テスト (SwiftData migration) — 既存ユーザー想定 | 既存 SwiftDataMigrationTests あり |
-| 22 | Instruments による Allocations / Time Profiler チェック (実機) | pending |
-| 23 | アクセシビリティ監査 (VoiceOver / Dynamic Type) | ✅ Phase 5.4 で FriendsView / FriendDetailView を accessibility5 まで確認 |
+| 25 | iOS 19 / Xcode 18 対応 | リリース時 |
+| 26 | Instruments 実機計測 | 実機入手後 |
 
 ---
 
-## 「次セッションで最初にやること」候補
+## Phase 7.0 進捗
 
-1. **Apple Developer 加入が済んだら** → P1 #7 から順に CloudKit 実装
-2. **加入前にできること**:
-   - P0 #4 アプリアイコン差し替え
-   - P0 #5 App Store スクリーンショット撮影 (Simulator で可、launch arg `--mock-seed-friends --initial-route friends` で友達画面を直接撮れる)
-   - 既存テストの UI test 拡充 (FriendsView / FriendDetailView の flow テスト)
-3. **新機能要望が来た場合**: P2 タスクから優先度すり合わせ
+| Step | 内容 | コミット | 状態 |
+|---|---|---|---|
+| 1 | TabView + ホーム猫劇場 + ハーフ sheet 記録 | `0edcae8` | ✅ |
+| 2 | Positive-Only Calendar + 友達公園ビュー | `69dead7` | ✅ |
+| 3 | Interactive Widget (AppIntent でアプリレス記録) | `18a5832` | ✅ |
+| 4 | Live Activity / Dynamic Island 常駐猫 | — | pending |
 
 ---
 
-## 開発時に便利な launch arguments
+## 次セッションで最初にやること
 
-```bash
-# 友達画面に直接遷移 (サインアウト状態)
---initial-route friends
-
-# 友達画面 + Mock サインイン済み (友達 2 名・申請 1 件)
---initial-route friends --mock-seed-friends
-
-# 友達画面 + 詳細シートを最初から開いた状態
---initial-route friends --mock-seed-friends --mock-open-friend-detail
-
-# 友達追加画面を最初から開いた状態
---initial-route friends --mock-seed-friends --mock-open-friend-add
-
-# 既存:
---no-notification-prompt    # 通知許可ダイアログをスキップ
---skip-milestones           # マイルストーン自動表示をスキップ
---seed-demo-data            # 12 日連続 + サンプル種目を投入
---seed-scenario {basic|long-streak|streak-broken|month-boundary|empty|edge-minute}
-```
+1. **Codex 復帰確認** (18:11 以降):
+   - 残 19 画像 (tuxedo×5 + persian×7 + scottish×7) 生成 → 透過化 → install
+   - UX 刷新提案 (3 LLM 目) 取得
+2. **Phase 7.0 Step 4 (Live Activity)** を実装するか判断
+3. **Welcome メール届いていれば** P1 CloudKit 実装へ
 
 ---
 
@@ -109,11 +99,12 @@
 
 - `README.md` — 機能一覧 + Phase 完了表
 - `MEMORY.md` — Claude のメモリインデックス
-- `submission/screenshots/phase5_4_friends/` — 友達機能 5 画面 + Dynamic Type 検証 2 枚
+- `submission/screenshots/iphone-6.9/` — App Store スクショ (Phase 7.0 反映済み)
+- `docs/ux_review/uxrevamp_claude.md` / `uxrevamp_gemini.md` — UX 刷新提案
 - 直近主要コミット:
-  - (本コミット) Phase 5.4 友達体験完成: FriendDetailView + 週カレンダー + sort + FriendsStore 注入
-  - `52eee5b` 友達ボタンをホーム toolbar に / バッジ削除 / 設定順最適化
-  - `84c64ca` (歴史的: 効果音 + CoreHaptics。効果音は Phase 5.5 で削除)
-  - `517028f` 4 段階祝祭演出 (CelebrationOverlay)
-  - `1c4aa4b` 友達機能 MVP (Mock)
-  - `fea1ffc` 5 テーマカラー
+  - `453d7db` Phase 7.0 Step 1-2 スクショ更新
+  - `18a5832` Phase 7.0 Step 3: Interactive Widget
+  - `69dead7` Phase 7.0 Step 2: Positive Calendar + 公園
+  - `0edcae8` Phase 7.0 Step 1: TabView + 猫劇場
+  - `96c653e` Phase 6.7 + 6.8: 自分のキャラ選択 + 月間ランキング
+  - `1b2121a` Phase 6.6: 10 種類の猫アバター
