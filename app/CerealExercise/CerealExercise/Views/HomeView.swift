@@ -255,29 +255,40 @@ struct HomeView: View {
     }
 }
 
-/// CatStateView の大型版 (220pt)。装飾もキャラ全体にスケールするように
-/// 元 CatStateView をベースに新規。タップで haptic + breathing animation。
+/// CatStateView の大型版 (280pt)。装飾もキャラ全体にスケールするように
+/// 元 CatStateView をベースに新規。
+/// - 丸枠の clipShape を外して `.scaledToFit` で表示することで、しっぽや
+///   バンザイした手など円の外に出る要素が切れなくなる。背景 Circle は装飾
+///   (光輪) として残す。
+/// - breathing (scale) に加え、float (offset y) と微小 sway (rotation) を
+///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
     var decoration: CatDecoration = .none
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
+    @State private var floating = false
+    @State private var swaying = false
 
     var body: some View {
         let breed = UserCatPreferences.shared.myCat
         let primary = state.assetName(breed: breed)
         let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
         ZStack {
+            // 背景の光輪 (装飾)。キャラ画像はこの円の外まで描かれて構わない。
             Circle()
                 .fill(LinearGradient(
-                    colors: [breed.tintColor.opacity(0.30), breed.tintColor.opacity(0.05)],
+                    colors: [breed.tintColor.opacity(0.32), breed.tintColor.opacity(0.06)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 ))
+                .scaleEffect(0.88) // 円を画像より一回り内側に置く
             if UIImage(named: resolved) != nil {
                 Image(resolved)
                     .resizable()
-                    .scaledToFill()
-                    .clipShape(Circle())
+                    .scaledToFit()
+                    // 画像領域を Circle より少しだけ広く取り、しっぽ・手・装飾の
+                    // 飛び出しを clip しない。
+                    .padding(2)
             } else {
                 Text(state.emoji)
                     .font(.system(size: 120))
@@ -285,12 +296,21 @@ struct BigCatView: View {
             CatDecorationOverlay(decoration: decoration)
                 .scaleEffect(2.2)
         }
-        .scaleEffect(reduceMotion ? 1 : (breathing ? 1.02 : 1))
+        .scaleEffect(reduceMotion ? 1 : (breathing ? 1.03 : 1))
+        .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))
+        .rotationEffect(reduceMotion ? .zero : .degrees(swaying ? 2 : -2))
         .accessibilityLabel("猫キャラクター \(state.displayName)")
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
                 breathing = true
+            }
+            // 周期をずらして合成すると 1 軸より生き物っぽく感じる
+            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+                floating = true
+            }
+            withAnimation(.easeInOut(duration: 4.1).repeatForever(autoreverses: true)) {
+                swaying = true
             }
         }
     }
