@@ -135,6 +135,38 @@ struct CyclePhaseResolverTests {
         #expect(spans[3].endDay == day(28, from: base))
     }
 
+    /// 大きな範囲 (1000 日) でも合理的時間で完了し、結果が破綻しない。
+    /// Codex round1 priority 2 で性能改善 (binary search) を入れた後の sanity check。
+    @Test
+    func spans_largeRange_completesQuicklyAndConsistent() {
+        let base = cal.startOfDay(for: Date())
+        // 過去 1000 日にわたって 28 日ごとに 5 日間の period をマーク
+        var periods: Set<Date> = []
+        for cycle in 0..<36 {
+            for d in 0..<5 {
+                if let day = cal.date(byAdding: .day, value: -(cycle * 28 + d), to: base) {
+                    periods.insert(day)
+                }
+            }
+        }
+
+        // 1000 日範囲の spans。実用上 60ms 以内に返る想定で、最低限 1 秒は超えない。
+        let rangeStart = cal.date(byAdding: .day, value: -999, to: base)!
+        let rangeEnd = cal.date(byAdding: .day, value: 1, to: base)!
+        let started = Date()
+        let spans = CyclePhaseResolver.spans(
+            in: rangeStart, end: rangeEnd, periodDays: periods, calendar: cal
+        )
+        let elapsed = Date().timeIntervalSince(started)
+
+        #expect(elapsed < 1.0, "1000 日 spans 算出が 1 秒以上かかっている: \(elapsed)s")
+        #expect(!spans.isEmpty)
+        // ソート不変条件: spans は時間順
+        for i in 1..<spans.count {
+            #expect(spans[i - 1].endDay <= spans[i].startDay)
+        }
+    }
+
     /// period 未マークの期間 (1 周以上前) は span から欠落する (nil でスキップ)。
     @Test
     func spans_skipsUnresolvableRegion() {

@@ -52,8 +52,13 @@ struct WeightView: View {
             if store == nil {
                 store = WeightStore(context: modelContext)
             }
+            // 周期データ store は init / re-appear のたびに fetch を回す
+            // (他画面で marked が編集された後に戻ってきたケースを反映)。
+            // Codex round1 priority 1 でステイル表示が指摘されたため。
             if menstrualStore == nil {
                 menstrualStore = MenstrualStore(context: modelContext)
+            } else {
+                menstrualStore?.fetchEntries()
             }
         }
         .confirmationDialog(
@@ -453,6 +458,9 @@ struct WeightView: View {
                             xEnd: .value("to", span.endDay)
                         )
                         .foregroundStyle(span.phase.tint.opacity(0.13))
+                        // 色覚特性に依らず相を読み上げできるよう VoiceOver ラベル付与。
+                        // (Codex round1 priority 3: 色だけだと CVD で識別困難)
+                        .accessibilityLabel("\(span.phase.displayName): \(span.phase.hint)")
                     }
                     if !trend.isEmpty {
                         ForEach(trend) { point in

@@ -41,25 +41,39 @@ enum CyclePhaseResolver {
                        periodLength: Int = 5,
                        ovulationWindow: ClosedRange<Int> = 13...15,
                        calendar: Calendar = .mondayFirst) -> CyclePhase? {
+        // Public API: 都度 starts を作る (O(M log M))。spans() からの大量呼び出しには
+        // pre-sorted starts を渡す internal helper を使う (Codex round1 priority 2)。
+        let starts = computePeriodStarts(periodDays: periodDays, calendar: calendar)
+        return phase(for: date, periodDays: periodDays, sortedPeriodStarts: starts,
+                     cycleLength: cycleLength, periodLength: periodLength,
+                     ovulationWindow: ovulationWindow, calendar: calendar)
+    }
+
+    /// 内部用 fast-path: sorted period starts を呼び出し側で 1 回だけ計算して
+    /// 共有する形。`spans()` の day-by-day ループで毎日呼ぶ前提。
+    private static func phase(for date: Date,
+                               periodDays: Set<Date>,
+                               sortedPeriodStarts: [Date],
+                               cycleLength: Int,
+                               periodLength: Int,
+                               ovulationWindow: ClosedRange<Int>,
+                               calendar: Calendar) -> CyclePhase? {
         precondition(cycleLength >= 14, "cycleLength は最小 14 (生理学的下限)")
         precondition(periodLength >= 1 && periodLength <= cycleLength / 2, "periodLength が異常")
 
         let day = calendar.startOfDay(for: date)
         if periodDays.contains(day) { return .menstrual }
 
-        guard let start = mostRecentPeriodStart(onOrBefore: day,
-                                                 periodDays: periodDays,
-                                                 calendar: calendar) else {
+        guard let start = binarySearchLatestStart(onOrBefore: day,
+                                                   sortedStarts: sortedPeriodStarts) else {
             return nil
         }
         let daysSince = calendar.dateComponents([.day], from: start, to: day).day ?? 0
-        // 1 周以上前の period start しか見つからない場合は次の周期予測の信頼性が
-        // 落ちるので nil で扱う (= legend の "推定不可" 領域)。
         guard daysSince >= 0, daysSince < cycleLength else { return nil }
 
         switch daysSince {
         case 0..<periodLength:
-            return .menstrual // marked 漏れの安全網 (#1 で捕捉しなかった場合)
+            return .menstrual
         case periodLength..<ovulationWindow.lowerBound:
             return .follicular
         case ovulationWindow:
@@ -72,6 +86,10 @@ enum CyclePhaseResolver {
     /// 指定された日付範囲 [`rangeStart`, `rangeEnd`) を相ごとに集約した
     /// `PhaseSpan` の配列を返す (古→新)。Chart で背景帯として描画しやすい。
     /// 相が連続して同じならマージ。`nil` (推定不能) な日は span に含めない。
+    ///
+    /// 性能: period starts と starts の sorted ソートは **1 回だけ**事前計算。
+    /// 各 day での `phase` 判定は二分探索 O(log M) となり、全体 O(N log M)
+    /// (N=range 日数 / M=marked 日数)。Codex round1 priority 2 改善。
     static func spans(in rangeStart: Date,
                        end rangeEnd: Date,
                        periodDays: Set<Date>,
@@ -84,15 +102,18 @@ enum CyclePhaseResolver {
         let endDay = calendar.startOfDay(for: rangeEnd)
         guard cursor < endDay else { return [] }
 
+        // 一回だけ sorted period starts を作る。以降の per-day 判定で再利用。
+        let sortedStarts = computePeriodStarts(periodDays: periodDays, calendar: calendar)
+
         var currentPhase: CyclePhase? = nil
         var currentStart: Date = cursor
 
         while cursor < endDay {
             let p = phase(for: cursor, periodDays: periodDays,
+                          sortedPeriodStarts: sortedStarts,
                           cycleLength: cycleLength, periodLength: periodLength,
                           ovulationWindow: ovulationWindow, calendar: calendar)
             if p != currentPhase {
-                // close out previous span
                 if let prev = currentPhase {
                     result.append(PhaseSpan(phase: prev, startDay: currentStart, endDay: cursor))
                 }
@@ -102,27 +123,42 @@ enum CyclePhaseResolver {
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
         }
-        // flush tail
         if let prev = currentPhase {
             result.append(PhaseSpan(phase: prev, startDay: currentStart, endDay: cursor))
         }
         return result
     }
 
-    /// `target` 以前で最も近い「月経の **開始日**」を返す。開始日 = その日が
-    /// marked かつ「前日が marked でない (or 存在しない)」もの。連続した
-    /// 月経期間の途中日は開始日として扱わない。
-    private static func mostRecentPeriodStart(onOrBefore target: Date,
-                                               periodDays: Set<Date>,
-                                               calendar: Calendar) -> Date? {
-        // periodDays から target 以下のものだけ降順に走査
-        let sorted = periodDays.filter { $0 <= target }.sorted(by: >)
+    /// `periodDays` から「連続群の先頭日」だけを **昇順** で抽出する。
+    /// O(M log M) ソート + O(M) 走査 = O(M log M)。
+    private static func computePeriodStarts(periodDays: Set<Date>,
+                                             calendar: Calendar) -> [Date] {
+        let sorted = periodDays.sorted()
+        var starts: [Date] = []
+        starts.reserveCapacity(sorted.count)
         for day in sorted {
             let prev = calendar.date(byAdding: .day, value: -1, to: day) ?? day
             if !periodDays.contains(prev) {
-                return day // この day は連続群の先頭 = period start
+                starts.append(day)
             }
         }
-        return nil
+        return starts
+    }
+
+    /// 昇順 sorted の starts から `target` 以下で最大の要素を二分探索で取得。
+    /// O(log K) (K = period starts 数)。
+    private static func binarySearchLatestStart(onOrBefore target: Date,
+                                                 sortedStarts: [Date]) -> Date? {
+        var lo = 0
+        var hi = sortedStarts.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if sortedStarts[mid] <= target {
+                lo = mid + 1
+            } else {
+                hi = mid
+            }
+        }
+        return lo > 0 ? sortedStarts[lo - 1] : nil
     }
 }
