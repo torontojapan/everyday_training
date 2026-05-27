@@ -147,6 +147,34 @@ final class WeightStore {
         return result
     }
 
+    /// 週次/月次サマリ。最小・最大・平均・変化幅をまとめて返す。
+    /// (Codex UX 提案: 体重 週次/月次レポート機能)
+    struct WeightStats: Sendable, Equatable {
+        let min: Double
+        let max: Double
+        let average: Double
+        /// 期間の最古エントリ - 最新エントリ。負なら減量、正なら増量。
+        let change: Double
+        let entryCount: Int
+    }
+
+    /// 指定期間 (.week / .month / .threeMonths など) の体重統計を返す。
+    /// 日内最新で集約した値を使う (chartEntries と同じスナップショット)。
+    /// データが 0 件なら nil。
+    func stats(period: ChartPeriod, today: Date = Date()) -> WeightStats? {
+        let entries = chartEntries(period: period, today: today)
+        guard let last = entries.first, let first = entries.last else { return nil }
+        // chartEntries は新→古順なので first=最新, last=最古
+        let values = entries.map(\.weightKilograms)
+        let minVal = values.min() ?? last.weightKilograms
+        let maxVal = values.max() ?? last.weightKilograms
+        let avg = values.reduce(0, +) / Double(values.count)
+        // change = 最新 - 最古 (正なら期間中に増えた)
+        let change = last.weightKilograms - first.weightKilograms
+        return WeightStats(min: minVal, max: maxVal, average: avg,
+                            change: change, entryCount: entries.count)
+    }
+
     var change30Days: Double? {
         guard let latest = latestNonFuture else { return nil }
         // cutoff は **calendar 日ベース** で計算する。latest.date が時刻入りの

@@ -24,6 +24,15 @@ final class HomeViewModel {
     /// 「先月のレビュー」ボタンを active / disabled で出し分けるために、
     /// 前月にいずれかの記録があるかどうかを保持する。
     var previousMonthHasRecords = false
+
+    /// 「復帰ファーストホーム」を出すかどうか (Codex UX 提案 #2)。
+    /// 判定条件 (3 つすべて true):
+    /// - **昨日の status が `.missed`**: 単に streak が 0 ではなく、rest day や
+    ///   rescue ticket での救済も効かなかった真の取りこぼし日
+    /// - 今日まだ達成していない
+    /// - 累計達成日 >= 3 (= 習慣を持っていた経験あり)
+    /// 朝起きて未記録でも、昨日達成済みなら通常 UI のまま。
+    var isComebackToday: Bool = false
     private let usageTracker = LifetimeUsageTracker()
     private let rescueTicketStore = RescueTicketStore()
     private let milestoneDetector = MilestoneDetector()
@@ -33,7 +42,9 @@ final class HomeViewModel {
         self.calendar = calendar
     }
 
-    func refresh(records: [WorkoutRecord], streakExtendedThisRun: Bool = false) {
+    func refresh(records: [WorkoutRecord],
+                  streakExtendedThisRun: Bool = false,
+                  weightLoss: MilestoneDetector.WeightLossSnapshot? = nil) {
         let now = dateProvider.currentDate()
         let today = calendar.startOfDay(for: now)
         statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, calendar: calendar)
@@ -70,9 +81,29 @@ final class HomeViewModel {
             firstUseDate: firstUse,
             today: today,
             lifetimeAchieved: lifetimeStats.achievedDays,
-            currentStreak: streak.currentStreak
+            currentStreak: streak.currentStreak,
+            weightLoss: weightLoss
         )
         previousMonthHasRecords = Self.hasPreviousMonthRecords(records: records, today: today, calendar: calendar)
+        isComebackToday = yesterdayStatus(records: records, today: today) == .missed
+            && !todayStatus.countsAsAchieved
+            && lifetimeStats.achievedDays >= 3
+    }
+
+    /// 昨日の DailyStatus (rest day / rescue ticket 自動補完を込みで評価)。
+    /// 復帰モード判定で「真に missed か」を確定するため。
+    private func yesterdayStatus(records: [WorkoutRecord], today: Date) -> DailyStatus {
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            return .future
+        }
+        let restDays = RestDayResolver.restDaySet(for: yesterday, records: records, today: today, calendar: calendar)
+        return AchievementEvaluator.dailyStatus(
+            for: yesterday,
+            records: records,
+            restDays: restDays,
+            today: today,
+            calendar: calendar
+        )
     }
 
     private static func hasPreviousMonthRecords(records: [WorkoutRecord], today: Date, calendar: Calendar) -> Bool {

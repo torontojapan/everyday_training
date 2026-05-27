@@ -4,6 +4,7 @@ import UIKit
 struct NotificationSettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var viewModel = NotificationSettingsViewModel()
+    @State private var personality: NotificationPersonality = NotificationPersonalityPreferences.shared.current
 
     var body: some View {
         Form {
@@ -35,9 +36,21 @@ struct NotificationSettingsView: View {
             }
 
             Section {
-                Text("通知トーンは初期設定のまま使用します。")
+                Picker("性格", selection: personalityBinding) {
+                    ForEach(NotificationPersonality.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .accessibilityIdentifier("notif-personality-picker")
+                Text(personality.hint)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text("通知の性格")
+            } footer: {
+                Text("静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。")
+                    .font(Typography.caption)
             }
         }
         .scrollContentBackground(.hidden)
@@ -82,6 +95,16 @@ struct NotificationSettingsView: View {
                 .foregroundStyle(Palette.textSecondary)
                 .accessibilityHidden(true)
         }
+    }
+
+    private var personalityBinding: Binding<NotificationPersonality> {
+        Binding(
+            get: { personality },
+            set: { newValue in
+                personality = newValue
+                NotificationPersonalityPreferences.shared.current = newValue
+            }
+        )
     }
 
     private var enabledBinding: Binding<Bool> {

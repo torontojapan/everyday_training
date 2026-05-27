@@ -94,6 +94,47 @@ struct MilestoneShareTests {
         #expect(after == .currentStreak(400), "400 (= 新しい節目) は通常通り通知される")
     }
 
+    // MARK: - Weight loss milestones
+
+    /// 開始 70kg → 現在 64.8kg + 減量目標 → -3, -5 の閾値が達成済として返る。
+    @Test
+    func weightLossDetector_returnsReachedThresholds() {
+        let reached = WeightLossMilestoneDetector.reachedThresholds(
+            startKg: 70.0, currentKg: 64.8, isLossGoal: true
+        )
+        #expect(reached == [3, 5])
+    }
+
+    /// 増量目標 (isLossGoal=false) なら weightLoss は発火しない。
+    @Test
+    func weightLossDetector_skipsWhenNotLossGoal() {
+        let reached = WeightLossMilestoneDetector.reachedThresholds(
+            startKg: 55.0, currentKg: 60.0, isLossGoal: false
+        )
+        #expect(reached.isEmpty)
+    }
+
+    /// 必須情報が nil なら空。
+    @Test
+    func weightLossDetector_emptyOnMissingInputs() {
+        #expect(WeightLossMilestoneDetector.reachedThresholds(
+            startKg: nil, currentKg: 64.0, isLossGoal: true).isEmpty)
+        #expect(WeightLossMilestoneDetector.reachedThresholds(
+            startKg: 70.0, currentKg: nil, isLossGoal: true).isEmpty)
+        #expect(WeightLossMilestoneDetector.reachedThresholds(
+            startKg: 70.0, currentKg: 65.0, isLossGoal: nil).isEmpty)
+    }
+
+    /// weightLoss milestone の shareSubject / shareMessage / emoji / headline 整合性。
+    @Test
+    func weightLoss_milestone_consistentDisplayFields() {
+        let m = Milestone.weightLoss(kg: 5)
+        #expect(m.headline.contains("5"))
+        #expect(m.shareMessage.contains("達成"))
+        #expect(m.shareSubject == m.headline)
+        #expect(!m.detail.isEmpty)
+    }
+
     /// migration scope は streak のみで、未受け取りの anniversary / lifetimeDays は
     /// アップグレード後も通常通り通知される (Codex round2 priority 1)。
     @MainActor

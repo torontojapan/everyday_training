@@ -3,13 +3,17 @@ import Foundation
 enum Milestone: Equatable, Sendable {
     case anniversary(years: Int)
     case lifetimeDays(Int)        // 100, 365, 1000, ...
-    case currentStreak(Int)       // 30, 100, 365
+    case currentStreak(Int)       // 10, 30, 50, 100, 200, 300...
+    /// 開始時体重から減量した kg 量の節目 (3, 5, 10kg)。
+    /// 体重を増量目標にしているユーザー (gainGoal) には発火しない。
+    case weightLoss(kg: Int)
 
     var headline: String {
         switch self {
         case .anniversary(let years): return "\(years)周年おめでとう!"
         case .lifetimeDays(let d): return "累計 \(d) 日達成!"
         case .currentStreak(let d): return "連続 \(d) 日達成!"
+        case .weightLoss(let kg): return "-\(kg)kg 達成!"
         }
     }
 
@@ -20,6 +24,8 @@ enum Milestone: Equatable, Sendable {
         case .lifetimeDays: return "🎖️"
         case .currentStreak(let d) where d >= 100: return "🔥"
         case .currentStreak: return "✨"
+        case .weightLoss(let kg) where kg >= 10: return "🏆"
+        case .weightLoss: return "🌟"
         }
     }
 
@@ -31,6 +37,8 @@ enum Milestone: Equatable, Sendable {
             return "通算 \(d) 日の運動を達成しました。続けることに大きな意味があります。"
         case .currentStreak(let d):
             return "\(d) 日連続で運動を続けています。すごい習慣力!"
+        case .weightLoss(let kg):
+            return "開始時から -\(kg)kg。コツコツ続けてきた結果だね。"
         }
     }
 
@@ -45,6 +53,8 @@ enum Milestone: Equatable, Sendable {
             return "\(emoji) GOエクササイズで通算 \(d) 日達成！ねこ達とゆるく続けてます。一緒にやろう"
         case .currentStreak(let d):
             return "\(emoji) GOエクササイズで \(d) 日連続達成！ねこ達とゆるく運動習慣つくってます"
+        case .weightLoss(let kg):
+            return "\(emoji) GOエクササイズで -\(kg)kg 達成！ねこ達と一緒にコツコツ続けた結果"
         }
     }
 
@@ -69,13 +79,23 @@ final class MilestoneDetector {
         self.calendar = calendar
     }
 
+    /// 体重マイルストーン (weightLoss) 判定用のスナップショット。
+    /// HomeViewModel が `nextPending` を呼ぶ時点で `WeightStore` から
+    /// 取り出した状態を渡す。MilestoneDetector を SwiftData 非依存に保つため。
+    struct WeightLossSnapshot: Sendable {
+        let startKg: Double?
+        let currentKg: Double?
+        let isLossGoal: Bool?
+    }
+
     /// Returns the next milestone the user hasn't been congratulated on yet, if any.
     func nextPending(
         records: [WorkoutRecord],
         firstUseDate: Date,
         today: Date,
         lifetimeAchieved: Int,
-        currentStreak: Int
+        currentStreak: Int,
+        weightLoss: WeightLossSnapshot? = nil
     ) -> Milestone? {
         // 閾値拡充版に上げた直後の既存ユーザー保護:
         // 既に通過済みのマイルストーンをサイレントに acknowledged 化して、
@@ -88,7 +108,8 @@ final class MilestoneDetector {
 
         for milestone in candidates(firstUseDate: firstUseDate, today: today,
                                     lifetimeAchieved: lifetimeAchieved,
-                                    currentStreak: currentStreak) {
+                                    currentStreak: currentStreak,
+                                    weightLoss: weightLoss) {
             if !acknowledged.contains(key(for: milestone)) {
                 return milestone
             }
@@ -137,7 +158,8 @@ final class MilestoneDetector {
         defaults.set(true, forKey: Self.migratedExpandedThresholdsKey)
     }
 
-    private func candidates(firstUseDate: Date, today: Date, lifetimeAchieved: Int, currentStreak: Int) -> [Milestone] {
+    private func candidates(firstUseDate: Date, today: Date, lifetimeAchieved: Int, currentStreak: Int,
+                             weightLoss: WeightLossSnapshot? = nil) -> [Milestone] {
         var result: [Milestone] = []
 
         // Anniversary (1, 2, 3 ... years).
@@ -158,6 +180,18 @@ final class MilestoneDetector {
         // 100 単位で「節目」感を強める設計 (ユーザー要望)。
         for target in Self.currentStreakMilestones(upTo: currentStreak) {
             result.append(.currentStreak(target))
+        }
+
+        // Weight loss milestones: 開始時 - 現在で達した kg 節目。
+        // 増量目標 (isLossGoal == false) ユーザーには発火しない。
+        if let snapshot = weightLoss {
+            for kg in WeightLossMilestoneDetector.reachedThresholds(
+                startKg: snapshot.startKg,
+                currentKg: snapshot.currentKg,
+                isLossGoal: snapshot.isLossGoal
+            ) {
+                result.append(.weightLoss(kg: kg))
+            }
         }
 
         return result
@@ -190,6 +224,26 @@ final class MilestoneDetector {
         case .anniversary(let years): return "anniv.\(years)"
         case .lifetimeDays(let d): return "lifetime.\(d)"
         case .currentStreak(let d): return "streak.\(d)"
+        case .weightLoss(let kg): return "weightLoss.\(kg)"
         }
+    }
+}
+
+/// 体重マイルストーン (weightLoss) 検出ヘルパー。
+/// `MilestoneDetector` を SwiftData に直接依存させないため、体重情報は
+/// 呼び出し元で計算して受け渡す形にし、ここでは純関数で「現時点で発火
+/// すべき weightLoss 値の配列」を返す。
+enum WeightLossMilestoneDetector {
+    /// 現時点で達成済みの -kg 節目を昇順で返す。
+    /// 開始時体重 / 現在体重 / 目標が「減量目標」かを入力。
+    /// 例: start=70, current=64.8, isLossGoal=true → [-3, -5]
+    static func reachedThresholds(startKg: Double?, currentKg: Double?,
+                                   isLossGoal: Bool?,
+                                   thresholds: [Int] = [3, 5, 10]) -> [Int] {
+        guard let start = startKg, let current = currentKg,
+              isLossGoal == true else { return [] }
+        let lost = start - current // 正なら減量している
+        guard lost > 0 else { return [] }
+        return thresholds.filter { Double($0) <= lost }
     }
 }

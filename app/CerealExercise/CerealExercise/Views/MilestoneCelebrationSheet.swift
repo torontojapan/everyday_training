@@ -26,15 +26,19 @@ struct MilestoneCelebrationSheet: View {
             if d >= 365 { return .legendary }
             if d >= 30 { return .heroic }
             return .standard
+        case .weightLoss(let kg):
+            if kg >= 10 { return .legendary }
+            if kg >= 5  { return .heroic }
+            return .standard
         }
     }
 
     /// ミルストーンに合うキャラ表情。連続記録系は炎を背負う `streakExtended`、
-    /// アニバーサリ/累計系は喜び満開の `celebrating` をデフォルトに。
+    /// アニバーサリ/累計/減量達成系は喜び満開の `celebrating` をデフォルトに。
     private var characterState: CatState {
         switch milestone {
         case .currentStreak: return .streakExtended
-        case .anniversary, .lifetimeDays: return .celebrating
+        case .anniversary, .lifetimeDays, .weightLoss: return .celebrating
         }
     }
 

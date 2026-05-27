@@ -73,21 +73,34 @@ final class NotificationScheduler {
 
         guard settings.isEnabled, settings.notificationCount > 0, !todayAchieved else { return }
 
-        await schedule(
-            identifier: Self.morningIdentifier,
-            time: settings.morning,
-            slot: .morning,
-            currentStreak: currentStreak,
-            weeklyProgressRate: weeklyProgressRate
-        )
-        if settings.notificationCount > 1 {
-            await schedule(
-                identifier: Self.eveningIdentifier,
-                time: settings.evening,
-                slot: .evening,
-                currentStreak: currentStreak,
-                weeklyProgressRate: weeklyProgressRate
-            )
+        // Codex UX #6: 通知の性格モードに応じて scheduling を変える。
+        // - voice (デフォルト): 朝 + 夕方 の現状仕様
+        // - quiet: 夕方 1 通のみ、しかも streak が "危険" (=ある or 週進捗あり)
+        //   なときだけ。何もない真新規ユーザーには夕方も鳴らない。
+        // - friendDriven: 日常リマインダーは抑制 (push 基盤未完成のため
+        //   degrade: quiet と同等の振る舞いで本日 1 通も鳴らないケースも許容)。
+        let personality = NotificationPersonalityPreferences.shared.current
+        let streakAtRisk = currentStreak > 0 || weeklyProgressRate > 0
+        switch personality {
+        case .voice:
+            await schedule(identifier: Self.morningIdentifier, time: settings.morning,
+                           slot: .morning, personality: personality,
+                           currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+            if settings.notificationCount > 1 {
+                await schedule(identifier: Self.eveningIdentifier, time: settings.evening,
+                               slot: .evening, personality: personality,
+                               currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+            }
+        case .quiet:
+            guard streakAtRisk else { return }
+            await schedule(identifier: Self.eveningIdentifier, time: settings.evening,
+                           slot: .evening, personality: personality,
+                           currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+        case .friendDriven:
+            // 友達 push が来たときだけ反応する設計。日常 push は鳴らさない。
+            // (将来 CloudKit + push 完成後、ここで CKQuerySubscription を読んで
+            // 必要時のみ alert を投げる予定。)
+            return
         }
     }
 
@@ -103,6 +116,7 @@ final class NotificationScheduler {
         identifier: String,
         time: NotificationTime,
         slot: NotificationSlot,
+        personality: NotificationPersonality,
         currentStreak: Int,
         weeklyProgressRate: Double
     ) async {
@@ -115,6 +129,7 @@ final class NotificationScheduler {
         content.title = "GOエクササイズ"
         content.body = NotificationMessageProvider.message(
             for: slot,
+            personality: personality,
             currentStreak: currentStreak,
             weeklyProgressRate: weeklyProgressRate,
             seedDate: dateProvider.currentDate(),

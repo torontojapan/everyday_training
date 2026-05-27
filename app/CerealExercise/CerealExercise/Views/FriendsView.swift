@@ -504,20 +504,37 @@ struct FriendsView: View {
                         .foregroundStyle(Palette.textSecondary)
                 }
 
-                // 応援ボタンは bottom sheet に集約。1 つに減らすことで
-                // カードの高さが圧倒的に減る + 必要な時だけ展開される。
-                Button {
-                    cheerTarget = friend
-                } label: {
-                    Label("応援を送る", systemImage: "hands.sparkles.fill")
-                        .font(Typography.caption)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(Palette.primary.opacity(0.12), in: Capsule())
-                        .foregroundStyle(Palette.primaryDeep)
+                // クイック応援: 主要 emoji を 1 タップで送信できる。
+                // 「..」は CheerPickerSheet を開いて 4 種から選ぶ既存導線を残す。
+                // 2 タップ必要だった応援を、1 タップで完了するショートカット。
+                HStack(spacing: 6) {
+                    ForEach([CheerKind.fight, .great, .clap, .fire], id: \.self) { kind in
+                        Button {
+                            Task { await sendCheer(kind, to: friend) }
+                        } label: {
+                            Text(kind.emoji)
+                                .font(.system(size: 20))
+                                .frame(minWidth: 44, minHeight: 44)
+                                .background(Palette.primary.opacity(0.10), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(friend.displayName) に \(kind.label) を送る")
+                        .accessibilityIdentifier("quick-cheer-\(kind.rawValue)-\(friend.friendCode)")
+                    }
+                    Spacer()
+                    Button {
+                        cheerTarget = friend
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .heavy))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .background(Palette.chipBackground, in: Circle())
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(friend.displayName) への応援を選んで送る")
+                    .accessibilityIdentifier("open-cheer-sheet-\(friend.friendCode)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("open-cheer-sheet-\(friend.friendCode)")
             }
             .padding(14)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))

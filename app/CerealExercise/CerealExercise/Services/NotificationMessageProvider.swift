@@ -8,11 +8,24 @@ enum NotificationSlot: Sendable {
 enum NotificationMessageProvider {
     static func message(
         for slot: NotificationSlot,
+        personality: NotificationPersonality = .voice,
         currentStreak: Int,
         weeklyProgressRate: Double,
         seedDate: Date = Date(),
         calendar: Calendar = .current
     ) -> String {
+        // 性格モード "quiet" のときは静かな最小限のトーンに切り替える (Codex UX #6)。
+        // 1 通しか鳴らない前提なので、強めに「今日まだ間に合う」を訴える。
+        if personality == .quiet {
+            let quiet = [
+                "🐱「今日まだ間に合うよ。1分だけ」",
+                "🐱「ふと思い出したら、また会いに来てね」",
+                "🐱「気が向いたら 1 種目だけ残そ？」",
+                "🐱「無理しなくていい、ちょっとだけ」"
+            ]
+            let day = calendar.ordinality(of: .day, in: .era, for: seedDate) ?? 0
+            return quiet[abs(day) % quiet.count]
+        }
         let messages: [String]
 
         if weeklyProgressRate >= 0.5 {

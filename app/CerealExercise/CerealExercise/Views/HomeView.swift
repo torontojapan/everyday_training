@@ -6,8 +6,10 @@ import SwiftUI
 /// → 数字系カード (累計 / 体重 / 月次レビュー) は Stats タブへ全て移動。
 struct HomeView: View {
     @Environment(WorkoutStore.self) private var store
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
+    @State private var todayIntensity: DailyIntensity = DailyIntensityStore.shared.intensity(on: Date())
     @State private var completedRecord: WorkoutRecord?
     @State private var completedStreakExtendedThisRun = false
     @State private var selectedDayEntry: DailyStatusEntry?
@@ -33,6 +35,9 @@ struct HomeView: View {
                 )
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
+                // 演出パーティクルは装飾のみ。VoiceOver から完全に外して
+                // ユーザー操作を妨げない (Codex UX #3 a11y セーフモード)。
+                .accessibilityHidden(true)
 
                 VStack(spacing: 0) {
                     // 上部に「今週 + 状態」を集約。一番目立たせたい今週の達成度を
@@ -40,6 +45,7 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         weeklyMini
                         topStatusBar
+                        intensityChips
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -49,6 +55,9 @@ struct HomeView: View {
                     catTheater
                         .frame(maxHeight: .infinity)
 
+                    comebackWelcomeCard
+                        .padding(.horizontal, 20)
+
                     primaryActionButton
                         .padding(.horizontal, 20)
                         .padding(.bottom, 10)
@@ -57,14 +66,14 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 store.fetchRecords()
-                viewModel.refresh(records: store.records)
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
                 handleAutoPresentations()
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
-                viewModel.refresh(records: store.records)
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true)
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot())
                     completedStreakExtendedThisRun = viewModel.streakExtendedThisRun
                     completedRecord = record
                     WidgetSnapshotPublisher.publish(from: store, today: Date(), calendar: calendar)
@@ -116,6 +125,45 @@ struct HomeView: View {
 
     /// 数字 (連続日数) は残しつつ、達成済みは「達成 ✨」の chip で表現。
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
+    /// 「今日のミニマムライン」3 段階チップ (Codex UX #1)。
+    /// 元気な日と忙しい日で同じハードルを要求しない仕掛け。選択は
+    /// `DailyIntensityStore` で永続化、当日のみ有効。tap でハプティック軽め。
+    private var intensityChips: some View {
+        HStack(spacing: 8) {
+            Text("今日のライン")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            ForEach(DailyIntensity.allCases, id: \.self) { mode in
+                Button {
+                    todayIntensity = mode
+                    DailyIntensityStore.shared.set(mode, on: Date())
+                    hapticFeedback.tap()
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(mode.emoji).font(.system(size: 12))
+                        Text(mode.displayName)
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(
+                        todayIntensity == mode
+                            ? Palette.primary.opacity(0.28)
+                            : Palette.chipBackground,
+                        in: Capsule()
+                    )
+                    .foregroundStyle(
+                        todayIntensity == mode ? Palette.primaryDeep : Palette.textSecondary
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("今日のラインを \(mode.displayName) にする")
+                .accessibilityAddTraits(todayIntensity == mode ? [.isSelected] : [])
+            }
+            Spacer()
+        }
+        .accessibilityIdentifier("intensity-chips")
+    }
+
     private var topStatusBar: some View {
         HStack {
             StreakBadgeView(streak: viewModel.streak.currentStreak) {
@@ -243,6 +291,14 @@ struct HomeView: View {
                             pulsing: false) {
                 isShowingEntry = true
             }
+        } else if viewModel.isComebackToday {
+            // Codex UX #2: 復帰日は低圧コピーで踏み込ませる ("never miss twice")。
+            LargePrimaryCTA(title: "ただいま記録 ☕",
+                            systemImage: "house.fill",
+                            identifier: "primary-record-action",
+                            pulsing: true) {
+                isShowingEntry = true
+            }
         } else {
             LargePrimaryCTA(title: "今日の運動を記録する",
                             systemImage: "plus.circle.fill",
@@ -250,6 +306,37 @@ struct HomeView: View {
                             pulsing: true) {
                 isShowingEntry = true
             }
+        }
+    }
+
+    /// 復帰日用の小さな歓迎カード。CTA の直上に表示。
+    /// 「失敗を責める」のではなく「戻ってきてくれた」を強調するコピーに。
+    @ViewBuilder
+    private var comebackWelcomeCard: some View {
+        if viewModel.isComebackToday {
+            HStack(spacing: 12) {
+                Image(systemName: "door.left.hand.open")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("おかえり")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("昨日はおやすみだったね。今日は30秒でも戻れたら100点。")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Palette.primary.opacity(0.35), lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("comeback-welcome-card")
         }
     }
 
@@ -280,6 +367,19 @@ struct HomeView: View {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: store.today) ?? Date()
         let hours = max(0, calendar.dateComponents([.hour], from: Date(), to: endOfDay).hour ?? 0)
         return "今日の締切まで あと\(hours)時間"
+    }
+
+    /// 現在の体重スナップショットを `MilestoneDetector` に渡せる形で取り出す。
+    /// 1 回読むだけなので毎回 store を作って捨てる (持続必要なし)。
+    /// -3kg/-5kg/-10kg の達成判定に使う。
+    private func currentWeightSnapshot() -> MilestoneDetector.WeightLossSnapshot {
+        let weightStore = WeightStore(context: modelContext)
+        let prefs = UserHealthPreferences.shared
+        return MilestoneDetector.WeightLossSnapshot(
+            startKg: prefs.startKilograms,
+            currentKg: weightStore.latestNonFuture?.weightKilograms,
+            isLossGoal: prefs.isLossGoal()
+        )
     }
 
     private func handleAutoPresentations() {
@@ -332,7 +432,9 @@ struct BigCatView: View {
         .scaleEffect(reduceMotion ? 1 : (breathing ? 1.03 : 1))
         .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))
         .rotationEffect(reduceMotion ? .zero : .degrees(swaying ? 2 : -2))
-        .accessibilityLabel("猫キャラクター \(state.displayName)")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("今日の猫: \(state.displayName)")
+        .accessibilityHint("二本指でダブルタップすると反応します")
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
@@ -413,6 +515,7 @@ extension Milestone: Identifiable {
         case .anniversary(let years): return "anniv-\(years)"
         case .lifetimeDays(let d): return "lifetime-\(d)"
         case .currentStreak(let d): return "streak-\(d)"
+        case .weightLoss(let kg): return "weightLoss-\(kg)"
         }
     }
 }

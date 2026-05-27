@@ -36,6 +36,7 @@ struct WeightView: View {
                 if let store {
                     summarySection(store: store)
                     targetSection(store: store)
+                    statsReportSection(store: store)
                     chartSection(store: store)
                     inputCard
                     historyList(store: store)
@@ -407,6 +408,66 @@ struct WeightView: View {
             heightInput = ""
         }
         editingField = .height
+    }
+
+    /// 週次/月次レポートカード。週・月・3 月の最小/最大/平均/変化を一覧。
+    /// 体重チャートを見ない日でも「今週はどうだった」が即わかる UX。
+    @ViewBuilder
+    private func statsReportSection(store: WeightStore) -> some View {
+        let week = store.stats(period: .week)
+        let month = store.stats(period: .month)
+        if week != nil || month != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("レポート")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textPrimary)
+                if let week {
+                    statsReportRow(label: "今週 (7 日)", stats: week)
+                }
+                if let month {
+                    statsReportRow(label: "今月 (30 日)", stats: month)
+                }
+            }
+            .padding(16)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private func statsReportRow(label: String, stats: WeightStore.WeightStats) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                Spacer()
+                let signed = stats.change >= 0 ? "+" : ""
+                Text("\(signed)\(String(format: "%.1f", stats.change)) kg")
+                    .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                    .foregroundStyle(stats.change <= 0 ? Palette.success : Palette.primaryDeep)
+                    .monospacedDigit()
+            }
+            HStack(spacing: 14) {
+                statsValue(title: "最小", value: stats.min)
+                statsValue(title: "平均", value: stats.average)
+                statsValue(title: "最大", value: stats.max)
+                Spacer()
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) 平均 \(String(format: "%.1f", stats.average)) キログラム、変化 \(String(format: "%.1f", stats.change)) キログラム")
+    }
+
+    private func statsValue(title: String, value: Double) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(Palette.textSecondary)
+            Text(String(format: "%.1f", value))
+                .font(.system(.subheadline, design: .rounded, weight: .heavy))
+                .foregroundStyle(Palette.textPrimary)
+                .monospacedDigit()
+        }
     }
 
     private func chartSection(store: WeightStore) -> some View {

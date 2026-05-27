@@ -658,6 +658,42 @@ struct WeightStoreTests {
         #expect(store.forecastDaysToTarget(today: today) == nil)
     }
 
+    // MARK: - Stats report (Codex UX 体重レポート)
+
+    /// 週次サマリ: 7 日分のエントリから min/max/avg/change を計算。
+    @Test
+    func stats_weekly_aggregatesCorrectly() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 7 日連続で 70.0, 69.5, 70.5, 68.0, 71.0, 69.0, 67.0
+        let pattern: [Double] = [70.0, 69.5, 70.5, 68.0, 71.0, 69.0, 67.0]
+        // offset 0 = newest (今日), offset 6 = oldest
+        for (i, kg) in pattern.enumerated() {
+            let date = cal.date(byAdding: .day, value: -i, to: today)!
+                .addingTimeInterval(8 * 3600)
+            context.insert(WeightEntry(date: date, weightKilograms: kg))
+        }
+        try context.save()
+        store.fetchEntries()
+
+        let stats = try #require(store.stats(period: .week, today: today))
+        #expect(stats.entryCount == 7)
+        #expect(stats.min == 67.0)
+        #expect(stats.max == 71.0)
+        // average = 485.0 / 7 ≒ 69.286
+        #expect(abs(stats.average - (485.0 / 7.0)) < 0.001)
+        // change = newest (70.0, today) - oldest (67.0, day -6) = 3.0
+        #expect(abs(stats.change - 3.0) < 0.001)
+    }
+
+    /// データ 0 件なら stats() は nil。
+    @Test
+    func stats_returnsNilWhenEmpty() throws {
+        let (store, _, _) = try makeStore()
+        #expect(store.stats(period: .week, today: Date()) == nil)
+    }
+
     /// 別のテストで polluted な start が他テストに漏れないこと
     /// (Codex round5: DI 化前は UserDefaults.standard がテスト間で共有されていた)。
     @Test
