@@ -13,6 +13,10 @@ struct StatsView: View {
     @State private var selectedDay: SelectedDay?
     @State private var isShowingWeeklyShare = false
     @State private var isShowingLifetimeShare = false
+    /// シェアシートを開くときの「基準日」のスナップショット。
+    /// タップ時に store.today を撮って summary と label の date ソースを揃える
+    /// (Codex round2 priority 2)。
+    @State private var sharedWeekLabel: String = ""
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
     private let rescueTicketStore = RescueTicketStore()
@@ -65,10 +69,15 @@ struct StatsView: View {
                             VStack(spacing: 12) {
                                 WeeklyHighlightCard(summary: viewModel.weeklySummary)
                                 Button {
-                                    // 共有直前に refresh して、週またぎでも
-                                    // summary と label がズレないようにする
-                                    // (Codex round1 priority 1)。
+                                    // 共有直前に refresh + 同じ基準日から
+                                    // weekLabel を作って summary と label の
+                                    // date ソースを揃える (Codex round1/2)。
+                                    let day = store.today
                                     viewModel.refresh(records: store.records)
+                                    // refresh 後に空に変わった場合はシート開かない
+                                    // (Codex round2 priority 1)。
+                                    guard viewModel.weeklySummary.hasExerciseData else { return }
+                                    sharedWeekLabel = weekLabel(for: day)
                                     isShowingWeeklyShare = true
                                 } label: {
                                     Label("SNSで共有", systemImage: "square.and.arrow.up")
@@ -133,7 +142,7 @@ struct StatsView: View {
             .sheet(isPresented: $isShowingWeeklyShare) {
                 WeeklyHighlightShareSheet(
                     summary: viewModel.weeklySummary,
-                    weekLabel: currentWeekLabel,
+                    weekLabel: sharedWeekLabel,
                     isPresented: $isShowingWeeklyShare
                 )
             }
@@ -147,15 +156,14 @@ struct StatsView: View {
         }
     }
 
-    /// 「5/26 - 6/1」のような今週の範囲ラベル。share card の小見出しに使う。
-    private var currentWeekLabel: String {
-        let today = store.today
-        guard let week = calendar.dateInterval(of: .weekOfYear, for: today) else { return "" }
+    /// 指定日が属する週の範囲ラベル「5/26 - 6/1」。share card の小見出し用。
+    /// タップ時の date snapshot から両方 (summary, label) を作るために引数化。
+    private func weekLabel(for date: Date) -> String {
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: date) else { return "" }
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
         f.dateFormat = "M/d"
         let start = f.string(from: week.start)
-        // dateInterval.end は exclusive なので 1 日前を週末として表示
         let endDate = calendar.date(byAdding: .day, value: -1, to: week.end) ?? week.end
         let end = f.string(from: endDate)
         return "\(start) - \(end)"
