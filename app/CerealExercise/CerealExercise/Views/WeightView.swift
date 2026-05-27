@@ -4,6 +4,7 @@ import SwiftUI
 
 struct WeightView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var store: WeightStore?
     @State private var menstrualStore: MenstrualStore?
     @State private var weightInput: String = ""
@@ -60,6 +61,15 @@ struct WeightView: View {
             } else {
                 menstrualStore?.fetchEntries()
             }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // バックグラウンド復帰時 (widget AppIntent や別タブ操作で
+            // 体重/周期が更新されているかもしれない) は両 store を refresh。
+            // Codex round2 priority 2: onAppear だけだと WeightView が
+            // mounted のまま scene 復帰した場合に stale。
+            guard newPhase == .active else { return }
+            store?.fetchEntries()
+            menstrualStore?.fetchEntries()
         }
         .confirmationDialog(
             "削除しますか？",

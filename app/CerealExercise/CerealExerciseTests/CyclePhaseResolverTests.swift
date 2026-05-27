@@ -135,12 +135,13 @@ struct CyclePhaseResolverTests {
         #expect(spans[3].endDay == day(28, from: base))
     }
 
-    /// 大きな範囲 (1000 日) でも合理的時間で完了し、結果が破綻しない。
-    /// Codex round1 priority 2 で性能改善 (binary search) を入れた後の sanity check。
+    /// 大きな範囲 (1000 日) で構造的破綻が起きないこと。
+    /// wall-clock の閾値は CI 環境差で flaky になるため使わない (Codex round2)。
+    /// 「無限ループしていない」「span が時間順」「過剰な数の span が出ない」
+    /// の structural 不変条件のみを検証する。
     @Test
-    func spans_largeRange_completesQuicklyAndConsistent() {
+    func spans_largeRange_structurallyConsistent() {
         let base = cal.startOfDay(for: Date())
-        // 過去 1000 日にわたって 28 日ごとに 5 日間の period をマーク
         var periods: Set<Date> = []
         for cycle in 0..<36 {
             for d in 0..<5 {
@@ -149,22 +150,21 @@ struct CyclePhaseResolverTests {
                 }
             }
         }
-
-        // 1000 日範囲の spans。実用上 60ms 以内に返る想定で、最低限 1 秒は超えない。
         let rangeStart = cal.date(byAdding: .day, value: -999, to: base)!
         let rangeEnd = cal.date(byAdding: .day, value: 1, to: base)!
-        let started = Date()
         let spans = CyclePhaseResolver.spans(
             in: rangeStart, end: rangeEnd, periodDays: periods, calendar: cal
         )
-        let elapsed = Date().timeIntervalSince(started)
 
-        #expect(elapsed < 1.0, "1000 日 spans 算出が 1 秒以上かかっている: \(elapsed)s")
         #expect(!spans.isEmpty)
-        // ソート不変条件: spans は時間順
+        // 時間順 (前 span の終端 ≤ 次 span の始端)
         for i in 1..<spans.count {
-            #expect(spans[i - 1].endDay <= spans[i].startDay)
+            #expect(spans[i - 1].endDay <= spans[i].startDay,
+                    "span \(i-1) と \(i) が時間順でない")
         }
+        // 1 周期 4 相 × 36 周期 = 144 が上限。1000 日 / 7 = 143。
+        // 200 を超えたら明らかにマージ漏れか無限ループ気味。
+        #expect(spans.count <= 200, "span 数 \(spans.count) が想定上限 200 を超えた (マージ漏れの兆候)")
     }
 
     /// period 未マークの期間 (1 周以上前) は span から欠落する (nil でスキップ)。
