@@ -5,7 +5,16 @@ import SwiftUI
 /// ボトムタブの 1 級市民に格上げし、親指で届く位置に。
 struct MainTabView: View {
     @Environment(WorkoutStore.self) private var store
-    @State private var selection: Tab = .home
+    @State private var selection: Tab = MainTabView.initialSelectionFromLaunchArgs()
+
+    /// `--initial-tab <home|stats|weight|friends|settings>` でデモ/スクショ起動時に
+    /// 初期タブを指定可能。指定なし or 不正値は `.home`。
+    private static func initialSelectionFromLaunchArgs() -> Tab {
+        let args = ProcessInfo.processInfo.arguments
+        guard let idx = args.firstIndex(of: "--initial-tab"), idx + 1 < args.count,
+              let tab = Tab(rawValue: args[idx + 1]) else { return .home }
+        return tab
+    }
 
     enum Tab: String, Hashable {
         case home
