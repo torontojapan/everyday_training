@@ -105,54 +105,45 @@ struct MonthlyCalendarView: View {
             Button {
                 onDayTap?(date)
             } label: {
-                VStack(spacing: 2) {
-                    Text("\(calendar.component(.day, from: date))")
-                        .font(.system(size: 14, weight: isToday ? .heavy : .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(textColor(for: status, isToday: isToday))
-                    // Positive-Only: 達成・休養・今日だけ symbol 表示。
-                    // 未達成 (×) や future (-) はあえて symbol を出さない
-                    // ことで「サボった印」を視界から消す。
-                    if shouldShowSymbol(for: status) {
-                        Text(status.symbol)
-                            .font(.system(size: 11, weight: .heavy, design: .rounded))
-                            .foregroundStyle(textColor(for: status, isToday: isToday).opacity(0.85))
+                // ヒートマップ化 (Codex/Gemini 共通提案 C):
+                // 旧: 日付 + ○/休/× を中央に縦並び
+                // 新: **日付のみ** 中央。状態は背景の濃淡で表現。
+                //   ・色の面で「今月どれくらい緑か」を俯瞰しやすい
+                //   ・記号競合 (★ + ○ + ticket) でゴチャつかない
+                // 生理日と rescue ticket はそれぞれ右上/右下の小ドットに
+                // 限定して情報密度を下げる。
+                Text("\(calendar.component(.day, from: date))")
+                    .font(.system(size: 14, weight: isToday ? .heavy : .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(textColor(for: status, isToday: isToday))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(background(for: status, isToday: isToday), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(isHighlighted ? Palette.primary : .clear, lineWidth: 2)
+                    )
+                    .overlay(alignment: .topTrailing) {
+                        if isMenstrual {
+                            Circle()
+                                .fill(Color(red: 0.86, green: 0.36, blue: 0.45))
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 4).padding(.trailing, 4)
+                                .accessibilityHidden(true)
+                        }
                     }
-                }
-                .frame(maxWidth: .infinity)
-                // 38pt → 44pt: HIG 推奨タップ領域に合わせる。
-                // セル間 spacing を 6 → 4 に詰めても月表示は崩れない。
-                .frame(height: 44)
-                .background(background(for: status, isToday: isToday), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .strokeBorder(isHighlighted ? Palette.primary : .clear, lineWidth: 2)
-                )
-                .overlay(alignment: .topTrailing) {
-                    if isMenstrual {
-                        // 生理日マーク: ★ をユーザー好みで維持しつつ、
-                        // ラベル/凡例側で「生理日」と明示することで意味を担保する。
-                        Text("★")
-                            .font(.system(size: 11, weight: .heavy))
-                            .foregroundStyle(Color(red: 0.86, green: 0.36, blue: 0.45))
-                            .padding(.top, 1)
-                            .padding(.trailing, 3)
-                            .accessibilityHidden(true)
+                    .overlay(alignment: .bottomTrailing) {
+                        if isRescued {
+                            Image(systemName: "ticket.fill")
+                                .font(.system(size: 8, weight: .heavy))
+                                .foregroundStyle(Palette.primaryDeep)
+                                .padding(.bottom, 3).padding(.trailing, 3)
+                                .accessibilityHidden(true)
+                        }
                     }
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    if isRescued {
-                        Image(systemName: "ticket.fill")
-                            .font(.system(size: 9, weight: .heavy))
-                            .foregroundStyle(Palette.primaryDeep)
-                            .padding(.bottom, 2)
-                            .padding(.trailing, 3)
-                            .accessibilityHidden(true)
-                    }
-                }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")")
+            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")\(isRescued ? " 保険チケット使用" : "")")
         }
     }
 
@@ -173,23 +164,45 @@ struct MonthlyCalendarView: View {
     private var legendRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                legendChip(symbol: "○", label: "達成")
-                legendChip(symbol: "休", label: "休養日")
-                legendChip(symbol: "×", label: "未達成")
+                // ヒートマップ移行に伴い、symbol チップから「色チップ」に変更。
+                // 凡例とセルの色を直結させて「色 == 状態」を一発で読めるように。
+                legendSwatch(color: Palette.success.opacity(0.55), label: "達成")
+                legendSwatch(color: Palette.restDay.opacity(0.55), label: "休養日")
+                legendSwatch(color: Palette.missed.opacity(0.18), label: "未達成")
                 if !menstrualDates.isEmpty {
-                    // 星マーク本体は通常の chip の symbol スロットに収め、
-                    // 色を赤系に塗ることでカレンダー上の★と視覚的に対応させる。
-                    legendChip(
-                        symbol: "★",
-                        symbolColor: Color(red: 0.86, green: 0.36, blue: 0.45),
-                        label: "生理日"
-                    )
+                    legendDot(color: Color(red: 0.86, green: 0.36, blue: 0.45), label: "生理日")
                 }
                 if !rescuedDates.isEmpty {
                     legendChip(systemImage: "ticket.fill", label: "保険チケット")
                 }
             }
         }
+    }
+
+    /// ヒートマップ凡例: 色面 + ラベル。
+    private func legendSwatch(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(color)
+                .frame(width: 14, height: 14)
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(Palette.textSecondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Palette.chipBackground.opacity(0.5), in: Capsule())
+    }
+
+    /// 小さなドット凡例 (セルの右上の丸ドットと視覚的に揃える)。
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(Palette.textSecondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Palette.chipBackground.opacity(0.5), in: Capsule())
     }
 
     private func legendChip(

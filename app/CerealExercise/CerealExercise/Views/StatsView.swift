@@ -33,7 +33,9 @@ struct StatsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
+                    catGreetingStrip
+
                     monthlyCalendarCard
 
                     if viewModel.weeklySummary.hasExerciseData {
@@ -54,7 +56,9 @@ struct StatsView: View {
             }
             .background(Palette.background)
             .navigationTitle("履歴")
-            .navigationBarTitleDisplayMode(.large)
+            // Claude #1: .large はタイトルが画面 1/4 を占めて情報密度を下げる。
+            // タブバーに「履歴」アイコンが既にあるので冗長。.inline で詰める。
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records)
@@ -71,6 +75,37 @@ struct StatsView: View {
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
         }
+    }
+
+    /// 履歴タブ最上段の猫アイコン + 一言ストリップ (Claude #4)。
+    /// 選択中の猫キャラ avatar + 今週の達成率に応じたコメント。
+    private var catGreetingStrip: some View {
+        let breed = UserCatPreferences.shared.myCat
+        let rate = viewModel.progress.rate
+        let message: String
+        switch rate {
+        case 0.8...:    message = "今週、絶好調!"
+        case 0.5..<0.8: message = "今週いいペース 👍"
+        case 0.1..<0.5: message = "もう少しで折り返しだよ"
+        default:        message = "今週は無理せず、できる時に"
+        }
+        return HStack(spacing: 10) {
+            ZStack {
+                Circle().fill(breed.tintColor.opacity(0.25)).frame(width: 40, height: 40)
+                Image(breed.avatarAssetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+            }
+            Text(message)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textPrimary)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(breed.displayName)からのひとこと: \(message)")
     }
 
     private var monthlyCalendarCard: some View {

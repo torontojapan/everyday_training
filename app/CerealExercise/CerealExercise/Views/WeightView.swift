@@ -15,6 +15,8 @@ struct WeightView: View {
     @State private var chartSelectedDate: Date?
     @State private var chartPeriod: WeightStore.ChartPeriod = .month
     @State private var isShowingDeleteConfirm: WeightEntry?
+    /// 月経周期オーバーレイの凡例を展開しているか (Claude #3)。デフォルト閉。
+    @State private var isCycleLegendExpanded: Bool = false
     private let cycleSettings = CycleTrackingSettings()
     /// 身長 / 目標体重 の編集ダイアログを単一の state machine で管理。
     /// 複数の `.alert(_, isPresented:)` を同じ view に重ねるパターンは
@@ -32,14 +34,54 @@ struct WeightView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let store {
-                    summarySection(store: store)
-                    targetSection(store: store)
-                    statsReportSection(store: store)
-                    chartSection(store: store)
-                    inputCard
-                    historyList(store: store)
+                    catGreetingStrip(for: store)
+
+                    // ヒーロー (最新 + 目標 + リング + 猫) は常時展開。
+                    heroDashboard(store: store)
+
+                    // BMI / 身長 は独立したストリップに移動 (Claude #2)。
+                    bmiInfoStrip(store: store)
+
+                    // 以下のセクションは折りたたみで初期状態は閉じる。
+                    // 主要 KPI (上のヒーロー) に視線を集中させるため。
+                    CollapsibleSection(
+                        persistenceKey: "weight.report",
+                        title: "レポート",
+                        subtitle: reportSubtitle(store: store),
+                        icon: "chart.bar.fill"
+                    ) {
+                        statsReportSection(store: store)
+                    }
+
+                    CollapsibleSection(
+                        persistenceKey: "weight.chart",
+                        title: "推移",
+                        subtitle: chartSubtitle(store: store),
+                        icon: "waveform.path.ecg",
+                        defaultExpanded: true   // 推移はデフォルト展開 (チャートが本体)
+                    ) {
+                        chartSection(store: store)
+                    }
+
+                    CollapsibleSection(
+                        persistenceKey: "weight.input",
+                        title: "記録する",
+                        subtitle: "新しい体重を追加",
+                        icon: "plus.circle.fill"
+                    ) {
+                        inputCard
+                    }
+
+                    CollapsibleSection(
+                        persistenceKey: "weight.history",
+                        title: "履歴",
+                        subtitle: historySubtitle(store: store),
+                        icon: "list.bullet"
+                    ) {
+                        historyList(store: store)
+                    }
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, minHeight: 200)
@@ -158,99 +200,148 @@ struct WeightView: View {
         healthPrefs.targetKilograms = value
     }
 
-    // MARK: - Sections
+    // MARK: - Hero / Strip (新設計)
 
-    private func summarySection(store: WeightStore) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("最新の体重")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                    if let latest = store.latest {
-                        HStack(alignment: .lastTextBaseline, spacing: 4) {
-                            Text(String(format: "%.1f", latest.weightKilograms))
-                                .font(.system(size: 36, weight: .heavy, design: .rounded))
-                                .foregroundStyle(Palette.primary)
-                            Text("kg")
-                                .font(Typography.body)
-                                .foregroundStyle(Palette.textSecondary)
-                        }
-                        Text(format(date: latest.date))
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                    } else {
-                        Text("未記録")
-                            .font(.system(size: 24, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                }
-                Spacer()
-                if let change = store.change30Days {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("過去30日")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                        let sign = change == 0 ? "" : (change > 0 ? "+" : "")
-                        Text("\(sign)\(String(format: "%.1f", change)) kg")
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
-                            .foregroundStyle(change <= 0 ? Palette.success : Palette.primaryDeep)
-                    }
-                }
-            }
-            bmiRow(store: store)
-        }
-        .padding(16)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    /// ヒーローダッシュボード (B)。最新 + 目標 + 進捗リング + 選択中の猫 +
+    /// KPI チップ を 1 枚に集約。
+    @ViewBuilder
+    private func heroDashboard(store: WeightStore) -> some View {
+        let latest = store.latestNonFuture
+        let progress = latest.flatMap { healthPrefs.progressRatio(currentKilograms: $0.weightKilograms) }
+        let isLoss = healthPrefs.isLossGoal()
+        let weekStats = store.stats(period: .week)
+        let forecast = store.forecastDaysToTarget()
+        WeightHeroDashboard(
+            latest: latest,
+            startKg: healthPrefs.startKilograms,
+            targetKg: healthPrefs.targetKilograms,
+            progress: progress,
+            isLossGoal: isLoss,
+            weeklyChange: weekStats?.change,
+            forecastDays: forecast,
+            onEditTarget: { beginTargetEdit() }
+        )
     }
 
-    /// BMI 表示 + 身長未設定なら入力導線。
-    /// 体重 0 件のときは表示しても意味がないので隠す。
+    /// BMI + 身長 編集の独立ストリップ (Claude #2)。ヒーロー直下に薄く敷く。
+    /// 体重 0 件 OR 身長未設定 で表示内容を出し分ける。
     @ViewBuilder
-    private func bmiRow(store: WeightStore) -> some View {
-        if let latest = store.latest {
-            Divider()
-            HStack {
+    private func bmiInfoStrip(store: WeightStore) -> some View {
+        if let latest = store.latestNonFuture {
+            HStack(spacing: 10) {
+                Image(systemName: "ruler")
+                    .font(.caption)
+                    .foregroundStyle(Palette.textSecondary)
                 if let bmi = healthPrefs.bmi(weightKilograms: latest.weightKilograms) {
                     let category = BMICategory(bmi: bmi)
-                    HStack(spacing: 8) {
-                        Text("BMI")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                        Text(String(format: "%.1f", bmi))
-                            .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                            .foregroundStyle(Palette.textPrimary)
-                            .monospacedDigit()
-                        Text(category.displayName)
-                            .font(Typography.caption)
-                            .foregroundStyle(bmiCategoryColor(category))
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(bmiCategoryColor(category).opacity(0.15), in: Capsule())
-                    }
-                    Spacer()
-                    Button {
-                        beginHeightEdit()
-                    } label: {
-                        Label("身長", systemImage: "pencil")
-                            .font(Typography.caption)
+                    Text("BMI")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.textSecondary)
+                    Text(String(format: "%.1f", bmi))
+                        .font(.system(.caption, design: .rounded, weight: .heavy))
+                        .foregroundStyle(Palette.textPrimary)
+                        .monospacedDigit()
+                    Text(category.displayName)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(bmiCategoryColor(category))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(bmiCategoryColor(category).opacity(0.15), in: Capsule())
+                    if let h = healthPrefs.heightCentimeters {
+                        Text("身長 \(String(format: "%.0f", h))cm")
+                            .font(.caption2)
                             .foregroundStyle(Palette.textSecondary)
                     }
-                    .buttonStyle(.plain)
                 } else {
-                    Button {
-                        beginHeightEdit()
-                    } label: {
-                        Label("BMI を表示するには身長を入力", systemImage: "ruler")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.primaryDeep)
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
+                    Text("身長を設定すると BMI が表示されます")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.textSecondary)
                 }
+                Spacer()
+                Button {
+                    beginHeightEdit()
+                } label: {
+                    Label("身長", systemImage: "pencil")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(Palette.surface.opacity(0.6), in: Capsule())
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("bmi-info-strip")
         }
     }
 
+    /// 体重/履歴タブ共通の猫アイコン + 一言ストリップ (Claude #4)。
+    /// 選択中の猫キャラ avatar + 短い状況コメントを 1 行で表示。
+    @ViewBuilder
+    private func catGreetingStrip(for store: WeightStore) -> some View {
+        let breed = UserCatPreferences.shared.myCat
+        let message = greetingMessage(store: store)
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(breed.tintColor.opacity(0.25))
+                    .frame(width: 40, height: 40)
+                Image(breed.avatarAssetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+            }
+            Text(message)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(breed.displayName)からのひとこと: \(message)")
+    }
+
+    /// ヒーロー直上の猫一言メッセージ。今週の変化に応じてポジ/中立/応援を分岐。
+    private func greetingMessage(store: WeightStore) -> String {
+        guard store.latestNonFuture != nil else {
+            return "まずは 1 件だけ記録してみよ？"
+        }
+        let week = store.stats(period: .week)
+        let isLoss = healthPrefs.isLossGoal()
+        switch (week?.change, isLoss) {
+        case let (delta?, true?) where delta <= -0.3:
+            return "今週いい感じ、ナイスペース 🌿"
+        case let (delta?, true?) where delta >= 0.3:
+            return "ちょっと戻ったね、焦らず一歩ずつ"
+        case let (delta?, false?) where delta >= 0.3:
+            return "増量、いいペース 💪"
+        case (.some, _):
+            return "今週は安定してるよ"
+        default:
+            return "今週も一緒にやろうね"
+        }
+    }
+
+    /// CollapsibleSection の subtitle 生成 (折りたたみ中の要約)。
+    private func reportSubtitle(store: WeightStore) -> String {
+        guard let week = store.stats(period: .week) else { return "データなし" }
+        let sign = week.change >= 0 ? "+" : ""
+        return "今週 \(sign)\(String(format: "%.1f", week.change))kg / 平均 \(String(format: "%.1f", week.average))kg"
+    }
+
+    private func chartSubtitle(store: WeightStore) -> String {
+        let count = store.chartEntries(period: .month).count
+        return count > 0 ? "30 日で \(count) 件記録" : "記録がありません"
+    }
+
+    private func historySubtitle(store: WeightStore) -> String {
+        let total = store.entries.count
+        return total > 0 ? "全 \(total) 件" : "履歴なし"
+    }
+
+    // MARK: - Sections
+
+    /// BMI のカテゴリ → 色マッピング。bmiInfoStrip から使う。
     private func bmiCategoryColor(_ category: BMICategory) -> Color {
         switch category {
         case .normal: return Palette.success
@@ -259,117 +350,9 @@ struct WeightView: View {
         }
     }
 
-    /// 目標体重カード。目標未設定なら CTA。設定済みなら現在 → 目標の
-    /// 進捗バー + 残り kg を表示。最新の体重がないと意味がないので
-    /// store.latest が nil のときは入力 CTA に絞る。
-    @ViewBuilder
-    private func targetSection(store: WeightStore) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("目標体重")
-                    .font(Typography.headline)
-                    .foregroundStyle(Palette.textPrimary)
-                Spacer()
-                Button {
-                    beginTargetEdit()
-                } label: {
-                    Label(healthPrefs.targetKilograms == nil ? "設定" : "変更",
-                          systemImage: "pencil")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if let target = healthPrefs.targetKilograms,
-               let latest = store.latest {
-                targetProgressBlock(target: target, current: latest.weightKilograms)
-                forecastRow(store: store)
-            } else {
-                Text(store.latest == nil
-                     ? "目標体重を設定するとモチベ表示が出ます (体重を 1 件以上記録してください)"
-                     : "目標体重を設定すると残り kg と進捗バーが表示されます")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-            }
-        }
-        .padding(16)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    @ViewBuilder
-    private func targetProgressBlock(target: Double, current: Double) -> some View {
-        let remaining = healthPrefs.remainingToTarget(currentKilograms: current) ?? 0
-        let progress = healthPrefs.progressRatio(currentKilograms: current)
-        let direction = healthPrefs.isLossGoal()
-        // 達成判定: 減量/増量で向きが違う。start == target (direction == nil) は
-        // 目標近傍 epsilon で達成扱い (target に 0.05kg = 50g 以内)。
-        let achieved: Bool = {
-            switch direction {
-            case .some(true):  return remaining <= 0  // 減量: 目標以下になれば達成
-            case .some(false): return remaining >= 0  // 増量: 目標以上になれば達成
-            case .none:        return abs(remaining) < 0.05  // 開始==目標: 維持目標扱い
-            }
-        }()
-        // 「あと」の表示は減量/増量で符号が反転 (どちらも正の "あと" を出すため)。
-        // 維持目標 (direction == nil) は remaining の絶対値を表示。
-        let displayRemaining: Double = {
-            switch direction {
-            case .some(true):  return remaining       // 減量: current - target が "あと"
-            case .some(false): return -remaining      // 増量: target - current が "あと"
-            case .none:        return abs(remaining)
-            }
-        }()
-
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .lastTextBaseline) {
-                if achieved {
-                    Label("目標達成", systemImage: "checkmark.seal.fill")
-                        .font(.system(.headline, design: .rounded, weight: .heavy))
-                        .foregroundStyle(Palette.success)
-                } else {
-                    HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text("あと")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                        Text(String(format: "%.1f", abs(displayRemaining)))
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Palette.primary)
-                            .monospacedDigit()
-                        Text("kg")
-                            .font(Typography.body)
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                }
-                Spacer()
-                Text("目標 \(String(format: "%.1f", target)) kg")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-            }
-
-            if let progress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .tint(achieved ? Palette.success : Palette.primary)
-                    .accessibilityLabel("達成率 \(Int(progress * 100)) パーセント")
-                HStack {
-                    if let start = healthPrefs.startKilograms {
-                        Text("開始 \(String(format: "%.1f", start)) kg")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                    Spacer()
-                    Text("\(Int(progress * 100))%")
-                        .font(.system(.caption, design: .rounded, weight: .heavy))
-                        .foregroundStyle(achieved ? Palette.success : Palette.textPrimary)
-                        .monospacedDigit()
-                }
-            }
-        }
-    }
-
-    /// 7 日移動平均の傾きから「あと約 N 日で達成」を線形外挿で表示。
-    /// 傾きが目標方向と逆 / トレンド不足の場合は黙って非表示にして UI を煩雑にしない。
+    /// 旧 forecastRow 互換 (CollapsibleSection 内で他から呼び出される可能性に備えて残す)。
+    /// ヒーローダッシュボード化により今は未使用だが、subtle な達成圏内訴求を
+    /// 別箇所で再活用する余地がある。
     @ViewBuilder
     private func forecastRow(store: WeightStore) -> some View {
         if let days = store.forecastDaysToTarget() {
@@ -640,18 +623,50 @@ struct WeightView: View {
     private func cyclePhaseLegend(_ spans: [CyclePhaseResolver.PhaseSpan]) -> some View {
         let used = Array(Set(spans.map(\.phase))).sorted { $0.displayName < $1.displayName }
         if !used.isEmpty {
-            HStack(spacing: 10) {
-                ForEach(used, id: \.self) { phase in
-                    HStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(phase.tint.opacity(0.65))
-                            .frame(width: 10, height: 10)
-                        Text(phase.displayName)
+            VStack(alignment: .leading, spacing: 6) {
+                // Claude #3: 周期色帯の意味をユーザーが見落とすのを防ぐため、
+                // 凡例自体をタップで展開して「黄体期は水分で増えがち」等の説明
+                // を出せる toggle 形に。デフォルト閉、必要な時だけ展開。
+                Button {
+                    withAnimation { isCycleLegendExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle.dashed")
                             .font(.caption2)
                             .foregroundStyle(Palette.textSecondary)
+                        Text("月経周期オーバーレイ")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.textSecondary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .heavy))
+                            .foregroundStyle(Palette.textSecondary)
+                            .rotationEffect(.degrees(isCycleLegendExpanded ? 180 : 0))
                     }
+                    .contentShape(Rectangle())
                 }
-                Spacer()
+                .buttonStyle(.plain)
+                .accessibilityHint(isCycleLegendExpanded ? "閉じる" : "色帯の意味を見る")
+
+                if isCycleLegendExpanded {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(used, id: \.self) { phase in
+                            HStack(spacing: 6) {
+                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                    .fill(phase.tint.opacity(0.65))
+                                    .frame(width: 12, height: 12)
+                                Text(phase.displayName)
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Palette.textPrimary)
+                                Text("· \(phase.hint)")
+                                    .font(.caption2)
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+                    .transition(.opacity)
+                }
             }
             .padding(.top, 4)
             .padding(.horizontal, 4)
@@ -662,11 +677,10 @@ struct WeightView: View {
 
     private var inputCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("記録する")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.textPrimary)
-
-            DatePicker("日付", selection: $selectedDate, in: ...Date(), displayedComponents: .date)
+            // 日付セグメント (Claude #5): 最頻ケースの「今日」を 1 タップで完了。
+            // 古い DatePicker を毎回展開する手間を削り、稀な「過去日」は
+            // セグメント「その他」で従来 DatePicker を出す。
+            dateSegment
 
             HStack {
                 TextField("体重 (kg)", text: $weightInput)
@@ -690,8 +704,51 @@ struct WeightView: View {
             .disabled(parsedWeight == nil)
             .opacity(parsedWeight == nil ? 0.55 : 1)
         }
-        .padding(16)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// 日付セグメント. 「今日 / 昨日 / その他」を 1 タップで切替。
+    /// 「その他」選択時のみ従来 DatePicker を展開。
+    @ViewBuilder
+    private var dateSegment: some View {
+        let cal = self.calendar
+        let today = cal.startOfDay(for: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
+        let isToday = cal.isDate(selectedDate, inSameDayAs: today)
+        let isYesterday = cal.isDate(selectedDate, inSameDayAs: yesterday)
+        let isOther = !isToday && !isYesterday
+
+        HStack(spacing: 8) {
+            dateChip("今日", isSelected: isToday) { selectedDate = today }
+            dateChip("昨日", isSelected: isYesterday) { selectedDate = yesterday }
+            dateChip("その他", isSelected: isOther) {
+                // 「その他」が押されたら、まだ today/yesterday のままなら 2 日前にする。
+                if !isOther {
+                    selectedDate = cal.date(byAdding: .day, value: -2, to: today) ?? selectedDate
+                }
+            }
+            Spacer()
+        }
+        if isOther {
+            DatePicker("日付", selection: $selectedDate, in: ...Date(), displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .accessibilityIdentifier("weight-date-picker-other")
+        }
+    }
+
+    private func dateChip(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(.caption, design: .rounded, weight: .heavy))
+                .foregroundStyle(isSelected ? .white : Palette.textPrimary)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(
+                    isSelected ? Palette.primary : Palette.chipBackground,
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("日付を \(label) にする")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private func historyList(store: WeightStore) -> some View {

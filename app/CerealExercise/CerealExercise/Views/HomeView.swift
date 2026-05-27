@@ -9,7 +9,6 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
-    @State private var todayIntensity: DailyIntensity = DailyIntensityStore.shared.intensity(on: Date())
     @State private var completedRecord: WorkoutRecord?
     @State private var completedStreakExtendedThisRun = false
     @State private var selectedDayEntry: DailyStatusEntry?
@@ -45,7 +44,6 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         weeklyMini
                         topStatusBar
-                        intensityChips
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -125,44 +123,6 @@ struct HomeView: View {
 
     /// 数字 (連続日数) は残しつつ、達成済みは「達成 ✨」の chip で表現。
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
-    /// 「今日のミニマムライン」3 段階チップ (Codex UX #1)。
-    /// 元気な日と忙しい日で同じハードルを要求しない仕掛け。選択は
-    /// `DailyIntensityStore` で永続化、当日のみ有効。tap でハプティック軽め。
-    private var intensityChips: some View {
-        HStack(spacing: 8) {
-            Text("今日のライン")
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-            ForEach(DailyIntensity.allCases, id: \.self) { mode in
-                Button {
-                    todayIntensity = mode
-                    DailyIntensityStore.shared.set(mode, on: Date())
-                    hapticFeedback.tap()
-                } label: {
-                    HStack(spacing: 3) {
-                        Text(mode.emoji).font(.system(size: 12))
-                        Text(mode.displayName)
-                            .font(.caption2.weight(.semibold))
-                    }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(
-                        todayIntensity == mode
-                            ? Palette.primary.opacity(0.28)
-                            : Palette.chipBackground,
-                        in: Capsule()
-                    )
-                    .foregroundStyle(
-                        todayIntensity == mode ? Palette.primaryDeep : Palette.textSecondary
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("今日のラインを \(mode.displayName) にする")
-                .accessibilityAddTraits(todayIntensity == mode ? [.isSelected] : [])
-            }
-            Spacer()
-        }
-        .accessibilityIdentifier("intensity-chips")
-    }
 
     private var topStatusBar: some View {
         HStack {
