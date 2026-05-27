@@ -11,12 +11,18 @@ struct StatsView: View {
     @State private var menstrualStore: MenstrualStore?
     @State private var presentedReview: PresentedReview?
     @State private var selectedDay: SelectedDay?
-    @State private var isShowingWeeklyShare = false
+    /// 週シェアシートの atomic payload (Codex round4 priority 2)。
+    /// summary と label を 1 つのアイテムで束ねて `.sheet(item:)` に渡すこと
+    /// で、両者が別ソースから drift する可能性を構造的に排除する。
+    @State private var pendingWeeklyShare: WeeklySharePayload?
     @State private var isShowingLifetimeShare = false
-    /// シェアシートを開く際の「summary + label」を atomic に作って保持する
-    /// (Codex round3: refresh と weekLabel で別の date 読みを許さない)。
-    @State private var sharedWeeklySummary: ExerciseTrendSummary.WeeklySummary?
-    @State private var sharedWeekLabel: String = ""
+
+    private struct WeeklySharePayload: Identifiable {
+        let summary: ExerciseTrendSummary.WeeklySummary
+        let weekLabel: String
+        let day: Date
+        var id: Date { day }
+    }
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
     private let rescueTicketStore = RescueTicketStore()
@@ -69,17 +75,22 @@ struct StatsView: View {
                             VStack(spacing: 12) {
                                 WeeklyHighlightCard(summary: viewModel.weeklySummary)
                                 Button {
-                                    // ★ atomic snapshot (Codex round3):
-                                    // 1 つの `day` から summary と label を
-                                    // ローカル計算する。HomeViewModel.refresh は
-                                    // 内部 dateProvider に依存するので使わない。
+                                    // 視界 (= viewModel.weeklySummary 由来) と
+                                    // 同期させるため refresh も実行
+                                    // (Codex round4 priority 1: 古いキャッシュで
+                                    //  「ボタンあるのに tap で何も起きない」を回避)。
+                                    viewModel.refresh(records: store.records)
+                                    // atomic な local snapshot を作って payload で
+                                    // sheet に渡す (Codex round3/4 priority 2)。
                                     let day = store.today
                                     guard let week = calendar.dateInterval(of: .weekOfYear, for: day) else { return }
                                     let summary = ExerciseTrendSummary.week(records: store.records, week: week, calendar: calendar)
                                     guard summary.hasExerciseData else { return }
-                                    sharedWeeklySummary = summary
-                                    sharedWeekLabel = weekLabel(for: day)
-                                    isShowingWeeklyShare = true
+                                    pendingWeeklyShare = WeeklySharePayload(
+                                        summary: summary,
+                                        weekLabel: weekLabel(for: day),
+                                        day: day
+                                    )
                                 } label: {
                                     Label("SNSで共有", systemImage: "square.and.arrow.up")
                                         .font(Typography.caption)
@@ -140,13 +151,14 @@ struct StatsView: View {
             .sheet(item: $selectedDay) { day in
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
-            .sheet(isPresented: $isShowingWeeklyShare) {
-                // atomic snapshot を優先。何らかの理由で nil なら
-                // fallback で viewModel.weeklySummary を使う (旧挙動)。
+            .sheet(item: $pendingWeeklyShare) { payload in
                 WeeklyHighlightShareSheet(
-                    summary: sharedWeeklySummary ?? viewModel.weeklySummary,
-                    weekLabel: sharedWeekLabel,
-                    isPresented: $isShowingWeeklyShare
+                    summary: payload.summary,
+                    weekLabel: payload.weekLabel,
+                    isPresented: Binding(
+                        get: { pendingWeeklyShare != nil },
+                        set: { if !$0 { pendingWeeklyShare = nil } }
+                    )
                 )
             }
             .sheet(isPresented: $isShowingLifetimeShare) {
