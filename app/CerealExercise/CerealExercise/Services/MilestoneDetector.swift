@@ -33,6 +33,23 @@ enum Milestone: Equatable, Sendable {
             return "\(d) 日連続で運動を続けています。すごい習慣力!"
         }
     }
+
+    /// SNS シェア用の本文。emoji + 達成見出し + 軽い招待コピー。
+    /// 末尾には ShareLink が URL を付加するので URL は含めない (二重貼り防止)。
+    /// 140 字以内に収めて Twitter (X) のプレビュー切れも避ける。
+    var shareMessage: String {
+        switch self {
+        case .anniversary(let years):
+            return "\(emoji) GOエクササイズ \(years)周年達成！ねこ達とゆるく運動習慣を続けてます。一緒にやろう"
+        case .lifetimeDays(let d):
+            return "\(emoji) GOエクササイズで通算 \(d) 日達成！ねこ達とゆるく続けてます。一緒にやろう"
+        case .currentStreak(let d):
+            return "\(emoji) GOエクササイズで \(d) 日連続達成！ねこ達とゆるく運動習慣つくってます"
+        }
+    }
+
+    /// メールアプリでシェアした場合の件名 (Twitter 等では使われない)。
+    var shareSubject: String { headline }
 }
 
 @MainActor

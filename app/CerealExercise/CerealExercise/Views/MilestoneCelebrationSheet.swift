@@ -67,10 +67,42 @@ struct MilestoneCelebrationSheet: View {
                         .opacity(detailAppear ? 1 : 0)
                         .offset(y: detailAppear ? 0 : 12)
 
-                    PrimaryButton("受け取る", systemImage: "sparkles") {
-                        onAcknowledge()
-                        isPresented = false
-                        dismiss()
+                    // CTA は SNS シェアを主役に。「受け取る」だけだと「何が
+                    // 貰えるの?」という疑問が出るが、シェアして友達に自慢できれば
+                    // 達成の承認欲求が満たされる UX に再設計。
+                    VStack(spacing: 12) {
+                        ShareLink(
+                            item: AppSharingConfig.shareURL,
+                            subject: Text(milestone.shareSubject),
+                            message: Text(milestone.shareMessage)
+                        ) {
+                            Label("SNSでシェアして自慢", systemImage: "square.and.arrow.up.fill")
+                                .font(Typography.headline)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 28).padding(.vertical, 14)
+                                .background(.black.opacity(0.45), in: Capsule())
+                        }
+                        // シェアをタップした段階で「確認済」扱いにする (シート
+                        // 自体はシステム share sheet が前面に出るため自然に閉じる
+                        // 動線にならない → ユーザーは share 後に閉じるを押す)。
+                        // 二重 acknowledge は idempotent (Set への insert) なので
+                        // 後で「閉じる」を押しても問題ない。
+                        .simultaneousGesture(TapGesture().onEnded {
+                            onAcknowledge()
+                        })
+                        .accessibilityIdentifier("milestone-share-button")
+
+                        Button {
+                            onAcknowledge()
+                            isPresented = false
+                            dismiss()
+                        } label: {
+                            Text("閉じる")
+                                .font(Typography.body)
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(.horizontal, 16).padding(.vertical, 8)
+                        }
+                        .accessibilityIdentifier("milestone-close-button")
                     }
                     .padding(.top, 12)
                     .scaleEffect(ctaAppear ? 1 : 0.7)
