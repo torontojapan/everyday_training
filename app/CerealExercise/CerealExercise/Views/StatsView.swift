@@ -13,9 +13,9 @@ struct StatsView: View {
     @State private var selectedDay: SelectedDay?
     @State private var isShowingWeeklyShare = false
     @State private var isShowingLifetimeShare = false
-    /// シェアシートを開くときの「基準日」のスナップショット。
-    /// タップ時に store.today を撮って summary と label の date ソースを揃える
-    /// (Codex round2 priority 2)。
+    /// シェアシートを開く際の「summary + label」を atomic に作って保持する
+    /// (Codex round3: refresh と weekLabel で別の date 読みを許さない)。
+    @State private var sharedWeeklySummary: ExerciseTrendSummary.WeeklySummary?
     @State private var sharedWeekLabel: String = ""
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
@@ -69,14 +69,15 @@ struct StatsView: View {
                             VStack(spacing: 12) {
                                 WeeklyHighlightCard(summary: viewModel.weeklySummary)
                                 Button {
-                                    // 共有直前に refresh + 同じ基準日から
-                                    // weekLabel を作って summary と label の
-                                    // date ソースを揃える (Codex round1/2)。
+                                    // ★ atomic snapshot (Codex round3):
+                                    // 1 つの `day` から summary と label を
+                                    // ローカル計算する。HomeViewModel.refresh は
+                                    // 内部 dateProvider に依存するので使わない。
                                     let day = store.today
-                                    viewModel.refresh(records: store.records)
-                                    // refresh 後に空に変わった場合はシート開かない
-                                    // (Codex round2 priority 1)。
-                                    guard viewModel.weeklySummary.hasExerciseData else { return }
+                                    guard let week = calendar.dateInterval(of: .weekOfYear, for: day) else { return }
+                                    let summary = ExerciseTrendSummary.week(records: store.records, week: week, calendar: calendar)
+                                    guard summary.hasExerciseData else { return }
+                                    sharedWeeklySummary = summary
                                     sharedWeekLabel = weekLabel(for: day)
                                     isShowingWeeklyShare = true
                                 } label: {
@@ -140,8 +141,10 @@ struct StatsView: View {
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
             .sheet(isPresented: $isShowingWeeklyShare) {
+                // atomic snapshot を優先。何らかの理由で nil なら
+                // fallback で viewModel.weeklySummary を使う (旧挙動)。
                 WeeklyHighlightShareSheet(
-                    summary: viewModel.weeklySummary,
+                    summary: sharedWeeklySummary ?? viewModel.weeklySummary,
                     weekLabel: sharedWeekLabel,
                     isPresented: $isShowingWeeklyShare
                 )
