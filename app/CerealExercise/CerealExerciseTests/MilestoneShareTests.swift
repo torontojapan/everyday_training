@@ -65,4 +65,31 @@ struct MilestoneShareTests {
         #expect(result.last == 2000, "2000 で打ち切り (現実的範囲ガード)")
         #expect(result.count == 23, "10/30/50 + 100..2000 = 3 + 20 = 23 件")
     }
+
+    // MARK: - Expanded thresholds migration
+
+    /// 旧定義時代から streak=350 のユーザーが拡充版に上がった瞬間、
+    /// 過去達成済みの 10/30/50/100/200/300 を **連発しない** (silent ack) こと。
+    /// 次回の本物の達成 (= 400) からだけ celebration が再開する。
+    @MainActor
+    @Test
+    func migratesExistingLongStreak_silentlyAcknowledgesPriorMilestones() {
+        let suite = "milestone-migrate-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let detector = MilestoneDetector(defaults: defaults, calendar: .mondayFirst)
+
+        let today = Date()
+        let firstUse = Calendar.mondayFirst.date(byAdding: .day, value: -365, to: today)!
+
+        // 既に streak=350 のユーザー (旧 [30, 100, 365] では 30 と 100 が出る世界線)
+        let first = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
+                                          lifetimeAchieved: 0, currentStreak: 350)
+        #expect(first == nil,
+                "アップグレード直後の最初の呼び出しでは連発しない (silent migrate)")
+
+        // 翌日 streak=400 に到達 → これは新しい節目なので celebration が出るべき
+        let after = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
+                                          lifetimeAchieved: 0, currentStreak: 400)
+        #expect(after == .currentStreak(400), "400 (= 新しい節目) は通常通り通知される")
+    }
 }

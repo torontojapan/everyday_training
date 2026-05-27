@@ -55,6 +55,11 @@ enum Milestone: Equatable, Sendable {
 @MainActor
 final class MilestoneDetector {
     static let acknowledgedKey = "milestones.acknowledged"
+    /// 閾値拡充 (10/30/50/100/200/...) 反映時のサイレントマイグレーション完了フラグ。
+    /// 旧 [30, 100, 365] 時代のユーザーがアップグレード後に過去の達成画面を
+    /// 大量に見せられないよう、既に通過済みのマイルストーンを暗黙的に
+    /// acknowledged に流し込むため。
+    static let migratedExpandedThresholdsKey = "milestones.migrated.expandedThresholds.v1"
 
     private let defaults: UserDefaults
     private let calendar: Calendar
@@ -72,6 +77,13 @@ final class MilestoneDetector {
         lifetimeAchieved: Int,
         currentStreak: Int
     ) -> Milestone? {
+        // 閾値拡充版に上げた直後の既存ユーザー保護:
+        // 既に通過済みのマイルストーンをサイレントに acknowledged 化して、
+        // 次の本物の達成からだけ celebration を出すようにする (Codex 指摘)。
+        migrateExpandedThresholdsIfNeeded(firstUseDate: firstUseDate, today: today,
+                                          lifetimeAchieved: lifetimeAchieved,
+                                          currentStreak: currentStreak)
+
         let acknowledged = acknowledgedKeys()
 
         for milestone in candidates(firstUseDate: firstUseDate, today: today,
@@ -92,6 +104,28 @@ final class MilestoneDetector {
 
     func clear() {
         defaults.removeObject(forKey: Self.acknowledgedKey)
+        defaults.removeObject(forKey: Self.migratedExpandedThresholdsKey)
+    }
+
+    /// 旧マイルストーン定義 ([30, 100, 365]) からの拡充直後、既存の高ストリーク
+    /// ユーザーに過去達成済みのお祝いを連発しないようサイレントに飲み込む。
+    /// 1 回だけ実行 (defaults flag でガード)。
+    private func migrateExpandedThresholdsIfNeeded(
+        firstUseDate: Date, today: Date,
+        lifetimeAchieved: Int, currentStreak: Int
+    ) {
+        guard !defaults.bool(forKey: Self.migratedExpandedThresholdsKey) else { return }
+        var ack = acknowledgedKeys()
+        // 現時点で既に通過済みの全マイルストーンを silent ack。
+        // 「次に到達する新しい節目」(例: 350 のユーザーが 400 に到達したとき)
+        // から celebration が再開する。
+        for m in candidates(firstUseDate: firstUseDate, today: today,
+                            lifetimeAchieved: lifetimeAchieved,
+                            currentStreak: currentStreak) {
+            ack.insert(key(for: m))
+        }
+        defaults.set(Array(ack), forKey: Self.acknowledgedKey)
+        defaults.set(true, forKey: Self.migratedExpandedThresholdsKey)
     }
 
     private func candidates(firstUseDate: Date, today: Date, lifetimeAchieved: Int, currentStreak: Int) -> [Milestone] {
