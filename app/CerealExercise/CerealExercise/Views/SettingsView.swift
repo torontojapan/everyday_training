@@ -140,6 +140,17 @@ struct SettingsView: View {
             Section("アプリ情報") {
                 LabeledContent("アプリ", value: "GOエクササイズ")
                 LabeledContent("バージョン", value: appVersion)
+                // 友達にこのアプリを紹介する導線。Apple Developer 加入後の
+                // App Store URL 差し替えは AppSharingConfig 側だけ触れば OK。
+                ShareLink(
+                    item: AppSharingConfig.shareURL,
+                    subject: Text(AppSharingConfig.shareSubject),
+                    message: Text(AppSharingConfig.shareMessage)
+                ) {
+                    Label("アプリを友達にシェア", systemImage: "square.and.arrow.up")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("settings-share-app")
                 Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
                     Label("プライバシーポリシー", systemImage: "hand.raised.fill")
                         .foregroundStyle(Palette.textPrimary)

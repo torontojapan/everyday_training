@@ -148,9 +148,50 @@ struct FriendsView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 28)
                     .padding(.top, 8)
+
+                // サインイン前でもアプリを友達に紹介できる導線。
+                shareAppCard
+                    .padding(.top, 24)
             }
             .padding(20)
         }
+    }
+
+    /// 「このアプリを友達にシェア」セクション。SwiftUI 標準の `ShareLink` で
+    /// LINE / メッセージ / Twitter / メール などの share sheet を呼び出す。
+    /// 共有先 URL とメッセージは [[AppSharingConfig]] に集約 (App Store URL
+    /// が決まったら 1 箇所差し替えるだけ)。
+    private var shareAppCard: some View {
+        ShareLink(
+            item: AppSharingConfig.shareURL,
+            subject: Text(AppSharingConfig.shareSubject),
+            message: Text(AppSharingConfig.shareMessage)
+        ) {
+            HStack(spacing: 12) {
+                Image(systemName: "square.and.arrow.up.circle.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(Palette.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("このアプリを友達にシェア")
+                        .font(Typography.body)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("インストール用リンクが LINE / メッセージなどで送れます")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("share-app-button")
+        .accessibilityLabel("このアプリを友達にシェア")
     }
 
     // MARK: - Signed in
@@ -165,6 +206,11 @@ struct FriendsView: View {
                 }
 
                 friendsSection
+
+                // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
+                // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
+                // shareAppCard = まだアプリを入れていない人に install 用 URL を投げるため。
+                shareAppCard
 
                 Button(role: .destructive) {
                     Task { await friendsStore.signOut() }
