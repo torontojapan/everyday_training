@@ -11,6 +11,8 @@ struct StatsView: View {
     @State private var menstrualStore: MenstrualStore?
     @State private var presentedReview: PresentedReview?
     @State private var selectedDay: SelectedDay?
+    @State private var isShowingWeeklyShare = false
+    @State private var isShowingLifetimeShare = false
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
     private let rescueTicketStore = RescueTicketStore()
@@ -60,7 +62,20 @@ struct StatsView: View {
                             subtitle: weeklyHighlightSubtitle,
                             icon: "sparkles"
                         ) {
-                            WeeklyHighlightCard(summary: viewModel.weeklySummary)
+                            VStack(spacing: 12) {
+                                WeeklyHighlightCard(summary: viewModel.weeklySummary)
+                                Button {
+                                    isShowingWeeklyShare = true
+                                } label: {
+                                    Label("SNSで共有", systemImage: "square.and.arrow.up")
+                                        .font(Typography.caption)
+                                        .foregroundStyle(Palette.primaryDeep)
+                                        .padding(.horizontal, 14).padding(.vertical, 8)
+                                        .background(Palette.primary.opacity(0.12), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("weekly-highlight-share")
+                            }
                         }
                     }
 
@@ -68,10 +83,23 @@ struct StatsView: View {
 
                     // 「これまでの記録」(累計達成日 / 使用日) は一番下に。
                     // 長期統計を「振り返り終わりの後押し」として置く。
-                    LifetimeStatsCard(
-                        achievedDays: viewModel.lifetimeStats.achievedDays,
-                        usedDays: viewModel.lifetimeStats.usedDays
-                    )
+                    VStack(spacing: 12) {
+                        LifetimeStatsCard(
+                            achievedDays: viewModel.lifetimeStats.achievedDays,
+                            usedDays: viewModel.lifetimeStats.usedDays
+                        )
+                        Button {
+                            isShowingLifetimeShare = true
+                        } label: {
+                            Label("SNSで共有", systemImage: "square.and.arrow.up")
+                                .font(Typography.caption)
+                                .foregroundStyle(Palette.primaryDeep)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(Palette.primary.opacity(0.12), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("lifetime-stats-share")
+                    }
                 }
                 .padding(20)
             }
@@ -95,7 +123,35 @@ struct StatsView: View {
             .sheet(item: $selectedDay) { day in
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
+            .sheet(isPresented: $isShowingWeeklyShare) {
+                WeeklyHighlightShareSheet(
+                    summary: viewModel.weeklySummary,
+                    weekLabel: currentWeekLabel,
+                    isPresented: $isShowingWeeklyShare
+                )
+            }
+            .sheet(isPresented: $isShowingLifetimeShare) {
+                LifetimeStatsShareSheet(
+                    achievedDays: viewModel.lifetimeStats.achievedDays,
+                    usedDays: viewModel.lifetimeStats.usedDays,
+                    isPresented: $isShowingLifetimeShare
+                )
+            }
         }
+    }
+
+    /// 「5/26 - 6/1」のような今週の範囲ラベル。share card の小見出しに使う。
+    private var currentWeekLabel: String {
+        let today = store.today
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: today) else { return "" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateFormat = "M/d"
+        let start = f.string(from: week.start)
+        // dateInterval.end は exclusive なので 1 日前を週末として表示
+        let endDate = calendar.date(byAdding: .day, value: -1, to: week.end) ?? week.end
+        let end = f.string(from: endDate)
+        return "\(start) - \(end)"
     }
 
     /// 保険チケットの今月残り枚数 (a11y / subtitle / icon の出し分けに使う)。
