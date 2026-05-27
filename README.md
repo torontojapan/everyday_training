@@ -25,17 +25,68 @@ Pages: [https://torontojapan.github.io/everyday_training/](https://torontojapan.
 - **詳細共有 opt-in** (回数・時間・セット数も友達と共有可能、デフォルトは種目名のみ)
 - **週間ランキング** (友達 + 自分を連続日数 → 運動時間で順位表示、金銀銅メダル + 自分の順位サマリー)
 
-## ディレクトリ
+## ディレクトリ構成
 
-| パス | 内容 |
+```
+serial_training/
+├── README.md                  ← このファイル (リポジトリの地図)
+├── NEXT_STEPS.md              ← 残タスク・優先順位
+├── MEMORY.md                  ← プロジェクトメモ (担当 Claude 用)
+│
+├── app/CerealExercise/        ← iOS アプリ本体 (SwiftUI / iOS 17+)
+│   ├── project.yml              xcodegen 設定 (.xcodeproj はここから生成)
+│   ├── CerealExercise/          アプリ本体
+│   │   ├── App/                   エントリポイント
+│   │   ├── Models/                SwiftData モデル + 構造体
+│   │   ├── Views/                 SwiftUI 画面
+│   │   ├── ViewModels/            画面ロジック
+│   │   ├── Services/              永続化・通知・友達などのサービス層
+│   │   ├── Theme/                 5 テーマカラー定義
+│   │   └── Resources/
+│   │       ├── Assets.xcassets/
+│   │       │   ├── CatCharacter/  ★ 猫キャラ素材 (77 imageset、柄 × ムード)
+│   │       │   ├── AppIcon.appiconset/
+│   │       │   └── AccentColor.colorset/
+│   │       ├── Info.plist
+│   │       └── *.strings          ローカライズ
+│   ├── CerealExerciseTests/     ユニットテスト (186 件)
+│   ├── CerealExerciseUITests/   UI テスト (14 件)
+│   └── CerealExerciseWidget/    ホーム画面ウィジェット
+│
+├── specs/
+│   └── requirements_v1.md     ← 要件定義書
+│
+├── docs/                      ← GitHub Pages (https://torontojapan.github.io/everyday_training/)
+│   ├── index.md                 ランディング
+│   ├── privacy.md / terms.md / support.md
+│   ├── _config.yml              Jekyll 設定
+│   └── ux_review/               UX レビュー (Claude / Codex / Gemini 横断比較)
+│
+├── submission/                ← App Store 提出パッケージ
+│   ├── README.md                提出フロー手順
+│   ├── app_store_metadata.md    申請メタデータ (説明文・キーワード等)
+│   ├── PrivacyPolicy.md / TermsOfService.md
+│   └── screenshots/
+│       ├── iphone-6.9/          ★ 6.9" 提出スクショ (iPhone 17 Pro Max)
+│       ├── iphone-6.7/          ★ 6.7" 提出スクショ
+│       ├── ipad-13/             ★ iPad 13" 提出スクショ
+│       └── _archive/            過去フェーズの開発スクショ (履歴保管用)
+│
+└── .github/workflows/         ← CI (ios-ci.yml)
+```
+
+### よく聞かれる「どこにある？」
+
+| 探しもの | 場所 |
 |---|---|
-| `app/CerealExercise/` | SwiftUI iOS アプリ本体 (Xcode プロジェクトは `xcodegen` で再生成) |
-| `specs/` | 要件定義書 |
-| `assets/` | 元アセット (猫キャラ 12 ポーズ、アプリアイコン)。`_archive_v1_2026-05-26/` に旧 watercolor 版 7 ポーズ |
-| `submission/` | App Store 提出パッケージ (メタデータ、サイズ別スクショ、Phase 別 Simulator スクショ) |
-| `docs/` | GitHub Pages (privacy / terms / support) |
-| `NEXT_STEPS.md` | 残タスク・優先順位 |
-| `MEMORY.md` | プロジェクトメモ (担当 Claude 用) |
+| **猫キャラの画像** | `app/CerealExercise/CerealExercise/Resources/Assets.xcassets/CatCharacter/` |
+| アプリアイコン | `app/CerealExercise/CerealExercise/Resources/Assets.xcassets/AppIcon.appiconset/` |
+| 画面の SwiftUI コード | `app/CerealExercise/CerealExercise/Views/` |
+| データモデル (SwiftData) | `app/CerealExercise/CerealExercise/Models/` |
+| App Store 提出用スクショ | `submission/screenshots/iphone-6.9/` `iphone-6.7/` `ipad-13/` |
+| プライバシーポリシー (公開版) | `docs/privacy.md` (GitHub Pages 経由で公開) |
+| プライバシーポリシー (申請用) | `submission/PrivacyPolicy.md` |
+| 要件定義 | `specs/requirements_v1.md` |
 
 ## フェーズ
 
