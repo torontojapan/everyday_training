@@ -5,6 +5,7 @@ import SwiftUI
 struct WeightView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store: WeightStore?
+    @State private var menstrualStore: MenstrualStore?
     @State private var weightInput: String = ""
     @State private var memoInput: String = ""
     @State private var heightInput: String = ""
@@ -13,6 +14,7 @@ struct WeightView: View {
     @State private var chartSelectedDate: Date?
     @State private var chartPeriod: WeightStore.ChartPeriod = .month
     @State private var isShowingDeleteConfirm: WeightEntry?
+    private let cycleSettings = CycleTrackingSettings()
     /// 身長 / 目標体重 の編集ダイアログを単一の state machine で管理。
     /// 複数の `.alert(_, isPresented:)` を同じ view に重ねるパターンは
     /// iOS 17+ では動作するが将来の SwiftUI 仕様変更に脆く、Codex も
@@ -49,6 +51,9 @@ struct WeightView: View {
         .onAppear {
             if store == nil {
                 store = WeightStore(context: modelContext)
+            }
+            if menstrualStore == nil {
+                menstrualStore = MenstrualStore(context: modelContext)
             }
         }
         .confirmationDialog(
@@ -437,7 +442,18 @@ struct WeightView: View {
                 // 7 日移動平均トレンド。サンプル数が少ない期間は空配列が返るので
                 // ForEach に渡しても安全 (薄い破線として下敷きに重ねる)。
                 let trend = store.trendline(period: chartPeriod)
+                // 体調周期オーバーレイ: 周期トラッキング opt-in 済みかつ
+                // marked データがある場合のみ、相を色帯で背景に描画する。
+                // 黄体期 (水分貯留期) を可視化することで「太った」誤解を防ぐ。
+                let phaseSpans = cyclePhaseSpans(for: chartData)
                 Chart {
+                    ForEach(phaseSpans) { span in
+                        RectangleMark(
+                            xStart: .value("from", span.startDay),
+                            xEnd: .value("to", span.endDay)
+                        )
+                        .foregroundStyle(span.phase.tint.opacity(0.13))
+                    }
                     if !trend.isEmpty {
                         ForEach(trend) { point in
                             LineMark(
@@ -507,6 +523,8 @@ struct WeightView: View {
                 .frame(height: 220)
                 .padding(16)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                cyclePhaseLegend(phaseSpans)
             }
         }
     }
@@ -515,6 +533,52 @@ struct WeightView: View {
         guard let target = chartSelectedDate else { return nil }
         let visible = store.chartEntries(period: chartPeriod)
         return visible.min(by: { abs($0.date.timeIntervalSince(target)) < abs($1.date.timeIntervalSince(target)) })
+    }
+
+    /// チャートデータ範囲に対する月経周期相の区間を返す。
+    /// - 周期トラッキング opt-out / period 未マーク / chartData 空 のいずれかなら空配列
+    /// - 描画範囲は chartData の最古日 〜 最新日の翌日 (Chart の RectangleMark xEnd を inclusive 扱いさせない)
+    private func cyclePhaseSpans(for chartData: [WeightEntry]) -> [CyclePhaseResolver.PhaseSpan] {
+        guard cycleSettings.isEnabled,
+              let menstrualStore,
+              !menstrualStore.entries.isEmpty,
+              let oldest = chartData.first?.date,
+              let newest = chartData.last?.date else { return [] }
+        // chartData は古→新ソート (.reversed() 済) なので first=oldest, last=newest。
+        let rangeStart = calendar.startOfDay(for: oldest)
+        let rangeEnd = calendar.date(byAdding: .day, value: 1,
+                                      to: calendar.startOfDay(for: newest)) ?? newest
+        return CyclePhaseResolver.spans(
+            in: rangeStart, end: rangeEnd,
+            periodDays: menstrualStore.markedDates(),
+            calendar: calendar
+        )
+    }
+
+    /// 周期相の凡例。チャート下に小さく並べる。phase が 1 つでもデータに
+    /// 出ているときだけ表示 (= 出ていない相は出さない)。
+    @ViewBuilder
+    private func cyclePhaseLegend(_ spans: [CyclePhaseResolver.PhaseSpan]) -> some View {
+        let used = Array(Set(spans.map(\.phase))).sorted { $0.displayName < $1.displayName }
+        if !used.isEmpty {
+            HStack(spacing: 10) {
+                ForEach(used, id: \.self) { phase in
+                    HStack(spacing: 4) {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(phase.tint.opacity(0.65))
+                            .frame(width: 10, height: 10)
+                        Text(phase.displayName)
+                            .font(.caption2)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.top, 4)
+            .padding(.horizontal, 4)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("月経周期の凡例")
+        }
     }
 
     private var inputCard: some View {

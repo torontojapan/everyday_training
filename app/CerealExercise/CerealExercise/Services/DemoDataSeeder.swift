@@ -50,9 +50,17 @@ enum DemoDataSeeder {
             seedEdgeMinute(context: context, todayStart: todayStart, calendar: calendar)
         case .monthly:
             seedLongStreak(context: context, todayStart: todayStart, calendar: calendar)
+            // 周期オーバーレイがチャート全期間に渡って描けるよう、
+            // 直近 (5..9 日前) + 1 周期前 (33..37 日前) の 2 周期分を seed。
             seedMenstrualSamples(context: context, todayStart: todayStart, calendar: calendar)
+            for offset in 33...37 {
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+                context.insert(MenstrualEntry(date: day, calendar: calendar))
+            }
             seedMonthlyWeight(context: context, todayStart: todayStart, calendar: calendar)
             seedHealthPreferences()
+            // 体重 chart の周期オーバーレイがデモ画面に出るよう opt-in を有効化。
+            CycleTrackingSettings().isEnabled = true
         }
 
         do {
