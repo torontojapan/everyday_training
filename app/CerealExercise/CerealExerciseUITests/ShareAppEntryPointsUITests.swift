@@ -69,6 +69,25 @@ final class ShareAppEntryPointsUITests: XCTestCase {
                              "シェアカードは友達コードより下にあるべき")
         XCTAssertLessThan(shareCard.frame.minY, friendsListHeader.frame.minY,
                           "シェアカードは『友達 (N)』セクションより上にある = プロフィール直下に固定 (got share=\(shareCard.frame.minY), header=\(friendsListHeader.frame.minY))")
+
+        // **強固な「直下」検証** (Codex round2): friendCode と shareCard の間に他の
+        // section header が挟まってはいけない。誰かが requestsSection を shareCard
+        // の上に移したり、別の宣伝バナーを挟んだりする regression をここで止める。
+        // (XCUIElement predicate は frame.minY のような算出 key path をサポート
+        // しないので、全要素取得 → Swift で filter する。)
+        let codeMaxY = friendCodeLabel.frame.maxY
+        let shareMinY = shareCard.frame.minY
+        let intrusiveHeaders = app.staticTexts.allElementsBoundByIndex.filter { el in
+            el.exists
+                && !el.label.isEmpty
+                && el.frame.minY > codeMaxY
+                && el.frame.minY < shareMinY
+                // 友達コードの数値文字列 (例: ET543Q) など意図しない match を除外:
+                // 「申請」「友達」「リクエスト」など section 見出しらしい文字のみ拾う。
+                && (el.label.contains("申請") || el.label.contains("友達"))
+        }
+        XCTAssertTrue(intrusiveHeaders.isEmpty,
+                       "友達コードとシェアカードの間に他の section header が挟まってはいけない (found: \(intrusiveHeaders.map(\.label)))")
     }
 
     /// 設定画面の ShareLink がクラッシュせずタップできること。
