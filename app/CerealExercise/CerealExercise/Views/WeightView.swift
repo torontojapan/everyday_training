@@ -466,6 +466,20 @@ struct WeightView: View {
                         )
                         .foregroundStyle(Palette.primaryDeep)
                         .symbolSize(selectedEntry?.id == entry.id ? 130 : 40)
+                        // 選択中の点の上に **小さく** その日の体重を float 表示。
+                        // 上部の日付ピル (画面右上) は離れていて視線を動かす必要があるため、
+                        // 点の近くに値を出して「いまどこを押しているか」を直感的にする。
+                        .annotation(position: .top, alignment: .center, spacing: 4) {
+                            if selectedEntry?.id == entry.id {
+                                Text("\(String(format: "%.1f", entry.weightKilograms)) kg")
+                                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(Palette.primaryDeep)
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(.thinMaterial, in: Capsule())
+                                    .shadow(color: .black.opacity(0.10), radius: 2, y: 1)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                            }
+                        }
                     }
                     if let selectedEntry {
                         RuleMark(x: .value("選択日", selectedEntry.date))

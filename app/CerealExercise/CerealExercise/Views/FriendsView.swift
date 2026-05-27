@@ -201,16 +201,17 @@ struct FriendsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 profileHeader(profile)
 
+                // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
+                // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
+                // shareAppCard = まだアプリを入れていない人に install 用 URL を投げるため。
+                // ユーザー要望でプロフィール直下に固定配置 (招待動線をファーストビューに)。
+                shareAppCard
+
                 if !friendsStore.requests.isEmpty {
                     requestsSection
                 }
 
                 friendsSection
-
-                // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
-                // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
-                // shareAppCard = まだアプリを入れていない人に install 用 URL を投げるため。
-                shareAppCard
 
                 Button(role: .destructive) {
                     Task { await friendsStore.signOut() }
