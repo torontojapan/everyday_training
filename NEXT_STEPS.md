@@ -1,15 +1,15 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-28 (体重 P1 + アプリ共有 + 達成演出 + 周期 + Codex UX #1/#2/#3/#6 + 体重レポ/祝賀 + クイック応援、Codex 計 19 ラウンド)
+最終更新: 2026-05-28 夜 (体重/履歴タブ UI/UX 大幅刷新 — 3 LLM 提案統合、Codex 計 23 ラウンド)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重 **P0 + P1 全完了** + アプリ共有 + 達成演出キャラ + ミルストーン拡充 + 体調周期 × 体重 + **Codex UX #1/#2/#3/#6** + 体重 週次/月次レポート + 体重 -3/-5/-10kg 祝賀 + クイック応援
-- **テスト**: Unit **172 XCTest + 72 Swift Testing = 244 件** + UI **17/17** = **261 件 全 PASS**
-- **最新コミット**: `24bdcaf` Codex round2 反映: yesterdayAchieved を yesterdayStatus と同源化
-- **GitHub**: `torontojapan/everyday_training` main から 30 commit ahead (未 push)
+- **iOS アプリ本体**: 体重/履歴タブ UI 刷新 (ヒーロー + 折りたたみ + ヒートマップ + a11y + キャラ) + 既存全機能維持
+- **テスト**: Unit **172 XCTest + 68 Swift Testing = 240 件** + UI **17/17** = **257 件 全 PASS**
+- **最新コミット**: `3c9c590` Codex round3 反映: BMI a11y 身長表記を視覚と同期
+- **GitHub**: `torontojapan/everyday_training` main から 34 commit ahead (未 push)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 - **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、今セッションは体重管理に 6 ラウンド回し、priority 1/2/3 を確実に潰した
 
