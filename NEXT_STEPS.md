@@ -1,17 +1,17 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-27 PM (体重管理 P0 完了 + bottom tab 昇格 + Codex 改善ループ運用開始)
+最終更新: 2026-05-27 夕 (体重管理 P0-4 + P1 完了 + アプリ共有導線追加、Codex 6 ラウンド改修反映)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 (3/4 機能完了、同日複数記録のみ未着手)
-- **テスト**: Unit **180/180** + UI **14/14** = **194 件 全 PASS**
-- **最新コミット**: `89cffec` 体重管理を一級市民に昇格 (bottom tab / iPad sidebar)
-- **GitHub**: `torontojapan/everyday_training` main から 5 commit ahead (未 push)
+- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 **完全完了** + P1 トレンド/予測完了 + アプリ共有導線追加
+- **テスト**: Unit **172 XCTest + 35 Swift Testing = 207 件** + UI **14/14** = **221 件 全 PASS**
+- **最新コミット**: `3f43d54` アプリ共有機能: 友達タブ + 設定からインストール用リンクをシェア
+- **GitHub**: `torontojapan/everyday_training` main から 11 commit ahead (未 push)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
-- **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、各イテレーションで priority 1 correctness バグを安定検出
+- **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、今セッションは体重管理に 6 ラウンド回し、priority 1/2/3 を確実に潰した
 
 ---
 
@@ -30,20 +30,18 @@
 業界調査 (あすけん / Happy Scale / Yazio / Renpho / MyFitnessPal) 結果を
 反映した強化計画。**今セッション完了分** はチェック済。
 
-**P0 (キャッチアップ)**
+**P0 (キャッチアップ) — 完了**
 
 - [x] グラフ期間切替 (1週/1月/3月/半年/全期間) — `296f8c5`
 - [x] BMI 自動計算 + 4 区分表示 — `296f8c5`
 - [x] 目標体重 + 開始時体重 + 進捗バー — `b4e4412`
 - [x] 体重管理を bottom tab / iPad sidebar に昇格 — `89cffec`
-- [ ] **同日複数記録対応** (現状は上書き、`addSameDay_overwritesExisting`
-      テストで挙動を locking 中)
+- [x] **同日複数記録対応** — `cc2644d` (insert-only / 日内最新集約 / 履歴時刻表示)
 
 **P1 (差別化、Apple Developer 不要)**
 
-- [ ] 7日移動平均トレンドライン (Happy Scale 流、研究で継続率向上が
-      実証されているキラー機能)
-- [ ] 目標達成予測日 (移動平均の傾きから線形外挿)
+- [x] 7日移動平均トレンドライン — `cc2644d` (Chart に薄い破線 overlay)
+- [x] 目標達成予測日 — `cc2644d` (trend.last を baseline に線形外挿、最低 1 日)
 - [ ] 体調周期 × 体重オーバーレイ (GO 独自、既存 MenstrualStore と連携)
 
 **P1 (Apple Developer 加入後)**
@@ -113,47 +111,48 @@
 
 ## 次セッションで最初にやること
 
-**Welcome メール届いていれば** → CloudKit / HealthKit ブロッカー解除タスクへ。
+**Welcome メール届いていれば** → CloudKit / HealthKit ブロッカー解除 + アプリ
+共有 URL を App Store URL に差し替え (`AppSharingConfig.swift`)。
 
-**届いていなければ** → 体重管理 P0 残り + P1 トレンドラインを推奨。
-以下のプロンプトでスタート:
+**届いていなければ** → 体重管理 P1 残り「体調周期 × 体重オーバーレイ」or P2
+独自色フェーズを推奨。以下のプロンプトでスタート:
 
 ```
-体重管理機能の P0 残り + P1 トレンドラインを進めて。Codex レビュー
-で改善ループを回す方式は前セッションと同じで。
+体重管理の体調周期オーバーレイを実装して。Codex レビューループは
+前セッションと同じで。
 
-### 着手順
+### 仕様
 
-1. P0-4「同日複数記録対応」
-   - 現状: WeightStore.add() が同日エントリを上書き (テスト
-     addSameDay_overwritesExisting で挙動を locking 中)
-   - 仕様: 朝/晩で別々に記録できるよう insert 化、履歴は時刻付き表示、
-     グラフは「日内最新」に集約 (Happy Scale = 全点表示 / あすけん =
-     日内最新、シンプルさで後者推奨)
-
-2. P1-1「7日移動平均トレンドライン」
-   - Happy Scale の killer feature、研究文献でも継続率向上が実証
-   - WeightStore に movingAverage 計算関数を追加
-   - Chart に薄い LineMark を catmullRom で重ね描き
-   - 「日々の水分変動で一喜一憂しない」UX 効果
-
-3. P1-2「目標達成予測日」
-   - 移動平均の傾きから線形外挿
-   - 目標体重カードに「あと約 18 日で達成」を追加
+- MenstrualStore (既存) のサイクル情報を WeightView のグラフに重ね描き
+- グラフ背景にサイクル相 (卵胞期 / 黄体期 / 月経期) を薄いバンドで表示
+- 目的: 「黄体期は水分で重くなる」を可視化して、相のせいで体重が増えても
+  落胆しないようにする (女性ユーザーへのフィット)
+- 周期トラッキング OFF のユーザーには表示しない (CycleTrackingSettings)
 
 ### 制約
 
 - iOS 17+ / SwiftUI / SwiftData / xcodegen
 - 各イテレーション後に Codex 第三者レビュー
-  (codex exec, gpt-5.3-codex, /Users/jun/.claude/skills/second-opinion/
-   references/codex-review-schema.json)
-- WeightStoreTests を必ず拡充
+- WeightStoreTests / 新規 CycleOverlayTests を拡充
 - DemoDataSeeder には触らない
-- HealthKit / CloudKit は Apple Developer 加入待ち、スコープ外
-- 前セッションの commit 起点: 89cffec
+- 前セッションの commit 起点: 3f43d54
 ```
 
 NEXT_STEPS.md と memory の pending_tasks.md は同期済。
+
+### 今セッションの完了サマリ (2026-05-27 夕)
+
+- 体重管理 P0-4「同日複数記録」: insert-only / 日内最新集約 / 履歴時刻表示
+- 体重管理 P1-1「7日移動平均トレンドライン」: Chart に薄い破線 overlay
+- 体重管理 P1-2「目標達成予測日」: trend.last 起点で線形外挿、最低 1 日
+- アプリ共有導線: `AppSharingConfig` + 友達タブ + 設定 (App Store URL は要差し替え)
+- Codex 6 ラウンドで以下を順次潰した:
+  1. `change30Days` の日境界バグ / forecast 0 round / sort tie-break
+  2. round-to-zero テストが実は刺さっていなかった件 / sort テスト 1 段だけ
+  3. sort テストに cross-day ケース追加
+  4. **0 findings** で収束
+  5. (holistic) workout-flow が startOfDay を渡してた / forecast の today 不整合
+  6. **0 findings** で再収束
 
 ---
 
