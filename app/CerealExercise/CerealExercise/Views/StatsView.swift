@@ -45,7 +45,6 @@ struct StatsView: View {
                         usedDays: viewModel.lifetimeStats.usedDays
                     )
 
-                    weightEntry
                     if cycleSettings.isEnabled, let menstrualStore {
                         menstrualEntry(store: menstrualStore)
                     }
@@ -104,33 +103,6 @@ struct StatsView: View {
             calendar: calendar
         )
         selectedDay = SelectedDay(date: date, status: status, records: dayRecords)
-    }
-
-    private var weightEntry: some View {
-        NavigationLink {
-            WeightView()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "scalemass.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Palette.primaryDeep)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("体重の推移をみる")
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("グラフで増減を一目で確認")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Palette.textSecondary)
-            }
-            .padding(14)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("weight-link-stats")
     }
 
     /// 設定で「体調・周期を記録する」ON のときだけ表示。

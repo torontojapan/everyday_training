@@ -10,6 +10,7 @@ struct MainTabView: View {
     enum Tab: String, Hashable {
         case home
         case stats
+        case weight
         case friends
         case settings
 
@@ -17,6 +18,7 @@ struct MainTabView: View {
             switch self {
             case .home:     return "ホーム"
             case .stats:    return "履歴"   // Gemini 指摘: 「記録」だと記録入力と混同するため
+            case .weight:   return "体重"
             case .friends:  return "友達"
             case .settings: return "設定"
             }
@@ -26,6 +28,7 @@ struct MainTabView: View {
             switch self {
             case .home:     return "house.fill"
             case .stats:    return "chart.bar.fill"
+            case .weight:   return "scalemass.fill"
             case .friends:  return "person.2.fill"
             case .settings: return "gearshape.fill"
             }
@@ -43,6 +46,10 @@ struct MainTabView: View {
                 .environment(store)
                 .tabItem { Label(Tab.stats.label, systemImage: Tab.stats.systemImage) }
                 .tag(Tab.stats)
+
+            NavigationStack { WeightView() }
+                .tabItem { Label(Tab.weight.label, systemImage: Tab.weight.systemImage) }
+                .tag(Tab.weight)
 
             NavigationStack { FriendsView() }
                 .tabItem { Label(Tab.friends.label, systemImage: Tab.friends.systemImage) }

@@ -20,6 +20,8 @@ struct RootSplitView: View {
                 case .history:
                     HistoryView()
                         .environment(store)
+                case .weight:
+                    WeightView()
                 case .settings:
                     SettingsView()
                 }
@@ -31,6 +33,7 @@ struct RootSplitView: View {
 private enum RootSection: String, CaseIterable, Identifiable {
     case home
     case history
+    case weight
     case settings
 
     var id: String { rawValue }
@@ -39,6 +42,7 @@ private enum RootSection: String, CaseIterable, Identifiable {
         switch self {
         case .home: "ホーム"
         case .history: "履歴"
+        case .weight: "体重"
         case .settings: "設定"
         }
     }
@@ -47,6 +51,7 @@ private enum RootSection: String, CaseIterable, Identifiable {
         switch self {
         case .home: "house.fill"
         case .history: "clock.arrow.circlepath"
+        case .weight: "scalemass.fill"
         case .settings: "gearshape.fill"
         }
     }

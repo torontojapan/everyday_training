@@ -4,7 +4,6 @@ import SwiftUI
 
 struct WeightView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
     @State private var store: WeightStore?
     @State private var weightInput: String = ""
     @State private var memoInput: String = ""
@@ -25,7 +24,6 @@ struct WeightView: View {
     }
     @State private var editingField: HealthEditField?
     @Bindable private var healthPrefs = UserHealthPreferences.shared
-    var onClose: (() -> Void)? = nil
 
     private let calendar = Calendar.mondayFirst
 
@@ -48,19 +46,6 @@ struct WeightView: View {
         .background(Palette.background)
         .navigationTitle("体重管理")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    if let onClose { onClose() } else { dismiss() }
-                } label: {
-                    Label("戻る", systemImage: "chevron.left")
-                        .labelStyle(.titleAndIcon)
-                        .font(Typography.body)
-                }
-                .accessibilityLabel("戻る")
-            }
-        }
         .onAppear {
             if store == nil {
                 store = WeightStore(context: modelContext)

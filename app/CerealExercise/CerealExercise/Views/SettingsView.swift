@@ -97,16 +97,6 @@ struct SettingsView: View {
                 Text("ONにすると、運動記録画面に「今日は生理日」スイッチが出現し、履歴カレンダーに ★ マーク (生理日) で表示されます。")
             }
 
-            Section("体重管理") {
-                NavigationLink {
-                    WeightView()
-                } label: {
-                    Label("体重を記録・グラフで見る", systemImage: "scalemass.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("weight-link")
-            }
-
             Section("保険チケット") {
                 rescueTicketRow
                 NavigationLink {
