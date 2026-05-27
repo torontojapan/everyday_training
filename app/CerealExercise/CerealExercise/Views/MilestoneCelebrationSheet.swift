@@ -67,19 +67,20 @@ struct MilestoneCelebrationSheet: View {
                         .opacity(detailAppear ? 1 : 0)
                         .offset(y: detailAppear ? 0 : 12)
 
-                    // CTA は SNS シェアを主役に。「受け取る」だけだと「何が
-                    // 貰えるの?」という疑問が出るが、シェアして友達に自慢できれば
-                    // 達成の承認欲求が満たされる UX に再設計。
+                    // CTA は SNS シェアを主役に。「受け取る」では「何が貰えるの?」
+                    // が解消されないので、共有 → 仲間とつながる招待トーンに変更。
+                    // 「自慢」は negative に取られるので採用せず、「運動仲間と
+                    // つながろう」系で community-building 動線を強調。
                     VStack(spacing: 12) {
                         ShareLink(
                             item: AppSharingConfig.shareURL,
                             subject: Text(milestone.shareSubject),
                             message: Text(milestone.shareMessage)
                         ) {
-                            Label("SNSでシェアして自慢", systemImage: "square.and.arrow.up.fill")
+                            Label("シェアして運動仲間とつながる", systemImage: "square.and.arrow.up.fill")
                                 .font(Typography.headline)
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 28).padding(.vertical, 14)
+                                .padding(.horizontal, 24).padding(.vertical, 14)
                                 .background(.black.opacity(0.45), in: Capsule())
                         }
                         // シェアをタップした段階で「確認済」扱いにする (シート
