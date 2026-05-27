@@ -18,45 +18,57 @@ final class ShareAppEntryPointsUITests: XCTestCase {
             "--mock-seed-friends", "--initial-tab", initialTab,
         ]
         app.launch()
+        // --no-notification-prompt があっても初回起動時に system のダイアログが
+        // 競合状態で出ることがあるため defensive に dismiss する (Codex round1)。
+        let deny = app.alerts.buttons["許可しない"]
+        if deny.waitForExistence(timeout: 1) { deny.tap() }
         return app
     }
 
-    /// 設定画面: 「アプリを友達にシェア」が **通知より上に存在** すること。
-    /// 通知 row より上端側に Y 座標があれば最上位セクションに置かれているとみなす。
-    func testSettings_shareRow_isAboveNotificationRow() {
+    /// 設定画面: 「アプリを友達にシェア」が **リスト全体の最上位** にあること。
+    /// 同レベルのセクション/セルの中で minY が最小であることを確認することで、
+    /// 別の section を上に挿入する regression も検知できる (Codex round1)。
+    func testSettings_shareRow_isAtTopOfSettingsList() {
         let app = launch(initialTab: "settings")
         let shareRow = app.buttons["settings-share-app"]
         XCTAssertTrue(shareRow.waitForExistence(timeout: 5),
                        "「アプリを友達にシェア」行が設定画面に存在しなければならない")
 
-        // 通知設定行が見えていること (設定画面のはず) を確認しつつ、Y 順を検証。
+        // 設定リストの全 cell を縦軸で並べる。
+        // 設定画面の他の行が見えていることをまず確認 (= 設定画面が描画完了)。
         let notifRow = app.cells.containing(NSPredicate(format: "label CONTAINS '通知設定'")).firstMatch
         XCTAssertTrue(notifRow.waitForExistence(timeout: 3))
 
-        XCTAssertLessThan(shareRow.frame.minY, notifRow.frame.minY,
-                          "アプリ共有行は通知設定より上に置かれているべき (現在 share=\(shareRow.frame.minY), notif=\(notifRow.frame.minY))")
+        // 画面上に見えている cell の中で **最小 minY** が share 行のはず。
+        let visibleCells = app.cells.allElementsBoundByIndex.filter { $0.exists && $0.frame.height > 0 }
+        let minMinY = visibleCells.map(\.frame.minY).min() ?? .greatestFiniteMagnitude
+        XCTAssertEqual(shareRow.frame.minY, minMinY, accuracy: 1.0,
+                       "アプリ共有行は設定リストの最上位 cell でなければならない (got minY=\(shareRow.frame.minY), top=\(minMinY))")
     }
 
-    /// 友達画面 (signed in): 「このアプリを友達にシェア」が **友達コード行直下** にあること。
-    /// 友達コードを示すラベルより Y 座標が下、かつサインアウト行 (=ボディ末尾) より上に位置する
-    /// ことで「プロフィール直下に固定」を保証する。
-    func testFriends_shareCard_isBelowFriendCode_andAboveSignOut() {
+    /// 友達画面: 「このアプリを友達にシェア」が **友達コード行の直下** にあること。
+    /// 「直下」= シェアカードと友達コードの間に他の visible cell/button が無いことを確認。
+    /// 単純な「上下比較」だと requestsSection 下や末尾に移されても通る regression が
+    /// 発生したので、近接性を assert する (Codex round1)。
+    func testFriends_shareCard_isImmediatelyBelowFriendCode() {
         let app = launch(initialTab: "friends")
         let shareCard = app.buttons["share-app-button"]
         XCTAssertTrue(shareCard.waitForExistence(timeout: 5),
                        "「このアプリを友達にシェア」カードが友達画面に存在しなければならない")
 
         let friendCodeLabel = app.staticTexts["あなたの友達コード"]
-        XCTAssertTrue(friendCodeLabel.waitForExistence(timeout: 3),
-                       "友達コード見出しが見つからない")
+        XCTAssertTrue(friendCodeLabel.waitForExistence(timeout: 3))
 
-        let signOut = app.buttons.containing(NSPredicate(format: "label CONTAINS 'サインアウト'")).firstMatch
-        XCTAssertTrue(signOut.waitForExistence(timeout: 3))
+        // 友達コードの「友達」セクション見出し (= 「友達 (0)」など) は
+        // share カードよりも **下** に来ているべき (= share カードが間に挟まる)。
+        let friendsListHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '友達 ('")).firstMatch
+        XCTAssertTrue(friendsListHeader.waitForExistence(timeout: 3),
+                       "友達セクション見出しが見つからない")
 
         XCTAssertGreaterThan(shareCard.frame.minY, friendCodeLabel.frame.minY,
                              "シェアカードは友達コードより下にあるべき")
-        XCTAssertLessThan(shareCard.frame.minY, signOut.frame.minY,
-                          "シェアカードはサインアウトより上にあるべき (プロフィール直下に固定)")
+        XCTAssertLessThan(shareCard.frame.minY, friendsListHeader.frame.minY,
+                          "シェアカードは『友達 (N)』セクションより上にある = プロフィール直下に固定 (got share=\(shareCard.frame.minY), header=\(friendsListHeader.frame.minY))")
     }
 
     /// 設定画面の ShareLink がクラッシュせずタップできること。
