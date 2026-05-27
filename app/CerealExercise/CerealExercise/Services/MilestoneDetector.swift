@@ -103,26 +103,35 @@ final class MilestoneDetector {
     }
 
     func clear() {
+        // 注: migration flag (`migratedExpandedThresholdsKey`) は片方向の
+        // 「v2 にあげた」マーカーで、acknowledged 配列とは別ライフサイクル。
+        // ここでクリアすると、次の nextPending で migrate が再走して
+        // 全 streak milestone が silent ack され clear した意味が無くなる
+        // (Codex round2 priority 2)。クリアしたいなら test 側で defaults
+        // suite ごと捨てるべき。
         defaults.removeObject(forKey: Self.acknowledgedKey)
-        defaults.removeObject(forKey: Self.migratedExpandedThresholdsKey)
     }
 
     /// 旧マイルストーン定義 ([30, 100, 365]) からの拡充直後、既存の高ストリーク
-    /// ユーザーに過去達成済みのお祝いを連発しないようサイレントに飲み込む。
+    /// ユーザーに過去達成済みの **streak** お祝いを連発しないようサイレントに飲み込む。
     /// 1 回だけ実行 (defaults flag でガード)。
+    ///
+    /// **scope**: currentStreak のみ。anniversary / lifetimeDays は元から閾値
+    /// 不変なので migration 対象外で、正常に通知される (Codex round2 priority 1)。
     private func migrateExpandedThresholdsIfNeeded(
         firstUseDate: Date, today: Date,
         lifetimeAchieved: Int, currentStreak: Int
     ) {
         guard !defaults.bool(forKey: Self.migratedExpandedThresholdsKey) else { return }
         var ack = acknowledgedKeys()
-        // 現時点で既に通過済みの全マイルストーンを silent ack。
-        // 「次に到達する新しい節目」(例: 350 のユーザーが 400 に到達したとき)
-        // から celebration が再開する。
         for m in candidates(firstUseDate: firstUseDate, today: today,
                             lifetimeAchieved: lifetimeAchieved,
                             currentStreak: currentStreak) {
-            ack.insert(key(for: m))
+            // streak 系のみ silent ack。anniversary / lifetimeDays は
+            // 既存ユーザーでも未受け取りのものは通常通り通知する。
+            if case .currentStreak = m {
+                ack.insert(key(for: m))
+            }
         }
         defaults.set(Array(ack), forKey: Self.acknowledgedKey)
         defaults.set(true, forKey: Self.migratedExpandedThresholdsKey)

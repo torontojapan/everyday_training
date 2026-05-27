@@ -69,8 +69,9 @@ struct MilestoneShareTests {
     // MARK: - Expanded thresholds migration
 
     /// 旧定義時代から streak=350 のユーザーが拡充版に上がった瞬間、
-    /// 過去達成済みの 10/30/50/100/200/300 を **連発しない** (silent ack) こと。
-    /// 次回の本物の達成 (= 400) からだけ celebration が再開する。
+    /// 過去達成済みの 10/30/50/100/200/300 (streak 系) を **連発しない** こと。
+    /// firstUseDate は 364 日前 (anniversary 未到達) + lifetimeAchieved=0 にして
+    /// 「streak 以外の候補は無い」状態を作り、純粋に migration scope を検証。
     @MainActor
     @Test
     func migratesExistingLongStreak_silentlyAcknowledgesPriorMilestones() {
@@ -79,17 +80,45 @@ struct MilestoneShareTests {
         let detector = MilestoneDetector(defaults: defaults, calendar: .mondayFirst)
 
         let today = Date()
-        let firstUse = Calendar.mondayFirst.date(byAdding: .day, value: -365, to: today)!
+        // 364 日前 = 1 周年未満 → anniversary milestone は出ない
+        let firstUse = Calendar.mondayFirst.date(byAdding: .day, value: -364, to: today)!
 
-        // 既に streak=350 のユーザー (旧 [30, 100, 365] では 30 と 100 が出る世界線)
         let first = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
                                           lifetimeAchieved: 0, currentStreak: 350)
         #expect(first == nil,
-                "アップグレード直後の最初の呼び出しでは連発しない (silent migrate)")
+                "アップグレード直後の最初の呼び出しでは streak の連発が起きない")
 
         // 翌日 streak=400 に到達 → これは新しい節目なので celebration が出るべき
         let after = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
                                           lifetimeAchieved: 0, currentStreak: 400)
         #expect(after == .currentStreak(400), "400 (= 新しい節目) は通常通り通知される")
+    }
+
+    /// migration scope は streak のみで、未受け取りの anniversary / lifetimeDays は
+    /// アップグレード後も通常通り通知される (Codex round2 priority 1)。
+    @MainActor
+    @Test
+    func migrationDoesNotSwallow_anniversaryOrLifetimeMilestones() {
+        let suite = "milestone-migrate-scope-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let detector = MilestoneDetector(defaults: defaults, calendar: .mondayFirst)
+
+        let today = Date()
+        // 2 周年 + 累計 100 日 + streak=350 のユーザー (旧定義時代から長期使用)。
+        let firstUse = Calendar.mondayFirst.date(byAdding: .day, value: -800, to: today)!
+
+        let first = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
+                                          lifetimeAchieved: 100, currentStreak: 350)
+        // 一発目は migration で streak が消されるが、anniversary か lifetime のうち
+        // 最初に出てくるものが返るべき。candidates の順序は anniversary → lifetime → streak。
+        #expect(first == .anniversary(years: 2),
+                "anniversary は migration 対象外、通常通り通知される (got \(String(describing: first)))")
+
+        // anniversary を ack して再呼び出し → lifetime が次に来る
+        if case .some(let m) = first { detector.acknowledge(m) }
+        let second = detector.nextPending(records: [], firstUseDate: firstUse, today: today,
+                                           lifetimeAchieved: 100, currentStreak: 350)
+        #expect(second == .lifetimeDays(100),
+                "lifetimeDays も migration 対象外で通知される (got \(String(describing: second)))")
     }
 }
