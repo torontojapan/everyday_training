@@ -326,7 +326,7 @@ struct HomeView: View {
     private var remainingTimeText: String {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: store.today) ?? Date()
         let hours = max(0, calendar.dateComponents([.hour], from: Date(), to: endOfDay).hour ?? 0)
-        return "今日の締切まで あと\(hours)時間"
+        return "あと\(hours)時間"
     }
 
     /// 現在の体重スナップショットを `MilestoneDetector` に渡せる形で取り出す。

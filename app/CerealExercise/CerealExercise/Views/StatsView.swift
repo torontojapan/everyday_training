@@ -42,15 +42,18 @@ struct StatsView: View {
                         WeeklyHighlightCard(summary: viewModel.weeklySummary)
                     }
 
-                    LifetimeStatsCard(
-                        achievedDays: viewModel.lifetimeStats.achievedDays,
-                        usedDays: viewModel.lifetimeStats.usedDays
-                    )
-
                     if cycleSettings.isEnabled, let menstrualStore {
                         menstrualEntry(store: menstrualStore)
                     }
                     monthlyReviewEntry
+
+                    // 「これまでの記録」(累計達成日 / 使用日) は一番下に移動
+                    // (ユーザー要望)。日次/週次の文脈とは別の長期統計なので
+                    // フッター位置で「振り返り終わりの後押し」として置く。
+                    LifetimeStatsCard(
+                        achievedDays: viewModel.lifetimeStats.achievedDays,
+                        usedDays: viewModel.lifetimeStats.usedDays
+                    )
                 }
                 .padding(20)
             }

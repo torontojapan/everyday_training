@@ -36,16 +36,23 @@ struct WeightView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let store {
-                    catGreetingStrip(for: store)
-
                     // ヒーロー (最新 + 目標 + リング + 猫) は常時展開。
                     heroDashboard(store: store)
 
-                    // BMI / 身長 は独立したストリップに移動 (Claude #2)。
+                    // BMI / 身長 は独立したストリップに移動。
                     bmiInfoStrip(store: store)
 
-                    // 以下のセクションは折りたたみで初期状態は閉じる。
-                    // 主要 KPI (上のヒーロー) に視線を集中させるため。
+                    // 「記録する」をヒーロー直下に移動 (ユーザー要望)。
+                    // 主アクションへ到達するまでのスクロールを削る。
+                    CollapsibleSection(
+                        persistenceKey: "weight.input",
+                        title: "記録する",
+                        subtitle: "新しい体重を追加",
+                        icon: "plus.circle.fill"
+                    ) {
+                        inputCard
+                    }
+
                     CollapsibleSection(
                         persistenceKey: "weight.report",
                         title: "レポート",
@@ -63,15 +70,6 @@ struct WeightView: View {
                         defaultExpanded: true   // 推移はデフォルト展開 (チャートが本体)
                     ) {
                         chartSection(store: store)
-                    }
-
-                    CollapsibleSection(
-                        persistenceKey: "weight.input",
-                        title: "記録する",
-                        subtitle: "新しい体重を追加",
-                        icon: "plus.circle.fill"
-                    ) {
-                        inputCard
                     }
 
                     CollapsibleSection(
@@ -233,7 +231,8 @@ struct WeightView: View {
                     .font(.caption)
                     .foregroundStyle(Palette.textSecondary)
                 if let bmi = healthPrefs.bmi(weightKilograms: latest.weightKilograms) {
-                    let category = BMICategory(bmi: bmi)
+                    // BMI カテゴリ badge (「普通」/「肥満」など) はユーザー要望で
+                    // 非表示。数値のみ表示してニュートラルなトーンに。
                     Text("BMI")
                         .font(.caption2)
                         .foregroundStyle(Palette.textSecondary)
@@ -241,11 +240,6 @@ struct WeightView: View {
                         .font(.system(.caption, design: .rounded, weight: .heavy))
                         .foregroundStyle(Palette.textPrimary)
                         .monospacedDigit()
-                    Text(category.displayName)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(bmiCategoryColor(category))
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(bmiCategoryColor(category).opacity(0.15), in: Capsule())
                     if let h = healthPrefs.heightCentimeters {
                         Text("身長 \(String(format: "%.0f", h))cm")
                             .font(.caption2)
@@ -323,10 +317,18 @@ struct WeightView: View {
     }
 
     /// CollapsibleSection の subtitle 生成 (折りたたみ中の要約)。
+    /// week が取れなければ month にフォールバック (Codex round1: 月だけでもデータ
+    /// が有るのに「データなし」と表示する regression を防ぐ)。
     private func reportSubtitle(store: WeightStore) -> String {
-        guard let week = store.stats(period: .week) else { return "データなし" }
-        let sign = week.change >= 0 ? "+" : ""
-        return "今週 \(sign)\(String(format: "%.1f", week.change))kg / 平均 \(String(format: "%.1f", week.average))kg"
+        if let week = store.stats(period: .week) {
+            let sign = week.change >= 0 ? "+" : ""
+            return "今週 \(sign)\(String(format: "%.1f", week.change))kg / 平均 \(String(format: "%.1f", week.average))kg"
+        }
+        if let month = store.stats(period: .month) {
+            let sign = month.change >= 0 ? "+" : ""
+            return "今月 \(sign)\(String(format: "%.1f", month.change))kg / 平均 \(String(format: "%.1f", month.average))kg"
+        }
+        return "データなし"
     }
 
     private func chartSubtitle(store: WeightStore) -> String {
