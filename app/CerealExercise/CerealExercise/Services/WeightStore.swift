@@ -75,8 +75,13 @@ final class WeightStore {
     /// 未来日エントリ (時計ズレ・インポートで紛れ込み得る) を除いた最新エントリ。
     /// 進捗の baseline 取得など分析系の計算には latest ではなくこちらを使う。
     /// "今日" の記録 (現在時刻入り) は未来扱いしないよう、明日の 00:00 を上限とする。
-    var latestNonFuture: WeightEntry? {
-        let tomorrowStart = startOfTomorrow()
+    var latestNonFuture: WeightEntry? { latestNonFuture(today: Date()) }
+
+    /// `today` パラメータを取って future cutoff を計算する `latestNonFuture` の testable 版。
+    /// 内部の forecast / change 系も同じ `today` を共有することで、タイムゾーン跨ぎや
+    /// テスト時の固定日時で挙動が一致する (Codex round5)。
+    func latestNonFuture(today: Date) -> WeightEntry? {
+        let tomorrowStart = startOfTomorrow(reference: today)
         return entries.first { $0.date < tomorrowStart }
     }
 
@@ -218,8 +223,10 @@ final class WeightStore {
                               analysisPeriod: ChartPeriod = .month,
                               minSlopeKgPerDay: Double = 0.005,
                               maxDays: Int = 365) -> Int? {
+        // latestRaw も `today` を基準に判定する (Codex round5)。
+        // 旧実装は `Date()` 固定でテストの今日上書きと整合しなかった。
         guard let target = healthPrefs.targetKilograms,
-              let latestRaw = latestNonFuture?.weightKilograms else { return nil }
+              let latestRaw = latestNonFuture(today: today)?.weightKilograms else { return nil }
 
         // Trend 構築前に **raw latest** で「既に目標圏内」を早期判定する。
         // 1 件しか記録がなくて trend が組めないケースでも「圏内です」と返したい。

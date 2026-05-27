@@ -617,6 +617,35 @@ struct WeightStoreTests {
         #expect(chart.last?.weightKilograms == 70.0, "昨日の唯一の記録")
     }
 
+    /// `forecastDaysToTarget(today:)` の `today` を内部の latestNonFuture でも尊重する
+    /// (Codex round5 priority 2)。テスト時に固定 today を渡すと、本当の Date() 上は
+    /// 未来扱いされるエントリが「最新」として参照されることが従来あった。
+    @Test
+    func forecast_honorsTodayParameter_forLatestRaw() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        // 「テスト上の今日」を未来日に設定する。本当の Date() 基準だと未来扱いされる
+        // が、forecast に渡す today も同じ未来日なら raw latest として認識される。
+        let testToday = cal.date(byAdding: .day, value: 60, to: Date())!
+        let testTodayStart = cal.startOfDay(for: testToday)
+        // 30 日かけて 80 → 65 の線形ランプ (本当の Date() より未来の日付)
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: testTodayStart)!
+                .addingTimeInterval(8 * 3600)
+            let weight = 65.0 + Double(offset) * (15.0 / 29.0)
+            context.insert(WeightEntry(date: date, weightKilograms: weight))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 60.0
+
+        // 本当の Date() 基準だと全エントリ「未来日」で latestNonFuture=nil → 旧実装は nil。
+        // 修正後は today を渡すと latestNonFuture(today:) で testTodayStart 基準で
+        // 評価され、forecast が成立する。
+        let days = store.forecastDaysToTarget(today: testToday)
+        #expect(days != nil, "today パラメータを尊重すれば未来日基準でも forecast が出る")
+    }
+
     /// 目標未設定 / 体重 0 件 / トレンド不足 などは nil。
     @Test
     func forecast_insufficientInputs_returnNil() throws {

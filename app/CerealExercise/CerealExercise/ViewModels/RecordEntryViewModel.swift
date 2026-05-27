@@ -129,8 +129,10 @@ final class RecordEntryViewModel {
         let record = store.add(category: selectedCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
 
         // Persist optional weight entry alongside the workout record.
+        // 同日複数記録 (P0-4) に対応するため **現在時刻** を渡す。
+        // store.today だと startOfDay になり、同日 2 回目の記録が時刻で識別できない (Codex round5)。
         if let weightStore, let weight = parsedWeight {
-            _ = weightStore.add(date: store.today, weightKilograms: weight, memo: nil)
+            _ = weightStore.add(date: Date(), weightKilograms: weight, memo: nil)
         }
 
         validationMessage = nil
