@@ -1,16 +1,17 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-27 (Phase 7.0 完全完了 + 大規模 audit + 演出強化 + リポジトリ整理)
+最終更新: 2026-05-27 PM (体重管理 P0 完了 + bottom tab 昇格 + Codex 改善ループ運用開始)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 完全完了 (Step 1-4 + 全 audit + 演出強化 + 保険チケット連携)
-- **テスト**: Unit **172/172** + UI **14/14** = **186 件 全 PASS**
-- **最新コミット**: `adb06fc` リポジトリ整理 (142 ファイル削除)
-- **GitHub**: `torontojapan/everyday_training` main に push 済
+- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 (3/4 機能完了、同日複数記録のみ未着手)
+- **テスト**: Unit **180/180** + UI **14/14** = **194 件 全 PASS**
+- **最新コミット**: `89cffec` 体重管理を一級市民に昇格 (bottom tab / iPad sidebar)
+- **GitHub**: `torontojapan/everyday_training` main から 5 commit ahead (未 push)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
+- **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、各イテレーションで priority 1 correctness バグを安定検出
 
 ---
 
@@ -23,6 +24,38 @@
 | 1 | **Apple Developer Program 加入** | ユーザー作業 (Welcome メール待ち) |
 
 (プライバシーポリシー / メタデータ / アイコン / スクショは完了済み)
+
+### 🟠 体重管理 — 残り P0 + 差別化 P1
+
+業界調査 (あすけん / Happy Scale / Yazio / Renpho / MyFitnessPal) 結果を
+反映した強化計画。**今セッション完了分** はチェック済。
+
+**P0 (キャッチアップ)**
+
+- [x] グラフ期間切替 (1週/1月/3月/半年/全期間) — `296f8c5`
+- [x] BMI 自動計算 + 4 区分表示 — `296f8c5`
+- [x] 目標体重 + 開始時体重 + 進捗バー — `b4e4412`
+- [x] 体重管理を bottom tab / iPad sidebar に昇格 — `89cffec`
+- [ ] **同日複数記録対応** (現状は上書き、`addSameDay_overwritesExisting`
+      テストで挙動を locking 中)
+
+**P1 (差別化、Apple Developer 不要)**
+
+- [ ] 7日移動平均トレンドライン (Happy Scale 流、研究で継続率向上が
+      実証されているキラー機能)
+- [ ] 目標達成予測日 (移動平均の傾きから線形外挿)
+- [ ] 体調周期 × 体重オーバーレイ (GO 独自、既存 MenstrualStore と連携)
+
+**P1 (Apple Developer 加入後)**
+
+- [ ] HealthKit 双方向同期 (スマート体重計ユーザー取り込み)
+
+**P2 (独自色フェーズ)**
+
+- [ ] 運動 + 連続記録 + 体重を統合した週次/月次レポート
+- [ ] マイルストーン祝賀 (-3kg / -5kg ごとに猫キャラ演出、既存資産流用)
+- [ ] ブラインドウェイト or 数値非表示モード (倫理的差別化)
+- [ ] メモのタグ化 + フィルタ分析
 
 ### 🟡 P1 — CloudKit 本実装 (Apple Developer 加入後)
 
@@ -80,9 +113,47 @@
 
 ## 次セッションで最初にやること
 
-1. **Welcome メール届いていれば** → P1 CloudKit 実装に着手
-2. **届いていなければ** → P2 拡張案から好きなもの (Siri / Apple Watch / 並走モード / Codex 提案 7 件)
-3. NEXT_STEPS.md と memory の pending_tasks.md は同期済
+**Welcome メール届いていれば** → CloudKit / HealthKit ブロッカー解除タスクへ。
+
+**届いていなければ** → 体重管理 P0 残り + P1 トレンドラインを推奨。
+以下のプロンプトでスタート:
+
+```
+体重管理機能の P0 残り + P1 トレンドラインを進めて。Codex レビュー
+で改善ループを回す方式は前セッションと同じで。
+
+### 着手順
+
+1. P0-4「同日複数記録対応」
+   - 現状: WeightStore.add() が同日エントリを上書き (テスト
+     addSameDay_overwritesExisting で挙動を locking 中)
+   - 仕様: 朝/晩で別々に記録できるよう insert 化、履歴は時刻付き表示、
+     グラフは「日内最新」に集約 (Happy Scale = 全点表示 / あすけん =
+     日内最新、シンプルさで後者推奨)
+
+2. P1-1「7日移動平均トレンドライン」
+   - Happy Scale の killer feature、研究文献でも継続率向上が実証
+   - WeightStore に movingAverage 計算関数を追加
+   - Chart に薄い LineMark を catmullRom で重ね描き
+   - 「日々の水分変動で一喜一憂しない」UX 効果
+
+3. P1-2「目標達成予測日」
+   - 移動平均の傾きから線形外挿
+   - 目標体重カードに「あと約 18 日で達成」を追加
+
+### 制約
+
+- iOS 17+ / SwiftUI / SwiftData / xcodegen
+- 各イテレーション後に Codex 第三者レビュー
+  (codex exec, gpt-5.3-codex, /Users/jun/.claude/skills/second-opinion/
+   references/codex-review-schema.json)
+- WeightStoreTests を必ず拡充
+- DemoDataSeeder には触らない
+- HealthKit / CloudKit は Apple Developer 加入待ち、スコープ外
+- 前セッションの commit 起点: 89cffec
+```
+
+NEXT_STEPS.md と memory の pending_tasks.md は同期済。
 
 ---
 
