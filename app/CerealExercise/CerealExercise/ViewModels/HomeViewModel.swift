@@ -135,16 +135,10 @@ final class HomeViewModel {
         return used
     }
 
+    /// 「昨日達成済みか」を rescue ticket 補完込みで判定。
+    /// `yesterdayStatus` と同じパスを使って isComebackToday と catState の
+    /// 判断が一致するようにする (Codex round2 priority 1)。
     private func yesterdayAchieved(records: [WorkoutRecord], today: Date) -> Bool {
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return true }
-        let restDays = RestDayResolver.restDaySet(for: yesterday, records: records, today: today, calendar: calendar)
-        let status = AchievementEvaluator.dailyStatus(
-            for: yesterday,
-            records: records,
-            restDays: restDays,
-            today: today,
-            calendar: calendar
-        )
-        return status.countsAsAchieved
+        yesterdayStatus(records: records, today: today).countsAsAchieved
     }
 }
