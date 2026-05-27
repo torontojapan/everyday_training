@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MilestoneCelebrationSheet: View {
     let milestone: Milestone
@@ -28,6 +29,27 @@ struct MilestoneCelebrationSheet: View {
         }
     }
 
+    /// ミルストーンに合うキャラ表情。連続記録系は炎を背負う `streakExtended`、
+    /// アニバーサリ/累計系は喜び満開の `celebrating` をデフォルトに。
+    private var characterState: CatState {
+        switch milestone {
+        case .currentStreak: return .streakExtended
+        case .anniversary, .lifetimeDays: return .celebrating
+        }
+    }
+
+    /// 表示する画像 asset 名 (選択中 breed × state)。
+    /// 該当 asset が無ければ orange の同 state に fallback。
+    /// 両方失敗した場合は nil → emoji にフォールバック表示する。
+    private var characterAssetName: String? {
+        let breed = UserCatPreferences.shared.myCat
+        let primary = breed.assetName(for: characterState)
+        if UIImage(named: primary) != nil { return primary }
+        let fallback = CatBreed.fallbackAssetName(for: characterState)
+        if UIImage(named: fallback) != nil { return fallback }
+        return nil
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
@@ -46,11 +68,31 @@ struct MilestoneCelebrationSheet: View {
             ScrollView {
                 VStack(spacing: 28) {
                     Spacer().frame(height: 80)
-                    Text(milestone.emoji)
-                        .font(.system(size: 112))
-                        .scaleEffect(emojiScale)
-                        .rotationEffect(.degrees(emojiRotation))
+                    // ユーザーが選んだ猫キャラを大きく主役にする。
+                    // emoji フォールバックは asset 欠落時のみ (PNG が見つからない)。
+                    // 小さな milestone 種別 emoji は右上にバッジ的に重ねて装飾。
+                    ZStack(alignment: .topTrailing) {
+                        Group {
+                            if let asset = characterAssetName {
+                                Image(asset)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 220, height: 220)
+                            } else {
+                                Text(milestone.emoji)
+                                    .font(.system(size: 112))
+                            }
+                        }
                         .shadow(color: .black.opacity(0.25), radius: 18, x: 0, y: 8)
+                        // milestone 種別 (✨🔥🏆🎉) を画像右上にバッジとして重ねる。
+                        Text(milestone.emoji)
+                            .font(.system(size: 44))
+                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .offset(x: 12, y: -8)
+                            .accessibilityHidden(true)
+                    }
+                    .scaleEffect(emojiScale)
+                    .rotationEffect(.degrees(emojiRotation))
                     ShimmerText(
                         text: milestone.headline,
                         font: .system(size: 34, weight: .heavy, design: .rounded)

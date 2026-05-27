@@ -32,4 +32,37 @@ struct MilestoneShareTests {
         let m = Milestone.currentStreak(30)
         #expect(m.shareSubject == m.headline)
     }
+
+    // MARK: - currentStreak milestone thresholds
+
+    /// 連続記録のマイルストーン: 10/30/50 で序盤ブースト、100 以降は 100 単位。
+    @Test
+    func currentStreakMilestones_short_returnsExpectedSequence() {
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 9) == [])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 10) == [10])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 29) == [10])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 30) == [10, 30])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 49) == [10, 30])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 50) == [10, 30, 50])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 99) == [10, 30, 50])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 100) == [10, 30, 50, 100])
+    }
+
+    /// 100 以降は厳密に 100 単位で増えること (199 で 100 のみ、200 で +200)。
+    @Test
+    func currentStreakMilestones_hundredsStep_returnsEveryHundred() {
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 199) == [10, 30, 50, 100])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 200) == [10, 30, 50, 100, 200])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 350) == [10, 30, 50, 100, 200, 300])
+        #expect(MilestoneDetector.currentStreakMilestones(upTo: 1000) ==
+                [10, 30, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])
+    }
+
+    /// 上限 (2000) を超えても無限ループせず、頭打ちすること。
+    @Test
+    func currentStreakMilestones_capped_doesNotOverflowAtHighInput() {
+        let result = MilestoneDetector.currentStreakMilestones(upTo: 5000)
+        #expect(result.last == 2000, "2000 で打ち切り (現実的範囲ガード)")
+        #expect(result.count == 23, "10/30/50 + 100..2000 = 3 + 20 = 23 件")
+    }
 }

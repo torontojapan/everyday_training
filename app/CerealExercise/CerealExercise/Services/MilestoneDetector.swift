@@ -111,12 +111,30 @@ final class MilestoneDetector {
         }
 
         // Current streak.
-        for target in [30, 100, 365] {
-            if currentStreak >= target {
-                result.append(.currentStreak(target))
-            }
+        // 初期 (10/30/50) は短期で達成感を刻んで習慣化を後押し、100 以降は
+        // 100 単位で「節目」感を強める設計 (ユーザー要望)。
+        for target in Self.currentStreakMilestones(upTo: currentStreak) {
+            result.append(.currentStreak(target))
         }
 
+        return result
+    }
+
+    /// `currentStreak` が達した可能性のあるマイルストーン値を昇順で返す。
+    /// `[10, 30, 50, 100, 200, 300, 400, ...]` を `currentStreak` 以下まで。
+    /// 100 以降は 100 単位で機械的に進むので閾値定義に上限を持たせない。
+    /// 純関数なので `nonisolated` でテストから自由に呼べるようにする。
+    nonisolated static func currentStreakMilestones(upTo current: Int) -> [Int] {
+        guard current >= 10 else { return [] }
+        var result: [Int] = []
+        for t in [10, 30, 50] where current >= t { result.append(t) }
+        // 100 単位は理論上無限に続くが、現実的に到達する 100..2000 程度で打ち切る
+        // (= 5 年半連続、これ以上は別のシステムで祝うべきオーバーキル領域)。
+        var t = 100
+        while t <= 2000, current >= t {
+            result.append(t)
+            t += 100
+        }
         return result
     }
 
