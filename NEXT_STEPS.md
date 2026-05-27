@@ -6,10 +6,10 @@
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 **完全完了** + P1 トレンド/予測完了 + アプリ共有導線 + ユーザー要望 UI 調整 (シェア配置 + チャート annotation)
-- **テスト**: Unit **172 XCTest + 35 Swift Testing = 207 件** + UI **17/17** = **224 件 全 PASS**
-- **最新コミット**: `d1f8b30` Codex round3 反映: 隣接判定を物理距離で stable に検証
-- **GitHub**: `torontojapan/everyday_training` main から 16 commit ahead (未 push)
+- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 **完全完了** + P1 トレンド/予測完了 + アプリ共有導線 + ユーザー要望 UI 調整 + 達成演出にキャラ + ミルストーン拡充
+- **テスト**: Unit **172 XCTest + 42 Swift Testing = 214 件** + UI **17/17** = **231 件 全 PASS**
+- **最新コミット**: `141041b` Codex round2 反映: migration を streak のみに絞り、clear() を独立化
+- **GitHub**: `torontojapan/everyday_training` main から 22 commit ahead (未 push)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 - **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、今セッションは体重管理に 6 ラウンド回し、priority 1/2/3 を確実に潰した
 
