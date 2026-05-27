@@ -6,10 +6,11 @@ import UIKit
 /// (現在の体重 / 目標までの距離) を **1 枚** にまとめる。
 ///
 /// レイアウト:
-/// - 上段ヘッダ: 「最新の体重 · 日付 · 目標を変更」
+/// - 上段ヘッダ: 「最新の体重 · 日付」
 /// - 中段: 巨大な現在体重 (kg) (左) + 達成リング + 選択中の猫キャラ (右)
 /// - 下段 KPI チップ: `あと N kg` / `今週 ±N kg` (横スクロール対応)
-/// - 最下段: 開始 → 目標 のミニラベル
+/// - 最下段: 開始 → 目標 のミニラベル + 右端「変更」ボタン
+///   (目標未設定時はフル幅「目標体重を設定」CTA に degrade)
 ///
 /// 目標未設定や記録 0 件のときは段階的に degrade する。
 struct WeightHeroDashboard: View {
@@ -84,21 +85,25 @@ struct WeightHeroDashboard: View {
                 }
             }
 
-            // 開始 → 目標 のミニラベル (薄い divider 下に)。
-            // ユーザー要望で「目標を変更」をこの行の右端に配置。
-            if let startKg, let targetKg {
+            // 「開始 → 目標」ミニラベル + 右端「変更」(ユーザー要望)。
+            // ブランチ条件は targetKg の有無を基準にする (Codex round 反映:
+            // 「目標を設定したが体重をまだ記録していない」状態で startKg=nil /
+            // targetKg=set はあり得る。その場合も目標は出して、開始は省略する)。
+            if let targetKg {
                 Divider().opacity(0.5)
                 HStack(spacing: 6) {
-                    Text("開始")
-                        .font(.caption2)
-                        .foregroundStyle(Palette.textSecondary)
-                    Text(String(format: "%.1f", startKg))
-                        .font(.system(.caption, design: .rounded, weight: .heavy))
-                        .foregroundStyle(Palette.textPrimary)
-                        .monospacedDigit()
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(Palette.textSecondary)
+                    if let startKg {
+                        Text("開始")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.textSecondary)
+                        Text(String(format: "%.1f", startKg))
+                            .font(.system(.caption, design: .rounded, weight: .heavy))
+                            .foregroundStyle(Palette.textPrimary)
+                            .monospacedDigit()
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Palette.textSecondary)
+                    }
                     Text("目標")
                         .font(.caption2)
                         .foregroundStyle(Palette.textSecondary)
