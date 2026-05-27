@@ -34,12 +34,17 @@ final class HomeViewModel {
     /// 朝起きて未記録でも、昨日達成済みなら通常 UI のまま。
     var isComebackToday: Bool = false
     private let usageTracker = LifetimeUsageTracker()
-    private let rescueTicketStore = RescueTicketStore()
-    private let milestoneDetector = MilestoneDetector()
+    private let rescueTicketStore: RescueTicketStore
+    private let milestoneDetector: MilestoneDetector
 
-    init(dateProvider: any DateProviding = SystemDateProvider(), calendar: Calendar = .mondayFirst) {
+    init(dateProvider: any DateProviding = SystemDateProvider(),
+         calendar: Calendar = .mondayFirst,
+         rescueTicketStore: RescueTicketStore = RescueTicketStore(),
+         milestoneDetector: MilestoneDetector? = nil) {
         self.dateProvider = dateProvider
         self.calendar = calendar
+        self.rescueTicketStore = rescueTicketStore
+        self.milestoneDetector = milestoneDetector ?? MilestoneDetector()
     }
 
     func refresh(records: [WorkoutRecord],
@@ -90,17 +95,21 @@ final class HomeViewModel {
             && lifetimeStats.achievedDays >= 3
     }
 
-    /// 昨日の DailyStatus (rest day / rescue ticket 自動補完を込みで評価)。
+    /// 昨日の DailyStatus (rest day **+ rescue ticket** 自動補完を込みで評価)。
     /// 復帰モード判定で「真に missed か」を確定するため。
+    /// Codex round1 priority 1: rescuedDates を渡さないと、ticket で救済済の
+    /// 日も .missed 扱いになり comeback 表示が誤発火していた。
     private func yesterdayStatus(records: [WorkoutRecord], today: Date) -> DailyStatus {
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
             return .future
         }
         let restDays = RestDayResolver.restDaySet(for: yesterday, records: records, today: today, calendar: calendar)
+        let rescued = rescueTicketStore.rescuedDates()
         return AchievementEvaluator.dailyStatus(
             for: yesterday,
             records: records,
             restDays: restDays,
+            rescuedDates: rescued,
             today: today,
             calendar: calendar
         )

@@ -42,6 +42,34 @@ struct HomeViewModelComebackTests {
                 "土曜・昨日 missed・今日未達・習慣あり → 復帰モード")
     }
 
+    /// rescue ticket で救済された昨日は missed 扱いせず、復帰モードも出さない。
+    /// Codex round1 priority 1: rescuedDates を yesterdayStatus に渡し忘れ
+    /// → 救済済の昨日が missed で comeback 誤発火 の regression test。
+    @Test
+    func isComebackToday_false_whenYesterdayWasRescued() {
+        let suite = "rescue-yesterday-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let today = nextSaturday(after: Date())
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
+
+        // 昨日を rescue ticket で救済 = .achieved 扱いになる
+        let ticketStore = RescueTicketStore(defaults: defaults)
+        _ = ticketStore.useTicket(on: yesterday)
+
+        let vm = HomeViewModel(
+            dateProvider: FixedDateProvider(date: today),
+            calendar: cal,
+            rescueTicketStore: ticketStore
+        )
+        // 過去 7..14 日の習慣 + 昨日 missed 系シナリオを再現するための records
+        let records = (7...14).map { offset in
+            record(on: cal.date(byAdding: .day, value: -offset, to: today)!)
+        }
+        vm.refresh(records: records)
+        #expect(vm.isComebackToday == false,
+                "rescue ticket で救済された昨日は missed 扱いせず、復帰モードを出さない")
+    }
+
     /// 「次の土曜日 (= today を week 後半に固定)」を返す helper。
     /// rest day 自動補完 (週前半 Mon/Tue まで) によってテスト結果がブレるのを防ぐ。
     private func nextSaturday(after base: Date) -> Date {

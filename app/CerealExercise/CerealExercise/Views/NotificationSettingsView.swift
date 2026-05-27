@@ -103,6 +103,8 @@ struct NotificationSettingsView: View {
             set: { newValue in
                 personality = newValue
                 NotificationPersonalityPreferences.shared.current = newValue
+                // 性格を変えたら即座に reschedule。Codex round1 priority 1。
+                Task { await viewModel.rescheduleForCurrentSettings() }
             }
         )
     }

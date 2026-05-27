@@ -16,10 +16,19 @@ final class NotificationSettingsScheduler: NotificationSettingsScheduling {
     }
 
     func apply(settings: NotificationSettings) async {
+        // Codex round1 priority 1: 設定変更時の reschedule で
+        // currentStreak/weeklyProgressRate に 0 を固定値で渡すと、quiet 性格
+        // モードでは streakAtRisk=false 扱いで全 reminder が消えるバグになる。
+        // 直近の WidgetSnapshot から実際の状態を読んで渡す (Widget は記録の
+        // たびに publish されるので最新)。
+        let snapshot = SharedSnapshotStore().read()
+        let weeklyRate = snapshot.weeklyTotal > 0
+            ? Double(snapshot.weeklyAchieved) / Double(snapshot.weeklyTotal)
+            : 0
         await NotificationScheduler(settings: settings, calendar: calendar).scheduleDaily(
-            todayAchieved: false,
-            currentStreak: 0,
-            weeklyProgressRate: 0
+            todayAchieved: snapshot.todayAchieved,
+            currentStreak: snapshot.currentStreak,
+            weeklyProgressRate: weeklyRate
         )
     }
 }
@@ -68,6 +77,13 @@ final class NotificationSettingsViewModel {
 
     func refreshAuthorizationStatus() async {
         authorizationStatus = await permissionManager.authorizationStatus()
+    }
+
+    /// 通知の性格モードが UI で変更された時、現在の settings で reschedule を
+    /// やり直す (旧モードで登録された pending request を捨てて新モードで再登録)。
+    /// Codex round1 priority 1 で「設定を変えても即座に反映されない」を解消。
+    func rescheduleForCurrentSettings() async {
+        await persistAndApply()
     }
 
     func setEnabled(_ enabled: Bool) async {
