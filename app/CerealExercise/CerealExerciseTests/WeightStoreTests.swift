@@ -498,6 +498,69 @@ struct WeightStoreTests {
         #expect(store.forecastDaysToTarget(today: today) == 0)
     }
 
+    /// 残り日数の四捨五入で 0 にならないこと (Codex round1 priority 2)。
+    /// epsilon ガード (delta < 50g → 0) と「丸めて 0」が衝突しないよう、
+    /// 残量があれば最低 1 日にする。
+    @Test
+    func forecast_steepSlope_doesNotRoundToZero() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 30 日で -3kg ペース → slope ≒ -0.1 kg/day
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+                .addingTimeInterval(8 * 3600)
+            // newest 65.04kg, oldest ≒ 68.04 → trend 最新値が target に肉薄
+            let weight = 65.04 + Double(offset) * 0.103
+            context.insert(WeightEntry(date: date, weightKilograms: weight))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 65.0 // raw との差 0.04kg → 早期 0 になり得る
+
+        // ただし target 65.0 と latest 65.04 の差は 0.04 < 50g なので圏内 (0)。
+        // 早期 epsilon ガードの動作を確認。
+        #expect(store.forecastDaysToTarget(today: today) == 0)
+
+        // 別シナリオ: target を 64.9 にすると延ばし、slope -0.1, baseline ≒ 65.0
+        // → days ≒ (64.9 - 65.0) / -0.1 = 1.0 → 1 (0 にならない)。
+        prefs.targetKilograms = 64.9
+        let days = store.forecastDaysToTarget(today: today)
+        #expect(days != nil)
+        if let days {
+            #expect(days >= 1, "残量があるなら最低 1 日 (got \(days))")
+        }
+    }
+
+    /// `entries` のソート順は date 降順 → createdAt 降順 → id 降順 で
+    /// deterministic (Codex round1 priority 3)。同一秒の二重 insert でも
+    /// 「日内最新」の判定がブレないこと。
+    @Test
+    func entries_deterministicSort_whenTimestampsCollide() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        let sameTimestamp = today.addingTimeInterval(10 * 3600)
+        // 同 timestamp で 2 件 insert (createdAt は実時間順に差がつく)
+        let first = WeightEntry(date: sameTimestamp, weightKilograms: 65.0,
+                                createdAt: Date(timeIntervalSince1970: 100))
+        let second = WeightEntry(date: sameTimestamp, weightKilograms: 64.0,
+                                 createdAt: Date(timeIntervalSince1970: 200))
+        context.insert(first)
+        context.insert(second)
+        try context.save()
+        store.fetchEntries()
+
+        // 複数回 fetch しても同じ順序 (createdAt 降順 → second が先頭)
+        #expect(store.entries.count == 2)
+        #expect(store.entries.first?.weightKilograms == 64.0,
+                "createdAt が新しい second が先頭に来るべき")
+        // chartEntries (日内最新採用) でも second が拾われる
+        let chart = store.chartEntries(period: .week, today: today)
+        #expect(chart.count == 1)
+        #expect(chart.first?.weightKilograms == 64.0)
+    }
+
     /// 目標未設定 / 体重 0 件 / トレンド不足 などは nil。
     @Test
     func forecast_insufficientInputs_returnNil() throws {

@@ -25,7 +25,14 @@ final class WeightStore {
     }
 
     func fetchEntries() {
-        let descriptor = FetchDescriptor<WeightEntry>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        // 同一秒の二重 insert (高速タップ・インポート) で順序が不定にならないよう、
+        // date 降順 → createdAt 降順 → id 文字列順 の **3 段ソート** で deterministic に。
+        // 日内最新の判定 (chartEntries の先頭採用) もこれで安定する (Codex round1)。
+        let descriptor = FetchDescriptor<WeightEntry>(sortBy: [
+            SortDescriptor(\.date, order: .reverse),
+            SortDescriptor(\.createdAt, order: .reverse),
+            SortDescriptor(\.id, order: .reverse),
+        ])
         do {
             entries = try context.fetch(descriptor)
             lastErrorMessage = nil
@@ -137,8 +144,19 @@ final class WeightStore {
 
     var change30Days: Double? {
         guard let latest = latestNonFuture else { return nil }
-        let cutoff = calendar.date(byAdding: .day, value: -30, to: latest.date) ?? latest.date
-        let earlier = entries.first { $0.date <= cutoff }
+        // cutoff は **calendar 日ベース** で計算する。latest.date が時刻入りの
+        // ままだと、cutoff 当日 (latest から 30 calendar 日前) の中で latest と
+        // 時刻が前後するエントリが取りこぼされる (Codex round1 priority 1)。
+        // startOfDay で正規化してから -30 日することで「当日のエントリは時刻に
+        // 関わらず採用候補に入る」を保証。
+        let latestDayStart = calendar.startOfDay(for: latest.date)
+        let cutoffDayStart = calendar.date(byAdding: .day, value: -30, to: latestDayStart) ?? latestDayStart
+        // cutoff 当日に複数件あれば、その日の最新時刻が選ばれる
+        // (entries は date 降順なので一致条件下で最新時刻が先頭)。
+        let earlier = entries.first { entry in
+            let entryDayStart = self.calendar.startOfDay(for: entry.date)
+            return entryDayStart <= cutoffDayStart
+        }
         guard let earlier else { return nil }
         return latest.weightKilograms - earlier.weightKilograms
     }
@@ -233,7 +251,10 @@ final class WeightStore {
 
         let days = delta / slope // 同符号で割るので必ず正
         guard days.isFinite, days > 0 else { return nil }
-        let rounded = Int(days.rounded())
+        // 残り日数の round で 0 になると UI 側で「圏内」表示になり誤解させる
+        // (epsilon ガードと意味が衝突する)。残りがある場合は **最低 1 日** に
+        // ceiling する (Codex round1 priority 2)。
+        let rounded = max(1, Int(days.rounded()))
         guard rounded <= maxDays else { return nil }
         return rounded
     }
