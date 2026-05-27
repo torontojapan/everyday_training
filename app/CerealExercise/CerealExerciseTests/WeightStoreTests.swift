@@ -554,10 +554,10 @@ struct WeightStoreTests {
     }
 
     /// `entries` のソート順は date 降順 → createdAt 降順 → id 降順 で
-    /// deterministic (Codex round1 priority 3)。同一秒の二重 insert でも
-    /// 「日内最新」の判定がブレないこと。3 段すべての tie-break を確認:
-    ///   - date 同一: createdAt が tie-break
-    ///   - date + createdAt 同一: id が tie-break
+    /// deterministic (Codex round1 priority 3)。3 段すべての tie-break を確認:
+    ///   - **date 違い** (一次キー): 後の日が先頭 (cross-day 検証)
+    ///   - date 同一 / createdAt 違い (二次キー): createdAt 降順
+    ///   - date + createdAt 同一 / id 違い (三次キー): id 降順
     /// さらに **複数回 fetch しても順序が安定** であることを確認 (SwiftData の
     /// 内部キャッシュやインデックス変動の影響を受けない)。
     @Test
@@ -565,50 +565,56 @@ struct WeightStoreTests {
         let (store, context, _) = try makeStore()
         let cal = calendar()
         let today = cal.startOfDay(for: Date())
-        let sameTimestamp = today.addingTimeInterval(10 * 3600)
+        let todayMorning = today.addingTimeInterval(10 * 3600)
+        let yesterdayMorning = cal.date(byAdding: .day, value: -1, to: today)!
+            .addingTimeInterval(10 * 3600)
         let sameCreatedAt = Date(timeIntervalSince1970: 500)
 
-        // (A) date 同一 / createdAt 違い → createdAt 降順で並ぶ
-        let a1 = WeightEntry(date: sameTimestamp, weightKilograms: 65.0,
+        // (Y) **昨日** のエントリ: createdAt がかなり新しくても、date が前なので
+        //     **必ず後ろ** に来ることを確認 (date が一次キー、createdAt より優先)。
+        let y = WeightEntry(date: yesterdayMorning, weightKilograms: 70.0,
+                            createdAt: Date(timeIntervalSince1970: 9999)) // 一番新しい createdAt
+        // (A) 今日 / createdAt 違い → createdAt 降順で並ぶ
+        let a1 = WeightEntry(date: todayMorning, weightKilograms: 65.0,
                              createdAt: Date(timeIntervalSince1970: 100))
-        let a2 = WeightEntry(date: sameTimestamp, weightKilograms: 64.0,
+        let a2 = WeightEntry(date: todayMorning, weightKilograms: 64.0,
                              createdAt: Date(timeIntervalSince1970: 200))
-        // (B) date + createdAt 同一 / id 違い → id 降順で並ぶ
-        // id を文字列大小で順序付けられるよう固定 UUID を使う
+        // (B) 今日 / createdAt 同一 / id 違い → id 降順で並ぶ
         let lowID  = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
         let highID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
-        let b1 = WeightEntry(id: lowID, date: sameTimestamp,
+        let b1 = WeightEntry(id: lowID, date: todayMorning,
                              weightKilograms: 63.0, createdAt: sameCreatedAt)
-        let b2 = WeightEntry(id: highID, date: sameTimestamp,
+        let b2 = WeightEntry(id: highID, date: todayMorning,
                              weightKilograms: 62.0, createdAt: sameCreatedAt)
-        // 順番ぐちゃぐちゃに insert
-        context.insert(b1)
-        context.insert(a1)
-        context.insert(b2)
-        context.insert(a2)
+        // 順番ぐちゃぐちゃに insert (y を真ん中に挟んで date 優先性を検証)
+        context.insert(b1); context.insert(a1); context.insert(y)
+        context.insert(b2); context.insert(a2)
         try context.save()
         store.fetchEntries()
 
-        // 期待順序 (新→古): a2 (createdAt 200) → b2 (createdAt 500, id high) →
-        //                    b1 (createdAt 500, id low) → a1 (createdAt 100)
-        // ※ createdAt 降順なので 500 > 200 > 100、500 のグループ内は id 降順
+        // 期待順序 (新→古):
+        //   今日: createdAt 500 グループ (b2 → b1) → createdAt 200 (a2) → createdAt 100 (a1)
+        //   昨日: y (createdAt が一番新しいが date が前なので最後)
+        // → [62.0 (b2), 63.0 (b1), 64.0 (a2), 65.0 (a1), 70.0 (y)]
         let firstWeights = store.entries.map(\.weightKilograms)
-        let expectedOrder: [Double] = [62.0, 63.0, 64.0, 65.0]
+        let expectedOrder: [Double] = [62.0, 63.0, 64.0, 65.0, 70.0]
         #expect(firstWeights == expectedOrder,
-                "createdAt 降順 + id 降順の deterministic ソート: \(firstWeights)")
+                "date 降順 → createdAt 降順 → id 降順: \(firstWeights)")
+        #expect(store.entries.last?.weightKilograms == 70.0,
+                "昨日のエントリは createdAt が新しくても date 優先で末尾に来る")
 
         // 再 fetch しても同じ順序になることを 3 回確認
         for round in 1...3 {
             store.fetchEntries()
-            let weights = store.entries.map(\.weightKilograms)
-            #expect(weights == expectedOrder,
-                    "fetch round \(round) でも同じ順序: \(weights)")
+            #expect(store.entries.map(\.weightKilograms) == expectedOrder,
+                    "fetch round \(round) でも同じ順序")
         }
 
-        // chartEntries (日内最新採用) でも先頭の 62.0 が拾われる
+        // chartEntries (日内最新採用) は今日の先頭 62.0 と昨日の 70.0 = 2 件
         let chart = store.chartEntries(period: .week, today: today)
-        #expect(chart.count == 1)
-        #expect(chart.first?.weightKilograms == 62.0)
+        #expect(chart.count == 2)
+        #expect(chart.first?.weightKilograms == 62.0, "今日の日内最新")
+        #expect(chart.last?.weightKilograms == 70.0, "昨日の唯一の記録")
     }
 
     /// 目標未設定 / 体重 0 件 / トレンド不足 などは nil。
