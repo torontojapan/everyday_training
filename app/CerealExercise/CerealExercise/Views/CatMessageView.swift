@@ -3,17 +3,15 @@ import SwiftUI
 struct CatMessageView: View {
     let message: CatMessage
     let state: CatState
-    let decoration: CatDecoration
 
-    init(message: CatMessage, state: CatState = .waitingMorning, decoration: CatDecoration = .none) {
+    init(message: CatMessage, state: CatState = .waitingMorning) {
         self.message = message
         self.state = state
-        self.decoration = decoration
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            CatStateView(state: state, decoration: decoration)
+            CatStateView(state: state)
 
             // 引用符を外し本文だけにすることで吹き出し感を維持しつつ
             // 視覚的なノイズを減らす。本文は最大 3 行で省略。

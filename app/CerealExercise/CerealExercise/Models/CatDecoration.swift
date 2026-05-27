@@ -61,57 +61,19 @@ enum CatDecoration: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    // RewardCard / FriendAvatarView / FriendDetailView のチップ色に使用。
+    // 以前は CatDecorationOverlay でキャラ画像の上に直接描いていたが、
+    // Phase 6.4 のキャラ刷新で新アートにヘッドバンド・ジャケット等が
+    // 描き込まれたため overlay は二重描画になり顔に色のシミとして残る
+    // 不具合を起こしていた (青→緑と色だけ変えても再発)。Phase 7.1 で
+    // overlay を撤去、tier はチップ・カード側で表示する方針に統一。
     var accentColor: Color {
         switch self {
         case .none: return .clear
         case .bandana: return Color(red: 1.00, green: 0.55, blue: 0.55)   // 珊瑚赤
-        // 30 日達成のヘッドバンドは以前は青 (RGB 0.60/0.70/0.95) だったが、
-        // BigCatView 内で scaleEffect(2.2) されて顔の額上に「青いシミ」として
-        // 残り、ユーザーから複数回「青く滲む」と指摘されていた。
-        // 暖色系 (緑) に変更し、bandana 赤と区別できる清涼感に。
         case .headband: return Color(red: 0.45, green: 0.78, blue: 0.55)  // フィットネス緑
         case .medal: return Color(red: 0.90, green: 0.60, blue: 0.20)     // ブロンズ
         case .crown: return Color(red: 1.00, green: 0.82, blue: 0.30)     // 金
-        }
-    }
-}
-
-struct CatDecorationOverlay: View {
-    let decoration: CatDecoration
-
-    var body: some View {
-        switch decoration {
-        case .none:
-            EmptyView()
-        case .bandana:
-            Image(systemName: "rectangle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 26, height: 8)
-                .foregroundStyle(decoration.accentColor)
-                .rotationEffect(.degrees(-12))
-                .offset(x: 0, y: 22)
-                .accessibilityLabel("バンダナ装着")
-        case .headband:
-            Image(systemName: "rectangle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 38, height: 6)
-                .foregroundStyle(decoration.accentColor)
-                .offset(x: 0, y: -28)
-                .accessibilityLabel("ヘッドバンド装着")
-        case .medal:
-            Image(systemName: "medal.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(decoration.accentColor)
-                .offset(x: 22, y: 16)
-                .accessibilityLabel("メダル獲得")
-        case .crown:
-            Image(systemName: "crown.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(decoration.accentColor)
-                .offset(x: 0, y: -32)
-                .accessibilityLabel("王冠装着")
         }
     }
 }

@@ -157,7 +157,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState, decoration: viewModel.catDecoration)
+            BigCatView(state: viewModel.catState)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -290,8 +290,9 @@ struct HomeView: View {
     }
 }
 
-/// CatStateView の大型版 (280pt)。装飾もキャラ全体にスケールするように
-/// 元 CatStateView をベースに新規。
+/// CatStateView の大型版 (280pt)。Phase 7.1 で装飾 overlay を撤去
+/// (新キャラアートにヘッドバンド等が描き込み済みのため二重描画 → 顔の
+/// 上に色のシミを残していた)。
 /// - 丸枠の clipShape を外して `.scaledToFit` で表示することで、しっぽや
 ///   バンザイした手など円の外に出る要素が切れなくなる。背景 Circle は装飾
 ///   (光輪) として残す。
@@ -299,7 +300,6 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
-    var decoration: CatDecoration = .none
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
@@ -328,8 +328,6 @@ struct BigCatView: View {
                 Text(state.emoji)
                     .font(.system(size: 120))
             }
-            CatDecorationOverlay(decoration: decoration)
-                .scaleEffect(2.2)
         }
         .scaleEffect(reduceMotion ? 1 : (breathing ? 1.03 : 1))
         .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))

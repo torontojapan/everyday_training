@@ -3,7 +3,6 @@ import UIKit
 
 struct CatStateView: View {
     let state: CatState
-    var decoration: CatDecoration = .none
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAnimated = false
@@ -49,7 +48,6 @@ struct CatStateView: View {
                 Text(state.emoji)
                     .font(.system(size: state == .streakExtended ? 40 : 46))
             }
-            CatDecorationOverlay(decoration: decoration)
         }
     }
 

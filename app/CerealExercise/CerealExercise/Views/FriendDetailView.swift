@@ -73,7 +73,6 @@ struct FriendDetailView: View {
                     .scaleEffect(1.05)
                     .frame(width: 132, height: 132)
                     .clipShape(Circle())
-                CatDecorationOverlay(decoration: friend.decoration)
             }
             .accessibilityHidden(true)
 
