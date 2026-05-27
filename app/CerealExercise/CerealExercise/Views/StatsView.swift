@@ -180,14 +180,26 @@ struct StatsView: View {
             NavigationLink {
                 RescueTicketUseView()
             } label: {
-                Label("使う日を選んで適用", systemImage: "calendar.badge.checkmark")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.primaryDeep)
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(Palette.primary.opacity(0.12), in: Capsule())
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .font(.system(size: 18, weight: .heavy))
+                    Text("使う日を選んで適用")
+                        .font(Typography.body)
+                        .fontWeight(.heavy)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .heavy))
+                        .opacity(0.85)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18).padding(.vertical, 14)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Palette.primary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: Palette.primary.opacity(0.30), radius: 6, x: 0, y: 3)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("rescue-use-link")
+            .accessibilityLabel("保険チケットを使う日を選ぶ")
         }
     }
 
@@ -306,12 +318,14 @@ struct StatsView: View {
     /// これまでの記録 entry-row。tap → `LifetimeStatsShareSheet`。
     private var lifetimeStatsEntry: some View {
         Button {
-            let now = Date()
-            viewModel.refresh(records: store.records, anchorDate: now)
+            // Codex round 反映: 他の StatsView 操作と同じ store.today を使い、
+            // 注入クロック (テスト) と整合性を保つ。
+            let day = store.today
+            viewModel.refresh(records: store.records, anchorDate: day)
             pendingLifetimeShare = LifetimeSharePayload(
                 achievedDays: viewModel.lifetimeStats.achievedDays,
                 usedDays: viewModel.lifetimeStats.usedDays,
-                snapshottedAt: now
+                snapshottedAt: day
             )
         } label: {
             HStack(spacing: 12) {
@@ -339,9 +353,12 @@ struct StatsView: View {
     }
 
     /// これまでの記録 entry-row の subtitle。
+    /// `usedDays` は `LifetimeStatsCalculator` で `max(1, ...)` クランプされる
+    /// ため > 0 ガードは常に true で死コード化していた (Codex 指摘)。
+    /// 実際の「まだ記録がない」判定は records が空かどうかで行う。
     private var lifetimeStatsSubtitle: String {
         let stats = viewModel.lifetimeStats
-        guard stats.usedDays > 0 else { return "まだ記録がありません" }
+        guard !store.records.isEmpty else { return "まだ記録がありません" }
         let rate = Int((Double(stats.achievedDays) / Double(stats.usedDays) * 100).rounded())
         return "累計 \(stats.achievedDays) 日達成 / 使用 \(stats.usedDays) 日 (\(rate)%)"
     }

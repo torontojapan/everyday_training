@@ -54,7 +54,8 @@ struct WeightHeroDashboard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // 上段ヘッダ: 「最新の体重」+ 日付 / 右に「変更」(目標があれば)
+            // 上段ヘッダ: 「最新の体重 · 日付」 (右に「目標を変更」を置かない。
+            // ユーザー要望で 開始→目標 行に右寄せ移動した)
             HStack(alignment: .firstTextBaseline) {
                 Text("最新の体重")
                     .font(Typography.caption)
@@ -67,14 +68,6 @@ struct WeightHeroDashboard: View {
                         .foregroundStyle(Palette.textSecondary)
                 }
                 Spacer()
-                Button(action: onEditTarget) {
-                    Label(targetKg == nil ? "目標を設定" : "目標を変更",
-                          systemImage: "target")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("hero-edit-target")
             }
 
             // 中段: 巨大体重数字 (左) + リング+猫 (右)、余白多めでバランス
@@ -91,7 +84,8 @@ struct WeightHeroDashboard: View {
                 }
             }
 
-            // 開始 → 目標 のミニラベル (薄い divider 下に)
+            // 開始 → 目標 のミニラベル (薄い divider 下に)。
+            // ユーザー要望で「目標を変更」をこの行の右端に配置。
             if let startKg, let targetKg {
                 Divider().opacity(0.5)
                 HStack(spacing: 6) {
@@ -113,6 +107,31 @@ struct WeightHeroDashboard: View {
                         .foregroundStyle(Palette.primaryDeep)
                         .monospacedDigit()
                     Spacer()
+                    Button(action: onEditTarget) {
+                        Label("変更", systemImage: "pencil")
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Palette.primary.opacity(0.15), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("hero-edit-target")
+                    .accessibilityLabel("目標体重を変更")
+                }
+            } else {
+                // 目標未設定: 設定 CTA を独立行で出す
+                Divider().opacity(0.5)
+                HStack {
+                    Spacer()
+                    Button(action: onEditTarget) {
+                        Label("目標体重を設定", systemImage: "target")
+                            .font(.caption.weight(.heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(Palette.primary, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("hero-edit-target")
                 }
             }
         }
