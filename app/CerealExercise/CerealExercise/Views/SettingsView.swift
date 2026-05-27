@@ -7,7 +7,6 @@ struct SettingsView: View {
     @State private var celebrationPrefs = CelebrationPreferences.shared
     @State private var sharingPrefs = FriendSharingPreferences.shared
     @State private var isShowingUserCatPicker = false
-    private let rescueTicketStore = RescueTicketStore()
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
 
@@ -111,17 +110,8 @@ struct SettingsView: View {
                 Text("ONにすると、運動記録画面に「今日は生理日」スイッチが出現し、履歴カレンダーに ★ マーク (生理日) で表示されます。")
             }
 
-            Section("保険チケット") {
-                rescueTicketRow
-                NavigationLink {
-                    RescueTicketUseView()
-                } label: {
-                    Label("使う日を選んで適用", systemImage: "calendar.badge.checkmark")
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .accessibilityIdentifier("rescue-use-link")
-            }
-
+            // 保険チケットは履歴画面 (StatsView) に移動 (ユーザー要望)。
+            // 「振り返り」の文脈で運用する方が自然なため。
             Section("ホーム画面ウィジェット") {
                 widgetPromotionRow
                 Button {
@@ -208,27 +198,6 @@ struct SettingsView: View {
                 .foregroundStyle(Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    private var rescueTicketRow: some View {
-        let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
-        let remaining = rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
-        let available = remaining > 0
-        return HStack(spacing: 12) {
-            Image(systemName: available ? "ticket.fill" : "ticket")
-                .font(.system(size: 22))
-                .foregroundStyle(available ? Palette.primary : Palette.textSecondary.opacity(0.5))
-            VStack(alignment: .leading, spacing: 4) {
-                Text("今月 \(remaining) / \(allowance)枚 残り")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textPrimary)
-                Text(allowance > 1 ? "忙しい日に連続記録を守れます (体調・周期 ON で +1 枚)" : "忙しい日に1日だけ連続記録を守れます")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(.vertical, 4)
     }
 
     private var widgetPromotionRow: some View {

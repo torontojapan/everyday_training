@@ -34,11 +34,26 @@ struct StatsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    // ユーザー指定の並び順:
+                    // 1. カレンダー → 2. 生理日入力 → 3. 保険チケット →
+                    // 4. 今週のハイライト → 5. 先月のレビュー → 6. これまでの記録
                     monthlyCalendarCard
 
+                    if cycleSettings.isEnabled, let menstrualStore {
+                        menstrualEntry(store: menstrualStore)
+                    }
+
+                    // 保険チケット (設定から移動)。折りたたみで残枚数だけ subtitle 表示。
+                    CollapsibleSection(
+                        persistenceKey: "stats.rescueTicket",
+                        title: "保険チケット",
+                        subtitle: rescueTicketSubtitle,
+                        icon: rescueTicketRemaining > 0 ? "ticket.fill" : "ticket"
+                    ) {
+                        rescueTicketContent
+                    }
+
                     if viewModel.weeklySummary.hasExerciseData {
-                        // 折りたたみ (ユーザー要望): タップで展開、デフォルトは閉じる。
-                        // subtitle に「使ったカテゴリ / 合計分」だけ出して中身は隠す。
                         CollapsibleSection(
                             persistenceKey: "stats.weeklyHighlight",
                             title: "今週のハイライト",
@@ -49,14 +64,10 @@ struct StatsView: View {
                         }
                     }
 
-                    if cycleSettings.isEnabled, let menstrualStore {
-                        menstrualEntry(store: menstrualStore)
-                    }
                     monthlyReviewEntry
 
-                    // 「これまでの記録」(累計達成日 / 使用日) は一番下に移動
-                    // (ユーザー要望)。日次/週次の文脈とは別の長期統計なので
-                    // フッター位置で「振り返り終わりの後押し」として置く。
+                    // 「これまでの記録」(累計達成日 / 使用日) は一番下に。
+                    // 長期統計を「振り返り終わりの後押し」として置く。
                     LifetimeStatsCard(
                         achievedDays: viewModel.lifetimeStats.achievedDays,
                         usedDays: viewModel.lifetimeStats.usedDays
@@ -84,6 +95,56 @@ struct StatsView: View {
             .sheet(item: $selectedDay) { day in
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
+        }
+    }
+
+    /// 保険チケットの今月残り枚数 (a11y / subtitle / icon の出し分けに使う)。
+    private var rescueTicketRemaining: Int {
+        let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
+        return rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
+    }
+
+    /// 保険チケット折りたたみ中の subtitle。残り枚数を 1 行で表示。
+    private var rescueTicketSubtitle: String {
+        let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
+        let remaining = rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
+        return "今月 \(remaining) / \(allowance) 枚 残り"
+    }
+
+    /// 保険チケット展開時の中身: 説明 + 「使う日を選んで適用」リンク。
+    private var rescueTicketContent: some View {
+        let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
+        let remaining = rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
+        let available = remaining > 0
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: available ? "ticket.fill" : "ticket")
+                    .font(.system(size: 22))
+                    .foregroundStyle(available ? Palette.primary : Palette.textSecondary.opacity(0.5))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("今月 \(remaining) / \(allowance) 枚 残り")
+                        .font(Typography.body)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text(allowance > 1
+                         ? "忙しい日に連続記録を守れます (体調・周期 ON で +1 枚)"
+                         : "忙しい日に1日だけ連続記録を守れます")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+            }
+            NavigationLink {
+                RescueTicketUseView()
+            } label: {
+                Label("使う日を選んで適用", systemImage: "calendar.badge.checkmark")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.primaryDeep)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Palette.primary.opacity(0.12), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("rescue-use-link")
         }
     }
 
