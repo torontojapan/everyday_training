@@ -90,18 +90,75 @@ struct WeightStoreTests {
         #expect(store.chartEntries(period: .all, today: today).count == 2, ".all でも未来日は除外")
     }
 
-    /// 同じ日に add すると上書きされる現状の挙動を locking 。
-    /// (Iteration 2 で見直し対象)
+    /// 同日複数記録は両方とも保持される (朝/晩を別エントリで管理する仕様)。
+    /// グラフでは「日内最新」に集約されるが、履歴とエントリ配列には両方残る。
     @Test
-    func addSameDay_overwritesExisting() throws {
+    func addSameDay_keepsBothEntries() throws {
         let (store, _, _) = try makeStore()
-        let today = Date()
-        _ = store.add(date: today, weightKilograms: 65.0, memo: "morning")
-        _ = store.add(date: today, weightKilograms: 64.5, memo: "evening")
+        let morning = Date()
+        let evening = morning.addingTimeInterval(8 * 3600) // 同日 8 時間後
+        _ = store.add(date: morning, weightKilograms: 65.0, memo: "morning")
+        _ = store.add(date: evening, weightKilograms: 64.5, memo: "evening")
 
-        #expect(store.entries.count == 1)
+        #expect(store.entries.count == 2, "同日2件とも保持される")
+        // entries は date 降順なので evening (新しい時刻) が先頭。
         #expect(store.entries.first?.weightKilograms == 64.5)
         #expect(store.entries.first?.memo == "evening")
+        #expect(store.entries.last?.weightKilograms == 65.0)
+        #expect(store.entries.last?.memo == "morning")
+    }
+
+    /// グラフ用 chartEntries は同日複数エントリを「日内最新」に集約する。
+    /// 朝 65.0 / 夜 64.5 なら夜の 64.5 のみが返る。
+    @Test
+    func chartEntries_collapsesToDailyLatest() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        let morning = today.addingTimeInterval(7 * 3600)   // 朝 7:00
+        let evening = today.addingTimeInterval(20 * 3600)  // 夜 20:00
+        let yesterdayMorning = cal.date(byAdding: .day, value: -1, to: today)!.addingTimeInterval(7 * 3600)
+        context.insert(WeightEntry(date: morning, weightKilograms: 65.0))
+        context.insert(WeightEntry(date: evening, weightKilograms: 64.5))
+        context.insert(WeightEntry(date: yesterdayMorning, weightKilograms: 66.0))
+        try context.save()
+        store.fetchEntries()
+
+        let week = store.chartEntries(period: .week, today: today)
+        #expect(week.count == 2, "今日 + 昨日 = 2 日分 (今日は 2 件あるが日内最新 1 件に集約)")
+        #expect(week.first?.weightKilograms == 64.5, "今日の最新 = 夜の 64.5")
+        #expect(week.last?.weightKilograms == 66.0, "昨日の唯一の記録 = 66.0")
+    }
+
+    /// 今日の現在時刻入りエントリ (例: today の 14:00) が "未来" 扱いで除外されないこと。
+    /// 旧実装は上限を `<= todayStart (今日 00:00)` にしていて、time-stamped な
+    /// 今日のエントリを取りこぼしていた (P0-4 で fix)。
+    @Test
+    func chartEntries_includesTodayEntriesWithTime() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        let nowish = today.addingTimeInterval(14 * 3600) // 今日 14:00
+        context.insert(WeightEntry(date: nowish, weightKilograms: 65.0))
+        try context.save()
+        store.fetchEntries()
+
+        #expect(store.chartEntries(period: .week, today: today).count == 1)
+        #expect(store.chartEntries(period: .all, today: today).count == 1)
+    }
+
+    /// latestNonFuture も今日の現在時刻入りエントリを除外してはいけない。
+    @Test
+    func latestNonFuture_includesTodayCurrentTime() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        let nowish = today.addingTimeInterval(14 * 3600)
+        context.insert(WeightEntry(date: nowish, weightKilograms: 65.0))
+        try context.save()
+        store.fetchEntries()
+
+        #expect(store.latestNonFuture?.weightKilograms == 65.0)
     }
 
     /// BMI 計算: 身長 170 cm, 体重 68 kg → BMI ≈ 23.53。
@@ -231,6 +288,226 @@ struct WeightStoreTests {
 
         #expect(store.latest?.weightKilograms == 99.0, "latest は未来日も含めた最新")
         #expect(store.latestNonFuture?.weightKilograms == 65.0, "latestNonFuture は未来日をスキップ")
+    }
+
+    // MARK: - Trendline (P1-1)
+
+    /// 7 日移動平均: 7 日分の連続データがあれば最終日の trend = 7 日平均。
+    @Test
+    func trendline_lastPointEqualsTrailingWindowAverage() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 7 日連続で 60.0 〜 63.0 を 0.5 刻みで入れる (oldest → newest)
+        let weights: [Double] = [60.0, 60.5, 61.0, 61.5, 62.0, 62.5, 63.0]
+        for (i, w) in weights.enumerated() {
+            let offset = -(weights.count - 1 - i) // -6, -5, ..., 0
+            let date = cal.date(byAdding: .day, value: offset, to: today)!
+                .addingTimeInterval(8 * 3600) // 8:00 で記録
+            context.insert(WeightEntry(date: date, weightKilograms: w))
+        }
+        try context.save()
+        store.fetchEntries()
+
+        let trend = store.trendline(period: .week, window: 7, minSamples: 2, today: today)
+        // day -6 は window 内に自分 1 件しかない (minSamples=2 未満) のでスキップされる。
+        // よって day -5 〜 today の 6 点が trend に含まれる。
+        #expect(trend.count == weights.count - 1)
+        // 古→新 で並んでいる
+        #expect(trend.first?.date == cal.startOfDay(for: cal.date(byAdding: .day, value: -5, to: today)!))
+        #expect(trend.last?.date == today)
+        // 最終点 (today) の平均 = (60+60.5+61+61.5+62+62.5+63) / 7 = 61.5
+        let expectedLast = weights.reduce(0, +) / Double(weights.count)
+        #expect(abs((trend.last?.average ?? 0) - expectedLast) < 1e-9)
+    }
+
+    /// 同日複数記録は **日内最新** が trend に使われる (chartEntries と整合)。
+    @Test
+    func trendline_usesDailyLatestForSameDayEntries() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 今日: 朝 70.0, 夜 65.0 — trend には 65.0 (夜) が反映されるべき
+        context.insert(WeightEntry(date: today.addingTimeInterval(7 * 3600),
+                                   weightKilograms: 70.0))
+        context.insert(WeightEntry(date: today.addingTimeInterval(20 * 3600),
+                                   weightKilograms: 65.0))
+        // 昨日: 単一 67.0
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
+        context.insert(WeightEntry(date: yesterday.addingTimeInterval(8 * 3600),
+                                   weightKilograms: 67.0))
+        try context.save()
+        store.fetchEntries()
+
+        let trend = store.trendline(period: .week, window: 7, minSamples: 2, today: today)
+        // 2 件 (昨日 + 今日) の trend が出る (minSamples=2 を満たすのは今日の点のみ)
+        // 昨日の時点では window 内に 1 件しかない → スキップ
+        #expect(trend.count == 1)
+        #expect(trend.first?.date == today)
+        let expected = (67.0 + 65.0) / 2.0  // 昨日 67 + 今日 65 (夜の最新値)
+        #expect(abs((trend.first?.average ?? 0) - expected) < 1e-9)
+    }
+
+    /// minSamples 未満の日は trend に含まれない。
+    @Test
+    func trendline_skipsPointsBelowMinSamples() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        context.insert(WeightEntry(date: today.addingTimeInterval(10 * 3600),
+                                   weightKilograms: 65.0))
+        try context.save()
+        store.fetchEntries()
+
+        // 1 件しかない → minSamples=2 では trend なし
+        #expect(store.trendline(period: .week, window: 7, minSamples: 2, today: today).isEmpty)
+        // minSamples=1 なら 1 点だけ trend が出る
+        let lax = store.trendline(period: .week, window: 7, minSamples: 1, today: today)
+        #expect(lax.count == 1)
+        #expect(lax.first?.average == 65.0)
+    }
+
+    /// 窓のサイズは calendar 日ベース。時刻情報の差異で誤判定しないこと。
+    /// 7 日 window で「今日 20:00 を anchor にしたとき 6 日前 7:00 を含む」
+    /// を保証する (時刻ベースの -6 days だと 6 日前 14:00 になり、7:00 を取りこぼす可能性)。
+    @Test
+    func trendline_windowIsCalendarDayBased() throws {
+        let (store, context, _) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 今日 20:00 と 6 日前 7:00
+        context.insert(WeightEntry(date: today.addingTimeInterval(20 * 3600),
+                                   weightKilograms: 60.0))
+        let sixDaysAgo = cal.date(byAdding: .day, value: -6, to: today)!
+        context.insert(WeightEntry(date: sixDaysAgo.addingTimeInterval(7 * 3600),
+                                   weightKilograms: 66.0))
+        try context.save()
+        store.fetchEntries()
+
+        let trend = store.trendline(period: .week, window: 7, minSamples: 2, today: today)
+        // 今日の anchor で 6 日前を取り込めれば 2 点平均が出る。
+        let todayPoint = trend.first { $0.date == today }
+        #expect(todayPoint != nil, "今日 anchor で 6 日前 7:00 のエントリも window に入るべき")
+        if let p = todayPoint {
+            #expect(abs(p.average - 63.0) < 1e-9, "(60 + 66) / 2 = 63.0")
+        }
+    }
+
+    // MARK: - Forecast (P1-2)
+
+    /// 30 日かけて毎日 0.1kg 減らしたケース: slope = -0.1 kg/日。
+    /// 現在 67.0 / 目標 65.0 → (-2.0) / (-0.1) = 20 日で達成 (近似)。
+    @Test
+    func forecast_lossGoal_linearTrendReturnsExpectedDays() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 30 日分: oldest 70.0 → newest 67.0 (slope = -0.1 kg/日)
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+                .addingTimeInterval(8 * 3600)
+            let weight = 67.0 + Double(offset) * 0.1
+            context.insert(WeightEntry(date: date, weightKilograms: weight))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 65.0
+
+        let days = store.forecastDaysToTarget(today: today)
+        #expect(days != nil)
+        if let days {
+            // 線形なら ~20 日。移動平均の遅延で多少前後 (15-25 程度を許容)。
+            #expect(days >= 15 && days <= 25, "got \(days)")
+        }
+    }
+
+    /// 増量ケース: 30 日かけて毎日 0.05kg 増。現在 55 / 目標 60 → 100 日前後。
+    @Test
+    func forecast_gainGoal_positiveSlopeProducesPositiveDays() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+                .addingTimeInterval(8 * 3600)
+            let weight = 55.0 - Double(offset) * 0.05 // newest 55.0, oldest ≒ 53.55
+            context.insert(WeightEntry(date: date, weightKilograms: weight))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 60.0
+
+        let days = store.forecastDaysToTarget(today: today)
+        #expect(days != nil)
+        if let days {
+            #expect(days > 0)
+            #expect(days <= 365)
+        }
+    }
+
+    /// 目標方向と逆 (減量目標なのに増えてる) は nil を返す (達成しないので予測不能扱い)。
+    @Test
+    func forecast_wrongDirection_returnsNil() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        // 目標は減量 (target 60)、しかし傾きは増量 (oldest 65 → newest 67)
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+                .addingTimeInterval(8 * 3600)
+            let weight = 67.0 - Double(offset) * (2.0 / 29.0) // newest 67, oldest 65
+            context.insert(WeightEntry(date: date, weightKilograms: weight))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 60.0
+
+        #expect(store.forecastDaysToTarget(today: today) == nil)
+    }
+
+    /// 傾きが極小 (|slope| < minSlopeKgPerDay) なら nil (ノイズに過剰反応しない)。
+    @Test
+    func forecast_flatTrend_returnsNil() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        for offset in 0...29 {
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+                .addingTimeInterval(8 * 3600)
+            context.insert(WeightEntry(date: date, weightKilograms: 65.0))
+        }
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 60.0
+
+        #expect(store.forecastDaysToTarget(today: today) == nil)
+    }
+
+    /// 既に目標到達 (epsilon 内) は 0 を返す (UI 側で「圏内」表示)。
+    @Test
+    func forecast_alreadyAtTarget_returnsZero() throws {
+        let (store, context, prefs) = try makeStore()
+        let cal = calendar()
+        let today = cal.startOfDay(for: Date())
+        context.insert(WeightEntry(date: today.addingTimeInterval(8 * 3600),
+                                   weightKilograms: 65.02))
+        try context.save()
+        store.fetchEntries()
+        prefs.targetKilograms = 65.0
+
+        #expect(store.forecastDaysToTarget(today: today) == 0)
+    }
+
+    /// 目標未設定 / 体重 0 件 / トレンド不足 などは nil。
+    @Test
+    func forecast_insufficientInputs_returnNil() throws {
+        let (store, _, prefs) = try makeStore()
+        let today = Date()
+        // 体重 0 件 + 目標未設定
+        #expect(store.forecastDaysToTarget(today: today) == nil)
+        // 目標だけ設定でも体重がない → nil
+        prefs.targetKilograms = 60.0
+        #expect(store.forecastDaysToTarget(today: today) == nil)
     }
 
     /// 別のテストで polluted な start が他テストに漏れないこと

@@ -263,6 +263,7 @@ struct WeightView: View {
             if let target = healthPrefs.targetKilograms,
                let latest = store.latest {
                 targetProgressBlock(target: target, current: latest.weightKilograms)
+                forecastRow(store: store)
             } else {
                 Text(store.latest == nil
                      ? "目標体重を設定するとモチベ表示が出ます (体重を 1 件以上記録してください)"
@@ -346,6 +347,30 @@ struct WeightView: View {
         }
     }
 
+    /// 7 日移動平均の傾きから「あと約 N 日で達成」を線形外挿で表示。
+    /// 傾きが目標方向と逆 / トレンド不足の場合は黙って非表示にして UI を煩雑にしない。
+    @ViewBuilder
+    private func forecastRow(store: WeightStore) -> some View {
+        if let days = store.forecastDaysToTarget() {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(Palette.primaryDeep)
+                    .font(.system(.caption, design: .rounded))
+                if days == 0 {
+                    Text("ペースを維持できれば既に目標圏内")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.success)
+                } else {
+                    Text("このペースなら **約 \(days) 日** で達成")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+            }
+            .padding(.top, 4)
+        }
+    }
+
     private func beginTargetEdit() {
         if let t = healthPrefs.targetKilograms {
             targetInput = String(format: "%.1f", t)
@@ -409,23 +434,40 @@ struct WeightView: View {
             } else {
                 let chartData = Array(visible.reversed())
                 let selectedEntry = chartSelectedEntry(in: store)
-                Chart(chartData) { entry in
-                    LineMark(
-                        x: .value("日付", entry.date),
-                        y: .value("kg", entry.weightKilograms)
-                    )
-                    .foregroundStyle(Palette.primary)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.catmullRom)
+                // 7 日移動平均トレンド。サンプル数が少ない期間は空配列が返るので
+                // ForEach に渡しても安全 (薄い破線として下敷きに重ねる)。
+                let trend = store.trendline(period: chartPeriod)
+                Chart {
+                    if !trend.isEmpty {
+                        ForEach(trend) { point in
+                            LineMark(
+                                x: .value("日付", point.date),
+                                y: .value("kg", point.average),
+                                series: .value("series", "trend")
+                            )
+                            .foregroundStyle(Palette.primaryDeep.opacity(0.45))
+                            .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, dash: [4, 3]))
+                            .interpolationMethod(.catmullRom)
+                        }
+                    }
+                    ForEach(chartData) { entry in
+                        LineMark(
+                            x: .value("日付", entry.date),
+                            y: .value("kg", entry.weightKilograms),
+                            series: .value("series", "raw")
+                        )
+                        .foregroundStyle(Palette.primary)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .interpolationMethod(.catmullRom)
 
-                    PointMark(
-                        x: .value("日付", entry.date),
-                        y: .value("kg", entry.weightKilograms)
-                    )
-                    .foregroundStyle(Palette.primaryDeep)
-                    .symbolSize(selectedEntry?.id == entry.id ? 130 : 40)
-
-                    if let selectedEntry, selectedEntry.id == entry.id {
+                        PointMark(
+                            x: .value("日付", entry.date),
+                            y: .value("kg", entry.weightKilograms)
+                        )
+                        .foregroundStyle(Palette.primaryDeep)
+                        .symbolSize(selectedEntry?.id == entry.id ? 130 : 40)
+                    }
+                    if let selectedEntry {
                         RuleMark(x: .value("選択日", selectedEntry.date))
                             .foregroundStyle(Palette.primaryDeep.opacity(0.30))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
@@ -505,7 +547,7 @@ struct WeightView: View {
                 ForEach(store.entries) { entry in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(format(date: entry.date))
+                            Text(format(date: entry.date, includesTime: true))
                                 .font(Typography.body)
                                 .foregroundStyle(Palette.textPrimary)
                             if let memo = entry.memo, !memo.isEmpty {
@@ -545,15 +587,30 @@ struct WeightView: View {
     private func save() {
         guard let weight = parsedWeight else { return }
         let memo = memoInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        _ = store?.add(date: selectedDate, weightKilograms: weight, memo: memo.isEmpty ? nil : memo)
+        // 今日が選択されていれば現在時刻で保存し、朝/晩など同日複数記録を時刻で識別できるようにする。
+        // 過去日は DatePicker から渡される 00:00 をそのまま使う (時刻入力 UI がないため)。
+        let timestamp = calendar.isDateInToday(selectedDate) ? Date() : selectedDate
+        _ = store?.add(date: timestamp, weightKilograms: weight, memo: memo.isEmpty ? nil : memo)
         weightInput = ""
         memoInput = ""
     }
 
-    private func format(date: Date) -> String {
+    /// 日付フォーマット。`includesTime` が true で entry が時刻情報を持つ場合のみ HH:mm を付与。
+    private func format(date: Date, includesTime: Bool = false) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "yyyy/M/d"
+        if includesTime && !isMidnight(date) {
+            formatter.dateFormat = "yyyy/M/d HH:mm"
+        } else {
+            formatter.dateFormat = "yyyy/M/d"
+        }
         return formatter.string(from: date)
+    }
+
+    /// entry.date が「日の頭 (00:00:00)」かどうか。過去日入力で時刻なし保存された
+    /// エントリは midnight、現在時刻で記録されたエントリは非 midnight。
+    private func isMidnight(_ date: Date) -> Bool {
+        let components = calendar.dateComponents([.hour, .minute, .second], from: date)
+        return components.hour == 0 && components.minute == 0 && components.second == 0
     }
 }
