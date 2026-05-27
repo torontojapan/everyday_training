@@ -39,7 +39,16 @@ struct StatsView: View {
                     monthlyCalendarCard
 
                     if viewModel.weeklySummary.hasExerciseData {
-                        WeeklyHighlightCard(summary: viewModel.weeklySummary)
+                        // 折りたたみ (ユーザー要望): タップで展開、デフォルトは閉じる。
+                        // subtitle に「使ったカテゴリ / 合計分」だけ出して中身は隠す。
+                        CollapsibleSection(
+                            persistenceKey: "stats.weeklyHighlight",
+                            title: "今週のハイライト",
+                            subtitle: weeklyHighlightSubtitle,
+                            icon: "sparkles"
+                        ) {
+                            WeeklyHighlightCard(summary: viewModel.weeklySummary)
+                        }
                     }
 
                     if cycleSettings.isEnabled, let menstrualStore {
@@ -78,6 +87,17 @@ struct StatsView: View {
                 DayDetailSheet(date: day.date, records: day.records, status: day.status)
             }
         }
+    }
+
+    /// 「今週のハイライト」折りたたみ中の subtitle。
+    /// 合計分 + 使ったカテゴリ数を要約。
+    private var weeklyHighlightSubtitle: String {
+        let summary = viewModel.weeklySummary
+        let minutes = summary.totalDurationSeconds / 60
+        if summary.usedCategories.isEmpty {
+            return "記録なし"
+        }
+        return "合計 \(minutes) 分 / \(summary.usedCategories.count) カテゴリ"
     }
 
     /// 履歴タブ最上段の猫アイコン + 一言ストリップ (Claude #4)。

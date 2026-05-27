@@ -263,57 +263,23 @@ struct WeightView: View {
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(Palette.surface.opacity(0.6), in: Capsule())
             .accessibilityElement(children: .combine)
+            .accessibilityLabel(bmiAccessibilityLabel(latestKg: latest.weightKilograms))
             .accessibilityIdentifier("bmi-info-strip")
         }
     }
 
-    /// 体重/履歴タブ共通の猫アイコン + 一言ストリップ (Claude #4)。
-    /// 選択中の猫キャラ avatar + 短い状況コメントを 1 行で表示。
-    @ViewBuilder
-    private func catGreetingStrip(for store: WeightStore) -> some View {
-        let breed = UserCatPreferences.shared.myCat
-        let message = greetingMessage(store: store)
-        HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(breed.tintColor.opacity(0.25))
-                    .frame(width: 40, height: 40)
-                Image(breed.avatarAssetName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-            }
-            Text(message)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
+    /// VoiceOver 用の BMI 説明ラベル。視覚的には数値のみだが、読み上げでは
+    /// 「BMI 23.0 普通」のようにカテゴリも含めて文脈を保つ (Codex round2 priority 2)。
+    private func bmiAccessibilityLabel(latestKg: Double) -> String {
+        guard let bmi = healthPrefs.bmi(weightKilograms: latestKg) else {
+            return "身長未設定、BMI 表示なし"
         }
-        .padding(.horizontal, 8)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(breed.displayName)からのひとこと: \(message)")
-    }
-
-    /// ヒーロー直上の猫一言メッセージ。今週の変化に応じてポジ/中立/応援を分岐。
-    private func greetingMessage(store: WeightStore) -> String {
-        guard store.latestNonFuture != nil else {
-            return "まずは 1 件だけ記録してみよ？"
+        let category = BMICategory(bmi: bmi)
+        let bmiStr = String(format: "%.1f", bmi)
+        if let h = healthPrefs.heightCentimeters {
+            return "BMI \(bmiStr) \(category.displayName)、身長 \(Int(h)) センチ"
         }
-        let week = store.stats(period: .week)
-        let isLoss = healthPrefs.isLossGoal()
-        switch (week?.change, isLoss) {
-        case let (delta?, true?) where delta <= -0.3:
-            return "今週いい感じ、ナイスペース 🌿"
-        case let (delta?, true?) where delta >= 0.3:
-            return "ちょっと戻ったね、焦らず一歩ずつ"
-        case let (delta?, false?) where delta >= 0.3:
-            return "増量、いいペース 💪"
-        case (.some, _):
-            return "今週は安定してるよ"
-        default:
-            return "今週も一緒にやろうね"
-        }
+        return "BMI \(bmiStr) \(category.displayName)"
     }
 
     /// CollapsibleSection の subtitle 生成 (折りたたみ中の要約)。
@@ -342,15 +308,6 @@ struct WeightView: View {
     }
 
     // MARK: - Sections
-
-    /// BMI のカテゴリ → 色マッピング。bmiInfoStrip から使う。
-    private func bmiCategoryColor(_ category: BMICategory) -> Color {
-        switch category {
-        case .normal: return Palette.success
-        case .underweight: return Palette.primaryDeep
-        case .overweight, .obese: return Palette.missed
-        }
-    }
 
     /// 旧 forecastRow 互換 (CollapsibleSection 内で他から呼び出される可能性に備えて残す)。
     /// ヒーローダッシュボード化により今は未使用だが、subtle な達成圏内訴求を
