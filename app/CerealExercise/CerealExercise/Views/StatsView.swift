@@ -34,8 +34,6 @@ struct StatsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    catGreetingStrip
-
                     monthlyCalendarCard
 
                     if viewModel.weeklySummary.hasExerciseData {
@@ -98,37 +96,6 @@ struct StatsView: View {
             return "記録なし"
         }
         return "合計 \(minutes) 分 / \(summary.usedCategories.count) カテゴリ"
-    }
-
-    /// 履歴タブ最上段の猫アイコン + 一言ストリップ (Claude #4)。
-    /// 選択中の猫キャラ avatar + 今週の達成率に応じたコメント。
-    private var catGreetingStrip: some View {
-        let breed = UserCatPreferences.shared.myCat
-        let rate = viewModel.progress.rate
-        let message: String
-        switch rate {
-        case 0.8...:    message = "今週、絶好調!"
-        case 0.5..<0.8: message = "今週いいペース 👍"
-        case 0.1..<0.5: message = "もう少しで折り返しだよ"
-        default:        message = "今週は無理せず、できる時に"
-        }
-        return HStack(spacing: 10) {
-            ZStack {
-                Circle().fill(breed.tintColor.opacity(0.25)).frame(width: 40, height: 40)
-                Image(breed.avatarAssetName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-            }
-            Text(message)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textPrimary)
-            Spacer()
-        }
-        .padding(.horizontal, 8)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(breed.displayName)からのひとこと: \(message)")
     }
 
     private var monthlyCalendarCard: some View {
