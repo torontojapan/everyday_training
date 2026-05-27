@@ -9,11 +9,21 @@ struct WeightView: View {
     @State private var weightInput: String = ""
     @State private var memoInput: String = ""
     @State private var heightInput: String = ""
+    @State private var targetInput: String = ""
     @State private var selectedDate: Date = Date()
     @State private var chartSelectedDate: Date?
     @State private var chartPeriod: WeightStore.ChartPeriod = .month
     @State private var isShowingDeleteConfirm: WeightEntry?
-    @State private var isEditingHeight: Bool = false
+    /// 身長 / 目標体重 の編集ダイアログを単一の state machine で管理。
+    /// 複数の `.alert(_, isPresented:)` を同じ view に重ねるパターンは
+    /// iOS 17+ では動作するが将来の SwiftUI 仕様変更に脆く、Codex も
+    /// 警告するので enum 駆動に統一。
+    private enum HealthEditField: Identifiable {
+        case height
+        case target
+        var id: Self { self }
+    }
+    @State private var editingField: HealthEditField?
     @Bindable private var healthPrefs = UserHealthPreferences.shared
     var onClose: (() -> Void)? = nil
 
@@ -24,6 +34,7 @@ struct WeightView: View {
             VStack(alignment: .leading, spacing: 20) {
                 if let store {
                     summarySection(store: store)
+                    targetSection(store: store)
                     chartSection(store: store)
                     inputCard
                     historyList(store: store)
@@ -69,22 +80,76 @@ struct WeightView: View {
                 isShowingDeleteConfirm = nil
             }
         }
-        .alert("身長を入力", isPresented: $isEditingHeight) {
-            TextField("例: 165", text: $heightInput)
-                .keyboardType(.decimalPad)
-            Button("保存") {
-                if let value = Double(heightInput.trimmingCharacters(in: .whitespacesAndNewlines)),
-                   value >= 50, value <= 250 {
-                    healthPrefs.heightCentimeters = value
+        .alert(
+            healthEditTitle,
+            isPresented: Binding(
+                get: { editingField != nil },
+                set: { if !$0 { editingField = nil } }
+            ),
+            presenting: editingField
+        ) { field in
+            switch field {
+            case .height:
+                TextField("例: 165", text: $heightInput)
+                    .keyboardType(.decimalPad)
+                Button("保存") { saveHeight() }
+                Button("クリア", role: .destructive) {
+                    healthPrefs.heightCentimeters = nil
                 }
+                Button("キャンセル", role: .cancel) {}
+            case .target:
+                TextField("例: 60.0", text: $targetInput)
+                    .keyboardType(.decimalPad)
+                Button("保存") { saveTarget() }
+                Button("クリア", role: .destructive) {
+                    healthPrefs.targetKilograms = nil
+                    healthPrefs.startKilograms = nil
+                }
+                Button("キャンセル", role: .cancel) {}
             }
-            Button("クリア", role: .destructive) {
-                healthPrefs.heightCentimeters = nil
+        } message: { field in
+            switch field {
+            case .height:
+                Text("身長を cm 単位で入力すると BMI が表示されます")
+            case .target:
+                Text("目標体重を kg で入力。新規/変更したときだけ「開始時」体重がリセットされます")
             }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("身長を cm 単位で入力すると BMI が表示されます")
         }
+    }
+
+    private var healthEditTitle: String {
+        switch editingField {
+        case .height: return "身長を入力"
+        case .target: return "目標体重を入力"
+        case .none:   return ""
+        }
+    }
+
+    private func saveHeight() {
+        if let value = Double(heightInput.trimmingCharacters(in: .whitespacesAndNewlines)),
+           value >= 50, value <= 250 {
+            healthPrefs.heightCentimeters = value
+        }
+    }
+
+    private func saveTarget() {
+        let trimmed = targetInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Double(trimmed), value > 0, value < 500 else { return }
+        // 目標が "実際に変わった" ときだけ start をリセット。体重の表示精度は
+        // 0.1kg なので、それ未満の差分は同値扱い (prefill が %.1f で丸まる
+        // 影響を吸収 / Codex round3)。
+        let targetChanged: Bool = {
+            guard let old = healthPrefs.targetKilograms else { return true }
+            return abs(old - value) >= 0.05
+        }()
+        if targetChanged {
+            // baseline には latest ではなく latestNonFuture を使う。
+            // 未来日エントリ (時計ズレ・インポート) が baseline になると進捗
+            // 計算がすべて狂うため (Codex round6)。該当なしなら nil で揃える
+            // (古い start が宙に浮く問題の防止 / Codex round3)。
+            healthPrefs.startKilograms = store?.latestNonFuture?.weightKilograms
+        }
+        healthPrefs.targetKilograms = value
     }
 
     // MARK: - Sections
@@ -188,13 +253,130 @@ struct WeightView: View {
         }
     }
 
+    /// 目標体重カード。目標未設定なら CTA。設定済みなら現在 → 目標の
+    /// 進捗バー + 残り kg を表示。最新の体重がないと意味がないので
+    /// store.latest が nil のときは入力 CTA に絞る。
+    @ViewBuilder
+    private func targetSection(store: WeightStore) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("目標体重")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textPrimary)
+                Spacer()
+                Button {
+                    beginTargetEdit()
+                } label: {
+                    Label(healthPrefs.targetKilograms == nil ? "設定" : "変更",
+                          systemImage: "pencil")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let target = healthPrefs.targetKilograms,
+               let latest = store.latest {
+                targetProgressBlock(target: target, current: latest.weightKilograms)
+            } else {
+                Text(store.latest == nil
+                     ? "目標体重を設定するとモチベ表示が出ます (体重を 1 件以上記録してください)"
+                     : "目標体重を設定すると残り kg と進捗バーが表示されます")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+        }
+        .padding(16)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func targetProgressBlock(target: Double, current: Double) -> some View {
+        let remaining = healthPrefs.remainingToTarget(currentKilograms: current) ?? 0
+        let progress = healthPrefs.progressRatio(currentKilograms: current)
+        let direction = healthPrefs.isLossGoal()
+        // 達成判定: 減量/増量で向きが違う。start == target (direction == nil) は
+        // 目標近傍 epsilon で達成扱い (target に 0.05kg = 50g 以内)。
+        let achieved: Bool = {
+            switch direction {
+            case .some(true):  return remaining <= 0  // 減量: 目標以下になれば達成
+            case .some(false): return remaining >= 0  // 増量: 目標以上になれば達成
+            case .none:        return abs(remaining) < 0.05  // 開始==目標: 維持目標扱い
+            }
+        }()
+        // 「あと」の表示は減量/増量で符号が反転 (どちらも正の "あと" を出すため)。
+        // 維持目標 (direction == nil) は remaining の絶対値を表示。
+        let displayRemaining: Double = {
+            switch direction {
+            case .some(true):  return remaining       // 減量: current - target が "あと"
+            case .some(false): return -remaining      // 増量: target - current が "あと"
+            case .none:        return abs(remaining)
+            }
+        }()
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .lastTextBaseline) {
+                if achieved {
+                    Label("目標達成", systemImage: "checkmark.seal.fill")
+                        .font(.system(.headline, design: .rounded, weight: .heavy))
+                        .foregroundStyle(Palette.success)
+                } else {
+                    HStack(alignment: .lastTextBaseline, spacing: 2) {
+                        Text("あと")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                        Text(String(format: "%.1f", abs(displayRemaining)))
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Palette.primary)
+                            .monospacedDigit()
+                        Text("kg")
+                            .font(Typography.body)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+                Spacer()
+                Text("目標 \(String(format: "%.1f", target)) kg")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+
+            if let progress {
+                ProgressView(value: progress)
+                    .progressViewStyle(.linear)
+                    .tint(achieved ? Palette.success : Palette.primary)
+                    .accessibilityLabel("達成率 \(Int(progress * 100)) パーセント")
+                HStack {
+                    if let start = healthPrefs.startKilograms {
+                        Text("開始 \(String(format: "%.1f", start)) kg")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                    Spacer()
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(.caption, design: .rounded, weight: .heavy))
+                        .foregroundStyle(achieved ? Palette.success : Palette.textPrimary)
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+
+    private func beginTargetEdit() {
+        if let t = healthPrefs.targetKilograms {
+            targetInput = String(format: "%.1f", t)
+        } else {
+            targetInput = ""
+        }
+        editingField = .target
+    }
+
     private func beginHeightEdit() {
         if let h = healthPrefs.heightCentimeters {
             heightInput = String(format: "%.0f", h)
         } else {
             heightInput = ""
         }
-        isEditingHeight = true
+        editingField = .height
     }
 
     private func chartSection(store: WeightStore) -> some View {

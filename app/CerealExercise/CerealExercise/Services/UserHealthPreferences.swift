@@ -7,24 +7,40 @@ import Observation
 @Observable
 final class UserHealthPreferences {
     static let heightKey = "userHealth.heightCentimeters"
+    static let targetKey = "userHealth.targetKilograms"
+    static let startKey = "userHealth.startKilograms"
     static let shared = UserHealthPreferences()
 
     private let defaults: UserDefaults
 
     var heightCentimeters: Double? {
-        didSet {
-            if let value = heightCentimeters {
-                defaults.set(value, forKey: Self.heightKey)
-            } else {
-                defaults.removeObject(forKey: Self.heightKey)
-            }
-        }
+        didSet { writeOrRemove(heightCentimeters, key: Self.heightKey) }
+    }
+
+    /// 目標体重 (kg)。未設定なら nil。
+    var targetKilograms: Double? {
+        didSet { writeOrRemove(targetKilograms, key: Self.targetKey) }
+    }
+
+    /// 開始時体重 (kg)。初回入力時に自動キャプチャされる、進捗率の分母。
+    /// ユーザーが目標を再設定したらリセットされる。
+    var startKilograms: Double? {
+        didSet { writeOrRemove(startKilograms, key: Self.startKey) }
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let stored = defaults.object(forKey: Self.heightKey) as? Double
-        self.heightCentimeters = stored
+        self.heightCentimeters = defaults.object(forKey: Self.heightKey) as? Double
+        self.targetKilograms = defaults.object(forKey: Self.targetKey) as? Double
+        self.startKilograms = defaults.object(forKey: Self.startKey) as? Double
+    }
+
+    private func writeOrRemove(_ value: Double?, key: String) {
+        if let value {
+            defaults.set(value, forKey: key)
+        } else {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     /// 身長 cm + 体重 kg → BMI。どちらか欠けたら nil。
@@ -32,6 +48,33 @@ final class UserHealthPreferences {
         guard let cm = heightCentimeters, cm > 0 else { return nil }
         let meters = cm / 100.0
         return weightKilograms / (meters * meters)
+    }
+
+    /// 目標達成までの残り kg (正=減量必要 / 負=既に達成・超過)。
+    /// 目標未設定なら nil。
+    func remainingToTarget(currentKilograms: Double) -> Double? {
+        guard let target = targetKilograms else { return nil }
+        return currentKilograms - target
+    }
+
+    /// 開始時から目標までの達成率 (0.0 〜 1.0、超過時は 1.0 で頭打ち)。
+    /// 増量・減量どちらの方向にも対応。開始 = 目標の特殊ケースは nil。
+    func progressRatio(currentKilograms: Double) -> Double? {
+        guard let target = targetKilograms, let start = startKilograms else { return nil }
+        let totalDelta = target - start
+        guard abs(totalDelta) > 0.001 else { return nil } // start == target
+        let achievedDelta = currentKilograms - start
+        let raw = achievedDelta / totalDelta
+        return min(max(raw, 0.0), 1.0)
+    }
+
+    /// 減量目標か (true) 増量目標か (false)。目標 or 開始未設定なら nil。
+    /// 開始 == 目標 (差分なし) も nil。「目標達成」判定はこの場合
+    /// `abs(current - target) < epsilon` で View 側が判断する。
+    func isLossGoal() -> Bool? {
+        guard let target = targetKilograms, let start = startKilograms else { return nil }
+        guard abs(target - start) > 0.001 else { return nil }
+        return target < start
     }
 }
 
