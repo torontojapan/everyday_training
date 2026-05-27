@@ -66,8 +66,7 @@ struct WeightView: View {
                         persistenceKey: "weight.chart",
                         title: "推移",
                         subtitle: chartSubtitle(store: store),
-                        icon: "waveform.path.ecg",
-                        defaultExpanded: true   // 推移はデフォルト展開 (チャートが本体)
+                        icon: "waveform.path.ecg"
                     ) {
                         chartSection(store: store)
                     }

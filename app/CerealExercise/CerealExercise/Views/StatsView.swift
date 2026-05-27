@@ -75,19 +75,16 @@ struct StatsView: View {
                             VStack(spacing: 12) {
                                 WeeklyHighlightCard(summary: viewModel.weeklySummary)
                                 Button {
-                                    // 視界 (= viewModel.weeklySummary 由来) と
-                                    // 同期させるため refresh も実行
-                                    // (Codex round4 priority 1: 古いキャッシュで
-                                    //  「ボタンあるのに tap で何も起きない」を回避)。
-                                    viewModel.refresh(records: store.records)
-                                    // atomic な local snapshot を作って payload で
-                                    // sheet に渡す (Codex round3/4 priority 2)。
+                                    // ★ 完全 atomic (Codex round5 priority 1):
+                                    // 1 つの `day` を refresh / summary / label
+                                    // すべての基準日として共有する。HomeViewModel
+                                    // と payload で別の clock を読まない。
                                     let day = store.today
-                                    guard let week = calendar.dateInterval(of: .weekOfYear, for: day) else { return }
-                                    let summary = ExerciseTrendSummary.week(records: store.records, week: week, calendar: calendar)
-                                    guard summary.hasExerciseData else { return }
+                                    viewModel.refresh(records: store.records, anchorDate: day)
+                                    // 視界 (hasExerciseData) と tap 後の動作が一致。
+                                    guard viewModel.weeklySummary.hasExerciseData else { return }
                                     pendingWeeklyShare = WeeklySharePayload(
-                                        summary: summary,
+                                        summary: viewModel.weeklySummary,
                                         weekLabel: weekLabel(for: day),
                                         day: day
                                     )

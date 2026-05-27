@@ -49,8 +49,12 @@ final class HomeViewModel {
 
     func refresh(records: [WorkoutRecord],
                   streakExtendedThisRun: Bool = false,
-                  weightLoss: MilestoneDetector.WeightLossSnapshot? = nil) {
-        let now = dateProvider.currentDate()
+                  weightLoss: MilestoneDetector.WeightLossSnapshot? = nil,
+                  anchorDate: Date? = nil) {
+        // 呼び出し側が `anchorDate` を指定すれば、内部 dateProvider ではなく
+        // その瞬間を全集計の基準日として使う。日跨ぎ atomic 化のため
+        // (Codex round5: 別ソース読みによる drift を排除)。
+        let now = anchorDate ?? dateProvider.currentDate()
         let today = calendar.startOfDay(for: now)
         statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, calendar: calendar)
         progress = WeeklyProgressCalculator.progress(from: statuses)
