@@ -277,7 +277,11 @@ struct WeightView: View {
         let category = BMICategory(bmi: bmi)
         let bmiStr = String(format: "%.1f", bmi)
         if let h = healthPrefs.heightCentimeters {
-            return "BMI \(bmiStr) \(category.displayName)、身長 \(Int(h)) センチ"
+            // 視覚側と同じ `%.0f` で丸めて a11y 表記との不整合を防ぐ
+            // (Codex round3 priority 2: Int() は truncation で 165.9 → 165、
+            //  視覚側 %.0f は四捨五入で 166cm になり読み上げとズレる)。
+            let heightStr = String(format: "%.0f", h)
+            return "BMI \(bmiStr) \(category.displayName)、身長 \(heightStr) センチ"
         }
         return "BMI \(bmiStr) \(category.displayName)"
     }
