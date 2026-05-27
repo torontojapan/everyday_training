@@ -1,15 +1,15 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-27 夜 (体重管理 P0-4 + P1 + アプリ共有導線 + シェア配置調整 + チャート annotation、Codex 計 10 ラウンド改修反映)
+最終更新: 2026-05-27 深夜 (体重管理 P0-4 + P1 全完了 + アプリ共有 + 達成演出 + 体調周期オーバーレイ、Codex 計 16 ラウンド改修反映)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 P0 **完全完了** + P1 トレンド/予測完了 + アプリ共有導線 + ユーザー要望 UI 調整 + 達成演出にキャラ + ミルストーン拡充
-- **テスト**: Unit **172 XCTest + 42 Swift Testing = 214 件** + UI **17/17** = **231 件 全 PASS**
-- **最新コミット**: `141041b` Codex round2 反映: migration を streak のみに絞り、clear() を独立化
-- **GitHub**: `torontojapan/everyday_training` main から 22 commit ahead (未 push)
+- **iOS アプリ本体**: Phase 7.0 完全完了 + 体重管理 **P0 + P1 全完了** + アプリ共有 + 達成演出キャラ + ミルストーン拡充 + 体調周期 × 体重オーバーレイ
+- **テスト**: Unit **172 XCTest + 52 Swift Testing = 224 件** + UI **17/17** = **241 件 全 PASS**
+- **最新コミット**: `854d55a` Codex round2 反映 (周期オーバーレイ): scenePhase 復帰 + perf テスト堅牢化
+- **GitHub**: `torontojapan/everyday_training` main から 26 commit ahead (未 push)
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 - **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、今セッションは体重管理に 6 ラウンド回し、priority 1/2/3 を確実に潰した
 
@@ -42,7 +42,7 @@
 
 - [x] 7日移動平均トレンドライン — `cc2644d` (Chart に薄い破線 overlay)
 - [x] 目標達成予測日 — `cc2644d` (trend.last を baseline に線形外挿、最低 1 日)
-- [ ] 体調周期 × 体重オーバーレイ (GO 独自、既存 MenstrualStore と連携)
+- [x] 体調周期 × 体重オーバーレイ — `c7f7936` (4 相を Chart 背景に opacity 0.13 帯で描画 + 凡例)
 
 **P1 (Apple Developer 加入後)**
 
