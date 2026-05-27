@@ -15,13 +15,21 @@ struct StatsView: View {
     /// summary と label を 1 つのアイテムで束ねて `.sheet(item:)` に渡すこと
     /// で、両者が別ソースから drift する可能性を構造的に排除する。
     @State private var pendingWeeklyShare: WeeklySharePayload?
-    @State private var isShowingLifetimeShare = false
+    /// 累計シェアシートの atomic payload。同様に achievedDays / usedDays を束ねる。
+    @State private var pendingLifetimeShare: LifetimeSharePayload?
 
     private struct WeeklySharePayload: Identifiable {
         let summary: ExerciseTrendSummary.WeeklySummary
         let weekLabel: String
         let day: Date
         var id: Date { day }
+    }
+
+    private struct LifetimeSharePayload: Identifiable {
+        let achievedDays: Int
+        let usedDays: Int
+        let snapshottedAt: Date
+        var id: Date { snapshottedAt }
     }
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
@@ -66,65 +74,14 @@ struct StatsView: View {
                     }
 
                     if viewModel.weeklySummary.hasExerciseData {
-                        CollapsibleSection(
-                            persistenceKey: "stats.weeklyHighlight",
-                            title: "今週のハイライト",
-                            subtitle: weeklyHighlightSubtitle,
-                            icon: "sparkles"
-                        ) {
-                            VStack(spacing: 12) {
-                                WeeklyHighlightCard(summary: viewModel.weeklySummary)
-                                Button {
-                                    // ★ 完全 atomic (Codex round5 priority 1):
-                                    // 1 つの `day` を refresh / summary / label
-                                    // すべての基準日として共有する。HomeViewModel
-                                    // と payload で別の clock を読まない。
-                                    let day = store.today
-                                    viewModel.refresh(records: store.records, anchorDate: day)
-                                    // 視界 (hasExerciseData) と tap 後の動作が一致。
-                                    guard viewModel.weeklySummary.hasExerciseData else { return }
-                                    pendingWeeklyShare = WeeklySharePayload(
-                                        summary: viewModel.weeklySummary,
-                                        weekLabel: weekLabel(for: day),
-                                        day: day
-                                    )
-                                } label: {
-                                    Label("SNSで共有", systemImage: "square.and.arrow.up")
-                                        .font(Typography.caption)
-                                        .foregroundStyle(Palette.primaryDeep)
-                                        .padding(.horizontal, 14).padding(.vertical, 8)
-                                        .background(Palette.primary.opacity(0.12), in: Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("weekly-highlight-share")
-                                .accessibilityLabel("今週のハイライトを SNS で共有")
-                            }
-                        }
+                        weeklyHighlightEntry
                     }
 
                     monthlyReviewEntry
 
-                    // 「これまでの記録」(累計達成日 / 使用日) は一番下に。
-                    // 長期統計を「振り返り終わりの後押し」として置く。
-                    VStack(spacing: 12) {
-                        LifetimeStatsCard(
-                            achievedDays: viewModel.lifetimeStats.achievedDays,
-                            usedDays: viewModel.lifetimeStats.usedDays
-                        )
-                        Button {
-                            viewModel.refresh(records: store.records)
-                            isShowingLifetimeShare = true
-                        } label: {
-                            Label("SNSで共有", systemImage: "square.and.arrow.up")
-                                .font(Typography.caption)
-                                .foregroundStyle(Palette.primaryDeep)
-                                .padding(.horizontal, 14).padding(.vertical, 8)
-                                .background(Palette.primary.opacity(0.12), in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("lifetime-stats-share")
-                        .accessibilityLabel("これまでの記録を SNS で共有")
-                    }
+                    // 「これまでの記録」は一番下に。先月のレビューと同じ entry-row 形式。
+                    // tap → LifetimeStatsShareSheet (= ブランドカード画面に遷移)。
+                    lifetimeStatsEntry
                 }
                 .padding(20)
             }
@@ -158,11 +115,14 @@ struct StatsView: View {
                     )
                 )
             }
-            .sheet(isPresented: $isShowingLifetimeShare) {
+            .sheet(item: $pendingLifetimeShare) { payload in
                 LifetimeStatsShareSheet(
-                    achievedDays: viewModel.lifetimeStats.achievedDays,
-                    usedDays: viewModel.lifetimeStats.usedDays,
-                    isPresented: $isShowingLifetimeShare
+                    achievedDays: payload.achievedDays,
+                    usedDays: payload.usedDays,
+                    isPresented: Binding(
+                        get: { pendingLifetimeShare != nil },
+                        set: { if !$0 { pendingLifetimeShare = nil } }
+                    )
                 )
             }
         }
@@ -302,6 +262,88 @@ struct StatsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("menstrual-link-stats")
+    }
+
+    /// 今週のハイライト entry-row。「先月のレビューを見る」と同じ tap → sheet パターン。
+    /// tap → atomic snapshot を payload に詰めて `WeeklyHighlightShareSheet` を提示。
+    private var weeklyHighlightEntry: some View {
+        Button {
+            // 1 つの `day` を refresh / summary / label の基準日として共有
+            // (Codex round5/6 で確立した atomic 化を維持)。
+            let day = store.today
+            viewModel.refresh(records: store.records, anchorDate: day)
+            guard viewModel.weeklySummary.hasExerciseData else { return }
+            pendingWeeklyShare = WeeklySharePayload(
+                summary: viewModel.weeklySummary,
+                weekLabel: weekLabel(for: day),
+                day: day
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("今週のハイライト")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text(weeklyHighlightSubtitle)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("weekly-highlight-entry")
+        .accessibilityLabel("今週のハイライトを共有カードで開く")
+    }
+
+    /// これまでの記録 entry-row。tap → `LifetimeStatsShareSheet`。
+    private var lifetimeStatsEntry: some View {
+        Button {
+            let now = Date()
+            viewModel.refresh(records: store.records, anchorDate: now)
+            pendingLifetimeShare = LifetimeSharePayload(
+                achievedDays: viewModel.lifetimeStats.achievedDays,
+                usedDays: viewModel.lifetimeStats.usedDays,
+                snapshottedAt: now
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("これまでの記録")
+                        .font(Typography.headline)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text(lifetimeStatsSubtitle)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("lifetime-stats-entry")
+        .accessibilityLabel("これまでの記録を共有カードで開く")
+    }
+
+    /// これまでの記録 entry-row の subtitle。
+    private var lifetimeStatsSubtitle: String {
+        let stats = viewModel.lifetimeStats
+        guard stats.usedDays > 0 else { return "まだ記録がありません" }
+        let rate = Int((Double(stats.achievedDays) / Double(stats.usedDays) * 100).rounded())
+        return "累計 \(stats.achievedDays) 日達成 / 使用 \(stats.usedDays) 日 (\(rate)%)"
     }
 
     private var monthlyReviewEntry: some View {
