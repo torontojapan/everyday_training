@@ -208,7 +208,6 @@ struct WeightView: View {
         let progress = latest.flatMap { healthPrefs.progressRatio(currentKilograms: $0.weightKilograms) }
         let isLoss = healthPrefs.isLossGoal()
         let weekStats = store.stats(period: .week)
-        let forecast = store.forecastDaysToTarget()
         WeightHeroDashboard(
             latest: latest,
             startKg: healthPrefs.startKilograms,
@@ -216,7 +215,6 @@ struct WeightView: View {
             progress: progress,
             isLossGoal: isLoss,
             weeklyChange: weekStats?.change,
-            forecastDays: forecast,
             onEditTarget: { beginTargetEdit() }
         )
     }

@@ -19,7 +19,6 @@ struct WeightHeroDashboard: View {
     let progress: Double?            // 0..1, nil なら未設定
     let isLossGoal: Bool?            // true=減量, false=増量, nil=未設定/差なし
     let weeklyChange: Double?        // 今週の変化 (kg)
-    let forecastDays: Int?           // 達成までの予測日数, 0=圏内
     let onEditTarget: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -33,7 +32,6 @@ struct WeightHeroDashboard: View {
          progress: Double?,
          isLossGoal: Bool?,
          weeklyChange: Double?,
-         forecastDays: Int?,
          onEditTarget: @escaping () -> Void) {
         self.latest = latest
         self.startKg = startKg
@@ -41,7 +39,6 @@ struct WeightHeroDashboard: View {
         self.progress = progress
         self.isLossGoal = isLossGoal
         self.weeklyChange = weeklyChange
-        self.forecastDays = forecastDays
         self.onEditTarget = onEditTarget
         // breed × state を 1 回解決し、欠落していれば fallback、それでも無ければ nil。
         // テスト/プレビューで Assets が無い環境でも crash しないよう堅牢に。
@@ -236,11 +233,6 @@ struct WeightHeroDashboard: View {
                     value: "\(sign)\(String(format: "%.1f", weeklyChange))kg",
                     tone: weeklyChange <= 0 ? .success : .warning
                 )
-            }
-
-            if let forecastDays {
-                let label = forecastDays == 0 ? "圏内" : "約\(forecastDays)日"
-                kpiChip(emoji: "📅", title: "達成見込", value: label, tone: .primary)
             }
             Spacer()
         }
