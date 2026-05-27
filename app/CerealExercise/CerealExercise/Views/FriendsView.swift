@@ -239,6 +239,11 @@ struct FriendsView: View {
         }
     }
 
+    /// UI test 用 ID。profileHeader 全体を 1 つの accessibility container として
+    /// まとめ、shareAppCard との物理的隣接 (= 「直下」要件) を frame 比較で
+    /// 検証できるようにする (Codex round3)。
+    private static let profileSectionAccessibilityID = "friends-profile-section"
+
     private func profileHeader(_ profile: FriendProfile) -> some View {
         // 自分のアイコンは UserCatPreferences の breed を反映 (Phase 6.7)。
         let myBreed = UserCatPreferences.shared.myCat
@@ -321,6 +326,8 @@ struct FriendsView: View {
             .padding(14)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(Self.profileSectionAccessibilityID)
     }
 
     private var requestsSection: some View {

@@ -70,24 +70,19 @@ final class ShareAppEntryPointsUITests: XCTestCase {
         XCTAssertLessThan(shareCard.frame.minY, friendsListHeader.frame.minY,
                           "シェアカードは『友達 (N)』セクションより上にある = プロフィール直下に固定 (got share=\(shareCard.frame.minY), header=\(friendsListHeader.frame.minY))")
 
-        // **強固な「直下」検証** (Codex round2): friendCode と shareCard の間に他の
-        // section header が挟まってはいけない。誰かが requestsSection を shareCard
-        // の上に移したり、別の宣伝バナーを挟んだりする regression をここで止める。
-        // (XCUIElement predicate は frame.minY のような算出 key path をサポート
-        // しないので、全要素取得 → Swift で filter する。)
-        let codeMaxY = friendCodeLabel.frame.maxY
-        let shareMinY = shareCard.frame.minY
-        let intrusiveHeaders = app.staticTexts.allElementsBoundByIndex.filter { el in
-            el.exists
-                && !el.label.isEmpty
-                && el.frame.minY > codeMaxY
-                && el.frame.minY < shareMinY
-                // 友達コードの数値文字列 (例: ET543Q) など意図しない match を除外:
-                // 「申請」「友達」「リクエスト」など section 見出しらしい文字のみ拾う。
-                && (el.label.contains("申請") || el.label.contains("友達"))
-        }
-        XCTAssertTrue(intrusiveHeaders.isEmpty,
-                       "友達コードとシェアカードの間に他の section header が挟まってはいけない (found: \(intrusiveHeaders.map(\.label)))")
+        // **物理的隣接検証** (Codex round3): profileSection の末端から shareCard
+        // 先頭までの距離が「セクション間 spacing」レベル (= 親 VStack(spacing: 20)
+        // + safe-area margin) を超えない (= 直下) ことを保証する。stable な
+        // accessibility identifier "friends-profile-section" を anchor にすることで、
+        // ラベル文字列の filter (round2 で不十分と指摘) に依存しない。
+        let profileSection = app.otherElements["friends-profile-section"]
+        XCTAssertTrue(profileSection.waitForExistence(timeout: 3),
+                       "profile section accessibility id が見つからない (regression もしくは a11y wrap 漏れ)")
+        let gap = shareCard.frame.minY - profileSection.frame.maxY
+        XCTAssertGreaterThanOrEqual(gap, 0,
+                                     "share card は profile section より下にあるべき")
+        XCTAssertLessThanOrEqual(gap, 40,
+                                  "profile section と share card の間に余計な要素が挟まっていてはいけない (gap=\(gap)pt)")
     }
 
     /// 設定画面の ShareLink がクラッシュせずタップできること。
