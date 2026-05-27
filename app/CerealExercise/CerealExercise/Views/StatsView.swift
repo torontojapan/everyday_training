@@ -65,6 +65,10 @@ struct StatsView: View {
                             VStack(spacing: 12) {
                                 WeeklyHighlightCard(summary: viewModel.weeklySummary)
                                 Button {
+                                    // 共有直前に refresh して、週またぎでも
+                                    // summary と label がズレないようにする
+                                    // (Codex round1 priority 1)。
+                                    viewModel.refresh(records: store.records)
                                     isShowingWeeklyShare = true
                                 } label: {
                                     Label("SNSで共有", systemImage: "square.and.arrow.up")
@@ -75,6 +79,7 @@ struct StatsView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("weekly-highlight-share")
+                                .accessibilityLabel("今週のハイライトを SNS で共有")
                             }
                         }
                     }
@@ -89,6 +94,7 @@ struct StatsView: View {
                             usedDays: viewModel.lifetimeStats.usedDays
                         )
                         Button {
+                            viewModel.refresh(records: store.records)
                             isShowingLifetimeShare = true
                         } label: {
                             Label("SNSで共有", systemImage: "square.and.arrow.up")
@@ -99,6 +105,7 @@ struct StatsView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("lifetime-stats-share")
+                        .accessibilityLabel("これまでの記録を SNS で共有")
                     }
                 }
                 .padding(20)
