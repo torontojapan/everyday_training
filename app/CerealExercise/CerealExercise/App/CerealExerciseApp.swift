@@ -40,8 +40,11 @@ struct CerealExerciseApp: App {
                     if args.contains("--mock-force-signed-out") {
                         await friendsStore.signOut()
                     }
-                    if args.contains("--mock-seed-friends"),
-                       friendsStore.profile == nil {
+                    if args.contains("--mock-seed-friends") {
+                        // 既存 profile があっても再 signIn する。MockFriendsService は
+                        // friends を in-memory に持つため、再起動毎に 0 件に戻る。
+                        // demo モードでは毎回 demoPool から friends を seed したい。
+                        // (signIn は profile を冪等に上書きするので displayName/username は変わらない)
                         await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
                     }
                 }

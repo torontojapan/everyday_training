@@ -57,8 +57,9 @@ final class MockFriendsService: FriendsService {
             requests[sample.friendCode] = FriendRequest(id: sample.friendCode, fromProfile: sample, requestedAt: now())
         }
         if friends.isEmpty {
-            // Seed two friends so the friend list isn't lonely on first open.
-            for _ in 0..<min(2, demoPool.count) {
+            // Seed up to 10 friends so the friend list is rich on first open
+            // (.yearly demo シナリオで「友達リストもフルフル」の状態を再現するため拡張)。
+            for _ in 0..<min(10, demoPool.count) {
                 let pre = demoPool.removeFirst()
                 friends[pre.friendCode] = pre
             }
@@ -208,7 +209,120 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 225,
                           monthlyTotalMinutes: 880,
                           monthlyAchievedDays: 26,
-                          myCatBreed: .persian)
+                          myCatBreed: .persian),
+            // 以下、フルフル demo (10 名) 用に追加した 7 名。
+            // streak / 達成日 / 今日達成有無 / 詳細共有 OFF パターンをばらつかせて、
+            // 友達タブの並び替え・ソート・カテゴリ別表示などが豊富に見えるようにする。
+            FriendProfile(id: "RIKUTO", friendCode: "RIKUTO",
+                          username: "rikuto_g", displayName: "りくと",
+                          currentStreak: 58, totalAchievedDays: 201,
+                          todayAchieved: true, todayCategoryName: "筋トレ",
+                          todayExerciseNames: ["デッドリフト", "ベンチプレス"],
+                          decorationTier: 2,
+                          lastUpdated: now.addingTimeInterval(-12 * minute),
+                          weeklyAchievements: [true, true, true, true, true, false, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "デッドリフト", reps: 8, sets: 4),
+                              SharedExerciseDetail(name: "ベンチプレス", reps: 10, sets: 4)
+                          ],
+                          weeklyTotalMinutes: 210,
+                          monthlyTotalMinutes: 740,
+                          monthlyAchievedDays: 24,
+                          myCatBreed: .browntabby),
+            FriendProfile(id: "SAKURA", friendCode: "SAKURA",
+                          username: "sakura_y", displayName: "さくら",
+                          currentStreak: 3, totalAchievedDays: 58,
+                          todayAchieved: false, todayCategoryName: nil,
+                          todayExerciseNames: [],
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-3 * 60 * minute),
+                          weeklyAchievements: [true, false, false, true, true, true, false],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          weeklyTotalMinutes: 75,
+                          monthlyTotalMinutes: 260,
+                          monthlyAchievedDays: 13,
+                          myCatBreed: .white),
+            FriendProfile(id: "DAICHI", friendCode: "DAICHI",
+                          username: "daichi_p", displayName: "だいち",
+                          currentStreak: 21, totalAchievedDays: 102,
+                          todayAchieved: true, todayCategoryName: "ストレッチ",
+                          todayExerciseNames: ["前屈ストレッチ", "肩回し"],
+                          decorationTier: 2,
+                          lastUpdated: now.addingTimeInterval(-30 * minute),
+                          weeklyAchievements: [true, true, true, false, true, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "前屈ストレッチ", durationMinutes: 3, sets: 2),
+                              SharedExerciseDetail(name: "肩回し", durationMinutes: 2, sets: 2)
+                          ],
+                          weeklyTotalMinutes: 90,
+                          monthlyTotalMinutes: 380,
+                          monthlyAchievedDays: 18,
+                          myCatBreed: .gray),
+            FriendProfile(id: "MIKAKO", friendCode: "MIKAKO",
+                          username: "mikako", displayName: "みかこ",
+                          currentStreak: 75, totalAchievedDays: 240,
+                          todayAchieved: true, todayCategoryName: "ヨガ",
+                          todayExerciseNames: ["太陽礼拝", "戦士のポーズ"],
+                          decorationTier: 3,
+                          lastUpdated: now.addingTimeInterval(-7 * minute),
+                          weeklyAchievements: [true, true, true, true, true, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,    // 詳細共有 OFF
+                          weeklyTotalMinutes: 175,
+                          monthlyTotalMinutes: 700,
+                          monthlyAchievedDays: 25,
+                          myCatBreed: .siamese),
+            FriendProfile(id: "TAKUYA", friendCode: "TAKUYA",
+                          username: "takuya_b", displayName: "たくや",
+                          currentStreak: 0, totalAchievedDays: 14,
+                          todayAchieved: false, todayCategoryName: nil,
+                          todayExerciseNames: [],
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-30 * 60 * minute),
+                          weeklyAchievements: [false, false, true, false, false, false, false],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          weeklyTotalMinutes: 15,
+                          monthlyTotalMinutes: 65,
+                          monthlyAchievedDays: 4,
+                          myCatBreed: .black),
+            FriendProfile(id: "EMIRIN", friendCode: "EMIRIN",
+                          username: "emi_run", displayName: "えみ",
+                          currentStreak: 33, totalAchievedDays: 130,
+                          todayAchieved: true, todayCategoryName: "有酸素",
+                          todayExerciseNames: ["サイクリング"],
+                          decorationTier: 2,
+                          lastUpdated: now.addingTimeInterval(-50 * minute),
+                          weeklyAchievements: [true, true, false, true, true, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "サイクリング", durationMinutes: 35)
+                          ],
+                          weeklyTotalMinutes: 165,
+                          monthlyTotalMinutes: 540,
+                          monthlyAchievedDays: 19,
+                          myCatBreed: .scottish),
+            FriendProfile(id: "KENJI1", friendCode: "KENJI1",
+                          username: "kenji_z", displayName: "けんじ",
+                          currentStreak: 200, totalAchievedDays: 410,
+                          todayAchieved: true, todayCategoryName: "筋トレ",
+                          todayExerciseNames: ["懸垂", "ディップス", "スクワット"],
+                          decorationTier: 3,
+                          lastUpdated: now.addingTimeInterval(-1 * minute),
+                          weeklyAchievements: [true, true, true, true, true, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: [
+                              SharedExerciseDetail(name: "懸垂", reps: 12, sets: 4),
+                              SharedExerciseDetail(name: "ディップス", reps: 15, sets: 4),
+                              SharedExerciseDetail(name: "スクワット", reps: 25, sets: 4)
+                          ],
+                          weeklyTotalMinutes: 245,
+                          monthlyTotalMinutes: 980,
+                          monthlyAchievedDays: 30,
+                          myCatBreed: .orange)
         ]
     }
 }
