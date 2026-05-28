@@ -9,39 +9,53 @@ struct QuickRecordButtonView: View {
     var body: some View {
         if snapshot.todayAchieved {
             // 達成済みは目立たない状態カードに
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-                Text("今日達成")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(.green.opacity(0.18), in: Capsule())
+            statusChip(icon: "checkmark.seal.fill", text: "今日達成",
+                       tint: .green, background: .green.opacity(0.18))
         } else if snapshot.isRestDay {
-            HStack(spacing: 6) {
-                Image(systemName: "moon.zzz.fill")
-                    .foregroundStyle(.secondary)
-                Text("回復日")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(Color.gray.opacity(0.18), in: Capsule())
+            statusChip(icon: "moon.zzz.fill", text: "回復日",
+                       tint: .secondary, background: Color.gray.opacity(0.18))
         } else {
             // 未達成: タップで AppIntent を実行 → 即時 reload。
+            // 文言は「今日の運動を記録する」アクションが一目で分かる「運動した！」に。
             Button(intent: QuickRecordIntent()) {
-                Label("1分やった！", systemImage: "plus.circle.fill")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(
-                        Color(red: 1.00, green: 0.62, blue: 0.55),
-                        in: Capsule()
-                    )
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("運動した！")
+                }
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 1.00, green: 0.58, blue: 0.38),
+                            Color(red: 0.99, green: 0.45, blue: 0.42),
+                        ],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    in: Capsule()
+                )
+                .shadow(color: Color(red: 0.99, green: 0.45, blue: 0.42).opacity(0.35),
+                        radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("今日の運動を 1 タップで記録")
+            .accessibilityLabel("今日の運動を記録する")
         }
+    }
+
+    private func statusChip(icon: String, text: String, tint: Color, background: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(text)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(background, in: Capsule())
     }
 }

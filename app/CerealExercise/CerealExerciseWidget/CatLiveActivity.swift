@@ -42,11 +42,12 @@ struct CatLiveActivity: Widget {
                         Spacer()
                         if !context.state.todayAchieved {
                             Button(intent: QuickRecordIntent()) {
-                                Text("やった！")
+                                Text("運動した！")
                                     .font(.system(.caption, design: .rounded, weight: .heavy))
+                                    .lineLimit(1)
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(Color(red: 1.00, green: 0.62, blue: 0.55))
+                            .tint(Color(red: 1.00, green: 0.55, blue: 0.42))
                             .controlSize(.small)
                         }
                     }
@@ -145,13 +146,21 @@ struct CatLockScreenView: View {
 
             if !state.todayAchieved {
                 Button(intent: QuickRecordIntent()) {
-                    Text("やった！")
+                    Text("運動した！")
                         .font(.system(.caption, design: .rounded, weight: .heavy))
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(
-                            Color(red: 1.00, green: 0.62, blue: 0.55),
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 1.00, green: 0.58, blue: 0.38),
+                                    Color(red: 0.99, green: 0.45, blue: 0.42),
+                                ],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            ),
                             in: Capsule()
                         )
                 }
