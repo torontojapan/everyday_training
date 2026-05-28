@@ -34,6 +34,36 @@ final class FriendsStoreTests: XCTestCase {
         XCTAssertFalse(store.friends.isEmpty, "Mock should seed at least one friend so the UI isn't empty")
     }
 
+    /// signIn 後も `sendRequest`/`searchByUsername` 用の候補が demoPool に残る
+    /// 回帰テスト。旧コードは 11 名全員を friends/pending に消費して候補ゼロ →
+    /// 友達追加・検索が常に失敗していた (3 LLM 監査 B-Major)。
+    func testCandidatesRemainForAddAfterSignIn() async {
+        await store.signIn(displayName: "ジュン", username: "jun88")
+        // 友達は 10 名シードされる。
+        XCTAssertEqual(store.friends.count, 10)
+        // 末尾 3 名 (NANAMI / SOTA22 / YUZUKI) は追加候補として温存される。
+        // 検索で見つかること + 実際に友達追加できることを確認する。
+        let results = await store.search("yuzu")
+        XCTAssertFalse(results.isEmpty, "温存候補が検索でヒットしなければならない")
+
+        let before = store.friends.count
+        await store.sendRequest(to: "NANAMI")
+        XCTAssertEqual(store.friends.count, before + 1,
+                       "signIn 後も demoPool に候補が残り友達追加が成功すること")
+    }
+
+    /// `ensureDemoFriendsSeeded` は profile (= friend code) を保ったまま
+    /// 友達リストを復元する。再起動で in-memory friends が消えるモックの補完。
+    func testEnsureDemoFriendsSeededPreservesProfile() async {
+        await store.signIn(displayName: "ジュン", username: "jun88")
+        let code = store.profile?.friendCode
+        XCTAssertNotNil(code)
+        await store.ensureDemoFriendsSeeded()
+        // friend code は変わらない (再 signIn による再生成が起きない)。
+        XCTAssertEqual(store.profile?.friendCode, code)
+        XCTAssertFalse(store.friends.isEmpty)
+    }
+
     func testSignOutClearsState() async {
         await store.signIn(displayName: "ジュン", username: "jun88")
         XCTAssertNotNil(store.profile)

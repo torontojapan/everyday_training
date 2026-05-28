@@ -6,6 +6,7 @@ import SwiftUI
 /// → 数字系カード (累計 / 体重 / 月次レビュー) は Stats タブへ全て移動。
 struct HomeView: View {
     @Environment(WorkoutStore.self) private var store
+    @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
@@ -66,12 +67,23 @@ struct HomeView: View {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
                 handleAutoPresentations()
+                syncMyFriendProfile()
+            }
+            // signIn (App.task) は onAppear と並行で走るため、初回は profile が
+            // まだ nil で sync が空振りすることがある。profile が現れた / 変わった
+            // タイミングで再同期して友達タブの自分の実績を最新化する (3 LLM 監査 B-Critical)。
+            .onChange(of: friendsStore.profile?.friendCode) { _, _ in
+                syncMyFriendProfile()
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
+                syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
                     viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot())
+                    // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
+                    // onAppear/onChange のみで、記録後すぐは stale だった)。
+                    syncMyFriendProfile()
                     completedStreakExtendedThisRun = viewModel.streakExtendedThisRun
                     completedRecord = record
                     WidgetSnapshotPublisher.publish(from: store, today: Date(), calendar: calendar)
@@ -347,6 +359,41 @@ struct HomeView: View {
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
         }
+    }
+
+    /// 自分の友達プロフィールを実データ (ホームの集計) で更新する。
+    /// これが無いと FriendsView の自分カードや週間ランキングが signIn 時の
+    /// 初期値 (0 日連続) のまま固定され、ホームの実績と食い違う (3 LLM 監査 B-Critical)。
+    private func syncMyFriendProfile() {
+        guard let current = friendsStore.profile else { return }
+        let streak = viewModel.streak.currentStreak
+        let achieved = viewModel.lifetimeStats.achievedDays
+        let todayDone = viewModel.todayStatus.countsAsAchieved
+        let weekly = viewModel.statuses.map { $0.status.countsAsAchieved }
+        let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
+        let tier = viewModel.catDecoration.tier
+        let breed = UserCatPreferences.shared.myCat
+        // 実データに変化が無ければ publish しない (lastUpdated は比較に含めない。
+        // 含めると毎回必ず差分扱いになり無駄な書き込みが発生する: Codex 指摘)。
+        if current.currentStreak == streak,
+           current.totalAchievedDays == achieved,
+           current.todayAchieved == todayDone,
+           current.weeklyAchievements == weekly,
+           current.weeklyTotalMinutes == minutes,
+           current.decorationTier == tier,
+           current.myCatBreed == breed {
+            return
+        }
+        var updated = current
+        updated.currentStreak = streak
+        updated.totalAchievedDays = achieved
+        updated.todayAchieved = todayDone
+        updated.weeklyAchievements = weekly
+        updated.weeklyTotalMinutes = minutes
+        updated.decorationTier = tier
+        updated.myCatBreed = breed
+        updated.lastUpdated = Date()
+        Task { await friendsStore.publishMyProfile(updated) }
     }
 }
 

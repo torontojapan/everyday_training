@@ -43,7 +43,13 @@ struct RecordCompletionView: View {
     }
 
     private var streak: Int {
-        StreakCalculator.currentStreak(records: store.records, today: store.today)
+        // 保険チケット救済日も連続に含める。これが無いと記録完了直後の
+        // 連続バッジが履歴/ホームと食い違う (3 LLM 監査 A-Major)。
+        StreakCalculator.currentStreak(
+            records: store.records,
+            today: store.today,
+            rescuedDates: RescueTicketStore.shared.rescuedDates()
+        )
     }
 
     var body: some View {

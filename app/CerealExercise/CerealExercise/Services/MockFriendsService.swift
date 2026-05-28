@@ -50,16 +50,30 @@ final class MockFriendsService: FriendsService {
         )
         myProfile = profile
         persistProfile()
+        seedPendingAndFriends()
+    }
 
-        // Pre-seed one pending request and a few friends so the UI has rich data to show.
-        if requests.isEmpty {
+    /// サインイン状態を変えずに pending/friends を (空なら) シードする。
+    /// アプリ再起動で in-memory friends が消えるため、毎回 signIn (= friend code
+    /// 再生成 + profile リセット) を避けつつ友達リストを復元する用途 (3 LLM 監査 C2)。
+    func seedDemoFriendsIfNeeded() async {
+        guard myProfile != nil else { return }
+        seedPendingAndFriends()
+    }
+
+    /// pending 1 件 + friends 最大 10 件をシード。`demoPool` の先頭から消費する。
+    /// demoPool には rich な 11 名の後ろに追加候補が控えており、シード後も
+    /// `sendRequest`/`searchByUsername` 用の候補が残る (3 LLM 監査 B-Major)。
+    private func seedPendingAndFriends() {
+        if requests.isEmpty, !demoPool.isEmpty {
             let sample = demoPool.removeFirst()
             requests[sample.friendCode] = FriendRequest(id: sample.friendCode, fromProfile: sample, requestedAt: now())
         }
         if friends.isEmpty {
-            // Seed up to 10 friends so the friend list is rich on first open
-            // (.yearly demo シナリオで「友達リストもフルフル」の状態を再現するため拡張)。
-            for _ in 0..<min(10, demoPool.count) {
+            // 末尾 3 名は追加/検索候補として温存。demoPool が 3 以下のときに
+            // 負の範囲で trap しないよう max(0, ...) でガードする (Codex 指摘)。
+            let seedCount = min(10, max(0, demoPool.count - 3))
+            for _ in 0..<seedCount where !demoPool.isEmpty {
                 let pre = demoPool.removeFirst()
                 friends[pre.friendCode] = pre
             }
@@ -322,7 +336,51 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 245,
                           monthlyTotalMinutes: 980,
                           monthlyAchievedDays: 30,
-                          myCatBreed: .orange)
+                          myCatBreed: .orange),
+            // --- 以下 3 名は「追加/検索候補」として温存される (友達には自動シードしない)。
+            // friend code でこれらを検索・申請するとデモで友達追加フローを試せる。
+            FriendProfile(id: "NANAMI", friendCode: "NANAMI",
+                          username: "nanami_k", displayName: "ななみ",
+                          currentStreak: 15, totalAchievedDays: 70,
+                          todayAchieved: false, todayCategoryName: nil,
+                          todayExerciseNames: [],
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-120 * minute),
+                          weeklyAchievements: [true, true, false, true, false, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          weeklyTotalMinutes: 80,
+                          monthlyTotalMinutes: 300,
+                          monthlyAchievedDays: 14,
+                          myCatBreed: .calico),
+            FriendProfile(id: "SOTA22", friendCode: "SOTA22",
+                          username: "sota", displayName: "そうた",
+                          currentStreak: 5, totalAchievedDays: 40,
+                          todayAchieved: true, todayCategoryName: "有酸素",
+                          todayExerciseNames: ["ランニング"],
+                          decorationTier: 1,
+                          lastUpdated: now.addingTimeInterval(-15 * minute),
+                          weeklyAchievements: [false, true, true, true, false, true, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          weeklyTotalMinutes: 110,
+                          monthlyTotalMinutes: 360,
+                          monthlyAchievedDays: 16,
+                          myCatBreed: .browntabby),
+            FriendProfile(id: "YUZUKI", friendCode: "YUZUKI",
+                          username: "yuzu", displayName: "ゆずき",
+                          currentStreak: 48, totalAchievedDays: 160,
+                          todayAchieved: true, todayCategoryName: "ヨガ",
+                          todayExerciseNames: ["太陽礼拝"],
+                          decorationTier: 2,
+                          lastUpdated: now.addingTimeInterval(-8 * minute),
+                          weeklyAchievements: [true, true, true, true, true, false, true],
+                          connectedSince: nil,
+                          todayExerciseDetails: nil,
+                          weeklyTotalMinutes: 150,
+                          monthlyTotalMinutes: 560,
+                          monthlyAchievedDays: 21,
+                          myCatBreed: .white)
         ]
     }
 }

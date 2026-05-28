@@ -56,11 +56,15 @@ struct CerealExerciseApp: App {
                         await friendsStore.signOut()
                     }
                     if args.contains("--mock-seed-friends") {
-                        // 既存 profile があっても再 signIn する。MockFriendsService は
-                        // friends を in-memory に持つため、再起動毎に 0 件に戻る。
-                        // demo モードでは毎回 demoPool から friends を seed したい。
-                        // (signIn は profile を冪等に上書きするので displayName/username は変わらない)
-                        await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
+                        if friendsStore.profile == nil {
+                            // 初回のみ signIn (profile + friend code を生成 + friends シード)。
+                            await friendsStore.signIn(displayName: "ジュン", username: "jun_demo")
+                        } else {
+                            // 既存 profile はそのまま (friend code を維持) で、in-memory
+                            // friends だけ再シードする。毎回 signIn すると friend code が
+                            // 再生成され profile も streak 0 にリセットされていた (3 LLM 監査 C2)。
+                            await friendsStore.ensureDemoFriendsSeeded()
+                        }
                     }
                 }
                 .onOpenURL { url in

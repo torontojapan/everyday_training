@@ -9,6 +9,18 @@ enum CatDecoration: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// `FriendProfile.decorationTier` (0..4) との相互変換用。
+    /// none=0 / bandana=1 / headband=2 / medal=3 / crown=4。
+    var tier: Int {
+        switch self {
+        case .none: return 0
+        case .bandana: return 1
+        case .headband: return 2
+        case .medal: return 3
+        case .crown: return 4
+        }
+    }
+
     init(totalAchievedDays: Int) {
         switch totalAchievedDays {
         case ..<7: self = .none

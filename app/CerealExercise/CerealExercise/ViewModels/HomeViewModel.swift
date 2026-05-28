@@ -56,9 +56,13 @@ final class HomeViewModel {
         // (Codex round5: 別ソース読みによる drift を排除)。
         let now = anchorDate ?? dateProvider.currentDate()
         let today = calendar.startOfDay(for: now)
-        statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, calendar: calendar)
+        // 保険チケット救済日を全集計に反映する。週カレンダー/週次進捗/streak が
+        // 履歴タブの月次カレンダー (rescue 反映済み) と一致するようにするため
+        // (3 LLM 監査 A-Major: 旧コードは rescue を渡さず内部矛盾していた)。
+        let rescued = rescueTicketStore.rescuedDates()
+        statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, rescuedDates: rescued, calendar: calendar)
         progress = WeeklyProgressCalculator.progress(from: statuses)
-        streak = StreakCalculator.streakState(records: records, today: today, calendar: calendar)
+        streak = StreakCalculator.streakState(records: records, today: today, rescuedDates: rescued, calendar: calendar)
         todayStatus = statuses.first { calendar.isDate($0.date, inSameDayAs: today) }?.status ?? .todayPending
         todaySummary = ExerciseTrendSummary.today(records: records, today: today, calendar: calendar)
         if let week = calendar.dateInterval(of: .weekOfYear, for: today) {

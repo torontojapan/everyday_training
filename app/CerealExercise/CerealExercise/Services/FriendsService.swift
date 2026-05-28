@@ -22,6 +22,15 @@ protocol FriendsService: AnyObject {
     func publishMyProfile(_ profile: FriendProfile) async throws
 
     func sendCheer(_ kind: CheerKind, to friendCode: String) async throws
+
+    /// デモ/モック実装で、サインイン状態を変えずに友達リスト (in-memory) を
+    /// 再シードする。実バックエンドでは no-op。アプリ再起動で in-memory friends
+    /// が消えるモックを補い、毎回 signIn (= friend code 再生成) を避けるため。
+    func seedDemoFriendsIfNeeded() async
+}
+
+extension FriendsService {
+    func seedDemoFriendsIfNeeded() async {}
 }
 
 enum CheerKind: String, CaseIterable, Sendable {
@@ -164,6 +173,12 @@ final class FriendsStore {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// サインイン状態を保ったまま (friend code を変えずに) デモ友達を再シードする。
+    func ensureDemoFriendsSeeded() async {
+        await service.seedDemoFriendsIfNeeded()
+        await refresh()
     }
 
     func cheer(_ kind: CheerKind, to friendCode: String) async {
