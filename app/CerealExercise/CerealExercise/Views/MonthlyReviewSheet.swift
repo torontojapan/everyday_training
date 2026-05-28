@@ -1,128 +1,168 @@
 import SwiftUI
+import UIKit
 
+/// 先月のハイライトを SNS シェアできるブランドカードに整形して表示するシート。
+/// `WeeklyHighlightShareSheet` / `LifetimeStatsShareSheet` と同じ ImageRenderer
+/// ベースのパターン (3 色グラデ背景 + 大きな猫キャラ + 写真に保存)。
 struct MonthlyReviewSheet: View {
     let review: MonthlyReviewBuilder.Review
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: Image?
+    @State private var renderedUIImage: UIImage?
+    @State private var saveBannerText: String?
+
+    private var appName: String { "GOエクササイズ" }
 
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                colors: [Palette.primary.opacity(0.8), Palette.secondary],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [
+                    Color(red: 0.62, green: 0.60, blue: 0.95),
+                    Color(red: 0.72, green: 0.55, blue: 0.90),
+                    Color(red: 0.90, green: 0.60, blue: 0.85)
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
-                    reviewCard
+
+                    MonthlyReviewCard(review: review, appName: appName)
+
                     if let renderedImage {
-                        ShareLink(item: renderedImage,
-                                  preview: SharePreview("\(review.monthLabel) の運動レビュー", image: renderedImage)) {
+                        ShareLink(
+                            item: renderedImage,
+                            preview: SharePreview("先月のハイライト · \(appName)", image: renderedImage)
+                        ) {
                             Label("SNSで共有", systemImage: "square.and.arrow.up")
                                 .font(Typography.headline)
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 14)
+                                .padding(.horizontal, 32).padding(.vertical, 14)
                                 .background(.black.opacity(0.45), in: Capsule())
                         }
                     } else {
-                        ProgressView().tint(.white).padding(.vertical, 16)
+                        ProgressView().tint(.white).padding(.vertical, 20)
                     }
+
+                    if let uiImage = renderedUIImage {
+                        Button {
+                            saveToPhotos(uiImage)
+                        } label: {
+                            Label("写真に保存", systemImage: "photo.badge.plus")
+                                .font(Typography.body)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 28).padding(.vertical, 12)
+                                .background(.white.opacity(0.2), in: Capsule())
+                        }
+                    }
+
+                    if let saveBannerText {
+                        Text(saveBannerText)
+                            .font(Typography.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16).padding(.vertical, 8)
+                            .background(.black.opacity(0.45), in: Capsule())
+                    }
+
                     Spacer().frame(height: 40)
                 }
                 .padding(20)
             }
-
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(.black.opacity(0.55), in: Circle())
-                }
-                .accessibilityLabel("閉じる")
-                .padding(.top, 12)
-                .padding(.trailing, 16)
-            }
+            closeButtonOverlay
         }
         .task { renderImage() }
     }
 
-    private var reviewCard: some View {
-        MonthlyReviewCard(review: review)
+    private var closeButtonOverlay: some View {
+        HStack {
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.black.opacity(0.55), in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 1))
+            }
+            .accessibilityLabel("閉じる")
+            .padding(.top, 12).padding(.trailing, 16)
+            .buttonStyle(.plain)
+            .zIndex(10)
+        }
     }
 
     @MainActor
     private func renderImage() {
-        let renderer = ImageRenderer(content: MonthlyReviewCard(review: review).frame(width: 600, height: 800))
+        let card = MonthlyReviewCard(review: review, appName: appName)
+            .frame(width: 600, height: 800)
+        let renderer = ImageRenderer(content: card)
         renderer.scale = 3
+        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
         if let uiImage = renderer.uiImage {
+            renderedUIImage = uiImage
             renderedImage = Image(uiImage: uiImage)
+        }
+    }
+
+    private func saveToPhotos(_ image: UIImage) {
+        saveBannerText = "保存中..."
+        ImageSaver().save(image) { result in
+            switch result {
+            case .success:
+                saveBannerText = "✓ 写真に保存しました"
+            case .failure(let error):
+                let nsError = error as NSError
+                if nsError.domain == "ALAssetsLibraryErrorDomain" || nsError.code == -3311 {
+                    saveBannerText = "写真への保存が許可されていません。設定アプリから許可してください。"
+                } else {
+                    saveBannerText = "保存に失敗しました: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }
 
+/// ImageRenderer で書き出される静的ブランドカード。
+/// `WeeklyHighlightShareCard` / `LifetimeStatsShareCard` と同じ構成:
+/// tracked バッジ + タイトル + 大きな猫キャラ (scaledToFit) + KPI + グラデ背景。
 struct MonthlyReviewCard: View {
     let review: MonthlyReviewBuilder.Review
-
-    /// 「達成おめ」感のある celebrating ポーズの猫を載せる。
-    /// 未生成 breed は orange にフォールバック。
-    private var catImageName: String {
-        let breed = UserCatPreferences.shared.myCat
-        let primary = CatState.celebrating.assetName(breed: breed)
-        return UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: .celebrating)
-    }
+    var appName: String = "GOエクササイズ"
 
     var body: some View {
-        VStack(spacing: 16) {
-            // 上部のブランドバッジ。SNS 拡散時に「どのアプリで撮ったか」を必ず残す。
-            HStack(spacing: 6) {
-                Image(systemName: "figure.run.circle.fill")
-                    .font(.system(size: 16, weight: .heavy))
-                    .foregroundStyle(.white)
-                Text("GOエクササイズ")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .background(.white.opacity(0.22), in: Capsule())
+        VStack(spacing: 18) {
+            Text("MONTHLY HIGHLIGHT")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(3)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14).padding(.vertical, 5)
+                .background(.black.opacity(0.45), in: Capsule())
+
+            Text("先月のハイライト")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
 
             Text(review.monthLabel)
-                .font(.system(size: 26, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.85))
 
-            // ユーザーが選んでいる猫キャラ。Stats から先月分を振り返るので
-            // 「celebrating」ポーズで「お疲れさま」のニュアンスを出す。
-            ZStack {
-                Circle()
-                    .fill(.white.opacity(0.25))
-                    .frame(width: 130, height: 130)
-                if UIImage(named: catImageName) != nil {
-                    Image(catImageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 130, height: 130)
-                        .clipShape(Circle())
-                } else {
-                    Text(CatState.celebrating.emoji)
-                        .font(.system(size: 80))
-                }
-            }
-            .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 3))
-            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+            // 猫キャラ (今週/これまでと同じく circle clip なしの scaledToFit 大判)
+            catImage
+                .frame(width: 200, height: 200)
+                .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+                .padding(.top, 4)
 
+            // メイン KPI: 達成日数
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 Text("\(review.achievedDays)")
-                    .font(.system(size: 72, weight: .black, design: .rounded))
+                    .font(.system(size: 88, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
                 Text("/ \(review.totalDays) 日達成")
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
@@ -142,29 +182,44 @@ struct MonthlyReviewCard: View {
             .padding(16)
             .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            // 拡散先で「アプリ名」が必ず読める最終フッター。
-            HStack(spacing: 6) {
-                Image(systemName: "pawprint.fill")
-                    .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(.white.opacity(0.85))
-                Text("GOエクササイズ で記録")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .padding(.top, 2)
+            Text(appName)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.top, 10)
         }
         .padding(28)
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [Palette.primary, Palette.primaryDeep],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [
+                    Color(red: 0.50, green: 0.48, blue: 0.92),
+                    Color(red: 0.62, green: 0.42, blue: 0.88),
+                    Color(red: 0.85, green: 0.48, blue: 0.80)
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
-        .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).strokeBorder(.white.opacity(0.35), lineWidth: 2))
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+    }
+
+    /// 選択中の猫キャラ (celebrating ポーズ。asset 欠落時は orange fallback、それも
+    /// 無ければ emoji)。今週/これまでカードと同じ解決ロジック。
+    private var catImage: some View {
+        let breed = UserCatPreferences.shared.myCat
+        let primary = breed.assetName(for: .celebrating)
+        let resolved = UIImage(named: primary) != nil
+            ? primary
+            : CatBreed.fallbackAssetName(for: .celebrating)
+        return Group {
+            if UIImage(named: resolved) != nil {
+                Image(resolved)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Text("😺").font(.system(size: 120))
+            }
+        }
     }
 
     private func statRow(icon: String, label: String, value: String) -> some View {

@@ -84,6 +84,9 @@ struct StatsView: View {
                     // 「これまでの記録」は一番下に。先月のレビューと同じ entry-row 形式。
                     // tap → LifetimeStatsShareSheet (= ブランドカード画面に遷移)。
                     lifetimeStatsEntry
+
+                    // 友達タブと同じ「このアプリを友達にシェア」を最下部にも置く。
+                    shareAppEntry
                 }
                 .padding(20)
             }
@@ -433,7 +436,7 @@ struct StatsView: View {
                     .font(.system(size: 22))
                     .foregroundStyle(hasPrevious ? Palette.primaryDeep : Palette.textSecondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("先月のレビューを見る")
+                    Text("先月のハイライト")
                         .font(Typography.headline)
                         .foregroundStyle(hasPrevious ? Palette.textPrimary : Palette.textSecondary)
                     Text(hasPrevious
@@ -454,5 +457,40 @@ struct StatsView: View {
         .buttonStyle(.plain)
         .disabled(!hasPrevious)
         .accessibilityIdentifier("monthly-review-stats-button")
+    }
+
+    /// 「このアプリを友達にシェア」。友達タブの `shareAppCard` と同一構成で、
+    /// 共有 URL / 文面は [[AppSharingConfig]] に集約済み。
+    private var shareAppEntry: some View {
+        ShareLink(
+            item: AppSharingConfig.shareURL,
+            subject: Text(AppSharingConfig.shareSubject),
+            message: Text(AppSharingConfig.shareMessage)
+        ) {
+            HStack(spacing: 12) {
+                Image(systemName: "square.and.arrow.up.circle.fill")
+                    .font(.system(size: 26))
+                    .foregroundStyle(Palette.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("このアプリを友達にシェア")
+                        .font(Typography.body)
+                        .foregroundStyle(Palette.textPrimary)
+                    Text("インストール用リンクが LINE / メッセージなどで送れます")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("share-app-button-stats")
+        .accessibilityLabel("このアプリを友達にシェア")
     }
 }
