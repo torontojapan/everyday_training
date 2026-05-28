@@ -49,6 +49,11 @@ targets:
       - path: CerealExercise/Models/WorkoutRecord.swift
       - path: CerealExercise/Models/ExerciseItem.swift
       - path: CerealExercise/Models/WorkoutCategory.swift
+      # WeightEntry / MenstrualEntry は QuickRecordIntent が App Group 共有ストアを
+      # メインアプリと同一 schema で開くために必要 (監査 B-Critical-1)。
+      - path: CerealExercise/Models/WeightEntry.swift
+      - path: CerealExercise/Models/MenstrualEntry.swift
+      - path: CerealExercise/Services/AppModelContainer.swift
       - path: CerealExercise/Services/SharedSnapshotStore.swift
       - path: CerealExercise/Services/WidgetTimelineDates.swift
       - path: CerealExercise/Services/DateProvider.swift

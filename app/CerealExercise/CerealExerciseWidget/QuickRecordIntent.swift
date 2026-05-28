@@ -19,16 +19,9 @@ struct QuickRecordIntent: AppIntent {
     static let openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult {
-        // App Group 共有 SQLite store を直接更新。WidgetKit / メインアプリ
-        // どちらからもアクセスできるよう ModelConfiguration の URL を
-        // App Group container に置く。
-        let container = try ModelContainer(
-            for: WorkoutRecord.self,
-            configurations: ModelConfiguration(
-                url: Self.sharedStoreURL,
-                cloudKitDatabase: .none
-            )
-        )
+        // メインアプリと同じ App Group 共有ストアを開く (監査 B-Critical-1)。
+        // これでクイック記録がメインアプリの連続記録 / 履歴に反映される。
+        let container = AppModelContainer.make()
         let context = ModelContext(container)
 
         let now = Date()
@@ -42,7 +35,9 @@ struct QuickRecordIntent: AppIntent {
                calendar.isDate($0.date, inSameDayAs: today)
                && $0.exercisesData.isEmpty == false
            }) {
-            // 既に記録ありの日は何もしない (idempotent)。
+            // 既に記録ありの日。store は触らないが、snapshot が古い (前日のまま等) と
+            // ウィジェットが「未達成」表示のままになり得るので達成表示に揃える。
+            Self.markSnapshotAchieved(now: now, calendar: calendar)
             WidgetCenter.shared.reloadAllTimelines()
             await Self.markLiveActivityAchieved()
             return .result()
@@ -64,10 +59,43 @@ struct QuickRecordIntent: AppIntent {
         context.insert(record)
         try context.save()
 
-        // Widget timeline + Live Activity を即時更新して「達成済み」表示に切り替える。
+        // ウィジェット表示は SharedSnapshotStore (App Group UserDefaults) を読むため、
+        // 記録直後に snapshot の「今日達成」フラグも更新しないと見た目が変わらない
+        // (監査 B-Critical-1)。正確な再計算は次回 app 起動時に行われるので、ここでは
+        // 達成フラグ + 連続/週次の +1 を反映する近似更新に留める。
+        Self.markSnapshotAchieved(now: now, calendar: calendar)
         WidgetCenter.shared.reloadAllTimelines()
         await Self.markLiveActivityAchieved()
         return .result()
+    }
+
+    /// SharedSnapshotStore の今日分を「達成済み」に近似更新する。
+    /// service 群 (StreakCalculator 等) は widget target に無いため厳密再計算は
+    /// せず、既存 snapshot を読んで達成フラグ + カウント +1 + celebrating 表情に差し替える。
+    private static func markSnapshotAchieved(now: Date, calendar: Calendar) {
+        let store = SharedSnapshotStore()
+        let current = store.read()
+        // snapshot が「今日」生成で既に達成済みのときだけ skip (二重カウント防止)。
+        // 前日以前の古い snapshot の todayAchieved=true は信用しない (Codex 指摘の
+        // date-blind 回避)。古い場合は streak/週次を据え置きで達成フラグだけ立てる。
+        let snapshotIsToday = calendar.isDate(current.generatedAt, inSameDayAs: now)
+        if snapshotIsToday && current.todayAchieved { return }
+        // 今日の snapshot からの遷移なら +1、古い snapshot なら据え置き (厳密値は
+        // 次回 app 起動時に WidgetSnapshotPublisher が再計算する近似更新)。
+        let streak = snapshotIsToday ? current.currentStreak + 1 : current.currentStreak
+        let weekly = snapshotIsToday ? min(current.weeklyAchieved + 1, current.weeklyTotal) : current.weeklyAchieved
+        let updated = WidgetSnapshot.make(
+            generatedAt: now,
+            todayAchieved: true,
+            isRestDay: false,
+            currentStreak: streak,
+            weeklyAchieved: weekly,
+            weeklyTotal: current.weeklyTotal,
+            catState: .celebrating,
+            message: "今日もえらい！記録できたね",
+            calendar: calendar
+        )
+        _ = store.write(updated)
     }
 
     /// Live Activity 上のボタンから記録した直後に「達成済」の見た目に切り替える。
@@ -79,15 +107,5 @@ struct QuickRecordIntent: AppIntent {
             next.todayAchieved = true
             await activity.update(.init(state: next, staleDate: activity.content.staleDate))
         }
-    }
-
-    /// メインアプリ / ウィジェットが共有する SwiftData ファイル URL。
-    /// App Group `group.com.serial.cerealexercise` 配下に置く必要あり。
-    static var sharedStoreURL: URL {
-        let fm = FileManager.default
-        let groupURL = fm.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.serial.cerealexercise"
-        ) ?? URL.documentsDirectory
-        return groupURL.appendingPathComponent("WorkoutStore.sqlite")
     }
 }

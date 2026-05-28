@@ -16,6 +16,10 @@ struct CerealExerciseApp: App {
     /// 内のあらゆる View が同一インスタンスを参照するように。
     @State private var rescueTicketStore = RescueTicketStore.shared
     @State private var isShowingOnboarding = false
+    /// App Group 共有 SwiftData コンテナ。**1 回だけ** 生成する。
+    /// body 内で make() をインライン呼び出しすると body 再評価毎に同一ストアへ
+    /// 複数コンテナが開かれ、SwiftData が trap する (EXC_BREAKPOINT) ため。
+    private let sharedModelContainer = AppModelContainer.make()
 
     var body: some Scene {
         WindowGroup {
@@ -78,7 +82,10 @@ struct CerealExerciseApp: App {
                     router.pendingRoute = nil
                 }
         }
-        .modelContainer(for: [WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
+        // Widget / QuickRecordIntent と同じ App Group 共有ストアを使う。
+        // 旧 `.modelContainer(for:)` はデフォルトのローカルストアを使っており、
+        // ウィジェットのクイック記録がメインアプリに反映されなかった (監査 B-Critical-1)。
+        .modelContainer(sharedModelContainer)
     }
 }
 

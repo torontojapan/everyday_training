@@ -67,6 +67,7 @@ final class NotificationRecorder: @unchecked Sendable, NotificationScheduling {
         added.append(request)
     }
     func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {}
+    func removeAllPendingNotificationRequests() {}
 }
 
 import UserNotifications

@@ -36,6 +36,7 @@ struct NotificationSettings: Equatable, Sendable {
 protocol NotificationScheduling: AnyObject, Sendable {
     func add(_ request: UNNotificationRequest) async throws
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
+    func removeAllPendingNotificationRequests()
 }
 
 extension UNUserNotificationCenter: @retroactive @unchecked Sendable {}
@@ -45,6 +46,12 @@ extension UNUserNotificationCenter: NotificationScheduling {}
 final class NotificationScheduler {
     static let morningIdentifier = "notif.morning"
     static let eveningIdentifier = "notif.evening"
+    /// 先のぶんまで one-shot 通知を予約しておく日数。
+    /// `repeats:true` の単一トリガーだと「達成日に cancel → 繰り返しごと消える」
+    /// 問題があったため、ローリングで N 日分の **one-shot** を貼る方式に変更
+    /// (3 LLM 監査 B-Major-2)。これによりアプリを数日開かなくてもリマインドが届く。
+    /// iOS の保留上限 64 件に対し N=7 × 2 枠 = 14 件で十分余裕がある。
+    static let rollingDays = 7
 
     private let center: any NotificationScheduling
     private let settings: NotificationSettings
@@ -69,61 +76,88 @@ final class NotificationScheduler {
     }
 
     func scheduleDaily(todayAchieved: Bool, currentStreak: Int, weeklyProgressRate: Double) async {
-        cancelToday()
+        // 保留中の通知を全消去してローリング window を貼り直す。これにより
+        // 「達成日だけ抑制し、翌日以降は残す」を full rebuild で実現する
+        // (旧 repeats:true + cancelToday は将来の繰り返しごと消していた)。
+        center.removeAllPendingNotificationRequests()
 
-        guard settings.isEnabled, settings.notificationCount > 0, !todayAchieved else { return }
+        guard settings.isEnabled, settings.notificationCount > 0 else { return }
 
         // Codex UX #6: 通知の性格モードに応じて scheduling を変える。
-        // - voice (デフォルト): 朝 + 夕方 の現状仕様
-        // - quiet: 夕方 1 通のみ、しかも streak が "危険" (=ある or 週進捗あり)
-        //   なときだけ。何もない真新規ユーザーには夕方も鳴らない。
-        // - friendDriven: 日常リマインダーは抑制 (push 基盤未完成のため
-        //   degrade: quiet と同等の振る舞いで本日 1 通も鳴らないケースも許容)。
+        // - voice (デフォルト): 朝 + 夕方
+        // - quiet: 夕方 1 通のみ、しかも streak が "危険" (=ある or 週進捗あり) なときだけ
+        // - friendDriven: 日常リマインダーは抑制
         let personality = NotificationPersonalityPreferences.shared.current
+        if personality == .friendDriven { return }
         let streakAtRisk = currentStreak > 0 || weeklyProgressRate > 0
-        switch personality {
-        case .voice:
-            await schedule(identifier: Self.morningIdentifier, time: settings.morning,
-                           slot: .morning, personality: personality,
-                           currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
-            if settings.notificationCount > 1 {
-                await schedule(identifier: Self.eveningIdentifier, time: settings.evening,
-                               slot: .evening, personality: personality,
-                               currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+        if personality == .quiet, !streakAtRisk { return }
+
+        let now = dateProvider.currentDate()
+        // 「今日 + 翌日以降 rollingDays 日」を常に対象にする (offset 0...rollingDays)。
+        // 今日分は達成済み or 発火時刻超過でスキップされ得るが、翌日以降の
+        // rollingDays 日分は必ず未来なので、どのケースでも将来 rollingDays 日の
+        // カバレッジを保証できる (Codex 指摘の off-by-one / 時刻超過の両方を解消)。
+        for offset in 0...Self.rollingDays {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
+            let isToday = offset == 0
+            // 今日達成済みなら今日分だけスキップ。将来分は残す (= B-Major-2 の肝)。
+            if isToday && todayAchieved { continue }
+
+            if personality == .voice {
+                await scheduleOneShot(slot: .morning, time: settings.morning, day: day,
+                                      isToday: isToday, now: now, personality: personality,
+                                      currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+                if settings.notificationCount > 1 {
+                    await scheduleOneShot(slot: .evening, time: settings.evening, day: day,
+                                          isToday: isToday, now: now, personality: personality,
+                                          currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
+                }
+            } else { // .quiet (atRisk は上で確認済み)
+                await scheduleOneShot(slot: .evening, time: settings.evening, day: day,
+                                      isToday: isToday, now: now, personality: personality,
+                                      currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
             }
-        case .quiet:
-            guard streakAtRisk else { return }
-            await schedule(identifier: Self.eveningIdentifier, time: settings.evening,
-                           slot: .evening, personality: personality,
-                           currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
-        case .friendDriven:
-            // 友達 push が来たときだけ反応する設計。日常 push は鳴らさない。
-            // (将来 CloudKit + push 完成後、ここで CKQuerySubscription を読んで
-            // 必要時のみ alert を投げる予定。)
-            return
         }
     }
 
+    /// 今日分の通知だけを取り消す (将来分は残す)。
     func cancelToday() {
-        center.removePendingNotificationRequests(withIdentifiers: [Self.morningIdentifier, Self.eveningIdentifier])
+        let today = dateProvider.currentDate()
+        center.removePendingNotificationRequests(withIdentifiers: [
+            identifier(slot: .morning, day: today),
+            identifier(slot: .evening, day: today)
+        ])
     }
 
     func rescheduleAfterAchievement(currentStreak: Int, weeklyProgressRate: Double) async {
         await scheduleDaily(todayAchieved: true, currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)
     }
 
-    private func schedule(
-        identifier: String,
-        time: NotificationTime,
+    /// 日付ごとに一意な identifier。例: `notif.morning.20260528`。
+    /// これで「今日分だけ cancel」が可能になり、将来の予約を巻き込まない。
+    private func identifier(slot: NotificationSlot, day: Date) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: day)
+        let key = slot == .morning ? "morning" : "evening"
+        return String(format: "notif.%@.%04d%02d%02d", key, c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    private func scheduleOneShot(
         slot: NotificationSlot,
+        time: NotificationTime,
+        day: Date,
+        isToday: Bool,
+        now: Date,
         personality: NotificationPersonality,
         currentStreak: Int,
         weeklyProgressRate: Double
     ) async {
-        var components = DateComponents()
-        components.calendar = calendar
+        var components = calendar.dateComponents([.year, .month, .day], from: day)
         components.hour = time.hour
         components.minute = time.minute
+        components.calendar = calendar
+        guard let fireDate = calendar.date(from: components) else { return }
+        // 今日分で発火時刻が既に過ぎていたら one-shot は鳴らないのでスキップ。
+        if isToday && fireDate <= now { return }
 
         let content = UNMutableNotificationContent()
         content.title = "GOエクササイズ"
@@ -132,23 +166,23 @@ final class NotificationScheduler {
             personality: personality,
             currentStreak: currentStreak,
             weeklyProgressRate: weeklyProgressRate,
-            seedDate: dateProvider.currentDate(),
+            seedDate: fireDate,
             calendar: calendar
         )
         content.sound = .default
         // Tap on the reminder should jump straight to the record screen.
-        // AppDelegate reads this and forwards into DeepLinkRouter.
         content.userInfo = ["route": AppRoute.record.rawValue]
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: identifier(slot: slot, day: day),
+            content: content,
+            trigger: trigger
+        )
         do {
             try await center.add(request)
         } catch {
-            // Surface the failure via os_log so it shows up in Console.app
-            // without crashing the app. Common causes: permission denied,
-            // App Group / entitlement mismatch, or trigger malformed.
-            notificationLogger.error("Failed to schedule notification \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            notificationLogger.error("Failed to schedule notification \(request.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 }
