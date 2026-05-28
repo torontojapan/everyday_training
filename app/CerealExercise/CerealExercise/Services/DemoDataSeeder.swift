@@ -17,6 +17,14 @@ enum DemoScenario: String {
     /// - 5 日分の生理エントリ
     /// - 身長 / 目標体重 / 開始体重を userDefaults に保存 (BMI / 進捗バー / 予測日が出る)
     case monthly
+    /// 1 年 (365 日) フルに使い込んだ状態。手動 QA 用に「ぜんぶ満タン」のシナリオ。
+    /// - 365 日連続ワークアウト (種目テンプレートをローテで多様性確保)
+    /// - 365 日分の体重 (75kg → 65kg 線形減量 + ノイズ + 偶数日 2 件)
+    /// - 13 周期 × 5 日 の生理エントリ (1 年全期間に渡る周期オーバーレイ)
+    /// - 身長 168 / 開始 75 / 目標 65 → BMI / 進捗 100% に向かう
+    /// - 過去 6 ヶ月で 6 枚の保険チケット使用済履歴 (履歴画面で確認できる)
+    /// - 365 日達成によりほぼ全 milestone が migrate により acknowledged 化
+    case yearly
 }
 
 @MainActor
@@ -60,6 +68,13 @@ enum DemoDataSeeder {
             seedMonthlyWeight(context: context, todayStart: todayStart, calendar: calendar)
             seedHealthPreferences()
             // 体重 chart の周期オーバーレイがデモ画面に出るよう opt-in を有効化。
+            CycleTrackingSettings().isEnabled = true
+        case .yearly:
+            seedYearlyWorkouts(context: context, todayStart: todayStart, calendar: calendar)
+            seedYearlyMenstrual(context: context, todayStart: todayStart, calendar: calendar)
+            seedYearlyWeight(context: context, todayStart: todayStart, calendar: calendar)
+            seedYearlyHealthPreferences()
+            seedYearlyRescueTicketHistory(todayStart: todayStart, calendar: calendar)
             CycleTrackingSettings().isEnabled = true
         }
 
@@ -195,6 +210,82 @@ enum DemoDataSeeder {
         if prefs.heightCentimeters == nil { prefs.heightCentimeters = 168 }
         if prefs.startKilograms == nil { prefs.startKilograms = 68.0 }
         if prefs.targetKilograms == nil { prefs.targetKilograms = 64.0 }
+    }
+
+    /// 365 日連続のワークアウト。種目テンプレートを回しつつ、月の境目で
+    /// 種目バランスが少しずつ変わるよう offset を 2 つの素数で混ぜる。
+    private static func seedYearlyWorkouts(context: ModelContext, todayStart: Date, calendar: Calendar) {
+        for offset in 0..<365 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+            // 種目を「曜日 (offset % 7) + 月 (offset / 30 を素数 3 で回す)」で変化
+            let weekdayBias = offset % 7
+            let monthBias = (offset / 30) * 3
+            insertRecord(context: context, date: day,
+                         templateIndex: weekdayBias + monthBias, calendar: calendar)
+        }
+    }
+
+    /// 13 周期 × 5 日。今日から 5 日前を初回、その後 28 日周期で過去 1 年に並べる。
+    private static func seedYearlyMenstrual(context: ModelContext, todayStart: Date, calendar: Calendar) {
+        for cycle in 0..<13 {
+            let cycleStart = 5 + cycle * 28  // 直近周期: -5..-9, 次: -33..-37, ...
+            for d in 0..<5 {
+                let offset = cycleStart + d
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+                context.insert(MenstrualEntry(date: day, calendar: calendar))
+            }
+        }
+    }
+
+    /// 365 日分の体重。75kg → 65kg の線形 + 決定論的ノイズ + 偶数日 2 件記録。
+    /// monthly と同じく非乱数で再現性を担保。
+    private static func seedYearlyWeight(context: ModelContext, todayStart: Date, calendar: Calendar) {
+        let weightDesc = FetchDescriptor<WeightEntry>()
+        if let existing = try? context.fetch(weightDesc), !existing.isEmpty { return }
+
+        let startKg = 75.0
+        let endKg = 65.0
+        let days = 365
+        let slope = (endKg - startKg) / Double(days - 1)
+        // 30 要素のノイズ循環。offset % 30 で展開する。
+        let noisePattern: [Double] = [0.0, 0.18, -0.12, 0.05, -0.20, 0.10, 0.00, 0.15, -0.08, 0.12,
+                                       -0.18, 0.04, 0.00, 0.20, -0.10, 0.08, -0.05, 0.16, -0.14, 0.06,
+                                       0.00, 0.10, -0.18, 0.04, 0.12, -0.06, 0.00, 0.08, -0.10, 0.05]
+
+        for offset in 0..<days {
+            guard let dayStart = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+            let x = Double(days - 1 - offset)
+            let base = startKg + slope * x + noisePattern[offset % 30]
+            let morning = dayStart.addingTimeInterval(7 * 3600)
+            context.insert(WeightEntry(date: morning, weightKilograms: base, memo: nil))
+            if offset.isMultiple(of: 2) {
+                let evening = dayStart.addingTimeInterval(21 * 3600)
+                context.insert(WeightEntry(date: evening, weightKilograms: base - 0.3, memo: nil))
+            }
+        }
+    }
+
+    /// 開始 75kg / 目標 65kg / 身長 168cm。
+    /// (monthly は 68→64kg だが yearly は 1 年分の幅で見せたいので 75→65 にする)
+    private static func seedYearlyHealthPreferences() {
+        let prefs = UserHealthPreferences.shared
+        if prefs.heightCentimeters == nil { prefs.heightCentimeters = 168 }
+        if prefs.startKilograms == nil { prefs.startKilograms = 75.0 }
+        if prefs.targetKilograms == nil { prefs.targetKilograms = 65.0 }
+    }
+
+    /// 過去 6 ヶ月、月初付近で 1 枚ずつ保険チケットを使用した履歴。
+    /// 履歴画面の保険チケットセクションで「過去使った日」が見えるようにする。
+    private static func seedYearlyRescueTicketHistory(todayStart: Date, calendar: Calendar) {
+        let defaults = UserDefaults.standard
+        var dates = (defaults.array(forKey: RescueTicketStore.usedDatesKey) as? [Double]) ?? []
+        for monthsBack in 1...6 {
+            guard let monthBack = calendar.date(byAdding: .month, value: -monthsBack, to: todayStart),
+                  let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthBack)),
+                  let midMonth = calendar.date(byAdding: .day, value: 14, to: firstOfMonth) else { continue }
+            dates.append(calendar.startOfDay(for: midMonth).timeIntervalSince1970)
+        }
+        defaults.set(dates, forKey: RescueTicketStore.usedDatesKey)
     }
 
     private static func seedEdgeMinute(context: ModelContext, todayStart: Date, calendar: Calendar) {
