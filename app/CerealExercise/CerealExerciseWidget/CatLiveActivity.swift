@@ -1,5 +1,6 @@
 import ActivityKit
 import SwiftUI
+import UIKit
 import WidgetKit
 
 /// 朝〜夜の間、ロック画面 + Dynamic Island に猫が常駐する Live Activity。
@@ -36,8 +37,8 @@ struct CatLiveActivity: Widget {
                     HStack(spacing: 8) {
                         Text(context.state.todayAchieved
                              ? "今日も達成 ✨ お疲れさま"
-                             : "今日もちょこっとやろ？")
-                            .font(.system(.subheadline, design: .rounded))
+                             : "1分だけでも運動しよう")
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         Spacer()
                         if !context.state.todayAchieved {
                             Button(intent: QuickRecordIntent()) {
@@ -51,7 +52,9 @@ struct CatLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                catCompactIcon(breedRaw: context.state.catBreedRaw)
+                // 極小スロットは画像より記号が綺麗・確実なので肉球マークで統一。
+                Image(systemName: "pawprint.fill")
+                    .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
             } compactTrailing: {
                 if context.state.todayAchieved {
                     Image(systemName: "checkmark.seal.fill")
@@ -62,16 +65,44 @@ struct CatLiveActivity: Widget {
                         .monospacedDigit()
                 }
             } minimal: {
-                Text(context.state.todayAchieved ? "✓" : "🐱")
+                if context.state.todayAchieved {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Image(systemName: "pawprint.fill")
+                        .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
+                }
             }
             .widgetURL(URL(string: "cerealexercise://home"))
         }
     }
+}
 
-    /// Compact leading は文字 ~1 字分しか入らないので猫絵文字でシンプルに。
-    private func catCompactIcon(breedRaw: String) -> some View {
-        Text("🐱")
-            .font(.system(size: 16))
+/// ロック画面 / 拡張表示用の、ブランドのオレンジ猫画像 (状態別)。
+/// アセット欠落時は肉球記号にフォールバックして空白描画を防ぐ (Codex 指摘)。
+struct LiveActivityCatImage: View {
+    let stateRaw: String
+    var size: CGFloat = 34
+
+    var body: some View {
+        Group {
+            if UIImage(named: assetName) != nil {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "pawprint.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
+                    .padding(size * 0.15)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+
+    private var assetName: String {
+        "cat_orange_\(CatState(rawValue: stateRaw)?.rawValue ?? CatState.waitingMorning.rawValue)"
     }
 }
 
@@ -83,10 +114,17 @@ struct CatLockScreenView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color(red: 1.00, green: 0.85, blue: 0.55).opacity(0.30))
-                    .frame(width: 48, height: 48)
-                Text(catEmoji)
-                    .font(.system(size: 32))
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 1.00, green: 0.86, blue: 0.60).opacity(0.85),
+                                Color(red: 1.00, green: 0.85, blue: 0.55).opacity(0.25),
+                            ],
+                            center: .center, startRadius: 2, endRadius: 28
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                LiveActivityCatImage(stateRaw: state.catStateRaw, size: 38)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -98,7 +136,7 @@ struct CatLockScreenView: View {
                 }
                 Text(state.todayAchieved
                      ? "今日も達成 ✨"
-                     : "残り \(state.hoursLeftToday) 時間")
+                     : "1分だけでも・残り \(state.hoursLeftToday) 時間")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -126,16 +164,5 @@ struct CatLockScreenView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-    }
-
-    private var catEmoji: String {
-        switch CatState(rawValue: state.catStateRaw) ?? .waitingMorning {
-        case .celebrating: return "😸"
-        case .streakExtended: return "😻"
-        case .resting: return "😽"
-        case .worriedNoon: return "😿"
-        case .beggingNight: return "🙀"
-        default: return "🐱"
-        }
     }
 }

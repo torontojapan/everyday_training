@@ -51,6 +51,9 @@ targets:
     type: app-extension
     platform: iOS
     sources:
+      # WidgetCatAssets.xcassets (ブランドのオレンジ猫 7 状態の縮小版) はこの
+      # source パス走査で xcodegen が自動的に resource として分類・同梱する。
+      # 本体 Assets.xcassets は 88MB あり widget には丸ごと入れられないため分離。
       - path: CerealExerciseWidget
         excludes: ["Info.plist"]
       - path: CerealExercise/Models/CatState.swift

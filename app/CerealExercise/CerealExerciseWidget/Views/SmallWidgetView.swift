@@ -5,18 +5,25 @@ struct SmallWidgetView: View {
     let snapshot: WidgetSnapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                WidgetCatView(rawState: snapshot.catState)
+                WidgetCatView(rawState: snapshot.catState, size: 60)
                 Spacer(minLength: 0)
                 progressRing
             }
 
-            Text(remainingText)
-                .font(.headline)
-                .foregroundStyle(Color(red: 0.30, green: 0.25, blue: 0.20))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(headlineText)
+                    .font(.system(.headline, design: .rounded, weight: .heavy))
+                    .foregroundStyle(headlineColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(subText)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color(red: 0.54, green: 0.47, blue: 0.39))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
 
             // Phase 7.0 Step 3: 旧 status chip → 1-tap 記録ボタン or 達成済 chip
             QuickRecordButtonView(snapshot: snapshot)
@@ -24,14 +31,22 @@ struct SmallWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
-    private var remainingText: String {
-        if snapshot.todayAchieved {
-            return "達成済み！"
-        }
-        if snapshot.isRestDay {
-            return "回復日"
-        }
-        return "あと\(snapshot.nightDeadlineHoursLeft)時間"
+    /// 未達成時は「1分だけでも」を主役にして行動を促す (ユーザー要望)。
+    private var headlineText: String {
+        if snapshot.todayAchieved { return "達成済み！" }
+        if snapshot.isRestDay { return "回復日" }
+        return "1分だけでも"
+    }
+
+    private var headlineColor: Color {
+        if snapshot.todayAchieved { return Color(red: 0.20, green: 0.55, blue: 0.28) }
+        return Color(red: 0.95, green: 0.42, blue: 0.30)
+    }
+
+    private var subText: String {
+        if snapshot.todayAchieved { return "今日もえらい！" }
+        if snapshot.isRestDay { return "むりせず整えよう" }
+        return "23:59まであと\(snapshot.nightDeadlineHoursLeft)時間"
     }
 
     private var statusText: String {
