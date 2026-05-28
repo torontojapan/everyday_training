@@ -9,11 +9,26 @@ final class MenstrualStore {
     private let calendar: Calendar
 
     private(set) var entries: [MenstrualEntry] = []
+    /// `@ObservationIgnored nonisolated(unsafe)`: deinit から removeObserver するため。
+    @ObservationIgnored private nonisolated(unsafe) var resetObserver: NSObjectProtocol?
 
     init(context: ModelContext, calendar: Calendar = .mondayFirst) {
         self.context = context
         self.calendar = calendar
         fetchEntries()
+        // 全記録削除後、保持され続けるストアが削除済み MenstrualEntry を
+        // 掴んだままにならないよう再フェッチする (Codex 指摘)。
+        resetObserver = NotificationCenter.default.addObserver(
+            forName: .goDataDidReset, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fetchEntries() }
+        }
+    }
+
+    deinit {
+        if let resetObserver {
+            NotificationCenter.default.removeObserver(resetObserver)
+        }
     }
 
     func fetchEntries() {

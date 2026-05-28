@@ -43,6 +43,11 @@ struct CerealExerciseApp: App {
                     }
                 }
                 .task {
+                    // 計測: App ID 設定済 + Release のときだけ TelemetryDeck を有効化
+                    // (未設定なら Noop = 送信なし)。その後 app_open を記録。
+                    Analytics.configureIfPossible()
+                    Analytics.track(.appOpen)
+
                     // StoreKit: 起動時に商品ロード + entitlement 評価 +
                     // consumable (rescue ticket) fulfillment hook を設定。
                     storeKit.onConsumablePurchased = { productID in

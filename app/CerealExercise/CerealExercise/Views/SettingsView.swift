@@ -1,12 +1,18 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.modelContext) private var modelContext
     @State private var isShowingWidgetGuide = false
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     @State private var celebrationPrefs = CelebrationPreferences.shared
     @State private var sharingPrefs = FriendSharingPreferences.shared
     @State private var isShowingUserCatPicker = false
+    @State private var isShowingDeleteConfirm = false
+    @State private var exportShareURL: URL?
+    @State private var dataActionMessage: String?
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
 
@@ -141,9 +147,60 @@ struct SettingsView: View {
                 Text("自動休養日")
             }
 
+            Section {
+                Button {
+                    sendFeedback(.feedback)
+                } label: {
+                    Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("feedback-button")
+                Button {
+                    sendFeedback(.bugReport)
+                } label: {
+                    Label("不具合を報告する", systemImage: "ladybug.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("bug-report-button")
+            } header: {
+                Text("フィードバック")
+            } footer: {
+                Text("メールアプリが開き、端末・バージョン情報が自動で入ります（送信前に削除できます）。")
+            }
+
+            Section {
+                Button {
+                    exportData()
+                } label: {
+                    Label("データを書き出す", systemImage: "square.and.arrow.up.on.square")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("data-export-button")
+                Button(role: .destructive) {
+                    isShowingDeleteConfirm = true
+                } label: {
+                    Label("すべての記録を削除", systemImage: "trash.fill")
+                        .foregroundStyle(.red)
+                }
+                .accessibilityIdentifier("data-delete-button")
+            } header: {
+                Text("データ管理")
+            } footer: {
+                Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
+            }
+
             Section("アプリ情報") {
                 LabeledContent("アプリ", value: "GOエクササイズ")
                 LabeledContent("バージョン", value: appVersion)
+                Button {
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        openURL(url)
+                    }
+                } label: {
+                    Label("サブスクリプションを管理", systemImage: "creditcard.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("manage-subscription-link")
                 Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
                     Label("プライバシーポリシー", systemImage: "hand.raised.fill")
                         .foregroundStyle(Palette.textPrimary)
@@ -186,6 +243,79 @@ struct SettingsView: View {
         .sheet(isPresented: $isShowingUserCatPicker) {
             UserCatPickerView()
         }
+        .sheet(isPresented: Binding(
+            get: { exportShareURL != nil },
+            set: { newValue in
+                // 共有シートを閉じたら、個人データを含む一時ファイルを削除する
+                // (Codex 指摘: 放置すると temp に機微データが溜まる)。
+                if !newValue, let url = exportShareURL {
+                    try? FileManager.default.removeItem(at: url)
+                    exportShareURL = nil
+                }
+            }
+        )) {
+            if let url = exportShareURL {
+                ShareSheet(items: [url])
+            }
+        }
+        .confirmationDialog(
+            "すべての記録を削除しますか？",
+            isPresented: $isShowingDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("削除する", role: .destructive) { deleteAllData() }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("運動・体重・体調の記録がすべて削除され、元に戻せません。先に「データを書き出す」でバックアップできます。")
+        }
+        .alert(
+            "完了",
+            isPresented: Binding(
+                get: { dataActionMessage != nil },
+                set: { if !$0 { dataActionMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(dataActionMessage ?? "")
+        }
+    }
+
+    private func sendFeedback(_ kind: FeedbackComposer.Kind) {
+        guard let url = FeedbackComposer.mailtoURL(for: kind) else { return }
+        openURL(url) { accepted in
+            if !accepted {
+                dataActionMessage = "メールアプリを開けませんでした。\(FeedbackComposer.supportEmail) 宛にご連絡ください。"
+            }
+        }
+    }
+
+    private func exportData() {
+        // 前回の一時ファイルが残っていれば置き換え前に削除する。
+        if let previous = exportShareURL {
+            try? FileManager.default.removeItem(at: previous)
+        }
+        do {
+            let url = try DataManagementService(context: modelContext).writeExportFile()
+            Analytics.track(.dataExported)
+            exportShareURL = url
+        } catch {
+            dataActionMessage = "データの書き出しに失敗しました。"
+        }
+    }
+
+    private func deleteAllData() {
+        do {
+            let count = try DataManagementService(context: modelContext).deleteAllRecords()
+            // 保険チケットの「使用履歴」も消す (購入済み残数は paid entitlement なので
+            // 残す)。これが無いと削除後も古い救済日が連続記録判定に残る (Codex 指摘)。
+            RescueTicketStore.shared.clear()
+            NotificationCenter.default.post(name: .goDataDidReset, object: nil)
+            Analytics.track(.dataDeleted)
+            dataActionMessage = "\(count) 件の記録を削除しました。"
+        } catch {
+            dataActionMessage = "削除に失敗しました。"
+        }
     }
 
     private func bulletRow(_ text: String) -> some View {
@@ -216,6 +346,17 @@ struct SettingsView: View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         return version ?? "1.0"
     }
+}
+
+/// 書き出したデータファイルを共有するための UIActivityViewController ラッパー。
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 struct WidgetSetupGuideSheet: View {

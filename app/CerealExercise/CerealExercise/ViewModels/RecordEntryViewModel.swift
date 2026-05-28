@@ -127,6 +127,11 @@ final class RecordEntryViewModel {
 
         let trimmedMemo = memo.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = store.add(category: selectedCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
+        // 保存成功時のみ計測する。store.add は throw せず失敗を lastErrorMessage で
+        // 表すため、ここで確認して false-positive を防ぐ (Codex 指摘)。
+        if store.lastErrorMessage == nil {
+            Analytics.track(.recordCreated(category: selectedCategory.rawValue))
+        }
 
         // Persist optional weight entry alongside the workout record.
         // 同日複数記録 (P0-4) に対応するため **現在時刻** を渡す。

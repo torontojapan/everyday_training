@@ -8,6 +8,12 @@ settings:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+packages:
+  # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
+  # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
+  TelemetryDeck:
+    url: https://github.com/TelemetryDeck/SwiftSDK
+    from: "2.9.0"
 targets:
   CerealExercise:
     type: application
@@ -25,6 +31,9 @@ targets:
         UILaunchScreen: {}
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
+        # TelemetryDeck の App ID。空の間は計測を送信しない (ゼロ収集を維持)。
+        # ダッシュボードで取得した UUID をリリース前に設定する。
+        TelemetryDeckAppID: ""
         CFBundleURLTypes:
           - CFBundleURLName: com.serial.cerealexercise
             CFBundleURLSchemes:
@@ -37,6 +46,7 @@ targets:
     dependencies:
       - target: CerealExerciseWidget
         embed: true
+      - package: TelemetryDeck
   CerealExerciseWidget:
     type: app-extension
     platform: iOS

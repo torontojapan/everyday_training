@@ -11,6 +11,8 @@ final class WeightStore {
 
     private(set) var entries: [WeightEntry] = []
     private(set) var lastErrorMessage: String?
+    /// `@ObservationIgnored nonisolated(unsafe)`: deinit から removeObserver するため。
+    @ObservationIgnored private nonisolated(unsafe) var resetObserver: NSObjectProtocol?
 
     /// `healthPrefs` のデフォルトは `.shared` で本番経路を簡潔に保つ。
     /// テストでは isolated な `UserDefaults` から作った prefs を明示的に
@@ -22,6 +24,19 @@ final class WeightStore {
         self.calendar = calendar
         self.healthPrefs = healthPrefs
         fetchEntries()
+        // 全記録削除後、nil ガードで保持され続けるこのストアが削除済み
+        // WeightEntry を掴んだままにならないよう再フェッチする (Codex 指摘)。
+        resetObserver = NotificationCenter.default.addObserver(
+            forName: .goDataDidReset, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fetchEntries() }
+        }
+    }
+
+    deinit {
+        if let resetObserver {
+            NotificationCenter.default.removeObserver(resetObserver)
+        }
     }
 
     func fetchEntries() {

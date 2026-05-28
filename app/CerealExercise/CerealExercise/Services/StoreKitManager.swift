@@ -27,6 +27,10 @@ final class StoreKitManager {
     /// 直近の購入エラー (UI で軽く出す用)。
     var lastError: String?
 
+    /// `purchase_complete` 計測の in-memory dedup。同一トランザクションの再配信で
+    /// 二重計測しないため。session 内で十分 (finish 済 txn は再起動毎には再配信されない)。
+    @ObservationIgnored private var analyticsTrackedPurchaseIDs: Set<UInt64> = []
+
     /// 購入成功時のフック (consumable に対応するため)。
     /// hook が設定される前に届いた transaction は UserDefaults 永続キューに積まれ、
     /// hook 設定時に flush される。永続化により app 強制終了でも grant が残る。
@@ -171,15 +175,29 @@ final class StoreKitManager {
                 }
                 markConsumableProcessed(txn.id)
             }
+            trackPurchaseCompleteOnce(txn)
             await txn.finish()
         case .autoRenewable:
             // subscription は dedup しない (Apple は同じ txn を update イベントで再送するが、
             // それらは「最新の expirationDate」を運ぶので毎回 refreshEntitlements が必要)。
             await txn.finish()
             await refreshEntitlements()
+            trackPurchaseCompleteOnce(txn)
         default:
             await txn.finish()
         }
+    }
+
+    /// 検証済みトランザクションを 1 回だけ `purchase_complete` として計測する。
+    /// `handleVerified` は即時購入・遅延承認 (Ask to Buy)・listener 再送のすべてを
+    /// 通るため、ここで計測すれば保留購入の完了も取りこぼさない (Codex 指摘)。
+    /// - 更新 (renewal) は `id != originalID` で除外し、購入ファネルを汚さない。
+    /// - 同一トランザクションの再配信は in-memory dedup で二重計測を防ぐ。
+    private func trackPurchaseCompleteOnce(_ txn: Transaction) {
+        guard txn.id == txn.originalID else { return }
+        guard !analyticsTrackedPurchaseIDs.contains(txn.id) else { return }
+        analyticsTrackedPurchaseIDs.insert(txn.id)
+        Analytics.track(.purchaseCompleted(product: txn.productID))
     }
 
     // MARK: - Persistent consumable queue

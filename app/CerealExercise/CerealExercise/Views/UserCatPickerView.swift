@@ -58,6 +58,9 @@ struct UserCatPickerView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isOnboarding ? "はじめる" : "決定") {
                         prefs.myCat = selected
+                        if isOnboarding {
+                            Analytics.track(.onboardingCompleted)
+                        }
                         dismiss()
                     }
                     .fontWeight(.semibold)

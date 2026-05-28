@@ -1,17 +1,54 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-28 夜 (体重/履歴タブ UI/UX 大幅刷新 — 3 LLM 提案統合、Codex 計 23 ラウンド)
+最終更新: 2026-05-29 (リリース運用基盤を追加 — アプリ開発チェックリストの採用分を実装)
 
 ---
 
 ## 直近の状態
 
-- **iOS アプリ本体**: 体重/履歴タブ UI 刷新 (ヒーロー + 折りたたみ + ヒートマップ + a11y + キャラ) + 既存全機能維持
-- **テスト**: Unit **172 XCTest + 68 Swift Testing = 240 件** + UI **17/17** = **257 件 全 PASS**
-- **最新コミット**: `3c9c590` Codex round3 反映: BMI a11y 身長表記を視覚と同期
-- **GitHub**: `torontojapan/everyday_training` main から 34 commit ahead (未 push)
+- **iOS アプリ本体**: リリース運用基盤を追加 (レビュー依頼 / アプリ内フィードバック / データ書き出し+削除 / サブスク管理導線 / 行動分析の土台) + 既存全機能維持
+- **テスト**: 全 unit PASS + UI **17/17**。新規 `DataManagementServiceTests` (6) + `ReviewRequestControllerTests` (4) を追加
+- **Codex レビュー**: gpt-5.3-codex / xhigh で **5 ラウンド回し 0 findings / "patch is correct" に収束**。指摘して潰した内容: ①遅延購入の purchase_complete 取りこぼし → `handleVerified` で計測 ②レビュー Task の取り残し → cancellable `.task` ③削除後に Weight/Menstrual ストアがステイル → 3 ストアとも `.goDataDidReset` 購読 ④削除で救済使用履歴が残る → `RescueTicketStore.clear()` (購入残は保持) ⑤エクスポート名衝突 → 秒+UUID ⑥エクスポート一時ファイル残留 → 共有後に削除 ⑦保存失敗でも record_created 発火 → 成功時のみ計測
+- **注意**: `gpt-5.5-codex` は ChatGPT アカウント Codex では非対応 (400 error)。現状の最新利用可能は `gpt-5.3-codex`
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
-- **Codex 改善ループ**: `/Users/jun/.claude/skills/second-opinion` 経由で運用、今セッションは体重管理に 6 ラウンド回し、priority 1/2/3 を確実に潰した
+- **新規 SPM 依存**: TelemetryDeck 2.14.0 (`app/CerealExercise/project.yml`)
+
+---
+
+## アプリ開発チェックリスト対応 (2026-05-29 実装)
+
+`~/Downloads/app_development_checklist.md` を、このアプリ (ローカルファースト /
+バックエンドなし / 独自アカウントなし / 課金あり / 個人開発) の実態に合わせて
+取捨選択して実装した。
+
+### 実装済み
+
+| 項目 | 実装 |
+|---|---|
+| レビュー依頼 | `ReviewRequestController` + `RecordCompletionView` で連続記録の節目 (7/30/100 日) の祝祭後に `requestReview`。最小間隔 90 日 + 同一節目は一度のみ。`--no-review-prompt` で抑止 |
+| アプリ内フィードバック | `FeedbackComposer` (mailto + 端末/OS/版/言語の診断情報自動付与) → 設定「フィードバック」セクション (ご意見・不具合報告) |
+| データ書き出し | `DataManagementService.writeExportFile()` → 運動/体重/体調を JSON 化し共有シート (設定「データ管理」) |
+| データ全削除 | `DataManagementService.deleteAllRecords()` (記録のみ。購入/サブスク/無料体験状態は対象外)。削除後 `.goDataDidReset` 通知で `WorkoutStore` を再フェッチ |
+| サブスク管理導線 | 設定に「サブスクリプションを管理」(`apps.apple.com/account/subscriptions`) |
+| 行動分析の土台 | `Analytics` ファサード + `AnalyticsService` 抽象 + TelemetryDeck/Noop 実装。主要イベント計装済 (app_open / onboarding_complete / record_created / view_paywall / start_purchase / purchase_complete / data_exported / data_deleted) |
+| クラッシュ監視 | **Apple 標準 (Xcode Organizer) のみ** を採用 (第三者 SDK なし)。実装コードは不要。運用は Organizer の Crashes で確認 |
+
+### 該当しないと判断してスキップ
+
+管理画面 / DB バックアップ / RLS / Rate Limit / CDN / 負荷テスト / Webhook /
+独自認証・ログイン / AI 向け項目 → **サーバーがないため対象外**。
+紹介リンク計測・リモート価格 A/B → バックエンド必須なので CloudKit 後に再検討。
+
+### ⚠ TelemetryDeck 有効化の残作業 (App ID 設定までは送信ゼロ)
+
+現状は `Info.plist` の `TelemetryDeckAppID` が空 = `Analytics` は Noop で **一切送信しない**
+(プライバシーラベル「データ収集なし」を維持)。有効化する時の手順:
+
+1. TelemetryDeck ダッシュボードで App ID (UUID) を取得
+2. `project.yml` の `TelemetryDeckAppID` に設定 → `xcodegen generate`
+3. **App Store Connect のプライバシーラベル**を「使用状況データ (Product Interaction) / 個人と紐付けない」に更新
+4. プライバシーポリシーは既に TelemetryDeck を記載済 (`docs/privacy.md` / `submission/PrivacyPolicy.md` の第 4 章)
+5. 計測は Release ビルドのみ有効 (DEBUG は送信しない)
 
 ---
 

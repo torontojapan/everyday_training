@@ -1,9 +1,12 @@
+import StoreKit
 import SwiftUI
 
 struct RecordCompletionView: View {
     @Environment(WorkoutStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.requestReview) private var requestReview
+    private let reviewController = ReviewRequestController()
     let record: WorkoutRecord
     let streakExtendedThisRun: Bool
     let onRecordAnother: (() -> Void)?
@@ -198,14 +201,32 @@ struct RecordCompletionView: View {
             withAnimation(Motion.animation(Motion.bouncy.repeatCount(3, autoreverses: true), reduceMotion: reduceMotion)) {
                 fireBurst = true
             }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2.6))
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showsConfetti = false
-                    catHaloOpacity = 0.0
-                }
-            }
         }
+        // 遅延処理は `.task` に置き、画面離脱で自動キャンセルする。これにより
+        // 「もう一種目」やホーム遷移で素早く離脱したとき、別画面で confetti 消去や
+        // requestReview が発火するのを防ぐ (Codex 指摘: unstructured Task の取り残し)。
+        .task {
+            do {
+                try await Task.sleep(for: .seconds(2.6))
+            } catch {
+                return  // 離脱でキャンセル → 演出もレビュー依頼も出さない
+            }
+            withAnimation(.easeOut(duration: 0.3)) {
+                showsConfetti = false
+                catHaloOpacity = 0.0
+            }
+            requestReviewIfMilestoneReached()
+        }
+    }
+
+    /// 連続記録が節目に達した「成功体験の直後」にだけレビュー依頼を出す。
+    /// 祝祭演出が一段落してから出すため、confetti のフェード後に呼ぶ。
+    private func requestReviewIfMilestoneReached() {
+        guard !ProcessInfo.processInfo.arguments.contains("--no-review-prompt") else { return }
+        let streakToday = streak
+        guard reviewController.shouldRequestReview(streak: streakToday) else { return }
+        reviewController.markRequested(streak: streakToday)
+        requestReview()
     }
 
     private func triggerHaptic() {

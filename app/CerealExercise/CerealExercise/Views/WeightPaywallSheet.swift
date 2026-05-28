@@ -51,7 +51,10 @@ struct WeightPaywallSheet: View {
                     .accessibilityLabel("閉じる")
                 }
             }
-            .task { await store.loadProducts() }
+            .task {
+                Analytics.track(.paywallViewed(product: ProductID.weightProMonthly))
+                await store.loadProducts()
+            }
         }
     }
 
@@ -192,6 +195,9 @@ struct WeightPaywallSheet: View {
     private func performPurchase() async {
         isPurchasing = true
         defer { isPurchasing = false }
+        // purchase_complete は StoreKitManager の検証済みトランザクション処理で
+        // 計測する (遅延承認も取りこぼさないため)。ここでは開始のみ。
+        Analytics.track(.purchaseStarted(product: ProductID.weightProMonthly))
         let ok = await store.purchase(productID: ProductID.weightProMonthly)
         if ok {
             onPurchaseCompleted()

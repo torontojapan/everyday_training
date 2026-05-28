@@ -258,8 +258,10 @@ struct StatsView: View {
         isPurchasingTicket = true
         defer { isPurchasingTicket = false }
         // 購入結果は StoreKitManager の onConsumablePurchased hook で
-        // RescueTicketStore.addPurchasedTicket() が走る。
-        // ここでは UI トリガーのみ。
+        // RescueTicketStore.addPurchasedTicket() が走る。purchase_complete も
+        // StoreKitManager の検証済みトランザクション処理で計測する (遅延承認対応)。
+        // ここでは開始の計測と UI トリガーのみ。
+        Analytics.track(.purchaseStarted(product: ProductID.rescueTicket1))
         _ = await storeKit.purchase(productID: ProductID.rescueTicket1)
     }
 
