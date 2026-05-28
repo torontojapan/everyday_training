@@ -33,7 +33,9 @@ struct StatsView: View {
     }
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
-    private let rescueTicketStore = RescueTicketStore()
+    @Environment(RescueTicketStore.self) private var rescueTicketStore
+    @Environment(StoreKitManager.self) private var storeKit
+    @State private var isPurchasingTicket = false
 
     // `.sheet(item:)` で使うため Identifiable 化したラッパー。
     // `.sheet(isPresented:)` だと state 更新と content closure の評価順序の
@@ -147,10 +149,14 @@ struct StatsView: View {
         return rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
     }
 
-    /// 保険チケット折りたたみ中の subtitle。残り枚数を 1 行で表示。
+    /// 保険チケット折りたたみ中の subtitle。月次残 + 購入残を 1 行で表示。
     private var rescueTicketSubtitle: String {
         let allowance = RescueTicketAllowance.current(cycleSettings: cycleSettings)
         let remaining = rescueTicketStore.remainingTickets(today: Date(), allowance: allowance)
+        let purchased = rescueTicketStore.purchasedRemaining
+        if purchased > 0 {
+            return "今月 \(remaining) / \(allowance) 枚 + 購入 \(purchased) 枚"
+        }
         return "今月 \(remaining) / \(allowance) 枚 残り"
     }
 
@@ -200,7 +206,58 @@ struct StatsView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("rescue-use-link")
             .accessibilityLabel("保険チケットを使う日を選ぶ")
+
+            // 追加購入導線 (IAP consumable, 1 枚 ¥1,000)。
+            // 月次配布枠を使い切っても、購入枠で当月以降ずっと救済可能。
+            Divider().opacity(0.4)
+            if rescueTicketStore.purchasedRemaining > 0 {
+                Text("購入済 \(rescueTicketStore.purchasedRemaining) 枚: 有効期限なしで月の配布枠が尽きた時に消費されます")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button {
+                Task { await purchaseRescueTicket() }
+            } label: {
+                HStack(spacing: 8) {
+                    if isPurchasingTicket {
+                        ProgressView().tint(Palette.primary)
+                    } else {
+                        Image(systemName: "cart.badge.plus")
+                            .font(.system(size: 16, weight: .heavy))
+                    }
+                    Text("1 枚 \(storeKit.displayPrice(for: ProductID.rescueTicket1)) で追加購入")
+                        .font(Typography.body)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .heavy))
+                        .opacity(0.7)
+                }
+                .foregroundStyle(Palette.primary)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Palette.primary.opacity(0.10),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Palette.primary.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isPurchasingTicket)
+            .accessibilityIdentifier("rescue-buy-button")
+            .accessibilityLabel("保険チケットを 1 枚追加購入")
         }
+    }
+
+    private func purchaseRescueTicket() async {
+        isPurchasingTicket = true
+        defer { isPurchasingTicket = false }
+        // 購入結果は StoreKitManager の onConsumablePurchased hook で
+        // RescueTicketStore.addPurchasedTicket() が走る。
+        // ここでは UI トリガーのみ。
+        _ = await storeKit.purchase(productID: ProductID.rescueTicket1)
     }
 
     /// 「今週のハイライト」折りたたみ中の subtitle。

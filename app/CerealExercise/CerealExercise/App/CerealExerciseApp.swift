@@ -11,6 +11,10 @@ struct CerealExerciseApp: App {
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
     @State private var userCatPrefs = UserCatPreferences.shared
+    @State private var storeKit = StoreKitManager()
+    /// アプリ全体で共有する rescue ticket ストア。@Observable + shared でアプリ
+    /// 内のあらゆる View が同一インスタンスを参照するように。
+    @State private var rescueTicketStore = RescueTicketStore.shared
     @State private var isShowingOnboarding = false
 
     var body: some Scene {
@@ -18,6 +22,8 @@ struct CerealExerciseApp: App {
             HomeRootView(scenePhase: scenePhase, routeState: routeState)
                 .environment(themeStore)
                 .environment(friendsStore)
+                .environment(storeKit)
+                .environment(rescueTicketStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
@@ -33,6 +39,15 @@ struct CerealExerciseApp: App {
                     }
                 }
                 .task {
+                    // StoreKit: 起動時に商品ロード + entitlement 評価 +
+                    // consumable (rescue ticket) fulfillment hook を設定。
+                    storeKit.onConsumablePurchased = { productID in
+                        if productID == ProductID.rescueTicket1 {
+                            RescueTicketStore.shared.addPurchasedTicket()
+                        }
+                    }
+                    await storeKit.loadProducts()
+
                     let args = ProcessInfo.processInfo.arguments
                     // For UI tests: force a clean signed-out state, regardless
                     // of what was persisted by a previous run on the same

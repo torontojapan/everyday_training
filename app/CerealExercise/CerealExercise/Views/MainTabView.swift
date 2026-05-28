@@ -56,7 +56,7 @@ struct MainTabView: View {
                 .tabItem { Label(Tab.stats.label, systemImage: Tab.stats.systemImage) }
                 .tag(Tab.stats)
 
-            NavigationStack { WeightView() }
+            NavigationStack { WeightTabRootView() }
                 .tabItem { Label(Tab.weight.label, systemImage: Tab.weight.systemImage) }
                 .tag(Tab.weight)
 

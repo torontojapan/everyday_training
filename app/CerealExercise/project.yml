@@ -17,6 +17,7 @@ targets:
         excludes: ["Resources/Info.plist"]
     resources:
       - path: CerealExercise/Resources/Assets.xcassets
+      - path: CerealExercise/Resources/Products.storekit
     info:
       path: CerealExercise/Resources/Info.plist
       properties:
@@ -80,3 +81,17 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: CerealExercise
+schemes:
+  CerealExercise:
+    build:
+      targets:
+        CerealExercise: all
+        CerealExerciseWidget: all
+    run:
+      # StoreKit Configuration File: simulator 内で App Store Connect なしに
+      # IAP / Subscription の動作テスト ができる。本番ビルドでは無視される。
+      storeKitConfiguration: CerealExercise/Resources/Products.storekit
+    test:
+      targets:
+        - CerealExerciseTests
+        - CerealExerciseUITests

@@ -7,7 +7,7 @@ struct RescueTicketUseView: View {
     @State private var pendingDate: Date?
     @State private var resultMessage: ResultMessage?
     private let calendar = Calendar.mondayFirst
-    private let store = RescueTicketStore()
+    @Environment(RescueTicketStore.self) private var store
 
     private var allowance: Int { RescueTicketAllowance.current() }
     private var hasTicketAvailable: Bool {
@@ -204,8 +204,12 @@ struct RescueTicketUseView: View {
 
         switch status {
         case .missed, .todayPending:
-            guard hasTicketAvailable else {
-                resultMessage = ResultMessage(title: "今月のチケットを使い切っています", text: "翌月になると 1 枚補充されます。")
+            // Codex 指摘: 旧コードは今日基準の hasTicketAvailable で gate していたが、
+            // useTicket は **適用対象の日 (date)** の月を見るので、月境界で食い違いが
+            // 出る (例: 1 日朝に前月末日へ適用)。store と同じ判定軸 (date) で確認する。
+            guard self.store.hasTicketAvailable(today: date, allowance: allowance) else {
+                resultMessage = ResultMessage(title: "対象月のチケットを使い切っています",
+                                              text: "別の日に適用するか、翌月の補充をお待ちください。")
                 return
             }
             pendingDate = date

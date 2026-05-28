@@ -11,7 +11,7 @@ struct HistoryView: View {
 
     private let calendar = Calendar.mondayFirst
     private let cycleSettings = CycleTrackingSettings()
-    private let rescueTicketStore = RescueTicketStore()
+    @Environment(RescueTicketStore.self) private var rescueTicketStore
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")

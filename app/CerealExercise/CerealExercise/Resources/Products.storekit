@@ -1,0 +1,71 @@
+{
+  "identifier" : "1A8C0C1A-8A2B-4F7A-9C1D-1E2F3A4B5C6D",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "1000",
+      "familyShareable" : false,
+      "internalID" : "B1A2C3D4-E5F6-4789-ABCD-EF1234567890",
+      "localizations" : [
+        {
+          "description" : "保険チケットを 1 枚追加します。月の達成条件を 1 日分救済できます。",
+          "displayName" : "保険チケット 1 枚",
+          "locale" : "ja_JP"
+        }
+      ],
+      "productID" : "com.serial.cerealexercise.rescue_ticket_1",
+      "referenceName" : "Rescue Ticket 1",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "ja_JP",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "C2D3E4F5-A6B7-4890-BCDE-F12345678901",
+      "localizations" : [
+        {
+          "description" : "体重タブの全機能を月額で利用するプランです。",
+          "displayName" : "体重 Pro",
+          "locale" : "ja_JP"
+        }
+      ],
+      "name" : "WeightPro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "500",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "D3E4F5A6-B7C8-4901-CDEF-234567890123",
+          "introductoryOffer" : {
+            "internalID" : "E4F5A6B7-C8D9-4012-DEF1-345678901234",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "体重タブの推移グラフ・レポート・周期オーバーレイ等の全機能を月額で利用。初回 1 ヶ月無料。",
+              "displayName" : "体重 Pro 月額",
+              "locale" : "ja_JP"
+            }
+          ],
+          "productID" : "com.serial.cerealexercise.weight_pro_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Weight Pro Monthly",
+          "subscriptionGroupID" : "C2D3E4F5-A6B7-4890-BCDE-F12345678901",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

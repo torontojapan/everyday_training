@@ -21,7 +21,9 @@ struct RootSplitView: View {
                     HistoryView()
                         .environment(store)
                 case .weight:
-                    WeightView()
+                    // 体重タブの paywall gate を iPad sidebar 経路でも適用する。
+                    // 旧コード `WeightView()` は gate をバイパスしていた (LLM A 致命的指摘)。
+                    WeightTabRootView()
                 case .settings:
                     SettingsView()
                 }

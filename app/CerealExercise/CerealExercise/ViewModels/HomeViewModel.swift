@@ -39,7 +39,7 @@ final class HomeViewModel {
 
     init(dateProvider: any DateProviding = SystemDateProvider(),
          calendar: Calendar = .mondayFirst,
-         rescueTicketStore: RescueTicketStore = RescueTicketStore(),
+         rescueTicketStore: RescueTicketStore = .shared,
          milestoneDetector: MilestoneDetector? = nil) {
         self.dateProvider = dateProvider
         self.calendar = calendar
