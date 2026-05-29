@@ -98,17 +98,21 @@ final class CatLiveActivityController {
         records: [WorkoutRecord],
         today: Date,
         catBreed: CatBreed,
+        rescuedDates: Set<Date> = [],
         calendar: Calendar = .mondayFirst
     ) -> CatActivityAttributes.ContentState {
         let restDays = RestDayResolver.restDaySet(for: today, records: records, today: today, calendar: calendar)
+        // 保険チケット救済日も達成扱いにするため rescuedDates を渡す。これが無いと
+        // Live Activity の連続日数 / 当日達成判定がアプリ本体と食い違う (3 LLM 監査)。
         let status = AchievementEvaluator.dailyStatus(
             for: today,
             records: records,
             restDays: restDays,
+            rescuedDates: rescuedDates,
             today: today,
             calendar: calendar
         )
-        let streak = StreakCalculator.currentStreak(records: records, today: today, calendar: calendar)
+        let streak = StreakCalculator.currentStreak(records: records, today: today, rescuedDates: rescuedDates, calendar: calendar)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: today) ?? Date()
         let hoursLeft = max(0, calendar.dateComponents([.hour], from: Date(), to: endOfDay).hour ?? 0)
         let catState = CatStateResolver.resolve(

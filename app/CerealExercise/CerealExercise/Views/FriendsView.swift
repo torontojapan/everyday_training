@@ -49,6 +49,9 @@ struct FriendsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await friendsStore.refresh()
+            // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
+            // 本番でデモ動線が勝手に開かないようにする (debug 引数は Release で無効)。
+            #if DEBUG
             let args = ProcessInfo.processInfo.arguments
             if args.contains("--mock-open-friend-detail") {
                 // open the highest-streak friend so screenshots show a rich profile
@@ -58,6 +61,7 @@ struct FriendsView: View {
             if args.contains("--mock-open-friend-add") {
                 isShowingAdd = true
             }
+            #endif
         }
         .overlay(alignment: .bottom) {
             // toast を下部に移動。上部は Dynamic Island / Navigation Bar

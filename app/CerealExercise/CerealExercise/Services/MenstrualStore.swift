@@ -9,6 +9,10 @@ final class MenstrualStore {
     private let calendar: Calendar
 
     private(set) var entries: [MenstrualEntry] = []
+    /// 直近の保存失敗を表す。他ストア (WorkoutStore/WeightStore) と同様、save 失敗を
+    /// 握り潰さず観測可能にする (Codex 指摘: 旧 `try?` は失敗時に成功表示のまま
+    /// 永続化されず、再起動でデータ消失していた)。
+    private(set) var lastErrorMessage: String?
     /// `@ObservationIgnored nonisolated(unsafe)`: deinit から removeObserver するため。
     @ObservationIgnored private nonisolated(unsafe) var resetObserver: NSObjectProtocol?
 
@@ -54,7 +58,12 @@ final class MenstrualStore {
                 context.delete(entry)
             }
         }
-        try? context.save()
+        do {
+            try context.save()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "生理日の保存に失敗しました"
+        }
         fetchEntries()
     }
 

@@ -158,9 +158,12 @@ enum CatMessageProvider {
     }
 
     private static func pickedMessage(from messages: [String], seedDate: Date, calendar: Calendar) -> String {
+        // 空配列だと messages[0] が範囲外クラッシュになる。旧コードの
+        // `messages.isEmpty ? 0 : ...` は index を 0 にするだけでアクセス自体は
+        // 防げていなかった (3 LLM 監査)。空なら安全なフォールバック文言を返す。
+        guard !messages.isEmpty else { return "今日もそばにいるよ" }
         let day = calendar.ordinality(of: .day, in: .era, for: seedDate) ?? 0
-        let index = messages.isEmpty ? 0 : abs(day) % messages.count
-        return messages[index]
+        return messages[abs(day) % messages.count]
     }
 
     private static func pendingMessages(for time: DayTime) -> [String] {

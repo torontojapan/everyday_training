@@ -127,11 +127,15 @@ final class RecordEntryViewModel {
 
         let trimmedMemo = memo.trimmingCharacters(in: .whitespacesAndNewlines)
         let record = store.add(category: selectedCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
-        // 保存成功時のみ計測する。store.add は throw せず失敗を lastErrorMessage で
-        // 表すため、ここで確認して false-positive を防ぐ (Codex 指摘)。
-        if store.lastErrorMessage == nil {
-            Analytics.track(.recordCreated(category: selectedCategory.rawValue))
+        // store.add は throw せず失敗を lastErrorMessage で表す。保存に失敗していたら
+        // 計測・体重などの後続副作用を全て止め、nil を返して呼び出し側に「成功ダイアログを
+        // 出さない / 警告ハプティクス」を選ばせる。これが無いと SwiftData 保存失敗時でも
+        // 「保存しました」と表示し、体重・生理データだけ別途書かれていた (3 LLM 監査 / Codex 指摘)。
+        if let errorMessage = store.lastErrorMessage {
+            validationMessage = errorMessage
+            return nil
         }
+        Analytics.track(.recordCreated(category: selectedCategory.rawValue))
 
         // Persist optional weight entry alongside the workout record.
         // 同日複数記録 (P0-4) に対応するため **現在時刻** を渡す。

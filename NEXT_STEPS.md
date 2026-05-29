@@ -1,6 +1,35 @@
 # Next Steps — GOエクササイズ
 
-最終更新: 2026-05-29 (リリース運用基盤を追加 — アプリ開発チェックリストの採用分を実装)
+最終更新: 2026-05-29 (リリース前 QA: 2 ラウンドの 3LLM 監査 + Codex ダブルチェック / 友達を v1 非表示)
+
+---
+
+## リリース前 QA (2026-05-29)
+
+`docs/QA_CHECKLIST.md` を起点に、3 LLM (Claude / Codex / Gemini) 監査 → 改修 →
+Codex ダブルチェックを **2 ラウンド** 実施。全ラウンド Debug テスト PASS + Release ビルド成功。
+
+**ラウンド1 (debug 安全性 + 集計整合)**
+- Release で debug 起動引数を全て無効化 (`#if DEBUG`): `--seed-*` / `--mock-seed-friends` /
+  `--mock-force-signed-out` / `--skip-onboarding` / `--no-notification-prompt` / `--initial-route` /
+  `--initial-tab` / `--skip-milestones` / `--no-review-prompt` / `--mock-open-friend-*` (`--mock-premium` は既存)
+- `rescuedDates` 未伝播を 4 箇所修正 (通知 / streakShare / ウィジェット / Live Activity) — 救済日が未達成表示になるのを解消
+
+**ラウンド2 (広域監査 + 友達 v1 非表示)**
+- **友達機能を v1 で非表示** (`AppFeatureFlags.friendsEnabled` = Release常にoff / DEBUGは`--enable-friends`)。詳細は下記
+- 保存失敗時に「保存しました」と誤表示していた件を修正 (`RecordEntryViewModel` が失敗時 nil 返却・副作用停止)
+- 全削除後にウィジェット/Live Activity が古い連続日数のままだった件を修正 (空スナップショット再 publish + Live Activity 終了)
+- `MenstrualStore` の保存失敗握り潰し (`try?`) を `lastErrorMessage` で観測可能に
+- `AppModelContainer` の App Group フォールバックに DEBUG/CI 用 `assertionFailure` (Release は graceful 維持)
+- `CatMessageProvider.pickedMessage` の空配列クラッシュ landmine 修正 / ウィジェット書込失敗のログ追加
+
+→ 実機 QA (🍎📱) は **`docs/DEVICE_QA_RUNBOOK.md`** に手順化済 (Apple Developer 加入後に実施)。
+
+### 友達機能: v1 非表示 (決定)
+- 理由: バックエンドが `MockFriendsService` (端末ローカルのみ) で本番では機能しないため。
+- 実装: `AppFeatureFlags.friendsEnabled` を単一フラグに、タブ / iPad sidebar / ディープリンク振替 /
+  プロフィール同期 / 設定の共有セクションを一括ゲート。`AppFeatureFlagsTests` で検証。
+- 解禁: CloudKit 実装 (下記 P1) でフラグを true 固定 or 撤去すれば全導線が自動復帰。
 
 ---
 
@@ -10,7 +39,7 @@
 - **ウィジェット刷新 (2026-05-29)**: 絵文字 → ブランドのオレンジ猫画像 (状態連動) に差し替え。Dynamic Island の極小スロットは `pawprint.fill`。カード背景をグラデーションで派手化。文言を「1分だけでも」「1分だけでも運動しよう」に。widget 専用カタログ `CerealExerciseWidget/WidgetCatAssets.xcassets` (オレンジ7状態を384pxに縮小、1.1MB) を新設 (本体 Assets.xcassets は88MBで丸ごと同梱不可)。アセット欠落時は肉球記号にフォールバック。Codex 2R で収束。**注意: ウィジェット/Live Activity の実機レンダリングは CLI 検証不可** — 実機/シミュレータのホーム画面で要目視確認
 - **テスト**: 全 unit PASS + UI **17/17**。新規 `DataManagementServiceTests` (6) + `ReviewRequestControllerTests` (4) を追加
 - **Codex レビュー**: gpt-5.3-codex / xhigh で **5 ラウンド回し 0 findings / "patch is correct" に収束**。指摘して潰した内容: ①遅延購入の purchase_complete 取りこぼし → `handleVerified` で計測 ②レビュー Task の取り残し → cancellable `.task` ③削除後に Weight/Menstrual ストアがステイル → 3 ストアとも `.goDataDidReset` 購読 ④削除で救済使用履歴が残る → `RescueTicketStore.clear()` (購入残は保持) ⑤エクスポート名衝突 → 秒+UUID ⑥エクスポート一時ファイル残留 → 共有後に削除 ⑦保存失敗でも record_created 発火 → 成功時のみ計測
-- **注意**: `gpt-5.5-codex` は ChatGPT アカウント Codex では非対応 (400 error)。現状の最新利用可能は `gpt-5.3-codex`
+- **Codex CLI**: 2026-05-29 時点で `gpt-5.5` が利用可能 (本セッションの監査・ダブルチェックで使用)。background 実行時は `< /dev/null` で stdin を渡さないと "Reading additional input from stdin..." でハングするので注意
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
 - **新規 SPM 依存**: TelemetryDeck 2.14.0 (`app/CerealExercise/project.yml`)
 
@@ -117,17 +146,20 @@
 - [ ] ブラインドウェイト or 数値非表示モード (倫理的差別化)
 - [ ] メモのタグ化 + フィルタ分析
 
-### 🟡 P1 — CloudKit 本実装 (Apple Developer 加入後)
+### 🟡 P1 — 友達 (CloudKit) 本実装 = v1.1 で解禁 (Apple Developer 加入後)
+
+> v1 は `AppFeatureFlags.friendsEnabled=false` で非表示。下記完了後にフラグを true 固定 or 撤去して解禁。
 
 | # | タスク |
 |---|---|
 | 1 | iCloud Capability 有効化 |
 | 2 | Sign in with Apple Capability |
 | 3 | `CloudKitFriendsService` 実装 (Mock と差し替え) |
-| 4 | DEBUG=Mock / RELEASE=CloudKit 切替 |
+| 4 | `AppFeatureFlags.friendsEnabled` を true 固定 or 撤去 (全導線が自動復帰) |
 | 5 | Push 通知 entitlement + CKQuerySubscription |
 | 6 | iCloud 2 アカウントで実機相互テスト |
 | 7 | `weeklyAchievements` / `monthlyTotalMinutes` / `myCatBreed` の daily publish |
+| 8 | 週間ランキングをデンス順位 (1,1,2) 化 (現状は競争順位 1,1,3。Gemini 指摘) |
 
 ### 🟢 P2 — Phase 7.0 拡張案 (任意)
 
@@ -173,54 +205,22 @@
 
 ## 次セッションで最初にやること
 
-**Welcome メール届いていれば** → CloudKit / HealthKit ブロッカー解除 + アプリ
-共有 URL を App Store URL に差し替え (`AppSharingConfig.swift`)。
+**Welcome メール (Apple Developer 加入) 届いていれば** → 最優先で:
+1. `docs/DEVICE_QA_RUNBOOK.md` の手順0 (App ID / Capabilities / サブスク登録 / Sandbox テスター)
+2. **B. 課金 Sandbox QA** (リリース最重要ブロッカー)
+3. CloudKit / HealthKit ブロッカー解除に着手
+4. アプリ共有 URL を実 App Store URL に差し替え (`AppSharingConfig.swift`)
 
-**届いていなければ** → 体重管理 P1 残り「体調周期 × 体重オーバーレイ」or P2
-独自色フェーズを推奨。以下のプロンプトでスタート:
-
-```
-体重管理の体調周期オーバーレイを実装して。Codex レビューループは
-前セッションと同じで。
-
-### 仕様
-
-- MenstrualStore (既存) のサイクル情報を WeightView のグラフに重ね描き
-- グラフ背景にサイクル相 (卵胞期 / 黄体期 / 月経期) を薄いバンドで表示
-- 目的: 「黄体期は水分で重くなる」を可視化して、相のせいで体重が増えても
-  落胆しないようにする (女性ユーザーへのフィット)
-- 周期トラッキング OFF のユーザーには表示しない (CycleTrackingSettings)
-
-### 制約
-
-- iOS 17+ / SwiftUI / SwiftData / xcodegen
-- 各イテレーション後に Codex 第三者レビュー
-- WeightStoreTests / 新規 CycleOverlayTests を拡充
-- DemoDataSeeder には触らない
-- 前セッションの commit 起点: 3f43d54
-```
+**届いていなければ** → 加入不要の P2 独自色フェーズ (週次/月次レポート、-3/-5kg マイルストーン祝賀等) を推奨。
 
 NEXT_STEPS.md と memory の pending_tasks.md は同期済。
-
-### 今セッションの完了サマリ (2026-05-27 夕)
-
-- 体重管理 P0-4「同日複数記録」: insert-only / 日内最新集約 / 履歴時刻表示
-- 体重管理 P1-1「7日移動平均トレンドライン」: Chart に薄い破線 overlay
-- 体重管理 P1-2「目標達成予測日」: trend.last 起点で線形外挿、最低 1 日
-- アプリ共有導線: `AppSharingConfig` + 友達タブ + 設定 (App Store URL は要差し替え)
-- Codex 6 ラウンドで以下を順次潰した:
-  1. `change30Days` の日境界バグ / forecast 0 round / sort tie-break
-  2. round-to-zero テストが実は刺さっていなかった件 / sort テスト 1 段だけ
-  3. sort テストに cross-day ケース追加
-  4. **0 findings** で収束
-  5. (holistic) workout-flow が startOfDay を渡してた / forecast の today 不整合
-  6. **0 findings** で再収束
 
 ---
 
 ## 参照
 
 - `README.md` — 機能一覧 + Phase 完了表
+- `docs/QA_CHECKLIST.md` — リリース QA チェックリスト / `docs/DEVICE_QA_RUNBOOK.md` — 実機 QA 手順書 (Apple Developer 加入後)
 - `MEMORY.md` — Claude のメモリインデックス
 - `submission/screenshots/iphone-6.9/` — App Store スクショ
 - `docs/ux_review/uxrevamp_{claude,gemini,codex,prompt}.md` — Phase 7.0 UX 刷新提案 3 LLM 分

@@ -14,6 +14,8 @@ final class FriendsFlowUITests: XCTestCase {
             "--no-notification-prompt",
             "--skip-milestones",
             "--skip-onboarding",
+            // 友達機能は v1 では既定で非表示。UI テストでは opt-in で有効化する。
+            "--enable-friends",
             "--initial-route", route
         ] + extra
         app.launch()

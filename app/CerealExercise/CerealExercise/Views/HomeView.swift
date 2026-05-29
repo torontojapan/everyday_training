@@ -87,7 +87,7 @@ struct HomeView: View {
                     syncMyFriendProfile()
                     completedStreakExtendedThisRun = viewModel.streakExtendedThisRun
                     completedRecord = record
-                    WidgetSnapshotPublisher.publish(from: store, today: Date(), calendar: calendar)
+                    WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: RescueTicketStore.shared.rescuedDates(), calendar: calendar)
                     Task { @MainActor in
                         await NotificationScheduler(calendar: calendar).rescheduleAfterAchievement(
                             currentStreak: viewModel.streak.currentStreak,
@@ -356,7 +356,12 @@ struct HomeView: View {
     }
 
     private func handleAutoPresentations() {
-        let skipAuto = ProcessInfo.processInfo.arguments.contains("--skip-milestones")
+        // --skip-milestones は UI テスト / スクショ専用。Release では本番の
+        // 節目祝祭を必ず出す (debug 引数は Release で無効: QA チェックリスト A)。
+        var skipAuto = false
+        #if DEBUG
+        skipAuto = ProcessInfo.processInfo.arguments.contains("--skip-milestones")
+        #endif
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
         }
@@ -366,6 +371,8 @@ struct HomeView: View {
     /// これが無いと FriendsView の自分カードや週間ランキングが signIn 時の
     /// 初期値 (0 日連続) のまま固定され、ホームの実績と食い違う (3 LLM 監査 B-Critical)。
     private func syncMyFriendProfile() {
+        // 友達機能が無効 (v1) の間は同期不要。本番で friends profile を作らない。
+        guard AppFeatureFlags.friendsEnabled else { return }
         guard let current = friendsStore.profile else { return }
         let streak = viewModel.streak.currentStreak
         let achieved = viewModel.lifetimeStats.achievedDays

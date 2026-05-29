@@ -43,6 +43,13 @@ enum AppModelContainer {
         } else {
             containerLogger.error("App Group container URL が取得できず local にフォールバック (entitlement 確認要)")
         }
+        // App Group ストアに到達できないのは entitlement/provisioning のビルド構成ミス
+        // を意味し、本番ではアプリと Widget が別ストアに分断する重大事故になる。
+        // DEBUG/CI では assertionFailure で **必ず気付ける** ようにし (Release では
+        // -O で no-op)、アーカイブ前にミスを検知する。Release では transient な失敗で
+        // 起動不能にしないよう、ログを残しつつローカルに graceful フォールバックする
+        // (3 LLM 監査 / Codex 指摘)。
+        assertionFailure("App Group SwiftData ストアを開けませんでした。App Group entitlement / provisioning を確認してください。Release ではローカルストアにフォールバックします。")
         // フォールバック: ローカルに保存。永続化自体が不能なら致命的として trap。
         let local = ModelConfiguration(schema: schema)
         // swiftlint:disable:next force_try

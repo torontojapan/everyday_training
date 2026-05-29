@@ -35,10 +35,13 @@ struct CerealExerciseApp: App {
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
-                    // UI test では --skip-onboarding で抑止可能。
-                    let args = ProcessInfo.processInfo.arguments
-                    if !args.contains("--skip-onboarding"),
-                       !userCatPrefs.hasCompletedOnboarding {
+                    // UI test では --skip-onboarding で抑止可能 (DEBUG のみ。
+                    // Release では本番でオンボーディングを必ず表示する = スキップ不可)。
+                    var allowSkipOnboarding = false
+                    #if DEBUG
+                    allowSkipOnboarding = ProcessInfo.processInfo.arguments.contains("--skip-onboarding")
+                    #endif
+                    if !allowSkipOnboarding, !userCatPrefs.hasCompletedOnboarding {
                         isShowingOnboarding = true
                     }
                 }
@@ -51,6 +54,10 @@ struct CerealExerciseApp: App {
                     // StoreKit: 起動時に商品ロード + entitlement 評価。
                     await storeKit.loadProducts()
 
+                    // 以下の mock 系起動引数は UI テスト / スクショ専用。Release では
+                    // コンパイル除外し、本番で偽の友達データ生成やサインアウトが
+                    // 起きないようにする (QA チェックリスト A: debug 引数は Release で無効)。
+                    #if DEBUG
                     let args = ProcessInfo.processInfo.arguments
                     // For UI tests: force a clean signed-out state, regardless
                     // of what was persisted by a previous run on the same
@@ -69,6 +76,7 @@ struct CerealExerciseApp: App {
                             await friendsStore.ensureDemoFriendsSeeded()
                         }
                     }
+                    #endif
                 }
                 .onOpenURL { url in
                     if let route = DeepLinkRouter.route(from: url) {
@@ -95,19 +103,40 @@ private struct HomeRootView: View {
     let routeState: RouteState
 
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
-    private var skipNotificationPrompt: Bool { launchArgs.contains("--no-notification-prompt") }
-    private var shouldSeedDemoData: Bool { launchArgs.contains("--seed-demo-data") }
+    // 以下はすべて UI テスト / スクショ用の debug 起動引数。Release では本番の
+    // 既定値 (通知プロンプト表示 / デモ未シード / ホーム起動) に固定し、外部から
+    // 偽データ投入や画面ジャンプができないようにする (QA チェックリスト A)。
+    private var skipNotificationPrompt: Bool {
+        #if DEBUG
+        launchArgs.contains("--no-notification-prompt")
+        #else
+        false
+        #endif
+    }
+    private var shouldSeedDemoData: Bool {
+        #if DEBUG
+        launchArgs.contains("--seed-demo-data")
+        #else
+        false
+        #endif
+    }
+    #if DEBUG
     private var demoScenario: DemoScenario {
         guard let idx = launchArgs.firstIndex(of: "--seed-scenario"), idx + 1 < launchArgs.count else {
             return .basic
         }
         return DemoScenario(rawValue: launchArgs[idx + 1]) ?? .basic
     }
+    #endif
     private var initialRoute: AppRoute {
+        #if DEBUG
         guard let idx = launchArgs.firstIndex(of: "--initial-route"), idx + 1 < launchArgs.count else {
             return .home
         }
         return AppRoute(rawValue: launchArgs[idx + 1]) ?? .home
+        #else
+        return .home
+        #endif
     }
 
     var body: some View {
@@ -118,9 +147,11 @@ private struct HomeRootView: View {
                 ProgressView()
                     .tint(Palette.primary)
                     .task {
+                        #if DEBUG
                         if shouldSeedDemoData {
                             DemoDataSeeder.seed(context: modelContext, today: Date(), scenario: demoScenario)
                         }
+                        #endif
                         let newStore = WorkoutStore(context: modelContext)
                         store = newStore
                         publishAndSchedule(using: newStore)
@@ -140,7 +171,9 @@ private struct HomeRootView: View {
 
     @ViewBuilder
     private func routedView(store: WorkoutStore) -> some View {
-        let activeRoute = routeState.override ?? initialRoute
+        // 友達機能が無効 (v1) なら friends/weeklyRanking 行きのディープリンクや
+        // --initial-route はホームへ振り替える (AppFeatureFlags.resolvedRoute)。
+        let activeRoute = AppFeatureFlags.resolvedRoute(routeState.override ?? initialRoute)
         switch activeRoute {
         case .home:
             if UIDevice.current.userInterfaceIdiom == .pad {
@@ -186,6 +219,7 @@ private struct HomeRootView: View {
             let streak = StreakCalculator.currentStreak(
                 records: store.records,
                 today: Date(),
+                rescuedDates: RescueTicketStore.shared.rescuedDates(),
                 calendar: .mondayFirst
             )
             let state = routeState
@@ -226,19 +260,24 @@ private struct HomeRootView: View {
     }
 
     private func publishAndSchedule(using store: WorkoutStore) {
-        WidgetSnapshotPublisher.publish(from: store, today: Date())
+        // 保険チケットで救済した日も達成扱いにするため、全集計に rescuedDates を
+        // 渡す。これが無いとウィジェット / 通知 / Live Activity の連続日数や
+        // 週進捗がホーム・履歴と食い違う (3 LLM 監査: rescuedDates 未伝播)。
+        let rescued = RescueTicketStore.shared.rescuedDates()
+        WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: rescued)
         let records = store.records
         let today = store.today
-        let statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today)
+        let statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, rescuedDates: rescued)
         let progress = WeeklyProgressCalculator.progress(from: statuses)
         let todayStatus = statuses.first { Calendar.mondayFirst.isDate($0.date, inSameDayAs: today) }?.status ?? .todayPending
-        let streak = StreakCalculator.currentStreak(records: records, today: today)
+        let streak = StreakCalculator.currentStreak(records: records, today: today, rescuedDates: rescued)
 
         // Phase 7.0 Step 4: Live Activity を起動 or 更新。
         let liveState = CatLiveActivityController.makeState(
             records: records,
             today: today,
-            catBreed: UserCatPreferences.shared.myCat
+            catBreed: UserCatPreferences.shared.myCat,
+            rescuedDates: rescued
         )
         CatLiveActivityController.shared.ensureRunning(state: liveState)
 

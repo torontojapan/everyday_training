@@ -222,7 +222,11 @@ struct RecordCompletionView: View {
     /// 連続記録が節目に達した「成功体験の直後」にだけレビュー依頼を出す。
     /// 祝祭演出が一段落してから出すため、confetti のフェード後に呼ぶ。
     private func requestReviewIfMilestoneReached() {
-        guard !ProcessInfo.processInfo.arguments.contains("--no-review-prompt") else { return }
+        // --no-review-prompt は UI テスト専用 (StoreKit レビュー要求の抑止)。
+        // Release では本番のレビュー導線を維持する (debug 引数は Release で無効)。
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--no-review-prompt") { return }
+        #endif
         let streakToday = streak
         guard reviewController.shouldRequestReview(streak: streakToday) else { return }
         reviewController.markRequested(streak: streakToday)

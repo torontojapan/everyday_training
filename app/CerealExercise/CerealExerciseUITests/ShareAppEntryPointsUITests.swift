@@ -15,6 +15,8 @@ final class ShareAppEntryPointsUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "--skip-onboarding", "--no-notification-prompt", "--skip-milestones",
+            // 友達機能は v1 では既定で非表示。UI テストでは opt-in で有効化する。
+            "--enable-friends",
             "--mock-seed-friends", "--initial-tab", initialTab,
         ]
         app.launch()

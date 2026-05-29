@@ -6,7 +6,7 @@ struct RootSplitView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(RootSection.allCases, selection: $selection) { section in
+            List(RootSection.visibleSections, selection: $selection) { section in
                 Label(section.title, systemImage: section.systemImage)
                     .tag(section)
             }
@@ -25,10 +25,15 @@ struct RootSplitView: View {
                     // 旧コード `WeightView()` は gate をバイパスしていた (LLM A 致命的指摘)。
                     WeightTabRootView()
                 case .friends:
-                    // iPad sidebar にも友達/ランキング導線を出す (3 LLM 監査 B-Major:
-                    // 旧 RootSplitView は友達に到達不能だった)。
-                    FriendsView()
-                        .environment(store)
+                    // 友達が無効 (v1) なら sidebar から除外済みだが、選択状態の
+                    // 取りこぼし対策でホームにフォールバックする。
+                    if AppFeatureFlags.friendsEnabled {
+                        FriendsView()
+                            .environment(store)
+                    } else {
+                        HomeView()
+                            .environment(store)
+                    }
                 case .settings:
                     SettingsView()
                 }
@@ -45,6 +50,11 @@ private enum RootSection: String, CaseIterable, Identifiable {
     case settings
 
     var id: String { rawValue }
+
+    /// 友達機能が無効な間 (v1) は `.friends` を除外したメニューを返す。
+    static var visibleSections: [RootSection] {
+        allCases.filter { $0 != .friends || AppFeatureFlags.friendsEnabled }
+    }
 
     var title: String {
         switch self {

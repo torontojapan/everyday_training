@@ -104,22 +104,25 @@ struct SettingsView: View {
                 .accessibilityIdentifier("user-cat-link")
             }
 
-            Section {
-                Toggle(isOn: Binding(
-                    get: { sharingPrefs.includeExerciseDetail },
-                    set: { sharingPrefs.includeExerciseDetail = $0 }
-                )) {
-                    Label("回数・時間・セット数も共有", systemImage: "person.2.badge.gearshape.fill")
-                        .foregroundStyle(Palette.textPrimary)
+            // 友達と共有する情報の設定は友達機能が有効なときだけ出す (v1 では非表示)。
+            if AppFeatureFlags.friendsEnabled {
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { sharingPrefs.includeExerciseDetail },
+                        set: { sharingPrefs.includeExerciseDetail = $0 }
+                    )) {
+                        Label("回数・時間・セット数も共有", systemImage: "person.2.badge.gearshape.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("sharing-detail-toggle")
+                    Label("体重・体調は共有されません", systemImage: "lock.fill")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.success)
+                } header: {
+                    Text("友達と共有する情報")
+                } footer: {
+                    Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。")
                 }
-                .accessibilityIdentifier("sharing-detail-toggle")
-                Label("体重・体調は共有されません", systemImage: "lock.fill")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.success)
-            } header: {
-                Text("友達と共有する情報")
-            } footer: {
-                Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。")
             }
 
             Section {
@@ -344,6 +347,11 @@ struct SettingsView: View {
             // 残す)。これが無いと削除後も古い救済日が連続記録判定に残る (Codex 指摘)。
             RescueTicketStore.shared.clear()
             NotificationCenter.default.post(name: .goDataDidReset, object: nil)
+            // App Group のウィジェットスナップショットと Live Activity も即リフレッシュ。
+            // これが無いと全削除後もウィジェット/ロック画面が古い連続日数・週進捗を
+            // 表示し続ける (3 LLM 監査 / Codex 指摘。QA チェックリスト N: 各ストア即リフレッシュ)。
+            WidgetSnapshotPublisher.publish(from: WorkoutStore(context: modelContext))
+            CatLiveActivityController.shared.stopAll()
             Analytics.track(.dataDeleted)
             dataActionMessage = "\(count) 件の記録を削除しました。"
         } catch {
