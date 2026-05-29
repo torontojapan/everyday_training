@@ -15,7 +15,7 @@
 
 - [ ] 🍎 Apple Developer Program 加入完了 (有料・年額)
 - [ ] 🍎 App Store Connect で App ID `com.goexercise.app` 登録
-- [ ] 🍎 Capabilities 有効化: **App Groups** (`group.com.goexercise.app`) / **Live Activities** (Info.plist `NSSupportsLiveActivities=true` は設定済) / Push (将来 CloudKit 時)
+- [ ] 🍎 Capabilities 有効化: **App Groups** (`group.com.goexercise.app`) / **Live Activities** (Info.plist `NSSupportsLiveActivities=true` は設定済) / **iCloud (CloudKit)** — 友達機能で使用 (詳細はセクション I)。Push は v1 未使用
 - [ ] 🍎 App Store Connect → サブスクリプション登録:
   - `com.goexercise.app.premium_monthly` … 月額 ¥500
   - `com.goexercise.app.premium_yearly` … 年額 ¥3,800
@@ -26,9 +26,10 @@
 - [ ] 📱 実機 2 台用意できると理想 (購入復元・ファミリー共有確認用)。最低 1 台。
 - [ ] 📱 実機の「設定 → App Store → Sandbox アカウント」にテスターでサインイン
 
-> メモ: friends 機能は **v1 では非表示** (AppFeatureFlags.friendsEnabled=false)。
-> よって QA_CHECKLIST の **L (友達)** と **K の cheer 連携・CloudKit 2アカウント反映**
-> は v1 では対象外。CloudKit 実装時 (v1.1) に本 runbook へ追記する。
+> メモ: 友達機能は **v1 で CloudKit 実装済み**だが、`AppFeatureFlags.friendsEnabled`
+> はまだ Release=false (休眠) のまま。**セクション I の実機 2 アカウント疎通テストが
+> 通ってから** フラグを true にして解禁する (検証前に出さない)。それまでは友達タブ等は
+> 非表示で、セクション G の「友達が出ない」確認はフラグ false の現状ビルドに対して有効。
 
 ---
 
@@ -106,6 +107,52 @@
 - [ ] 📱 TelemetryDeck App ID 未設定の現状: **送信ゼロ** (プライバシーラベルと整合)
 - [ ] 🍎 (App ID 設定後) app_open / record / paywall / purchase 等が TelemetryDeck に届く
 - [ ] 📱 Xcode Organizer にクラッシュが上がる運用確認 (第三者クラッシュ SDK なし)
+
+---
+
+## I. 友達 (CloudKit) ★v1新規 🍎📱 ⏱40分 (実機2台・iCloud2アカウント必須)
+
+> 実装は `CloudKitFriendsService` (Public DB)。識別=iCloud アカウント (Sign in with
+> Apple 不要)。**この章が通ってから** `AppFeatureFlags.friendsEnabled` の Release を
+> true にして解禁する。体重・体調データは共有しない (FriendProfile に含まれない)。
+
+### I-0. ポータル / CloudKit Console セットアップ 🍎
+- [ ] 🍎 Developer ポータル → App ID `com.goexercise.app` → **iCloud capability を ON**、
+      **CloudKit コンテナ `iCloud.com.goexercise.app` を作成**して紐付け
+- [ ] 🍎 Xcode の Signing & Capabilities でも iCloud (CloudKit) コンテナが選択されているか確認
+      (entitlements に `iCloud.com.goexercise.app` 記載済)
+- [ ] 🍎 初回実機起動でアプリが書き込むと CloudKit が **Development 環境**にスキーマを自動生成する。
+      その後 **CloudKit Console** (icloud.developer.apple.com) で確認:
+  - レコード型 `Profile` / `FriendRequest` / `Friendship` / `Cheer` が出来ている
+  - **クエリ対象フィールドの Index を QUERYABLE に**: `Profile.username` /
+    `FriendRequest.fromCode` `FriendRequest.toCode` / `Friendship.ownerCode` `Friendship.friendCode` /
+    `Cheer.toCode` (これが無いと検索/一覧クエリが失敗する)
+  - `recordName` も Queryable (既定で可)
+- [ ] 🍎 **Deploy Schema to Production** (Console) — これをやらないと本番ビルドで友達が動かない
+
+### I-1. 実機 2 台疎通 📱 (DEBUG ビルドで先行検証)
+> テスト用に DEBUG ビルドを起動引数 **`--enable-friends --cloudkit-friends`** で実行
+> (Release フラグを上げずに CloudKit パスを検証できる)。端末 A / B は **別々の iCloud
+> アカウント**でサインイン (設定 → Apple ID)。
+
+- [ ] 📱 端末 A: 友達タブ → サインイン (表示名・ユーザー名入力) → friend code が表示される
+- [ ] 📱 端末 B: 同様にサインイン → B の friend code を控える
+- [ ] 📱 端末 A: B の friend code で **申請を送信** → エラーなく送信完了
+- [ ] 📱 端末 B: 友達タブを開く/更新 → **申請が届いている** → **承認**
+- [ ] 📱 端末 A: 更新 → B が **友達一覧に出る**。B 側も A が出る (相互。A の再 refresh で確定)
+- [ ] 📱 両端末で運動を記録 → `publishMyProfile` 後、相手側の更新で **連続日数・今日の達成・猫**が反映
+- [ ] 📱 詳細共有 ON の側のみ **今日の種目詳細**が相手に見える / OFF は見えない
+- [ ] 📱 **チア送信**がエラーにならない (受信通知は v1.1。今は送信成功のみ確認)
+- [ ] 📱 **ユーザー名で検索** (完全一致) して相手が出る
+- [ ] 📱 **友達削除** → 自分側の一覧から消える (相手側は相手の更新まで残る = v1 既知)
+- [ ] 📱 自分のコードを申請 → 「自分のコードは追加できません」、重複申請 → 「送信済み」
+- [ ] 📱 iCloud 未ログイン端末で友達タブ → 「iCloud にサインインすると…」の案内が出る (クラッシュしない)
+
+### I-2. 解禁 (検証 OK 後)
+- [ ] `AppFeatureFlags.friendsEnabled` の **Release ブランチを `true` に**変更 → コミット
+- [ ] Release ビルドで友達タブ/iPad sidebar/ディープリンク (`goexercise://friends`) が復帰
+- [ ] App Store Connect スクショ/メタデータに友達導線を反映 (任意)
+- [ ] (任意 v1.1) Push 通知 (CKQuerySubscription + aps-environment) で申請・チアを通知
 
 ---
 
