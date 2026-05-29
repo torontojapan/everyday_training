@@ -1,4 +1,4 @@
-# GOエクササイズ 本番リリース QA チェックリスト
+# GO エクササイズ 本番リリース QA チェックリスト
 
 最終更新: 2026-05-29
 
@@ -123,7 +123,7 @@
 
 ## P. ディープリンク
 
-- [ ] 🧪 `cerealexercise://record | history | home | settings` 各遷移
+- [ ] 🧪 `goexercise://record | history | home | settings` 各遷移
 - [ ] 📱 通知 / ウィジェットからの起動経路
 
 ## Q. 表示・互換

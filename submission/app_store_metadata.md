@@ -10,9 +10,9 @@ App Store Connect の各フィールドにそのまま貼れる形でまとめ�
 
 | 項目 | 値 |
 |---|---|
-| アプリ名 | GOエクササイズ |
+| アプリ名 | GO エクササイズ |
 | サブタイトル (30字) | 猫と毎日1分から運動習慣を続ける |
-| Bundle Identifier | com.serial.cerealexercise |
+| Bundle Identifier | com.goexercise.app |
 | バージョン | 1.0.0 |
 | ビルド | 1 |
 | カテゴリ (Primary) | ヘルスケア / フィットネス |
@@ -46,7 +46,7 @@ App Store Connect の各フィールドにそのまま貼れる形でまとめ�
 ```
 🐱「今日も1分だけやってみよ？」
 
-GOエクササイズは、かわいい猫キャラクターと一緒に
+GO エクササイズは、かわいい猫キャラクターと一緒に
 「毎日の運動」をたった1分から続けられる、習慣化アプリです。
 
 ■ こんな人におすすめ
@@ -56,7 +56,7 @@ GOエクササイズは、かわいい猫キャラクターと一緒に
 ・友達と一緒に応援し合いながら続けたい
 ・猫と一緒だと頑張れる気がする
 
-■ GOエクササイズの特長
+■ GO エクササイズの特長
 
 🔥 1分でOK、毎日続けられる
 1種目以上、または1分以上の運動で「今日も達成」。
@@ -127,7 +127,7 @@ peach / sky / midnight / sunshine / forest から選択可能。
 ## What's New in this Version (4000字以内, 初回 v1.0.0)
 
 ```
-GOエクササイズが App Store に登場！
+GO エクササイズが App Store に登場！
 
 🔥 毎日1分から続けられる、猫と一緒の運動習慣化アプリです。
 
@@ -245,13 +245,13 @@ App Store 提出時は最終アイコンに差し替えた後、iPhone 17 Pro Ma
 ## ビルド / アーカイブ手順
 
 ```bash
-cd app/CerealExercise
+cd app/GOExercise
 xcodegen generate
-xcodebuild -project CerealExercise.xcodeproj \
-  -scheme CerealExercise \
+xcodebuild -project GOExercise.xcodeproj \
+  -scheme GOExercise \
   -configuration Release \
   -destination "generic/platform=iOS" \
-  -archivePath ./build/CerealExercise.xcarchive \
+  -archivePath ./build/GOExercise.xcarchive \
   archive
 ```
 

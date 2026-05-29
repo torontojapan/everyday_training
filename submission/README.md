@@ -19,8 +19,8 @@
    DEVICE_UDID=$(xcrun simctl list devices available | grep "iPhone 15 Pro Max" | grep -oE "[A-F0-9-]{36}" | head -1)
    xcrun simctl boot "$DEVICE_UDID"
    open -a Simulator
-   xcrun simctl install "$DEVICE_UDID" path/to/CerealExercise.app
-   xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise --seed-demo-data --no-notification-prompt
+   xcrun simctl install "$DEVICE_UDID" path/to/GOExercise.app
+   xcrun simctl launch "$DEVICE_UDID" com.goexercise.app --seed-demo-data --no-notification-prompt
    ```
 
 2. 各画面で `xcrun simctl io <UDID> screenshot submission/screenshots/iphone-6.7/<N>_<画面名>.png`
@@ -33,19 +33,19 @@ Phase 3.5 で initial-route 対応済み。直接特定画面で起動可能:
 
 ```bash
 # 記録入力画面
-xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+xcrun simctl launch "$DEVICE_UDID" com.goexercise.app \
   --seed-demo-data --no-notification-prompt --initial-route record
 
 # 履歴画面
-xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+xcrun simctl launch "$DEVICE_UDID" com.goexercise.app \
   --seed-demo-data --no-notification-prompt --initial-route history
 
 # 設定画面
-xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+xcrun simctl launch "$DEVICE_UDID" com.goexercise.app \
   --seed-demo-data --no-notification-prompt --initial-route settings
 
 # 通知設定画面
-xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
+xcrun simctl launch "$DEVICE_UDID" com.goexercise.app \
   --seed-demo-data --no-notification-prompt --initial-route notification-settings
 ```
 
@@ -55,10 +55,10 @@ xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
 
 1. **デモモード起動 + Home Screen に戻る**
    ```bash
-   xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise --seed-demo-data --no-notification-prompt
+   xcrun simctl launch "$DEVICE_UDID" com.goexercise.app --seed-demo-data --no-notification-prompt
    sleep 2
    # アプリを kill して Home Screen を露出
-   xcrun simctl terminate "$DEVICE_UDID" com.serial.cerealexercise
+   xcrun simctl terminate "$DEVICE_UDID" com.goexercise.app
    ```
    または Simulator のメニューバーで `Device > Home` (Cmd+Shift+H)
 
@@ -66,8 +66,8 @@ xcrun simctl launch "$DEVICE_UDID" com.serial.cerealexercise \
    - ホーム画面の空白部分を **長押し** (option キー + ホールドで Long press シミュレート、または Simulator メニューの `Device > Touch > Long Press`)
    - 左上の **「+」** ボタンをタップ
 
-3. **GOエクササイズを検索**
-   - 検索欄に `シリアル` または `Cereal` と入力
+3. **GO エクササイズを検索**
+   - 検索欄に `GO エクササイズ` または `GO` と入力
    - Small / Medium / どちらかをタップ
 
 4. **「ウィジェットを追加」** をタップ

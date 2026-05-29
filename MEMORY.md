@@ -91,7 +91,7 @@
 - Codex は `gpt-5-codex` (?) を使用し、Phase 1 で 95K tokens 程度を消費
 - WorkoutRecord.exercises の getter で毎回 JSON decode は性能リスク (将来必要ならキャッシュ)
 - StreakCalculator.streakState は lookbackDays=365 で重い (使用箇所限定して呼ぶ)
-- App Group `group.com.serial.cerealexercise` は Apple Developer ポータルでの作成が実機テスト時に必要
+- App Group `group.com.goexercise.app` は Apple Developer ポータルでの作成が実機テスト時に必要
 - Codex は実は `image_generation` を内蔵 (`codex features list` で stable) — ChatGPT 認証経由で画像生成可。8 枚を 1 コマンドで作成成功
 
 ## 2026-05-24 〜 2026-05-25 (継続セッション)
@@ -124,8 +124,8 @@
 
 ### Phase 3.8: ブランド改名 + Widget 促進
 
-- 全テキストで「シリアルエクササイズ」→「**GOエクササイズ**」(英字も「GO Exercise」)
-- Bundle ID, target 名 (CerealExercise) は維持 (TestFlight 互換性のため)
+- 全テキストで「シリアルエクササイズ」→「**GO エクササイズ**」(英字も「GO Exercise」)
+- Bundle ID, target 名 (GOExercise) は維持 (TestFlight 互換性のため)
 - 設定画面に「ホーム画面ウィジェット」セクション + 「追加方法を見る」ボタン → 5 ステップ案内 Sheet
 - Widget テスト拡充 (WidgetSnapshotFactoryTests 6 + WidgetSnapshotPublisherTests 3)
 

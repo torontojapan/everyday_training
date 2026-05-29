@@ -1,4 +1,4 @@
-# GOエクササイズ UI/UX 改善提案 — Codex 視点
+# GO エクササイズ UI/UX 改善提案 — Codex 視点
 
 既存の `uxrevamp_claude.md` / `uxrevamp_gemini.md` は、TabView 化、猫中心ホーム、1タップ記録、Positive-Only Calendar、友達公園、Interactive Widget / Live Activity など、体験の大枠をかなり強く提示している。  
 この提案ではそこを繰り返さず、Phase 7.0 までの実装を前提に、毎日の継続率を落としにくくする「復帰・配慮・微細な報酬」の設計に絞る。

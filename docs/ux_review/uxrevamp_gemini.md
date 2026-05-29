@@ -35,11 +35,11 @@ Skill "skill-creator" from "/Users/jun/.agents/skills/skill-creator/SKILL.md" is
   }
 }
 [ERROR] [IDEClient] Failed to connect to IDE companion extension in IDE. Please ensure the extension is running. To install the extension, run /ide install.
-「GOエクササイズ」の大規模UI/UX刷新提案を作成しました。現状の「多機能な入力フォーム」から「日常に溶け込む相棒」へのパラダイムシフトを狙った設計です。
+「GO エクササイズ」の大規模UI/UX刷新提案を作成しました。現状の「多機能な入力フォーム」から「日常に溶け込む相棒」へのパラダイムシフトを狙った設計です。
 
 ```markdown
 ## エグゼクティブサマリー (3-5 行)
-「GOエクササイズ」を「記録ツール」から「頑張らない日々の相棒」へと再定義します。
+「GO エクササイズ」を「記録ツール」から「頑張らない日々の相棒」へと再定義します。
 入力の摩擦を極限まで削ぎ落とした「1タップ記録」を軸に、数字の圧迫感を排除。
 無機質なダッシュボードを廃止し、時間帯で変化する猫キャラクターとのインタラクションを中心とした、iOSネイティブで心地よい「ホーム（リビング）」体験へと刷新します。
 

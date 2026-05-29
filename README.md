@@ -1,4 +1,4 @@
-# GOエクササイズ (GO Exercise)
+# GO エクササイズ (GO Exercise)
 
 猫キャラクターと一緒に毎日1分から運動を習慣化する iOS アプリ。
 
@@ -33,9 +33,9 @@ serial_training/
 ├── NEXT_STEPS.md              ← 残タスク・優先順位
 ├── MEMORY.md                  ← プロジェクトメモ (担当 Claude 用)
 │
-├── app/CerealExercise/        ← iOS アプリ本体 (SwiftUI / iOS 17+)
+├── app/GOExercise/        ← iOS アプリ本体 (SwiftUI / iOS 17+)
 │   ├── project.yml              xcodegen 設定 (.xcodeproj はここから生成)
-│   ├── CerealExercise/          アプリ本体
+│   ├── GOExercise/          アプリ本体
 │   │   ├── App/                   エントリポイント
 │   │   ├── Models/                SwiftData モデル + 構造体
 │   │   ├── Views/                 SwiftUI 画面
@@ -49,9 +49,9 @@ serial_training/
 │   │       │   └── AccentColor.colorset/
 │   │       ├── Info.plist
 │   │       └── *.strings          ローカライズ
-│   ├── CerealExerciseTests/     ユニットテスト (186 件)
-│   ├── CerealExerciseUITests/   UI テスト (14 件)
-│   └── CerealExerciseWidget/    ホーム画面ウィジェット
+│   ├── GOExerciseTests/     ユニットテスト (186 件)
+│   ├── GOExerciseUITests/   UI テスト (14 件)
+│   └── GOExerciseWidget/    ホーム画面ウィジェット
 │
 ├── specs/
 │   └── requirements_v1.md     ← 要件定義書
@@ -79,10 +79,10 @@ serial_training/
 
 | 探しもの | 場所 |
 |---|---|
-| **猫キャラの画像** | `app/CerealExercise/CerealExercise/Resources/Assets.xcassets/CatCharacter/` |
-| アプリアイコン | `app/CerealExercise/CerealExercise/Resources/Assets.xcassets/AppIcon.appiconset/` |
-| 画面の SwiftUI コード | `app/CerealExercise/CerealExercise/Views/` |
-| データモデル (SwiftData) | `app/CerealExercise/CerealExercise/Models/` |
+| **猫キャラの画像** | `app/GOExercise/GOExercise/Resources/Assets.xcassets/CatCharacter/` |
+| アプリアイコン | `app/GOExercise/GOExercise/Resources/Assets.xcassets/AppIcon.appiconset/` |
+| 画面の SwiftUI コード | `app/GOExercise/GOExercise/Views/` |
+| データモデル (SwiftData) | `app/GOExercise/GOExercise/Models/` |
 | App Store 提出用スクショ | `submission/screenshots/iphone-6.9/` `iphone-6.7/` `ipad-13/` |
 | プライバシーポリシー (公開版) | `docs/privacy.md` (GitHub Pages 経由で公開) |
 | プライバシーポリシー (申請用) | `submission/PrivacyPolicy.md` |
@@ -98,7 +98,7 @@ serial_training/
 | 3.5 | UI/UX 中優先項目 (ホーム余白、iPad、ハプティクス、Reduce Motion) |
 | 3.6 | 細かい改善 (種目候補/秒削除/保存後 bug/曜日タップ) |
 | 3.7 | 連続記録ロジック改修 + シェア画面 |
-| 3.8 | アプリ名「GOエクササイズ」改名 + Widget 促進 |
+| 3.8 | アプリ名「GO エクササイズ」改名 + Widget 促進 |
 | 3.9 | 累計カード/ヘッダー左揃え/月間カレンダー |
 | 4.0 | 保険チケット / 装飾 / バッジ / 月次レビュー / 記念日 |
 | 4.1 | UX 整理 + 完了画面「もう一種目」 |
@@ -110,7 +110,7 @@ serial_training/
 | 5.3 | 友達ボタンをホーム toolbar に移動、バッジ削除、設定順最適化 |
 | 5.4 | 友達状態確認の完成版: FriendDetailView (週カレンダー / 装飾名 / cheer + 視覚フィードバック) / FriendsView 並び替え・refreshable・相対時刻 / FriendsStore を root 注入 |
 | 5.5 | 音声演出を削除 (haptic 単独運用) / 写真保存バグ修正 (NSPhotoLibraryAddUsageDescription + ImageSaver による完了 callback 処理) |
-| 5.6 | 厳格バグ回収: URL scheme handler (`cerealexercise://...`) / 通知タップ deep link (記録画面に遷移) / SettingsView の placeholder を実リンク (privacy/terms/support) に置換 / 装飾 chip の `scribble` symbol を emoji に / deep-link 経由で開いた画面に「閉じる」ボタン |
+| 5.6 | 厳格バグ回収: URL scheme handler (`goexercise://...`) / 通知タップ deep link (記録画面に遷移) / SettingsView の placeholder を実リンク (privacy/terms/support) に置換 / 装飾 chip の `scribble` symbol を emoji に / deep-link 経由で開いた画面に「閉じる」ボタン |
 | 5.7 | バグ厳格回収 第二弾: 友達コード validation (6 桁固定 + 自動 sanitize) / cheer toast race (UUID トークン化) / NotificationScheduler default calendar を mondayFirst に / DemoDataSeeder の save エラーを OSLog 出力 / 演出セクションから「テスト再生」ボタン削除 |
 | 5.8 | 当日メニュー詳細共有 (opt-in): `FriendSharingPreferences` + `SharedExerciseDetail` (回数/時間/セット) + FriendDetailView の二段表示 |
 | 5.9 | 週間ランキング画面: `WeeklyRankingCalculator` (dense ranking, tiebreak on streak) + WeeklyRankingView (金銀銅メダル + 自分ハイライト) |
@@ -124,24 +124,28 @@ serial_training/
 Xcode 17+ が必要。
 
 ```bash
-cd app/CerealExercise
+cd app/GOExercise
 xcodegen generate   # project.yml から .xcodeproj を生成
-open CerealExercise.xcodeproj
+open GOExercise.xcodeproj
 # Cmd+R で Simulator 実行
 ```
 
 ## テスト実行
 
 ```bash
-cd app/CerealExercise
+cd app/GOExercise
 xcodebuild \
-  -project CerealExercise.xcodeproj \
-  -scheme CerealExercise \
+  -project GOExercise.xcodeproj \
+  -scheme GOExercise \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
   test
 ```
 
-現状: ユニット **186** + UI 14 = **200 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+現状: ユニット **175** + UI **17** = **192 件全 PASS**。CI も green (`.github/workflows/ios-ci.yml`)。
+
+> 注: App Group (`group.com.goexercise.app`) を使うため、テストは **ad-hoc 署名込み**で実行する
+> (`CODE_SIGNING_ALLOWED=NO` を付けると entitlements が剥がれ、DEBUG 起動時に App Group ストアを
+> 開けず `assertionFailure` でクラッシュする)。Simulator 宛なら provisioning profile は不要。
 
 ## 進捗・残タスク
 

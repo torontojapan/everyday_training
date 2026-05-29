@@ -24,14 +24,14 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: app/CerealExercise
+        working-directory: app/GOExercise
         run: xcodegen generate
 
       - name: List available iOS Simulators
         run: xcrun simctl list devices available | grep -E "iPhone" | head -20
 
       - name: Build
-        working-directory: app/CerealExercise
+        working-directory: app/GOExercise
         run: |
           set -euo pipefail
           DEST_NAME=$(xcrun simctl list devices available --json \
@@ -42,25 +42,23 @@ jobs:
           fi
           echo "Destination: $DEST_NAME"
           xcodebuild \
-            -project CerealExercise.xcodeproj \
-            -scheme CerealExercise \
+            -project GOExercise.xcodeproj \
+            -scheme GOExercise \
             -destination "platform=iOS Simulator,name=$DEST_NAME" \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build
 
       - name: Test
-        working-directory: app/CerealExercise
+        working-directory: app/GOExercise
         run: |
           set -euo pipefail
           DEST_NAME=$(xcrun simctl list devices available --json \
             | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.isAvailable) | select(.name | startswith("iPhone"))] | .[0].name')
           xcodebuild \
-            -project CerealExercise.xcodeproj \
-            -scheme CerealExercise \
+            -project GOExercise.xcodeproj \
+            -scheme GOExercise \
             -destination "platform=iOS Simulator,name=$DEST_NAME" \
             -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             test
 
       - name: Upload Test Results on Failure

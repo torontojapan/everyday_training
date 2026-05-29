@@ -1,11 +1,11 @@
-# Task: 大規模 UI/UX 刷新提案 for GOエクササイズ iOS app
+# Task: 大規模 UI/UX 刷新提案 for GO エクササイズ iOS app
 
 このアプリの仕様上、もっとも最適な UI/UX を再設計してほしい。
 **現状の改善でも、ゼロから別物に再構築する案でも OK。スコープ制限なし。**
 
 ## アプリの本質 (これは変えない)
 
-- 名前: GOエクササイズ (GO Exercise)
+- 名前: GO エクササイズ (GO Exercise)
 - ターゲット: 日本の個人ユーザー、運動習慣化したい人
 - 設計哲学:
   - 「1 分でいい」軽量化
@@ -31,7 +31,7 @@
 
 ## ファイル構成 (参照可能)
 
-`/Users/jun/Documents/Business_Project_Management/serial_training/app/CerealExercise/CerealExercise/`
+`/Users/jun/Documents/Business_Project_Management/serial_training/app/GOExercise/GOExercise/`
 - `Views/HomeView.swift` — 主画面
 - `Views/RecordEntryView.swift` — 記録入力
 - `Views/FriendsView.swift` / `FriendDetailView.swift` / `WeeklyRankingView.swift`

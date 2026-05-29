@@ -1,4 +1,4 @@
-# Next Steps — GOエクササイズ
+# Next Steps — GO エクササイズ
 
 最終更新: 2026-05-29 (リリース前 QA: 2 ラウンドの 3LLM 監査 + Codex ダブルチェック / 友達を v1 非表示)
 
@@ -36,12 +36,12 @@ Codex ダブルチェックを **2 ラウンド** 実施。全ラウンド Debug
 ## 直近の状態
 
 - **iOS アプリ本体**: リリース運用基盤を追加 (レビュー依頼 / アプリ内フィードバック / データ書き出し+削除 / サブスク管理導線 / 行動分析の土台) + ウィジェット刷新 + 既存全機能維持
-- **ウィジェット刷新 (2026-05-29)**: 絵文字 → ブランドのオレンジ猫画像 (状態連動) に差し替え。Dynamic Island の極小スロットは `pawprint.fill`。カード背景をグラデーションで派手化。文言を「1分だけでも」「1分だけでも運動しよう」に。widget 専用カタログ `CerealExerciseWidget/WidgetCatAssets.xcassets` (オレンジ7状態を384pxに縮小、1.1MB) を新設 (本体 Assets.xcassets は88MBで丸ごと同梱不可)。アセット欠落時は肉球記号にフォールバック。Codex 2R で収束。**注意: ウィジェット/Live Activity の実機レンダリングは CLI 検証不可** — 実機/シミュレータのホーム画面で要目視確認
+- **ウィジェット刷新 (2026-05-29)**: 絵文字 → ブランドのオレンジ猫画像 (状態連動) に差し替え。Dynamic Island の極小スロットは `pawprint.fill`。カード背景をグラデーションで派手化。文言を「1分だけでも」「1分だけでも運動しよう」に。widget 専用カタログ `GOExerciseWidget/WidgetCatAssets.xcassets` (オレンジ7状態を384pxに縮小、1.1MB) を新設 (本体 Assets.xcassets は88MBで丸ごと同梱不可)。アセット欠落時は肉球記号にフォールバック。Codex 2R で収束。**注意: ウィジェット/Live Activity の実機レンダリングは CLI 検証不可** — 実機/シミュレータのホーム画面で要目視確認
 - **テスト**: 全 unit PASS + UI **17/17**。新規 `DataManagementServiceTests` (6) + `ReviewRequestControllerTests` (4) を追加
 - **Codex レビュー**: gpt-5.3-codex / xhigh で **5 ラウンド回し 0 findings / "patch is correct" に収束**。指摘して潰した内容: ①遅延購入の purchase_complete 取りこぼし → `handleVerified` で計測 ②レビュー Task の取り残し → cancellable `.task` ③削除後に Weight/Menstrual ストアがステイル → 3 ストアとも `.goDataDidReset` 購読 ④削除で救済使用履歴が残る → `RescueTicketStore.clear()` (購入残は保持) ⑤エクスポート名衝突 → 秒+UUID ⑥エクスポート一時ファイル残留 → 共有後に削除 ⑦保存失敗でも record_created 発火 → 成功時のみ計測
 - **Codex CLI**: 2026-05-29 時点で `gpt-5.5` が利用可能 (本セッションの監査・ダブルチェックで使用)。background 実行時は `< /dev/null` で stdin を渡さないと "Reading additional input from stdin..." でハングするので注意
 - **Apple Developer Program**: 注文 W1563167588、Welcome メール待ち
-- **新規 SPM 依存**: TelemetryDeck 2.14.0 (`app/CerealExercise/project.yml`)
+- **新規 SPM 依存**: TelemetryDeck 2.14.0 (`app/GOExercise/project.yml`)
 
 ---
 

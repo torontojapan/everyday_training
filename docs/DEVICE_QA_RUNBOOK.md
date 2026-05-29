@@ -1,4 +1,4 @@
-# GOエクササイズ 実機 QA 手順書 (🍎📱)
+# GO エクササイズ 実機 QA 手順書 (🍎📱)
 
 最終更新: 2026-05-29
 
@@ -14,11 +14,11 @@
 ## 0. 事前準備 (加入直後に一度だけ)
 
 - [ ] 🍎 Apple Developer Program 加入完了 (有料・年額)
-- [ ] 🍎 App Store Connect で App ID `com.serial.cerealexercise` 登録
-- [ ] 🍎 Capabilities 有効化: **App Groups** (`group.com.serial.cerealexercise`) / **Live Activities** (Info.plist `NSSupportsLiveActivities=true` は設定済) / Push (将来 CloudKit 時)
+- [ ] 🍎 App Store Connect で App ID `com.goexercise.app` 登録
+- [ ] 🍎 Capabilities 有効化: **App Groups** (`group.com.goexercise.app`) / **Live Activities** (Info.plist `NSSupportsLiveActivities=true` は設定済) / Push (将来 CloudKit 時)
 - [ ] 🍎 App Store Connect → サブスクリプション登録:
-  - `com.serial.cerealexercise.premium_monthly` … 月額 ¥480
-  - `com.serial.cerealexercise.premium_yearly` … 年額 ¥3,800
+  - `com.goexercise.app.premium_monthly` … 月額 ¥480
+  - `com.goexercise.app.premium_yearly` … 年額 ¥3,800
   - 両方とも **サブスクリプショングループ** に入れる (アップグレード/ダウングレード可)
   - **無料お試し 2 週間 (14日)** の Introductory Offer (paymentMode=free) を両方に設定
   - `Products.storekit` の内容と一致させる (productID / 価格 / グループ / トライアル)
@@ -76,7 +76,7 @@
 - [ ] 📱 通知時刻を直近に設定 → 実際に **届く**
 - [ ] 📱 当日達成 → 当日分通知が **cancel** され届かない / 翌日以降は残る
 - [ ] 📱 保険チケットで救済した日も「連続維持」前提の文面になる (rescuedDates 反映の実機確認)
-- [ ] 📱 通知タップ → 該当画面へ deep link (cerealexercise://record など)
+- [ ] 📱 通知タップ → 該当画面へ deep link (goexercise://record など)
 - [ ] 📱 通知 ON/OFF / 時刻変更が即反映
 
 ## E. ウィジェット 📱 ⏱15分
