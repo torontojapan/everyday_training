@@ -26,6 +26,16 @@ final class StoreKitManager {
     /// 二重計測しないため。session 内で十分 (finish 済 txn は再起動毎には再配信されない)。
     @ObservationIgnored private var analyticsTrackedPurchaseIDs: Set<UInt64> = []
 
+    /// DEBUG 限定のデモ/スクショ用 Premium 強制フラグ (`--mock-premium`)。
+    /// Release ビルドでは常に false。
+    @ObservationIgnored private let forcePremiumForDemo: Bool = {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--mock-premium")
+        #else
+        return false
+        #endif
+    }()
+
     /// Transaction.updates listener の Task ハンドル。同一インスタンスでの
     /// 重複起動を防ぎ、deinit で確実に cancel するため保持する。
     /// `@ObservationIgnored nonisolated(unsafe)`: @Observable のトラッキング対象外に
@@ -35,6 +45,7 @@ final class StoreKitManager {
     @ObservationIgnored private nonisolated(unsafe) var transactionListenerTask: Task<Void, Never>?
 
     init() {
+        isPremiumActive = forcePremiumForDemo
         startTransactionListener()
     }
 
@@ -80,7 +91,7 @@ final class StoreKitManager {
                 break  // 最初に見つかった有効 entitlement で確定
             }
         }
-        isPremiumActive = active
+        isPremiumActive = active || forcePremiumForDemo
     }
 
     // MARK: - Purchase
