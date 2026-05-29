@@ -15,68 +15,58 @@ struct RescueTicketStoreTests {
     private let cal: Calendar = .mondayFirst
 
     @Test
-    func newStore_hasFullMonthlyAllowance_andZeroPurchased() {
+    func newStore_hasFullMonthlyAllowance() {
         let (store, _) = makeStore()
         let today = Date()
         #expect(store.hasTicketAvailable(today: today, allowance: 1) == true)
         #expect(store.remainingTickets(today: today, allowance: 1) == 1)
-        #expect(store.purchasedRemaining == 0)
     }
 
     @Test
-    func useTicket_consumesMonthlyAllowance_first() {
+    func useTicket_consumesMonthlyAllowance() {
         let (store, _) = makeStore()
         let today = cal.startOfDay(for: Date())
-        store.addPurchasedTicket(count: 1)
         #expect(store.useTicket(on: today, allowance: 1) == true)
-        // 月次配布枠が先に消費されたので purchased は残る
-        #expect(store.purchasedRemaining == 1)
         #expect(store.remainingTickets(today: today, allowance: 1) == 0)
+        #expect(store.hasTicketAvailable(today: today, allowance: 1) == false)
     }
 
     @Test
-    func useTicket_consumesPurchased_whenMonthlyExhausted() {
-        let (store, _) = makeStore()
-        let today = cal.startOfDay(for: Date())
-        store.addPurchasedTicket(count: 1)
-        // 1 回目: 月次から
-        #expect(store.useTicket(on: today, allowance: 1) == true)
-        // 別日でもう 1 回 → 月次は今月使い切ったので purchased から
-        let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
-        #expect(store.useTicket(on: tomorrow, allowance: 1) == true)
-        #expect(store.purchasedRemaining == 0)
-    }
-
-    @Test
-    func useTicket_returnsFalse_whenAllExhausted() {
+    func useTicket_returnsFalse_whenMonthlyExhausted() {
         let (store, _) = makeStore()
         let today = cal.startOfDay(for: Date())
         _ = store.useTicket(on: today, allowance: 1)
-        // 月次 0, 購入 0 → 別日も使えない
+        // 月次 1 枠を使い切ったので別日も使えない
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
         #expect(store.useTicket(on: tomorrow, allowance: 1) == false)
     }
 
-    /// LLM A 致命的指摘の regression テスト: 同日に二回 useTicket を呼ぶと
-    /// Set.insert が冪等なので 2 回目は no-op、戻り値は false を期待。
+    /// Premium の月4枠なら同一月の別日に4回まで使える。
+    /// 月をまたがないよう、月初に寄せた固定日 (3/10〜3/14) で検証する。
+    @Test
+    func premiumAllowance_allowsFourUsesPerMonth() {
+        let (store, _) = makeStore()
+        func march(_ day: Int) -> Date {
+            var comps = DateComponents(); comps.year = 2026; comps.month = 3; comps.day = day
+            return cal.date(from: comps)!
+        }
+        for day in 10...13 {
+            #expect(store.useTicket(on: march(day), allowance: 4) == true)
+        }
+        #expect(store.remainingTickets(today: march(10), allowance: 4) == 0)
+        // 5 回目 (同月の別日) は枠切れで false
+        #expect(store.useTicket(on: march(14), allowance: 4) == false)
+    }
+
+    /// 同日二回 useTicket は 2 回目 no-op で false (Set.insert 冪等)。
     @Test
     func useTicket_sameDay_secondCallReturnsFalse() {
         let (store, _) = makeStore()
         let today = cal.startOfDay(for: Date())
-        store.addPurchasedTicket(count: 5)
-        #expect(store.useTicket(on: today, allowance: 1) == true)
-        // 同日 2 回目: false で no-op (purchased も減らない)
-        #expect(store.useTicket(on: today, allowance: 1) == false)
-        #expect(store.purchasedRemaining == 5)
-    }
-
-    @Test
-    func addPurchasedTicket_increments() {
-        let (store, _) = makeStore()
-        store.addPurchasedTicket()
-        store.addPurchasedTicket()
-        store.addPurchasedTicket(count: 3)
-        #expect(store.purchasedRemaining == 5)
+        #expect(store.useTicket(on: today, allowance: 4) == true)
+        #expect(store.useTicket(on: today, allowance: 4) == false)
+        // 1 枠だけ消費 (同日二重消費しない)
+        #expect(store.remainingTickets(today: today, allowance: 4) == 3)
     }
 
     @Test
@@ -85,13 +75,12 @@ struct RescueTicketStoreTests {
         let today = cal.startOfDay(for: Date())
         _ = store.useTicket(on: today, allowance: 1)
         #expect(store.remainingTickets(today: today, allowance: 1) == 0)
-        // 翌月 1 日 (今日に +1 month) の usedCount は 0 のまま
         let nextMonth = cal.date(byAdding: .month, value: 1, to: today)!
         #expect(store.remainingTickets(today: nextMonth, allowance: 1) == 1)
         #expect(store.hasTicketAvailable(today: nextMonth, allowance: 1) == true)
     }
 
-    /// 年跨ぎ (12 月 → 翌 1 月) でも月次枠が正しくリセットされる (Codex 指摘の coverage gap)。
+    /// 年跨ぎ (12 月 → 翌 1 月) でも月次枠が正しくリセットされる。
     @Test
     func yearBoundary_decToJan_resetsMonthlyAllowance() {
         let (store, _) = makeStore()
@@ -100,23 +89,27 @@ struct RescueTicketStoreTests {
         let dec = cal.date(from: comps)!
         _ = store.useTicket(on: dec, allowance: 1)
         #expect(store.remainingTickets(today: dec, allowance: 1) == 0)
-        // 翌 1 月 (年が変わる) は別月扱いで枠が戻る
         comps.year = 2026; comps.month = 1; comps.day = 5
         let jan = cal.date(from: comps)!
         #expect(store.remainingTickets(today: jan, allowance: 1) == 1)
         #expect(store.useTicket(on: jan, allowance: 1) == true)
-        // 12 月分の使用は残っている (別月なので独立)
         #expect(store.usedCount(inMonthOf: dec) == 1)
         #expect(store.usedCount(inMonthOf: jan) == 1)
     }
 
     @Test
-    func totalRemaining_sumsMonthlyAndPurchased() {
+    func clear_removesAllUsage() {
         let (store, _) = makeStore()
         let today = cal.startOfDay(for: Date())
-        store.addPurchasedTicket(count: 3)
-        #expect(store.totalRemaining(today: today, allowance: 2) == 5)
-        _ = store.useTicket(on: today, allowance: 2)
-        #expect(store.totalRemaining(today: today, allowance: 2) == 4)
+        _ = store.useTicket(on: today, allowance: 1)
+        store.clear()
+        #expect(store.remainingTickets(today: today, allowance: 1) == 1)
+        #expect(store.rescuedDates().isEmpty)
+    }
+
+    @Test
+    func allowance_isFourForPremium_oneForFree() {
+        #expect(RescueTicketAllowance.current(isPremium: true) == 4)
+        #expect(RescueTicketAllowance.current(isPremium: false) == 1)
     }
 }

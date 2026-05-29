@@ -8,8 +8,9 @@ struct RescueTicketUseView: View {
     @State private var resultMessage: ResultMessage?
     private let calendar = Calendar.mondayFirst
     @Environment(RescueTicketStore.self) private var store
+    @Environment(StoreKitManager.self) private var storeKit
 
-    private var allowance: Int { RescueTicketAllowance.current() }
+    private var allowance: Int { RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive) }
     private var hasTicketAvailable: Bool {
         store.hasTicketAvailable(today: Date(), allowance: allowance)
     }
@@ -65,7 +66,8 @@ struct RescueTicketUseView: View {
                 pendingDate = nil
             }
         } message: { date in
-            Text("\(format(date)) に1枚使うと、今月の残り枚数が0になります。連続記録が途切れずに済みます。")
+            let afterUse = max(0, store.remainingTickets(today: date, allowance: allowance) - 1)
+            Text("\(format(date)) にフリーズを1回使うと、今月の残りは \(afterUse) 回になります。連続記録が途切れずに済みます。")
         }
         .alert(item: $resultMessage) { message in
             Alert(title: Text(message.title), message: Text(message.text), dismissButton: .default(Text("OK")))
@@ -91,10 +93,10 @@ struct RescueTicketUseView: View {
                     Circle().fill(hasTicketAvailable ? Palette.primary.opacity(0.18) : Palette.chipBackground.opacity(0.5))
                 )
             VStack(alignment: .leading, spacing: 4) {
-                Text("今月のチケット: \(remaining) / \(allowance)枚 残り")
+                Text("今月のフリーズ: \(remaining) / \(allowance) 回 残り")
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
-                Text("月 \(allowance) 枚配布\(allowance > 1 ? " (体調・周期 ON で +1)" : "")。忙しい日に過去にさかのぼって適用できます。")
+                Text("月 \(allowance) 回まで\(allowance > 1 ? "" : " (GOプレミアムで月4回)")。忙しい日に過去にさかのぼって適用できます。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }

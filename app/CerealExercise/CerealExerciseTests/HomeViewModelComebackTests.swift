@@ -54,7 +54,7 @@ struct HomeViewModelComebackTests {
 
         // 昨日を rescue ticket で救済 = .achieved 扱いになる
         let ticketStore = RescueTicketStore(defaults: defaults)
-        _ = ticketStore.useTicket(on: yesterday)
+        _ = ticketStore.useTicket(on: yesterday, allowance: 1)
 
         let vm = HomeViewModel(
             dateProvider: FixedDateProvider(date: today),

@@ -48,13 +48,7 @@ struct CerealExerciseApp: App {
                     Analytics.configureIfPossible()
                     Analytics.track(.appOpen)
 
-                    // StoreKit: 起動時に商品ロード + entitlement 評価 +
-                    // consumable (rescue ticket) fulfillment hook を設定。
-                    storeKit.onConsumablePurchased = { productID in
-                        if productID == ProductID.rescueTicket1 {
-                            RescueTicketStore.shared.addPurchasedTicket()
-                        }
-                    }
+                    // StoreKit: 起動時に商品ロード + entitlement 評価。
                     await storeKit.loadProducts()
 
                     let args = ProcessInfo.processInfo.arguments

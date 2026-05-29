@@ -1,50 +1,39 @@
 import SwiftUI
 
-/// 体重タブの最上位 View。`WeightView` を gate でラップし、無料体験が切れ、
-/// かつ Pro 未購入のときに paywall を被せてロックする。
+/// 体重タブの最上位 View。体重タブは GOプレミアム機能なので、未加入のときは
+/// 内容をぼかして paywall を被せる。
 ///
 /// User 要件:
-/// - 体重 *タブ* (内容) はロックされる
+/// - 体重 *タブ* (内容) は Premium 未加入だとロックされる
 /// - bottom tab のアイコン自体は常に表示
 /// - ホームの「記録する」内の体重入力は影響なし (gate なし)
 struct WeightTabRootView: View {
     static let paywallCooldownKey = "weightTab.paywallDismissedAt.v1"
-    /// X 閉じ後この秒数は自動再表示を抑制 (LLM B 指摘: nag 回避)。
-    /// ユーザーは「購入する」ボタンで手動再オープン可能。
+    /// X 閉じ後この秒数は自動再表示を抑制 (nag 回避)。
+    /// ユーザーは「GOプレミアムを見る」ボタンで手動再オープン可能。
     static let paywallCooldownSeconds: TimeInterval = 6 * 60 * 60  // 6 時間
 
     @Environment(StoreKitManager.self) private var storeKit
-    @State private var gate = WeightAccessGate()
-    @State private var access: WeightAccess = .freeTrialActive(remainingDays: 30)
     @State private var showPaywall = false
-    /// 購入成功直後の dismiss で cooldown を書き込まないためのフラグ
-    /// (Codex 指摘: 成功 → onPurchaseCompleted で removeObject → onDismiss で
-    /// また書く、を回避するため、成功 dismiss はこのフラグでスキップ)。
+    /// 購入成功直後の dismiss で cooldown を書き込まないためのフラグ。
     @State private var purchasedDuringSession = false
+
+    private var isUnlocked: Bool { storeKit.isPremiumActive }
 
     var body: some View {
         // NavigationStack は呼び出し側 (MainTabView / RootSplitView) で wrap する。
-        // 二重 NavigationStack を避けるため本 View には含めない。
         ZStack {
             WeightView()
-                .disabled(!access.isUnlocked)
-                .blur(radius: access.isUnlocked ? 0 : 6)
-                .overlay(alignment: .top) {
-                    if case .freeTrialActive(let days) = access {
-                        trialRemainingChip(days: days)
-                    }
-                }
-            if !access.isUnlocked {
+                .disabled(!isUnlocked)
+                .blur(radius: isUnlocked ? 0 : 6)
+            if !isUnlocked {
                 lockedOverlay
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            gate.markOpenedIfNeeded()
-            updateAccess()
-        }
-        .onChange(of: storeKit.isWeightProActive) { _, _ in updateAccess() }
+        .onAppear { updateGate() }
+        .onChange(of: storeKit.isPremiumActive) { _, _ in updateGate() }
         .sheet(isPresented: $showPaywall, onDismiss: {
             // X 閉じ / スワイプ dismiss のみ cooldown 書き込み。
             // 購入成功 dismiss は purchasedDuringSession で skip。
@@ -53,19 +42,16 @@ struct WeightTabRootView: View {
             }
             purchasedDuringSession = false
         }) {
-            WeightPaywallSheet(store: storeKit) {
+            PremiumPaywallSheet(store: storeKit, context: .weight) {
                 purchasedDuringSession = true
                 UserDefaults.standard.removeObject(forKey: Self.paywallCooldownKey)
-                updateAccess()
             }
         }
     }
 
-    private func updateAccess() {
-        access = gate.currentAccess(isSubscribed: storeKit.isWeightProActive)
-        if access.isUnlocked {
-            // subscription が startup race で遅れて有効化されても確実に閉じる
-            // (Codex 指摘: 購読者が paywall に stuck するのを防ぐ)。
+    private func updateGate() {
+        if isUnlocked {
+            // subscription が startup race で遅れて有効化されても確実に閉じる。
             if showPaywall { showPaywall = false }
         } else if !showPaywall, !isInCooldown() {
             // ロック状態 & cooldown 外なら自動で paywall を出す。
@@ -79,28 +65,19 @@ struct WeightTabRootView: View {
         return Date().timeIntervalSince1970 - ts < Self.paywallCooldownSeconds
     }
 
-    private func trialRemainingChip(days: Int) -> some View {
-        Text("無料体験 残り \(days) 日")
-            .font(.caption.weight(.heavy))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(Palette.primary.opacity(0.92), in: Capsule())
-            .padding(.top, 8)
-    }
-
     private var lockedOverlay: some View {
         VStack(spacing: 16) {
-            Image(systemName: "lock.fill")
+            Image(systemName: "crown.fill")
                 .font(.system(size: 44, weight: .heavy))
                 .foregroundStyle(Palette.primary)
-            Text("無料体験 30 日が終了しました")
+            Text("体重タブは GOプレミアム機能です")
                 .font(.headline)
                 .multilineTextAlignment(.center)
-            Text("月額 \(storeKit.displayPrice(for: ProductID.weightProMonthly)) で\n体重タブの全機能を続けて使えます")
+            Text("14日間無料でお試しいただけます。\n推移グラフ・BMI・レポート・周期オーバーレイなどを解放。")
                 .font(.subheadline)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
-            Button("購入する") { showPaywall = true }
+            Button("GOプレミアムを見る") { showPaywall = true }
                 .font(.headline.weight(.heavy))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 28).padding(.vertical, 12)

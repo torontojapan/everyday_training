@@ -36,6 +36,11 @@ final class HomeViewModel {
     private let usageTracker = LifetimeUsageTracker()
     private let rescueTicketStore: RescueTicketStore
     private let milestoneDetector: MilestoneDetector
+    /// GOプレミアム加入状況。フリーズ付与枚数 (月1 or 月4) の判定に使う。
+    /// refresh() で View 側から最新値を渡してもらう。
+    private var isPremium = false
+
+    private var rescueAllowance: Int { RescueTicketAllowance.current(isPremium: isPremium) }
 
     init(dateProvider: any DateProviding = SystemDateProvider(),
          calendar: Calendar = .mondayFirst,
@@ -50,7 +55,9 @@ final class HomeViewModel {
     func refresh(records: [WorkoutRecord],
                   streakExtendedThisRun: Bool = false,
                   weightLoss: MilestoneDetector.WeightLossSnapshot? = nil,
+                  isPremium: Bool = false,
                   anchorDate: Date? = nil) {
+        self.isPremium = isPremium
         // 呼び出し側が `anchorDate` を指定すれば、内部 dateProvider ではなく
         // その瞬間を全集計の基準日として使う。日跨ぎ atomic 化のため
         // (Codex round5: 別ソース読みによる drift を排除)。
@@ -88,7 +95,7 @@ final class HomeViewModel {
             calendar: calendar
         )
         catDecoration = CatDecoration(totalAchievedDays: lifetimeStats.achievedDays)
-        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today)
+        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today, allowance: rescueAllowance)
         pendingMilestone = milestoneDetector.nextPending(
             records: records,
             firstUseDate: firstUse,
@@ -138,8 +145,8 @@ final class HomeViewModel {
 
     func useRescueTicketToday() -> Bool {
         let today = calendar.startOfDay(for: dateProvider.currentDate())
-        let used = rescueTicketStore.useTicket(on: today)
-        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today)
+        let used = rescueTicketStore.useTicket(on: today, allowance: rescueAllowance)
+        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today, allowance: rescueAllowance)
         return used
     }
 

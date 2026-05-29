@@ -7,6 +7,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(WorkoutStore.self) private var store
     @Environment(FriendsStore.self) private var friendsStore
+    @Environment(StoreKitManager.self) private var storeKit
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
@@ -65,7 +66,7 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 store.fetchRecords()
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive)
                 handleAutoPresentations()
                 syncMyFriendProfile()
             }
@@ -76,11 +77,11 @@ struct HomeView: View {
                 syncMyFriendProfile()
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot())
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive)
                 syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot())
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive)
                     // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
                     // onAppear/onChange のみで、記録後すぐは stale だった)。
                     syncMyFriendProfile()

@@ -5,6 +5,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreKitManager.self) private var storeKit
+    @State private var showPremiumPaywall = false
     @State private var isShowingWidgetGuide = false
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     @State private var celebrationPrefs = CelebrationPreferences.shared
@@ -40,6 +42,34 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("settings-share-app")
+            }
+
+            Section {
+                if storeKit.isPremiumActive {
+                    Label {
+                        Text("GOプレミアム 加入中")
+                            .foregroundStyle(Palette.textPrimary)
+                    } icon: {
+                        Image(systemName: "crown.fill").foregroundStyle(Palette.primary)
+                    }
+                    .accessibilityIdentifier("premium-active-row")
+                } else {
+                    Button {
+                        showPremiumPaywall = true
+                    } label: {
+                        HStack {
+                            Label("GOプレミアムにアップグレード", systemImage: "crown.fill")
+                                .foregroundStyle(Palette.textPrimary)
+                            Spacer()
+                            Text("14日間無料")
+                                .font(Typography.caption)
+                                .foregroundStyle(Palette.primary)
+                        }
+                    }
+                    .accessibilityIdentifier("premium-upsell-row")
+                }
+            } footer: {
+                Text("体重タブの全機能・連続記録フリーズ月4回などを解放します。")
             }
 
             Section("通知") {
@@ -135,7 +165,7 @@ struct SettingsView: View {
                         bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
                         bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
                         bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
-                        bulletRow("運動不可な日が増えそうな週は、保険チケット (月 1 枚、体調・周期 ON で 2 枚) で別途救済できます。")
+                        bulletRow("運動不可な日が増えそうな週は、連続記録フリーズ (無料は月1回 / GOプレミアムは月4回) で別途救済できます。")
                     }
                     .padding(.top, 4)
                 } label: {
@@ -242,6 +272,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isShowingUserCatPicker) {
             UserCatPickerView()
+        }
+        .sheet(isPresented: $showPremiumPaywall) {
+            PremiumPaywallSheet(store: storeKit, context: .general)
         }
         .sheet(isPresented: Binding(
             get: { exportShareURL != nil },
