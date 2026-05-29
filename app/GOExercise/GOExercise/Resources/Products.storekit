@@ -49,7 +49,7 @@
         {
           "adHocOffers" : [],
           "codeOffers" : [],
-          "displayPrice" : "480",
+          "displayPrice" : "500",
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560002",
@@ -60,7 +60,7 @@
           },
           "localizations" : [
             {
-              "description" : "GOプレミアムの月額プラン。体重タブ全機能・フリーズ月4回などを解放。14日間無料、その後 ¥480/月。",
+              "description" : "GOプレミアムの月額プラン。体重タブ全機能・フリーズ月4回などを解放。14日間無料、その後 ¥500/月。",
               "displayName" : "GOプレミアム 月額",
               "locale" : "ja_JP"
             }

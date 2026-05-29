@@ -88,7 +88,7 @@ Codex ダブルチェックを **2 ラウンド** 実施。全ラウンド Debug
 
 | 項目 | 内容 |
 |---|---|
-| 商品 | **GOプレミアム** 月額 ¥480 / 年額 ¥3,800 (同一 subscription group)、**14日間無料**トライアル |
+| 商品 | **GOプレミアム** 月額 ¥500 / 年額 ¥3,800 (同一 subscription group)、**14日間無料**トライアル |
 | 解放内容 | 体重タブ全機能 + 連続記録フリーズ **月4回** (無料は月1回) + 将来テーマ等 |
 | 廃止 | **¥1,000 保険チケット (消耗型 IAP) を完全廃止**。体重 Pro 単独サブ (¥500/月) も廃止 |
 | 体重タブ | 独自30日トライアルを廃止し **Premium ゲート**化 (試用はサブの14日無料)。ホームの体重入力は無料のまま |
@@ -100,7 +100,7 @@ Codex ダブルチェックを **2 ラウンド** 実施。全ラウンド Debug
 - `WeightAccessGate` 削除 (体重タブは `storeKit.isPremiumActive` で直接ゲート)
 - `RescueTicketStore`: purchasedRemaining 撤去、月次枠のみ。`RescueTicketAllowance.current(isPremium:)` = 4 / 1
 - 新 `PremiumPaywallSheet` (月/年選択・年額推し・14日無料・復元・規約)。体重タブ/フリーズ枠/設定から起動
-- App Store Connect 登録時の価格: 月¥480 / 年¥3,800 (Tier は加入後に設定)
+- App Store Connect 登録時の価格: 月¥500 / 年¥3,800 (Tier は加入後に設定)
 
 ⚠ **App Store Connect 作業 (Apple Developer 加入後)**: 新 productID 2 本 (`premium_monthly` / `premium_yearly`) を登録、14日無料トライアル設定、サブスクグループ作成。
 

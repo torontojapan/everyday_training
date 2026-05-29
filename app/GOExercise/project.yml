@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "29YX3L7B47"
     CODE_SIGN_STYLE: Automatic
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)

@@ -17,7 +17,7 @@
 - [ ] 🍎 App Store Connect で App ID `com.goexercise.app` 登録
 - [ ] 🍎 Capabilities 有効化: **App Groups** (`group.com.goexercise.app`) / **Live Activities** (Info.plist `NSSupportsLiveActivities=true` は設定済) / Push (将来 CloudKit 時)
 - [ ] 🍎 App Store Connect → サブスクリプション登録:
-  - `com.goexercise.app.premium_monthly` … 月額 ¥480
+  - `com.goexercise.app.premium_monthly` … 月額 ¥500
   - `com.goexercise.app.premium_yearly` … 年額 ¥3,800
   - 両方とも **サブスクリプショングループ** に入れる (アップグレード/ダウングレード可)
   - **無料お試し 2 週間 (14日)** の Introductory Offer (paymentMode=free) を両方に設定
@@ -48,7 +48,7 @@
 > **Xcode から実機実行 (Scheme の StoreKit Configuration = Products.storekit)** か、
 > **TestFlight + Sandbox** で確認する。
 
-- [ ] 🍎 ペイウォール (PremiumPaywallSheet) に月額 ¥480 / 年額 ¥3,800 が App Store Connect 価格で表示
+- [ ] 🍎 ペイウォール (PremiumPaywallSheet) に月額 ¥500 / 年額 ¥3,800 が App Store Connect 価格で表示
 - [ ] 🍎 **14日無料トライアル** 開始 → 即時課金されない / 「14日間無料」等の期間表示が出る
 - [ ] 🍎 購入完了 → **体重タブが解放** & **フリーズが月4回** に増える
 - [ ] 🍎 アプリ削除 → 再インストール → **購入復元** で Premium 復活 (起動時 `AppStore.sync`/`currentEntitlements`)

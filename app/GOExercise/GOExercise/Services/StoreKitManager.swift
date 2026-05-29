@@ -178,11 +178,11 @@ final class StoreKitManager {
     var premiumMonthlyProduct: Product? { products[ProductID.premiumMonthly] }
     var premiumYearlyProduct: Product? { products[ProductID.premiumYearly] }
 
-    /// 表示用ローカライズ価格 (例: "¥480" / "¥3,800")。fallback あり。
+    /// 表示用ローカライズ価格 (例: "¥500" / "¥3,800")。fallback あり。
     func displayPrice(for productID: String) -> String {
         if let p = products[productID] { return p.displayPrice }
         switch productID {
-        case ProductID.premiumMonthly: return "¥480"
+        case ProductID.premiumMonthly: return "¥500"
         case ProductID.premiumYearly:  return "¥3,800"
         default: return "-"
         }
