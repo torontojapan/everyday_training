@@ -8,7 +8,7 @@ struct WeightStoreTests {
     /// In-memory SwiftData container + isolated UserDefaults to prevent
     /// test cross-pollination via `UserHealthPreferences.shared`.
     private func makeStore() throws -> (WeightStore, ModelContext, UserHealthPreferences) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: WeightEntry.self, configurations: config)
         let context = ModelContext(container)
         let defaults = UserDefaults(suiteName: "test-store-\(UUID().uuidString)")!

@@ -64,6 +64,7 @@ enum FriendsServiceError: LocalizedError {
     case alreadyFriends
     case duplicateRequest
     case cannotAddSelf
+    case iCloudUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -72,6 +73,7 @@ enum FriendsServiceError: LocalizedError {
         case .alreadyFriends: return "既に友達です"
         case .duplicateRequest: return "申請は既に送信済みです"
         case .cannotAddSelf: return "自分のコードは追加できません"
+        case .iCloudUnavailable: return "iCloud にサインインすると友達機能が使えます (設定 → Apple ID → iCloud)"
         }
     }
 }

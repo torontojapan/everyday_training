@@ -7,7 +7,7 @@ import Testing
 struct DataManagementServiceTests {
     /// 3 つの @Model を含む in-memory コンテナを作る (本番と同じ schema)。
     private func makeContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(
             for: WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self,
             configurations: config

@@ -19,7 +19,7 @@ final class SwiftDataMigrationTests: XCTestCase {
             let v1Container = try ModelContainer(
                 for: TestMigration.V1.WorkoutSample.self,
                 migrationPlan: nil,
-                configurations: ModelConfiguration(url: storeURL)
+                configurations: ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
             )
             let context = ModelContext(v1Container)
             context.insert(TestMigration.V1.WorkoutSample(name: "スクワット", reps: 20))
@@ -31,7 +31,7 @@ final class SwiftDataMigrationTests: XCTestCase {
         let v2Container = try ModelContainer(
             for: TestMigration.V2.WorkoutSample.self,
             migrationPlan: TestMigration.MigrationPlan.self,
-            configurations: ModelConfiguration(url: storeURL)
+            configurations: ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
         )
         let v2Context = ModelContext(v2Container)
         let fetched = try v2Context.fetch(FetchDescriptor<TestMigration.V2.WorkoutSample>())
@@ -47,7 +47,7 @@ final class SwiftDataMigrationTests: XCTestCase {
         let container = try ModelContainer(
             for: TestMigration.V2.WorkoutSample.self,
             migrationPlan: TestMigration.MigrationPlan.self,
-            configurations: ModelConfiguration(url: storeURL)
+            configurations: ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
         )
         let context = ModelContext(container)
         context.insert(TestMigration.V2.WorkoutSample(name: "プランク", reps: 1, intensity: 5))

@@ -7,7 +7,7 @@ final class DataResilienceTests: XCTestCase {
     private var container: ModelContainer?
 
     override func setUp() async throws {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         container = try ModelContainer(for: WorkoutRecord.self, configurations: config)
     }
 

@@ -7,7 +7,7 @@ struct GOExerciseApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var themeStore = ThemeStore.shared
-    @State private var friendsStore = FriendsStore(service: MockFriendsService())
+    @State private var friendsStore = FriendsStore(service: GOExerciseApp.makeFriendsService())
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
     @State private var userCatPrefs = UserCatPreferences.shared
@@ -20,6 +20,22 @@ struct GOExerciseApp: App {
     /// body 内で make() をインライン呼び出しすると body 再評価毎に同一ストアへ
     /// 複数コンテナが開かれ、SwiftData が trap する (EXC_BREAKPOINT) ため。
     private let sharedModelContainer = AppModelContainer.make()
+
+    /// 友達バックエンドの選択。
+    /// - Release: 実 CloudKit (`CloudKitFriendsService`)。
+    /// - DEBUG: 既定は `MockFriendsService` (デモ/スクショ/UI テスト用)。
+    ///   `--cloudkit-friends` 起動引数のときだけ実 CloudKit を使い、実機 2 アカウント
+    ///   の疎通テストができる。
+    static func makeFriendsService() -> any FriendsService {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--cloudkit-friends") {
+            return CloudKitFriendsService()
+        }
+        return MockFriendsService()
+        #else
+        return CloudKitFriendsService()
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {

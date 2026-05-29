@@ -51,7 +51,7 @@ enum AppModelContainer {
         // (3 LLM 監査 / Codex 指摘)。
         assertionFailure("App Group SwiftData ストアを開けませんでした。App Group entitlement / provisioning を確認してください。Release ではローカルストアにフォールバックします。")
         // フォールバック: ローカルに保存。永続化自体が不能なら致命的として trap。
-        let local = ModelConfiguration(schema: schema)
+        let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         // swiftlint:disable:next force_try
         return try! ModelContainer(for: schema, configurations: local)
     }
