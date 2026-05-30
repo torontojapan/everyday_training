@@ -170,8 +170,8 @@ final class NotificationScheduler {
             calendar: calendar
         )
         content.sound = .default
-        // Tap on the reminder should jump straight to the record screen.
-        content.userInfo = ["route": AppRoute.record.rawValue]
+        // タップしたらまずホーム (猫劇場) を見せる。記録は CTA からすぐ起こせる。
+        content.userInfo = ["route": AppRoute.home.rawValue]
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(

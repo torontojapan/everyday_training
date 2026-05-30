@@ -3,8 +3,10 @@ import UIKit
 
 struct NotificationSettingsView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel = NotificationSettingsViewModel()
     @State private var personality: NotificationPersonality = NotificationPersonalityPreferences.shared.current
+    private let hapticFeedback = HapticFeedbackController()
 
     var body: some View {
         Form {
@@ -50,6 +52,26 @@ struct NotificationSettingsView: View {
                 Text("通知の性格")
             } footer: {
                 Text("静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。")
+                    .font(Typography.caption)
+            }
+
+            // 設定は変更時に即反映されるが、「確定した」感を出すための保存導線。
+            // 押すと設定画面へ戻る。
+            Section {
+                Button {
+                    hapticFeedback.success()
+                    dismiss()
+                } label: {
+                    Text("保存して戻る")
+                        .font(Typography.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .listRowBackground(Palette.primary)
+                .accessibilityIdentifier("notif-save-button")
+            } footer: {
+                Text("変更はすぐに反映されます。")
                     .font(Typography.caption)
             }
         }

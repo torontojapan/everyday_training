@@ -31,7 +31,7 @@ struct GOExerciseWidget: Widget {
                         )
                     }
                 }
-                .widgetURL(URL(string: "goexercise://record"))
+                .widgetURL(URL(string: "goexercise://home"))
         }
         .configurationDisplayName("GO エクササイズ")
         .description("今日の残り時間、週間達成率、猫メッセージを表示します。")
