@@ -417,7 +417,7 @@ struct StatsView: View {
                     .font(.system(size: 22))
                     .foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("これまでの記録")
+                    Text("これまでのハイライト")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.textPrimary)
                     Text(lifetimeStatsSubtitle)
@@ -433,7 +433,7 @@ struct StatsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("lifetime-stats-entry")
-        .accessibilityLabel("これまでの記録を共有カードで開く")
+        .accessibilityLabel("これまでのハイライトを共有カードで開く")
     }
 
     /// これまでの記録 entry-row の subtitle。

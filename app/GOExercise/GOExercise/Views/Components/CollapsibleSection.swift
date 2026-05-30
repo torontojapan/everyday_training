@@ -51,8 +51,10 @@ struct CollapsibleSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             if isExpanded {
+                // ヘッダの下に向かって自然に伸びるよう、上端スライドではなく
+                // フェードのみ (高さアニメは外側の .animation が担当)。
                 content()
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity)
             }
         }
         .padding(16)

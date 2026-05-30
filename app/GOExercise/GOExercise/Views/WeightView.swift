@@ -220,49 +220,62 @@ struct WeightView: View {
 
     /// BMI + 身長 編集の独立ストリップ (Claude #2)。ヒーロー直下に薄く敷く。
     /// 体重 0 件 OR 身長未設定 で表示内容を出し分ける。
-    @ViewBuilder
     private func bmiInfoStrip(store: WeightStore) -> some View {
-        if let latest = store.latestNonFuture {
-            HStack(spacing: 10) {
-                Image(systemName: "ruler")
-                    .font(.caption)
+        // 体重記録の有無にかかわらず常に表示する。身長を先に設定できるようにし、
+        // 身長設定後は常に BMI 欄が出る (体重が入ればその場で値が埋まる)。
+        let latestKg = store.latestNonFuture?.weightKilograms
+        let bmi = latestKg.flatMap { healthPrefs.bmi(weightKilograms: $0) }
+        let height = healthPrefs.heightCentimeters
+
+        return HStack(spacing: 10) {
+            Image(systemName: "ruler")
+                .font(.caption)
+                .foregroundStyle(Palette.textSecondary)
+            if let bmi {
+                // BMI カテゴリ badge はユーザー要望で非表示。数値のみ。
+                Text("BMI")
+                    .font(.caption2)
                     .foregroundStyle(Palette.textSecondary)
-                if let bmi = healthPrefs.bmi(weightKilograms: latest.weightKilograms) {
-                    // BMI カテゴリ badge (「普通」/「肥満」など) はユーザー要望で
-                    // 非表示。数値のみ表示してニュートラルなトーンに。
-                    Text("BMI")
-                        .font(.caption2)
-                        .foregroundStyle(Palette.textSecondary)
-                    Text(String(format: "%.1f", bmi))
-                        .font(.system(.caption, design: .rounded, weight: .heavy))
-                        .foregroundStyle(Palette.textPrimary)
-                        .monospacedDigit()
-                    if let h = healthPrefs.heightCentimeters {
-                        Text("身長 \(String(format: "%.0f", h))cm")
-                            .font(.caption2)
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                } else {
-                    Text("身長を設定すると BMI が表示されます")
+                Text(String(format: "%.1f", bmi))
+                    .font(.system(.caption, design: .rounded, weight: .heavy))
+                    .foregroundStyle(Palette.textPrimary)
+                    .monospacedDigit()
+                if let height {
+                    Text("身長 \(String(format: "%.0f", height))cm")
                         .font(.caption2)
                         .foregroundStyle(Palette.textSecondary)
                 }
-                Spacer()
-                Button {
-                    beginHeightEdit()
-                } label: {
-                    Label("身長", systemImage: "pencil")
-                        .font(.caption2)
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .buttonStyle(.plain)
+            } else if height != nil {
+                // 身長は設定済みだが体重記録がまだない。
+                Text("BMI")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.textSecondary)
+                Text("—")
+                    .font(.system(.caption, design: .rounded, weight: .heavy))
+                    .foregroundStyle(Palette.textSecondary)
+                Text("体重を記録すると表示されます")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.textSecondary)
+            } else {
+                Text("身長を設定すると BMI が表示されます")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.textSecondary)
             }
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(Palette.surface.opacity(0.6), in: Capsule())
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(bmiAccessibilityLabel(latestKg: latest.weightKilograms))
-            .accessibilityIdentifier("bmi-info-strip")
+            Spacer()
+            Button {
+                beginHeightEdit()
+            } label: {
+                Label("身長", systemImage: "pencil")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.primaryDeep)
+            }
+            .buttonStyle(.plain)
         }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(Palette.surface.opacity(0.6), in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(bmiAccessibilityLabel(latestKg: latestKg ?? 0))
+        .accessibilityIdentifier("bmi-info-strip")
     }
 
     /// VoiceOver 用の BMI 説明ラベル。視覚的には数値のみだが、読み上げでは

@@ -20,6 +20,10 @@ struct HomeView: View {
     @State private var catBounce = false
     /// 起動時に吹き出しを pop-in させる用。
     @State private var bubbleAppeared = false
+    /// 達成の紙吹雪演出を「その日 1 回だけ」にするための日付キー (再訪では出さない)。
+    @AppStorage("home.celebratedDay") private var celebratedDay: String = ""
+    /// 紙吹雪を出している間だけ true。1 回出したらその日は false に戻す。
+    @State private var isCelebrating = false
     private let calendar = Calendar.mondayFirst
     private let hapticFeedback = HapticFeedback()
 
@@ -32,7 +36,7 @@ struct HomeView: View {
                 // 達成済みなら紙吹雪も追加して祝祭感を出す。
                 AmbientParticlesView(
                     hour: calendar.component(.hour, from: Date()),
-                    isCelebrating: viewModel.todayStatus == .todayAchieved
+                    isCelebrating: isCelebrating
                 )
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
@@ -68,6 +72,7 @@ struct HomeView: View {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive)
                 handleAutoPresentations()
+                evaluateCelebration()
                 syncMyFriendProfile()
             }
             // signIn (App.task) は onAppear と並行で走るため、初回は profile が
@@ -365,6 +370,24 @@ struct HomeView: View {
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
         }
+    }
+
+    /// 達成の紙吹雪を「その日まだ出していなければ」1 回だけ出す。
+    /// ホームに戻る度に紙吹雪が再生される問題を解消する。
+    private func evaluateCelebration() {
+        let key = celebrationDayKey(for: store.today)
+        guard viewModel.todayStatus == .todayAchieved, celebratedDay != key else { return }
+        celebratedDay = key
+        isCelebrating = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            isCelebrating = false
+        }
+    }
+
+    private func celebrationDayKey(for date: Date) -> String {
+        let comps = calendar.dateComponents([.year, .month, .day], from: date)
+        return "\(comps.year ?? 0)-\(comps.month ?? 0)-\(comps.day ?? 0)"
     }
 
     /// 自分の友達プロフィールを実データ (ホームの集計) で更新する。
