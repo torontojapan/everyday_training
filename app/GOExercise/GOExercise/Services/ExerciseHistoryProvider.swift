@@ -22,9 +22,13 @@ final class ExerciseHistoryProvider {
         guard limit > 0 else { return [] }
 
         let suggestions = recordsProvider()
-            .filter { $0.category == category }
             .flatMap { record in
+                // 種目ごとのカテゴリで絞る。複数カテゴリ記録でも有酸素種目が
+                // 筋トレ候補に混ざらない。旧データ (item.category 未設定) は
+                // 記録全体の category にフォールバックする。
                 record.exercises.compactMap { item -> (String, Date)? in
+                    let itemCategory = item.category ?? record.category
+                    guard itemCategory == category else { return nil }
                     let name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
                     return name.isEmpty ? nil : (name, record.date)
                 }

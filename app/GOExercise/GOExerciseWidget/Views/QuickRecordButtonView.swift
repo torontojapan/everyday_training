@@ -16,11 +16,11 @@ struct QuickRecordButtonView: View {
                        tint: .secondary, background: Color.gray.opacity(0.18))
         } else {
             // 未達成: タップで AppIntent を実行 → 即時 reload。
-            // 文言は「今日の運動を記録する」アクションが一目で分かる「運動した！」に。
+            // 運動「前」に過去形だと不自然なため、中立的な「運動を記録」に。
             Button(intent: QuickRecordIntent()) {
                 HStack(spacing: 5) {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("運動した！")
+                    Text("運動を記録")
                 }
                 .font(.system(size: 13, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)

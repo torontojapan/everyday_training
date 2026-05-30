@@ -17,8 +17,6 @@ struct RecordCompletionView: View {
     @State private var fireBurst = false
     @State private var ribbonText = ""
     @State private var ribbonAppear = false
-    @State private var catHaloScale: CGFloat = 0.4
-    @State private var catHaloOpacity: Double = 0
     private let hapticFeedback = HapticFeedbackController()
 
     private static let praiseRibbons = [
@@ -61,26 +59,14 @@ struct RecordCompletionView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Palette.primary.opacity(0.55), Palette.primary.opacity(0.0)],
-                                    center: .center, startRadius: 0, endRadius: 180
-                                )
-                            )
-                            .frame(width: 320, height: 320)
-                            .scaleEffect(catHaloScale)
-                            .opacity(catHaloOpacity)
-                            .blendMode(.plusLighter)
-                            .allowsHitTesting(false)
+                    // 1. ヒーロー: ホームと同じ大きい祝福猫。達成のごほうび感を最大化。
+                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating)
+                        .frame(width: 210, height: 210)
+                        .scaleEffect(contentVisible ? 1 : 0.85)
+                        .opacity(contentVisible ? 1 : 0)
+                        .padding(.top, 4)
 
-                        CatMessageView(
-                            message: CatMessageProvider.message(for: streakExtendedThisRun ? .streakExtended : .celebrating),
-                            state: streakExtendedThisRun ? .streakExtended : .celebrating
-                        )
-                    }
-
+                    // 2. 称賛リボン
                     if ribbonAppear && !ribbonText.isEmpty {
                         Text(ribbonText)
                             .font(.system(.title2, design: .rounded, weight: .heavy))
@@ -101,48 +87,14 @@ struct RecordCompletionView: View {
                             .accessibilityIdentifier("praise-ribbon")
                     }
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("今日の記録")
-                            .font(Typography.headline)
-                            .foregroundStyle(Palette.textPrimary)
+                    // 3. 連続日数を大きな数字で主役化 (一番のごほうび)。
+                    streakHero
+                        .scaleEffect(contentVisible ? 1 : 0.9)
+                        .opacity(contentVisible ? 1 : 0)
 
-                        Label(record.category.displayName, systemImage: record.category.symbolName)
-                            .font(Typography.body)
-                            .foregroundStyle(Palette.textSecondary)
-
-                        ForEach(record.exercises) { item in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(item.name)
-                                    .font(Typography.headline)
-                                Text(summary(for: item))
-                                    .font(Typography.caption)
-                                    .foregroundStyle(Palette.textSecondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        }
-                    }
-                    .scaleEffect(contentVisible ? 1 : 0.92)
-                    .opacity(contentVisible ? 1 : 0)
-
-                    ZStack {
-                        // Backdrop glow
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Color(red: 1.00, green: 0.55, blue: 0.30).opacity(streakPulse ? 0.45 : 0.18), .clear],
-                                    center: .center, startRadius: 0, endRadius: 200
-                                )
-                            )
-                            .frame(width: 360, height: 220)
-                            .blendMode(.plusLighter)
-                            .allowsHitTesting(false)
-
-                        StreakBadgeView(streak: streak)
-                            .scaleEffect(streakPulse ? 1.20 : 1)
-                            .shadow(color: Palette.primary.opacity(streakPulse ? 0.55 : 0.20), radius: streakPulse ? 22 : 8, x: 0, y: 4)
-                    }
+                    // 4. 今日の記録サマリー
+                    recordSummaryCard
+                        .opacity(contentVisible ? 1 : 0)
 
                     if let onRecordAnother {
                         Button {
@@ -188,10 +140,6 @@ struct RecordCompletionView: View {
             withAnimation(Motion.animation(.spring(response: 0.45, dampingFraction: 0.72), reduceMotion: reduceMotion)) {
                 contentVisible = true
             }
-            withAnimation(.easeOut(duration: 0.5)) {
-                catHaloScale = 1.0
-                catHaloOpacity = 1.0
-            }
             withAnimation(Motion.animation(.spring(response: 0.55, dampingFraction: 0.5).delay(0.18), reduceMotion: reduceMotion)) {
                 ribbonAppear = true
             }
@@ -213,7 +161,6 @@ struct RecordCompletionView: View {
             }
             withAnimation(.easeOut(duration: 0.3)) {
                 showsConfetti = false
-                catHaloOpacity = 0.0
             }
             requestReviewIfMilestoneReached()
         }
@@ -254,12 +201,91 @@ struct RecordCompletionView: View {
         .accessibilityHidden(true)
     }
 
+    /// 連続日数を大きな数字でヒーロー化したカード。完了画面の感情的ピーク。
+    private var streakHero: some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("🔥").font(.system(size: 30))
+                Text("\(streak)")
+                    .font(.system(size: 60, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(red: 1.00, green: 0.55, blue: 0.30),
+                                     Color(red: 0.95, green: 0.32, blue: 0.60)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                Text("日連続")
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            if streakExtendedThisRun {
+                Label("きのうから +1 のばした！", systemImage: "sparkles")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(Palette.primaryDeep)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Palette.primary.opacity(0.18), lineWidth: 1)
+        )
+        .scaleEffect(streakPulse ? 1.04 : 1)
+        .shadow(color: Palette.primary.opacity(streakPulse ? 0.35 : 0.12), radius: streakPulse ? 22 : 8, x: 0, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(streak)日連続")
+    }
+
+    /// 今日記録した種目のサマリーカード。各行を「名前 … 30分・3回・3セット」で整形。
+    private var recordSummaryCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("今日の記録")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+
+            ForEach(record.exercises) { item in
+                let category = item.category ?? record.category
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Label(category.displayName, systemImage: category.symbolName)
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                        Text(item.name)
+                            .font(Typography.headline)
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(summary(for: item))
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .multilineTextAlignment(.trailing)
+                }
+                .padding(.vertical, 4)
+                if item.id != record.exercises.last?.id {
+                    Divider().overlay(Palette.textSecondary.opacity(0.15))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
     private func summary(for item: ExerciseItem) -> String {
         var parts: [String] = []
         if let duration = item.durationSeconds {
             let minutes = duration / 60
             let seconds = duration % 60
-            parts.append(minutes > 0 ? "\(minutes)分\(seconds)秒" : "\(seconds)秒")
+            if minutes > 0 && seconds > 0 {
+                parts.append("\(minutes)分\(seconds)秒")
+            } else if minutes > 0 {
+                parts.append("\(minutes)分")
+            } else {
+                parts.append("\(seconds)秒")
+            }
         }
         if let reps = item.reps {
             parts.append("\(reps)回")
@@ -270,6 +296,6 @@ struct RecordCompletionView: View {
         if let memo = item.memo {
             parts.append(memo)
         }
-        return parts.isEmpty ? "詳細なし" : parts.joined(separator: " / ")
+        return parts.isEmpty ? "詳細なし" : parts.joined(separator: "・")
     }
 }

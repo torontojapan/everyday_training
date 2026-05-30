@@ -7,21 +7,28 @@ final class RecordEntryViewModel {
     struct ExerciseDraft: Identifiable, Hashable {
         let id: UUID
         var name: String
-        var minutes: String
-        var reps: String
-        var sets: String
+        /// この種目のカテゴリ。種目ごとに選べるので 1 回の記録に複数カテゴリを混在できる。
+        var category: WorkoutCategory
+        /// 運動時間 (分)。プルダウン選択。0 = 未設定 (= durationSeconds なし)。
+        var minutes: Int
+        /// 回数。プルダウン選択。0 = 未設定。
+        var reps: Int
+        /// セット数。プルダウン選択。0 = 未設定。
+        var sets: Int
         var memo: String
 
         init(
             id: UUID = UUID(),
             name: String = "",
-            minutes: String = "",
-            reps: String = "",
-            sets: String = "",
+            category: WorkoutCategory = .strength,
+            minutes: Int = 0,
+            reps: Int = 0,
+            sets: Int = 0,
             memo: String = ""
         ) {
             self.id = id
             self.name = name
+            self.category = category
             self.minutes = minutes
             self.reps = reps
             self.sets = sets
@@ -29,7 +36,6 @@ final class RecordEntryViewModel {
         }
     }
 
-    var selectedCategory: WorkoutCategory = .strength
     var drafts: [ExerciseDraft] = [ExerciseDraft()]
     var memo = ""
     var weightInput = ""
@@ -74,23 +80,30 @@ final class RecordEntryViewModel {
             let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else { return nil }
 
-            let minutes = Int(draft.minutes.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-            let duration = minutes * 60
+            let duration = draft.minutes * 60
             let trimmedMemo = draft.memo.trimmingCharacters(in: .whitespacesAndNewlines)
 
             return ExerciseItem(
                 id: draft.id,
                 name: name,
                 durationSeconds: duration > 0 ? duration : nil,
-                reps: positiveInt(from: draft.reps),
-                sets: positiveInt(from: draft.sets),
-                memo: trimmedMemo.isEmpty ? nil : trimmedMemo
+                reps: draft.reps > 0 ? draft.reps : nil,
+                sets: draft.sets > 0 ? draft.sets : nil,
+                memo: trimmedMemo.isEmpty ? nil : trimmedMemo,
+                category: draft.category
             )
         }
     }
 
     func addExercise() {
-        drafts.append(ExerciseDraft())
+        // 直前の種目のカテゴリを引き継ぐ (同カテゴリを続けて足すことが多いため)。
+        drafts.append(ExerciseDraft(category: drafts.last?.category ?? .strength))
+    }
+
+    /// 記録全体の代表カテゴリ (先頭種目)。履歴グルーピング・ウィジェット等の
+    /// 「1 記録 = 1 カテゴリ」前提の箇所に渡す後方互換用。
+    var primaryCategory: WorkoutCategory {
+        validExercises.first?.category ?? drafts.first?.category ?? .strength
     }
 
     func resetAfterSave() {
@@ -125,8 +138,9 @@ final class RecordEntryViewModel {
             return nil
         }
 
+        let primaryCategory = exercises.first?.category ?? .strength
         let trimmedMemo = memo.trimmingCharacters(in: .whitespacesAndNewlines)
-        let record = store.add(category: selectedCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
+        let record = store.add(category: primaryCategory, exercises: exercises, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
         // store.add は throw せず失敗を lastErrorMessage で表す。保存に失敗していたら
         // 計測・体重などの後続副作用を全て止め、nil を返して呼び出し側に「成功ダイアログを
         // 出さない / 警告ハプティクス」を選ばせる。これが無いと SwiftData 保存失敗時でも
@@ -135,7 +149,7 @@ final class RecordEntryViewModel {
             validationMessage = errorMessage
             return nil
         }
-        Analytics.track(.recordCreated(category: selectedCategory.rawValue))
+        Analytics.track(.recordCreated(category: primaryCategory.rawValue))
 
         // Persist optional weight entry alongside the workout record.
         // 同日複数記録 (P0-4) に対応するため **現在時刻** を渡す。
@@ -146,10 +160,5 @@ final class RecordEntryViewModel {
 
         validationMessage = nil
         return record
-    }
-
-    private func positiveInt(from text: String) -> Int? {
-        let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-        return value > 0 ? value : nil
     }
 }

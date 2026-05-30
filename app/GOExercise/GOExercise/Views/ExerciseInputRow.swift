@@ -4,14 +4,63 @@ struct ExerciseInputRow: View {
     @Binding var draft: RecordEntryViewModel.ExerciseDraft
     let suggestions: [String]
     let canRemove: Bool
+    let isExpanded: Bool
+    let onToggleExpand: () -> Void
     let onRemove: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                TextField("種目名", text: $draft.name)
-                    .textInputAutocapitalization(.never)
+        if isExpanded {
+            expandedBody
+        } else {
+            collapsedRow
+        }
+    }
 
+    // MARK: - 最小化表示 (入力済みの種目)
+
+    private var collapsedRow: some View {
+        Button(action: onToggleExpand) {
+            HStack(spacing: 10) {
+                Image(systemName: draft.category.symbolName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.primary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(draft.name.isEmpty ? "種目名 未入力" : draft.name)
+                        .font(Typography.body)
+                        .foregroundStyle(draft.name.isEmpty ? Palette.textSecondary : Palette.textPrimary)
+                    Text(collapsedSummary)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(draft.category.displayName) \(draft.name.isEmpty ? "未入力" : draft.name)")
+        .accessibilityHint("タップして編集")
+    }
+
+    private var collapsedSummary: String {
+        var parts = [draft.category.displayName]
+        if draft.minutes > 0 { parts.append("\(draft.minutes)分") }
+        if draft.reps > 0 { parts.append("\(draft.reps)回") }
+        if draft.sets > 0 { parts.append("\(draft.sets)セット") }
+        return parts.joined(separator: "・")
+    }
+
+    // MARK: - 編集表示 (展開中の種目)
+
+    private var expandedBody: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // この種目のカテゴリ選択 + 削除 + 最小化。カテゴリを種目ごとに持てる。
+            HStack(spacing: 8) {
+                categoryMenu
+                Spacer(minLength: 4)
                 if canRemove {
                     Button(role: .destructive, action: onRemove) {
                         Image(systemName: "trash")
@@ -19,11 +68,34 @@ struct ExerciseInputRow: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel("種目を削除")
                 }
+                Button(action: onToggleExpand) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("最小化")
+            }
+
+            // 種目名は入力の主役。ラベル + 枠線付きフィールドで埋もれないようにする。
+            VStack(alignment: .leading, spacing: 4) {
+                Text("種目名")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.textSecondary)
+                TextField("例: スクワット", text: $draft.name)
+                    .textInputAutocapitalization(.never)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                    .background(Palette.chipBackground.opacity(0.5), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Palette.primary.opacity(0.45), lineWidth: 1.5)
+                    )
             }
 
             if !suggestions.isEmpty {
-                // 横スクロールから 2 行ラップする FlexibleWrap に変更。
-                // 候補が全部一目で見え、隠れた候補に気づかない問題を解消。
                 VStack(alignment: .leading, spacing: 4) {
                     Text("よく使う種目")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -32,15 +104,18 @@ struct ExerciseInputRow: View {
                         draft.name = suggestion
                     }
                 }
+            } else {
+                Text("履歴がたまると、ここによく使う種目が出ます")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
             }
 
-            // Static labels above each numeric field so the meaning doesn't
-            // disappear once the user types something (placeholder-only fields
-            // lose context after input).
+            // 時間/回数/セットはプルダウン選択。手入力 (数字キーボード) より
+            // 速くタップ1つで決まり、表記ゆれ・全角入力も防げる。
             HStack(spacing: 12) {
-                labeledNumberField("時間 (分)", text: $draft.minutes, accessibility: "時間 分単位")
-                labeledNumberField("回数", text: $draft.reps, accessibility: "回数")
-                labeledNumberField("セット", text: $draft.sets, accessibility: "セット数")
+                labeledPicker("時間 (分)", selection: $draft.minutes, options: Self.minuteOptions, unit: "分", accessibility: "時間 分単位")
+                labeledPicker("回数", selection: $draft.reps, options: Self.repOptions, unit: "回", accessibility: "回数")
+                labeledPicker("セット", selection: $draft.sets, options: Self.setOptions, unit: "", accessibility: "セット数")
             }
 
             TextField("種目メモ (例: 体調メモ、回数アップ等)", text: $draft.memo)
@@ -54,14 +129,69 @@ struct ExerciseInputRow: View {
         .padding(.vertical, 6)
     }
 
-    private func labeledNumberField(_ label: String, text: Binding<String>, accessibility: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private var categoryMenu: some View {
+        Menu {
+            Picker("カテゴリ", selection: $draft.category) {
+                ForEach(WorkoutCategory.allCases) { category in
+                    Label(category.displayName, systemImage: category.symbolName).tag(category)
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: draft.category.symbolName)
+                    .font(.system(size: 17, weight: .bold))
+                Text(draft.category.displayName)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Palette.primary, in: Capsule())
+            .shadow(color: Palette.primary.opacity(0.30), radius: 6, x: 0, y: 2)
+        }
+        .accessibilityLabel("カテゴリ: \(draft.category.displayName)")
+    }
+
+    // 0 = 未設定。時間は 5 分刻みで最大 100 分、回数は最大 50、セットは最大 10。
+    private static let minuteOptions = Array(stride(from: 0, through: 100, by: 5))
+    private static let repOptions = Array(0...50)
+    private static let setOptions = Array(0...10)
+
+    private func labeledPicker(
+        _ label: String,
+        selection: Binding<Int>,
+        options: [Int],
+        unit: String,
+        accessibility: String
+    ) -> some View {
+        let value = selection.wrappedValue
+        return VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Palette.textSecondary)
-            TextField("", text: text, prompt: Text("0").foregroundStyle(Palette.textSecondary.opacity(0.5)))
-                .keyboardType(.numberPad)
-                .accessibilityLabel(accessibility)
+            Menu {
+                Picker(label, selection: selection) {
+                    ForEach(options, id: \.self) { option in
+                        Text(option == 0 ? "—" : "\(option)\(unit)").tag(option)
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(value == 0 ? "—" : "\(value)\(unit)")
+                        .foregroundStyle(value == 0 ? Palette.textSecondary.opacity(0.6) : Palette.textPrimary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.textSecondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 9)
+                .background(Palette.chipBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .accessibilityLabel(accessibility)
+            .accessibilityValue(value == 0 ? "未設定" : "\(value)\(unit)")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -74,7 +204,8 @@ private struct SuggestionFlow: View {
     let onTap: (String) -> Void
 
     var body: some View {
-        FlowLayout(spacing: 8, lineSpacing: 6) {
+        // 最大 3 行に制限。候補が多くても入力欄が縦に伸びすぎない。
+        FlowLayout(spacing: 8, lineSpacing: 6, maxRows: 3) {
             ForEach(suggestions, id: \.self) { suggestion in
                 Button {
                     onTap(suggestion)
@@ -97,18 +228,35 @@ private struct SuggestionFlow: View {
 private struct FlowLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 6
+    /// 表示する最大行数。これを超える行のアイテムは画面外へ逃がして非表示にする。
+    var maxRows: Int? = nil
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? .infinity
-        let (rows, totalHeight) = layoutRows(in: width, subviews: subviews)
-        let maxRowWidth = rows.map { $0.width }.max() ?? 0
+        let (rows, _) = layoutRows(in: width, subviews: subviews)
+        let visibleRows = maxRows.map { Array(rows.prefix($0)) } ?? rows
+        let totalHeight = visibleRows.reduce(0) { $0 + $1.height }
+            + CGFloat(max(0, visibleRows.count - 1)) * lineSpacing
+        let maxRowWidth = visibleRows.map { $0.width }.max() ?? 0
         return CGSize(width: min(maxRowWidth, width), height: totalHeight)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let (rows, _) = layoutRows(in: bounds.width, subviews: subviews)
+        let visibleCount = maxRows ?? rows.count
         var y = bounds.minY
-        for row in rows {
+        for (rowIndex, row) in rows.enumerated() {
+            guard rowIndex < visibleCount else {
+                // 上限行を超えた候補は遠くへ逃がして非表示 (Layout は全 subview を
+                // place する必要があるため、削除でなく画面外配置で対応)。
+                for index in row.indices {
+                    subviews[index].place(
+                        at: CGPoint(x: bounds.minX, y: bounds.maxY + 10_000),
+                        proposal: ProposedViewSize(width: 0, height: 0)
+                    )
+                }
+                continue
+            }
             var x = bounds.minX
             for index in row.indices {
                 let subview = subviews[index]

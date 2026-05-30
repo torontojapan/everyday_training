@@ -7,6 +7,8 @@ struct HistoryView: View {
     @State private var viewModel = HistoryViewModel()
     @State private var selectedDay: SelectedDay?
     @State private var menstrualStore: MenstrualStore?
+    /// 過去の運動履歴一覧。デフォルトは最小化し、ヘッダをタップで展開する。
+    @State private var isHistoryExpanded = false
     var onClose: (() -> Void)? = nil
 
     private let calendar = Calendar.mondayFirst
@@ -46,16 +48,54 @@ struct HistoryView: View {
                     EmptyStateView(message: "まだ記録がないよ。今日から始めよう")
                         .padding(.top, 20)
                 } else {
-                    ForEach(viewModel.groupedByDate.indices, id: \.self) { index in
-                        let date = viewModel.groupedByDate[index].0
-                        let records = viewModel.groupedByDate[index].1
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(dateFormatter.string(from: date))
-                                .font(Typography.sectionTitle)
-                                .foregroundStyle(Palette.textPrimary)
+                    // 過去の運動履歴は最小化して最下部に。ヘッダをタップで展開。
+                    VStack(alignment: .leading, spacing: 12) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isHistoryExpanded.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "list.bullet.rectangle.portrait.fill")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Palette.primary)
+                                Text("運動履歴")
+                                    .font(Typography.sectionTitle)
+                                    .foregroundStyle(Palette.textPrimary)
+                                Text("合計\(viewModel.groupedByDate.count)日")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(Palette.textSecondary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .rotationEffect(.degrees(isHistoryExpanded ? 180 : 0))
+                            }
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("history-toggle")
+                        .accessibilityLabel("運動履歴 合計\(viewModel.groupedByDate.count)日")
+                        .accessibilityValue(isHistoryExpanded ? "展開中" : "折りたたみ中")
 
-                            ForEach(records) { record in
-                                HistoryRowView(record: record)
+                        if isHistoryExpanded {
+                            ForEach(viewModel.groupedByDate.indices, id: \.self) { index in
+                                let date = viewModel.groupedByDate[index].0
+                                let records = viewModel.groupedByDate[index].1
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(dateFormatter.string(from: date))
+                                        .font(Typography.sectionTitle)
+                                        .foregroundStyle(Palette.textPrimary)
+
+                                    ForEach(records) { record in
+                                        HistoryRowView(record: record)
+                                    }
+                                }
+                                .padding(.horizontal, 4)
+                                .transition(.opacity)
                             }
                         }
                     }

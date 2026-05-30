@@ -1,8 +1,10 @@
 import Foundation
 
 enum WorkoutCategory: String, Codable, CaseIterable, Identifiable, Sendable {
-    case cardio
+    // 並び順 = ピッカー/チップの表示順。筋トレを先頭 (記録のデフォルト) に。
+    // rawValue は変えないので保存データには影響しない。
     case strength
+    case cardio
     case yoga
     case stretch
     case fasciaRelease

@@ -87,6 +87,18 @@ struct StatsView: View {
 
                     // 友達タブと同じ「このアプリを友達にシェア」を最下部にも置く。
                     shareAppEntry
+
+                    // 過去の運動履歴。デフォルト折りたたみ、タップで日別一覧を展開。
+                    if !groupedRecords.isEmpty {
+                        CollapsibleSection(
+                            persistenceKey: "stats.workoutHistory",
+                            title: "運動履歴",
+                            subtitle: "合計\(groupedRecords.count)日",
+                            icon: "list.bullet.rectangle.portrait.fill"
+                        ) {
+                            workoutHistoryContent
+                        }
+                    }
                 }
                 .padding(20)
             }
@@ -132,6 +144,39 @@ struct StatsView: View {
                         set: { if !$0 { pendingLifetimeShare = nil } }
                     )
                 )
+            }
+        }
+    }
+
+    /// 全記録を日付降順でグルーピング (新しい日が上)。運動履歴セクション用。
+    private var groupedRecords: [(Date, [WorkoutRecord])] {
+        let grouped = Dictionary(grouping: store.records) { calendar.startOfDay(for: $0.date) }
+        return grouped
+            .map { ($0.key, $0.value.sorted { $0.createdAt > $1.createdAt }) }
+            .sorted { $0.0 > $1.0 }
+    }
+
+    private var workoutHistoryDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "M月d日(E)"
+        return formatter
+    }
+
+    @ViewBuilder
+    private var workoutHistoryContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(groupedRecords.indices, id: \.self) { index in
+                let date = groupedRecords[index].0
+                let records = groupedRecords[index].1
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(workoutHistoryDateFormatter.string(from: date))
+                        .font(Typography.sectionTitle)
+                        .foregroundStyle(Palette.textPrimary)
+                    ForEach(records) { record in
+                        HistoryRowView(record: record)
+                    }
+                }
             }
         }
     }

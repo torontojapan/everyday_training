@@ -30,13 +30,13 @@ final class RecordEntryViewModelTests: XCTestCase {
     func testResetAfterSaveResetsDraftsAndKeepsCanSaveBehavior() {
         let vm = RecordEntryViewModel()
         vm.drafts[0].name = "スクワット"
-        vm.drafts[0].minutes = "5"
+        vm.drafts[0].minutes = 5
         XCTAssertTrue(vm.canSave)
 
         vm.resetAfterSave()
         XCTAssertEqual(vm.drafts.count, 1)
         XCTAssertEqual(vm.drafts[0].name, "")
-        XCTAssertEqual(vm.drafts[0].minutes, "")
+        XCTAssertEqual(vm.drafts[0].minutes, 0)
         XCTAssertFalse(vm.canSave, "After reset, no name → not saveable")
 
         vm.drafts[0].name = "腕立て伏せ"
@@ -54,7 +54,7 @@ final class RecordEntryViewModelTests: XCTestCase {
     func testMinutesOnlyDurationIsConvertedToSeconds() {
         let vm = RecordEntryViewModel()
         vm.drafts[0].name = "プランク"
-        vm.drafts[0].minutes = "2"
+        vm.drafts[0].minutes = 2
         let exercises = vm.validExercises
         XCTAssertEqual(exercises.count, 1)
         XCTAssertEqual(exercises[0].durationSeconds, 120, "2 minutes -> 120 seconds")
@@ -63,7 +63,7 @@ final class RecordEntryViewModelTests: XCTestCase {
     func testNoMinutesProducesNilDuration() {
         let vm = RecordEntryViewModel()
         vm.drafts[0].name = "腹筋"
-        vm.drafts[0].reps = "20"
+        vm.drafts[0].reps = 20
         let exercises = vm.validExercises
         XCTAssertEqual(exercises[0].durationSeconds, nil)
         XCTAssertEqual(exercises[0].reps, 20)

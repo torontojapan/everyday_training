@@ -5,15 +5,35 @@ struct HistoryRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(record.category.displayName, systemImage: record.category.symbolName)
-                .font(Typography.headline)
-                .foregroundStyle(Palette.categoryColor(for: record.category))
+            if uniqueCategories.count <= 1 {
+                // 単一カテゴリ: 従来どおりヘッダ + 種目行。
+                let category = uniqueCategories.first ?? record.category
+                Label(category.displayName, systemImage: category.symbolName)
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.categoryColor(for: category))
 
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(record.exercises) { item in
-                    Text(exerciseLine(for: item))
-                        .font(Typography.body)
-                        .foregroundStyle(Palette.textPrimary)
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(record.exercises) { item in
+                        Text(exerciseLine(for: item))
+                            .font(Typography.body)
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                }
+            } else {
+                // 複数カテゴリ: 種目ごとにカテゴリアイコンを付けて区別する。
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(record.exercises) { item in
+                        let category = item.category ?? record.category
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: category.symbolName)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Palette.categoryColor(for: category))
+                                .frame(width: 20)
+                            Text(exerciseLine(for: item))
+                                .font(Typography.body)
+                                .foregroundStyle(Palette.textPrimary)
+                        }
+                    }
                 }
             }
 
@@ -38,6 +58,20 @@ struct HistoryRowView: View {
 
     private var totalSeconds: Int {
         record.exercises.reduce(0) { $0 + ($1.durationSeconds ?? 0) }
+    }
+
+    /// この記録に含まれるカテゴリを出現順で一意化 (旧データは記録の category に
+    /// フォールバック)。1 つなら単一カテゴリ表示、複数なら種目ごと表示に分岐する。
+    private var uniqueCategories: [WorkoutCategory] {
+        var seen = Set<WorkoutCategory>()
+        var result: [WorkoutCategory] = []
+        for item in record.exercises {
+            let category = item.category ?? record.category
+            if seen.insert(category).inserted {
+                result.append(category)
+            }
+        }
+        return result
     }
 
     private func exerciseLine(for item: ExerciseItem) -> String {

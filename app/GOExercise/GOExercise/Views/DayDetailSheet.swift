@@ -45,8 +45,11 @@ struct DayDetailSheet: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Text(emoji)
-                .font(.system(size: 56))
+            Image(systemName: iconName)
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .frame(width: 92, height: 92)
+                .background(iconColor.opacity(0.12), in: Circle())
             Text(message)
                 .font(Typography.body)
                 .foregroundStyle(Palette.textSecondary)
@@ -55,12 +58,20 @@ struct DayDetailSheet: View {
         .padding(24)
     }
 
-    private var emoji: String {
+    private var iconName: String {
         switch status {
-        case .rest: return "😴"
-        case .future: return "🗓️"
-        case .missed, .todayPending: return "🐱"
-        case .achieved, .todayAchieved: return "🎉"
+        case .rest: return "moon.zzz.fill"
+        case .future: return "calendar"
+        case .missed, .todayPending: return "pawprint.fill"
+        case .achieved, .todayAchieved: return "checkmark.seal.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch status {
+        case .rest, .future: return Palette.textSecondary
+        case .missed, .todayPending: return Palette.primary
+        case .achieved, .todayAchieved: return Palette.primary
         }
     }
 

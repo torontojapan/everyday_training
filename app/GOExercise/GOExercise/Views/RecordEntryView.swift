@@ -8,8 +8,8 @@ struct RecordEntryView: View {
     @State private var weightStore: WeightStore?
     @State private var menstrualStore: MenstrualStore?
     @State private var menstrualToday: Bool = false
-    @State private var pendingSavedRecord: WorkoutRecord?
-    @State private var isShowingSaveOptions = false
+    /// アコーディオン: 展開中の種目 ID。入力中の 1 種目だけを開き、他は最小化する。
+    @State private var expandedExerciseID: UUID?
     private let hapticFeedback = HapticFeedbackController()
     private let cycleSettings = CycleTrackingSettings()
     let onSaved: (WorkoutRecord) -> Void
@@ -21,51 +21,35 @@ struct RecordEntryView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("カテゴリ") {
-                    // 横スクロール chip → 2 行グリッド。全 6 カテゴリが
-                    // 一目で見え、選択中は強調 + checkmark で「単一選択」が
-                    // 視覚的に伝わる。
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        ForEach(WorkoutCategory.allCases) { category in
-                            CategoryChip(category: category, isSelected: viewModel.selectedCategory == category) {
-                                viewModel.selectedCategory = category
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .listRowBackground(Color.clear)
-                }
-
                 Section("種目") {
-                    ForEach(Array($viewModel.drafts.enumerated()), id: \.element.id) { index, $draft in
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 種目 N ラベル: 複数追加時に「どれを編集中か」
-                            // 視覚的に明示。1 種目だけならラベルは省略。
-                            if viewModel.drafts.count > 1 {
-                                Text("種目 \(index + 1)")
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(Palette.textSecondary)
-                                    .textCase(nil)
-                            }
-                            ExerciseInputRow(
-                                draft: $draft,
-                                suggestions: viewModel.suggestions(for: viewModel.selectedCategory),
-                                canRemove: viewModel.drafts.count > 1,
-                                onRemove: {
-                                    viewModel.removeExercise(id: draft.id)
+                    // 各種目がカテゴリを持つ (1 記録に複数カテゴリ可)。入力中の
+                    // 1 種目だけを展開し、入力済みの種目は最小化してスッキリ見せる。
+                    ForEach(Array($viewModel.drafts.enumerated()), id: \.element.id) { _, $draft in
+                        ExerciseInputRow(
+                            draft: $draft,
+                            suggestions: viewModel.suggestions(for: draft.category),
+                            canRemove: viewModel.drafts.count > 1,
+                            isExpanded: expandedExerciseID == draft.id,
+                            onToggleExpand: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    expandedExerciseID = (expandedExerciseID == draft.id) ? nil : draft.id
                                 }
-                            )
-                        }
-                    }
-
-                    if viewModel.suggestions(for: viewModel.selectedCategory).isEmpty {
-                        Text("履歴がたまると、ここによく使う種目が出ます")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
+                            },
+                            onRemove: {
+                                let removingId = draft.id
+                                viewModel.removeExercise(id: removingId)
+                                if expandedExerciseID == removingId {
+                                    expandedExerciseID = viewModel.drafts.last?.id
+                                }
+                            }
+                        )
                     }
 
                     Button {
                         viewModel.addExercise()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            expandedExerciseID = viewModel.drafts.last?.id
+                        }
                     } label: {
                         Label("種目を追加", systemImage: "plus.circle.fill")
                             .font(Typography.body)
@@ -116,8 +100,9 @@ struct RecordEntryView: View {
                             if let record = viewModel.save(to: store, weightStore: weightStore) {
                                 menstrualStore?.set(menstrualToday, on: store.today)
                                 hapticFeedback.success()
-                                pendingSavedRecord = record
-                                isShowingSaveOptions = true
+                                // 保存後は中間ダイアログを挟まず、達成感のある
+                                // 記録完了画面へ直行する。
+                                onSaved(record)
                             } else {
                                 hapticFeedback.warning()
                             }
@@ -146,40 +131,16 @@ struct RecordEntryView: View {
             .background(Palette.background)
             .navigationTitle("今日の記録")
             .navigationBarTitleDisplayMode(.inline)
-            // iOS の number/decimal pad は標準で「完了」ボタンが出ないため、
-            // 全 numeric TextField の上に共通ツールバーを差し込む。これがない
-            // と入力後にキーボードが画面下に居座り、保存ボタンが押せない。
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("完了") {
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil, from: nil, for: nil
-                        )
-                    }
-                    .fontWeight(.semibold)
-                    .accessibilityIdentifier("keyboard-done")
-                }
-            }
+            // 時間/回数/セットをプルダウン化してテンキー入力が無くなったため、
+            // 旧「完了」キーボードツールバーは撤去。キーボードを使う体重/メモは
+            // スワイプ (scrollDismissesKeyboard) で閉じられる。これにより、
+            // キーボード非表示時にも下部へ残る白帯+完了ボタンの残留も解消する。
             .scrollDismissesKeyboard(.interactively)
-            .confirmationDialog("保存しました", isPresented: $isShowingSaveOptions, titleVisibility: .visible, presenting: pendingSavedRecord) { record in
-                Button("続けて記録") {
-                    viewModel.resetAfterSave()
-                    pendingSavedRecord = nil
-                }
-                Button("完了画面を開く") {
-                    onSaved(record)
-                    pendingSavedRecord = nil
-                }
-                Button("キャンセル", role: .cancel) {
-                    pendingSavedRecord = nil
-                }
-            } message: { _ in
-                Text("次の操作を選んでください")
-            }
             .onAppear {
                 viewModel.updateHistoryProvider(store: store)
+                if expandedExerciseID == nil {
+                    expandedExerciseID = viewModel.drafts.first?.id
+                }
                 if weightStore == nil {
                     weightStore = WeightStore(context: modelContext)
                 }

@@ -1,20 +1,22 @@
 import SwiftUI
 
 struct EmptyStateView: View {
-    let emoji: String
+    /// 空状態を表す SF Symbol 名。絵文字よりリッチでテーマ色に馴染む。
+    let symbol: String
     let message: String
 
-    init(emoji: String = "🐱", message: String) {
-        self.emoji = emoji
+    init(symbol: String = "pawprint.fill", message: String) {
+        self.symbol = symbol
         self.message = message
     }
 
     var body: some View {
         VStack(spacing: 14) {
-            Text(emoji)
-                .font(.system(size: 52))
+            Image(systemName: symbol)
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(Palette.primary)
                 .frame(width: 86, height: 86)
-                .background(Palette.surface, in: Circle())
+                .background(Palette.primary.opacity(0.12), in: Circle())
 
             Text(message)
                 .font(Typography.body)

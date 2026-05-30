@@ -42,7 +42,7 @@ struct CatLiveActivity: Widget {
                         Spacer()
                         if !context.state.todayAchieved {
                             Button(intent: QuickRecordIntent()) {
-                                Text("運動した！")
+                                Text("運動を記録")
                                     .font(.system(.caption, design: .rounded, weight: .heavy))
                                     .lineLimit(1)
                             }
@@ -134,19 +134,22 @@ struct CatLockScreenView: View {
                     Text("\(state.currentStreak) 日連続")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .monospacedDigit()
+                        // 背景がクリーム色固定なので、文字色もダーク固定にして
+                        // ダークモードのロック画面でも白文字化せず読めるようにする。
+                        .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                 }
                 Text(state.todayAchieved
                      ? "今日も達成 ✨"
                      : "1分だけでも・残り \(state.hoursLeftToday) 時間")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.black.opacity(0.58))
             }
 
             Spacer()
 
             if !state.todayAchieved {
                 Button(intent: QuickRecordIntent()) {
-                    Text("運動した！")
+                    Text("運動を記録")
                         .font(.system(.caption, design: .rounded, weight: .heavy))
                         .foregroundStyle(.white)
                         .lineLimit(1)

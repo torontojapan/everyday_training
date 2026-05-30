@@ -50,7 +50,7 @@ struct SmallWidgetView: View {
     }
 
     private var statusText: String {
-        snapshot.todayAchieved ? "今日もえらい！" : "今日の達成まだ"
+        snapshot.todayAchieved ? "今日もえらい！" : "今日はこれから"
     }
 
     private var statusColor: Color {
