@@ -17,6 +17,17 @@ struct StatsView: View {
     @State private var pendingWeeklyShare: WeeklySharePayload?
     /// 累計シェアシートの atomic payload。同様に achievedDays / usedDays を束ねる。
     @State private var pendingLifetimeShare: LifetimeSharePayload?
+    /// 今週 / 累計 を「先月のハイライト」と同じカードで提示するための presentation。
+    @State private var presentedHighlight: HighlightPresentation?
+
+    private struct HighlightPresentation: Identifiable {
+        let review: MonthlyReviewBuilder.Review
+        let title: String
+        let badge: String
+        let streakLabel: String
+        let gradient: [Color]
+        var id: String { title + review.monthLabel }
+    }
 
     private struct WeeklySharePayload: Identifiable {
         let summary: ExerciseTrendSummary.WeeklySummary
@@ -118,6 +129,15 @@ struct StatsView: View {
             }
             .sheet(item: $presentedReview) { wrapper in
                 MonthlyReviewSheet(review: wrapper.review)
+            }
+            .sheet(item: $presentedHighlight) { highlight in
+                MonthlyReviewSheet(
+                    review: highlight.review,
+                    badge: highlight.badge,
+                    title: highlight.title,
+                    streakLabel: highlight.streakLabel,
+                    gradient: highlight.gradient
+                )
             }
             .sheet(isPresented: $showPremiumPaywall) {
                 PremiumPaywallSheet(store: storeKit, context: .freeze)
@@ -369,10 +389,13 @@ struct StatsView: View {
             let day = store.today
             viewModel.refresh(records: store.records, anchorDate: day)
             guard viewModel.weeklySummary.hasExerciseData else { return }
-            pendingWeeklyShare = WeeklySharePayload(
-                summary: viewModel.weeklySummary,
-                weekLabel: weekLabel(for: day),
-                day: day
+            // 「先月のハイライト」と同じ項目・カードで今週を表示する。
+            presentedHighlight = HighlightPresentation(
+                review: MonthlyReviewBuilder.weekly(records: store.records, weekContaining: day, calendar: calendar),
+                title: "今週のハイライト",
+                badge: "WEEKLY HIGHLIGHT",
+                streakLabel: "今週の最長連続",
+                gradient: MonthlyReviewSheet.weeklyGradient
             )
         } label: {
             HStack(spacing: 12) {
@@ -406,10 +429,13 @@ struct StatsView: View {
             // 注入クロック (テスト) と整合性を保つ。
             let day = store.today
             viewModel.refresh(records: store.records, anchorDate: day)
-            pendingLifetimeShare = LifetimeSharePayload(
-                achievedDays: viewModel.lifetimeStats.achievedDays,
-                usedDays: viewModel.lifetimeStats.usedDays,
-                snapshottedAt: day
+            // 「先月のハイライト」と同じ項目・カードで累計を表示する。
+            presentedHighlight = HighlightPresentation(
+                review: MonthlyReviewBuilder.lifetime(records: store.records, today: day, calendar: calendar),
+                title: "これまでのハイライト",
+                badge: "ALL-TIME HIGHLIGHT",
+                streakLabel: "最長連続",
+                gradient: MonthlyReviewSheet.lifetimeGradient
             )
         } label: {
             HStack(spacing: 12) {

@@ -6,7 +6,29 @@ import UIKit
 /// ベースのパターン (3 色グラデ背景 + 大きな猫キャラ + 写真に保存)。
 struct MonthlyReviewSheet: View {
     let review: MonthlyReviewBuilder.Review
+    /// 期間に応じた表示。デフォルトは月次 (既存呼び出しはそのまま動く)。
+    var badge: String = "MONTHLY HIGHLIGHT"
+    var title: String = "先月のハイライト"
+    var streakLabel: String = "今月の最長連続"
+    var gradient: [Color] = MonthlyReviewSheet.monthlyGradient
     @Environment(\.dismiss) private var dismiss
+
+    /// 期間ごとの背景グラデーション (先月=紫 / 今週=青緑 / 累計=金)。
+    static let monthlyGradient: [Color] = [
+        Color(red: 0.50, green: 0.48, blue: 0.92),
+        Color(red: 0.62, green: 0.42, blue: 0.88),
+        Color(red: 0.85, green: 0.48, blue: 0.80)
+    ]
+    static let weeklyGradient: [Color] = [
+        Color(red: 0.16, green: 0.62, blue: 0.74),
+        Color(red: 0.22, green: 0.70, blue: 0.66),
+        Color(red: 0.42, green: 0.80, blue: 0.60)
+    ]
+    static let lifetimeGradient: [Color] = [
+        Color(red: 0.96, green: 0.64, blue: 0.22),
+        Color(red: 0.94, green: 0.52, blue: 0.28),
+        Color(red: 0.90, green: 0.40, blue: 0.42)
+    ]
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
@@ -16,11 +38,7 @@ struct MonthlyReviewSheet: View {
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                colors: [
-                    Color(red: 0.62, green: 0.60, blue: 0.95),
-                    Color(red: 0.72, green: 0.55, blue: 0.90),
-                    Color(red: 0.90, green: 0.60, blue: 0.85)
-                ],
+                colors: gradient,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
@@ -29,12 +47,12 @@ struct MonthlyReviewSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    MonthlyReviewCard(review: review, appName: appName)
+                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: gradient)
 
                     if let renderedImage {
                         ShareLink(
                             item: renderedImage,
-                            preview: SharePreview("先月のハイライト · \(appName)", image: renderedImage)
+                            preview: SharePreview("\(title) · \(appName)", image: renderedImage)
                         ) {
                             Label("SNSで共有", systemImage: "square.and.arrow.up")
                                 .font(Typography.headline)
@@ -97,7 +115,7 @@ struct MonthlyReviewSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = MonthlyReviewCard(review: review, appName: appName)
+        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: gradient)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -132,17 +150,22 @@ struct MonthlyReviewSheet: View {
 struct MonthlyReviewCard: View {
     let review: MonthlyReviewBuilder.Review
     var appName: String = "GO エクササイズ"
+    /// 期間に応じて差し替える表示。デフォルトは月次。
+    var badge: String = "MONTHLY HIGHLIGHT"
+    var title: String = "先月のハイライト"
+    var streakLabel: String = "今月の最長連続"
+    var gradient: [Color] = MonthlyReviewSheet.monthlyGradient
 
     var body: some View {
         VStack(spacing: 18) {
-            Text("MONTHLY HIGHLIGHT")
+            Text(badge)
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .tracking(3)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14).padding(.vertical, 5)
                 .background(.black.opacity(0.45), in: Capsule())
 
-            Text("先月のハイライト")
+            Text(title)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
@@ -169,7 +192,7 @@ struct MonthlyReviewCard: View {
             }
 
             VStack(spacing: 10) {
-                statRow(icon: "flame.fill", label: "今月の最長連続", value: "\(review.longestStreakInMonth) 日")
+                statRow(icon: "flame.fill", label: streakLabel, value: "\(review.longestStreakInMonth) 日")
                 statRow(icon: "clock.fill", label: "合計時間", value: "\(review.totalDurationMinutes) 分")
                 statRow(icon: "list.bullet.rectangle", label: "種目数", value: "\(review.totalExerciseCount) 件")
                 if let cat = review.topCategory {
@@ -191,11 +214,7 @@ struct MonthlyReviewCard: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(red: 0.50, green: 0.48, blue: 0.92),
-                    Color(red: 0.62, green: 0.42, blue: 0.88),
-                    Color(red: 0.85, green: 0.48, blue: 0.80)
-                ],
+                colors: gradient,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)
