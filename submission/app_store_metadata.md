@@ -157,7 +157,7 @@ GO エクササイズが App Store に登場！
 | プライバシーポリシー URL | https://torontojapan.github.io/everyday_training/privacy |
 | 利用規約 URL | https://torontojapan.github.io/everyday_training/terms |
 | 著作権表示 | © 2026 torontojapan |
-| サポート連絡先 | 218350578+torontojapan@users.noreply.github.com |
+| サポート連絡先 (公開) | お問い合わせフォーム https://forms.gle/Ljbaj4MvW2YPmyJ99 |
 
 ※ URL は GitHub Pages 公開を想定。`docs/` ディレクトリが Pages にホストされる。
 

@@ -91,7 +91,6 @@ GO エクササイズ（以下「本アプリ」）は、ユーザーのプラ�
 
 ## 10. お問い合わせ
 
-本ポリシーに関するご質問・ご意見は、以下までご連絡ください。
+本ポリシーに関するご質問・ご意見は、以下のお問い合わせフォームよりご連絡ください。
 
-- メール: 218350578+torontojapan@users.noreply.github.com
-- リポジトリ: https://github.com/torontojapan/everyday_training/issues
+- [お問い合わせフォーム](https://forms.gle/Ljbaj4MvW2YPmyJ99)

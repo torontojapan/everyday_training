@@ -64,4 +64,4 @@
 
 ## 11. お問い合わせ
 
-- メール: 218350578+torontojapan@users.noreply.github.com
+- [お問い合わせフォーム](https://forms.gle/Ljbaj4MvW2YPmyJ99)

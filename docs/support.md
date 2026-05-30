@@ -9,8 +9,7 @@ GO エクササイズに関するご質問・不具合報告・ご要望は、�
 
 ## お問い合わせ
 
-- **メール**: 218350578+torontojapan@users.noreply.github.com
-- **GitHub Issues**: [github.com/torontojapan/everyday_training/issues](https://github.com/torontojapan/everyday_training/issues)
+- **お問い合わせフォーム**: [こちらからお送りください](https://forms.gle/Ljbaj4MvW2YPmyJ99)
 
 不具合報告の場合は、以下の情報を添えていただけると助かります:
 

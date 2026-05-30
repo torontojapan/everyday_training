@@ -182,14 +182,14 @@ struct SettingsView: View {
 
             Section {
                 Button {
-                    sendFeedback(.feedback)
+                    openSupportForm()
                 } label: {
                     Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("feedback-button")
                 Button {
-                    sendFeedback(.bugReport)
+                    openSupportForm()
                 } label: {
                     Label("不具合を報告する", systemImage: "ladybug.fill")
                         .foregroundStyle(Palette.textPrimary)
@@ -198,7 +198,7 @@ struct SettingsView: View {
             } header: {
                 Text("フィードバック")
             } footer: {
-                Text("メールアプリが開き、端末・バージョン情報が自動で入ります（送信前に削除できます）。")
+                Text("お問い合わせフォーム（ブラウザ）が開きます。種類を選んで送信できます。")
             }
 
             Section {
@@ -317,11 +317,10 @@ struct SettingsView: View {
         }
     }
 
-    private func sendFeedback(_ kind: FeedbackComposer.Kind) {
-        guard let url = FeedbackComposer.mailtoURL(for: kind) else { return }
-        openURL(url) { accepted in
+    private func openSupportForm() {
+        openURL(FeedbackComposer.supportFormURL) { accepted in
             if !accepted {
-                dataActionMessage = "メールアプリを開けませんでした。\(FeedbackComposer.supportEmail) 宛にご連絡ください。"
+                dataActionMessage = "お問い合わせフォームを開けませんでした。時間をおいて再度お試しください。"
             }
         }
     }
