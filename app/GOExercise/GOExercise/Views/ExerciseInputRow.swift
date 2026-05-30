@@ -84,6 +84,7 @@ struct ExerciseInputRow: View {
                     .foregroundStyle(Palette.textSecondary)
                 TextField("例: スクワット", text: $draft.name)
                     .textInputAutocapitalization(.never)
+                    .accessibilityIdentifier("種目名")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(Palette.textPrimary)
                     .padding(.horizontal, 12)
@@ -152,6 +153,7 @@ struct ExerciseInputRow: View {
             .shadow(color: Palette.primary.opacity(0.30), radius: 6, x: 0, y: 2)
         }
         .accessibilityLabel("カテゴリ: \(draft.category.displayName)")
+        .accessibilityIdentifier("exercise-category-menu")
     }
 
     // 0 = 未設定。時間は 5 分刻みで最大 100 分、回数は最大 50、セットは最大 10。

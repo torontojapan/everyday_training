@@ -8,6 +8,10 @@ settings:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: "29YX3L7B47"
     CODE_SIGN_STYLE: Automatic
+    # リリースのバージョン/ビルド番号を一元管理 (app+widget が継承)。
+    # TestFlight 再アップロードのたびに CURRENT_PROJECT_VERSION を +1 する。
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
@@ -28,6 +32,8 @@ targets:
       path: GOExercise/Resources/Info.plist
       properties:
         CFBundleDisplayName: GO エクササイズ
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
@@ -75,6 +81,8 @@ targets:
       path: GOExerciseWidget/Info.plist
       properties:
         CFBundleDisplayName: GO エクササイズWidget
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

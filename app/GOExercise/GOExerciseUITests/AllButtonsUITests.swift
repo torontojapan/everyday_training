@@ -67,11 +67,10 @@ final class AllButtonsUITests: XCTestCase {
         XCTAssertTrue(recordButton.waitForExistence(timeout: 8))
         recordButton.tap()
 
-        // The entry sheet shows カテゴリ section: any chip works.
-        let categoryChip = app.buttons.containing(NSPredicate(format: "label CONTAINS '筋トレ'")).firstMatch
-        XCTAssertTrue(categoryChip.waitForExistence(timeout: 5))
+        // 種目ごとのカテゴリ選択メニューが表示される (旧チップ → Menu に変更)。
+        XCTAssertTrue(app.buttons["exercise-category-menu"].waitForExistence(timeout: 5))
 
-        // 種目名 placeholder textfield exists.
+        // 種目名 入力欄が存在する。
         XCTAssertTrue(app.textFields["種目名"].waitForExistence(timeout: 3))
     }
 

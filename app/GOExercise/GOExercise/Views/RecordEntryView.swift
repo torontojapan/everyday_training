@@ -29,7 +29,9 @@ struct RecordEntryView: View {
                             draft: $draft,
                             suggestions: viewModel.suggestions(for: draft.category),
                             canRemove: viewModel.drafts.count > 1,
-                            isExpanded: expandedExerciseID == draft.id,
+                            // 未設定 (nil) のときは先頭種目を展開。onAppear のタイミングに
+                            // 依存せず、開いた瞬間から最初の行が編集状態で見える。
+                            isExpanded: (expandedExerciseID ?? viewModel.drafts.first?.id) == draft.id,
                             onToggleExpand: {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     expandedExerciseID = (expandedExerciseID == draft.id) ? nil : draft.id
