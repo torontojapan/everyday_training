@@ -35,6 +35,15 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
+        # 画面の向き。iPhone は縦のみ。iPad は universal アプリの
+        # マルチタスク要件 (App Store 検証 code 90474) を満たすため 4 方向すべて。
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
         # TelemetryDeck の App ID。空の間は計測を送信しない (ゼロ収集を維持)。
