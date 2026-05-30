@@ -43,9 +43,8 @@ final class DeepLinkRouterTests: XCTestCase {
 final class NotificationDeepLinkTests: XCTestCase {
 
     /// Verifies the scheduler ships `route` in userInfo so AppDelegate can
-    /// route notification taps. Without this, tapping a daily reminder
-    /// would just open the home screen — losing the intent.
-    func testScheduledNotificationCarriesRecordRoute() async throws {
+    /// route notification taps. タップ先はホーム (猫劇場) に統一 (記録は CTA から起こせる)。
+    func testScheduledNotificationCarriesHomeRoute() async throws {
         let recorder = NotificationRecorder()
         let scheduler = NotificationScheduler(
             center: recorder,
@@ -57,7 +56,7 @@ final class NotificationDeepLinkTests: XCTestCase {
 
         XCTAssertFalse(recorder.added.isEmpty)
         let first = try XCTUnwrap(recorder.added.first)
-        XCTAssertEqual(first.content.userInfo["route"] as? String, AppRoute.record.rawValue)
+        XCTAssertEqual(first.content.userInfo["route"] as? String, AppRoute.home.rawValue)
     }
 }
 
