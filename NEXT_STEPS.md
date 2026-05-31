@@ -1,6 +1,6 @@
 # Next Steps — GO エクササイズ
 
-最終更新: 2026-05-31 (TestFlight 配信 + 税務/銀行 → 有料契約「有効」 + サブスクメタ完備 → 課金QA Sandbox 完全制覇。残りは App Store メタデータ提出 / EU / 共有URL / 友達CloudKit)
+最終更新: 2026-05-31 (**🚀 App Store 審査提出完了!** v1.0 build 1 + サブスク2本を審査へ提出 = ステータス「審査待ち」。スクショ全面再撮影・絵文字/無効文字対応・EU除外・GitHubメール除去まで完了。残りは 審査結果待ち / 共有URL差し替え(ID判明) / 友達CloudKit)
 
 ---
 
@@ -68,10 +68,10 @@
 | 4 | 銀行口座・納税フォーム (有料App契約「有効」化) | ✅ 完了 (契約=有効) |
 | 5 | TestFlight アップロード + Sandbox 課金確認 | ✅ 完了 (1.0 build 1 配信・B4/B5 確認済) |
 | 6 | サブスク審査用スクショ/メタデータを ASC に設定 | ✅ 完了 (送信準備完了) |
-| 7 | **App Store メタデータ提出**(説明・キーワード・各サイズのスクショ・年齢レーティング・プライバシー回答=収集なし・カテゴリ) | 🟢 **原稿完成→あとはASC入力のみ**: 正本=`submission/app_store_metadata_v1.md`(友達抜き/IAPあり/収集なし)。各フィールドにコピペ→スクショ(6.9"+iPad13"の友達抜き5枚)アップ→年齢4+/プライバシー=No/カテゴリ設定 |
-| 8 | **審査提出**(アプリ + サブスクを一緒に) | ⬜ #7 の後 |
-| 9 | EU トレーダーステータス (提出 or EU除外) | ⬜ ASC ビジネス。**個人連絡先が公開される点に注意** → v1 は EU除外推奨 |
-| 10 | アプリ共有 URL を実 App Store URL に差し替え | ⬜ アプリの数値 App Store ID 入手後 `AppSharingConfig.swift`(私が対応可) |
+| 7 | **App Store メタデータ提出** | ✅ **完了**(2026-05-31)。正本=`submission/app_store_metadata_v1.md`。説明/KW/プロモは**絵文字・罫線──・矢印→・¥を排除**(ASCが無効文字拒否)。スクショは現行ブランドで再撮影し提出(iphone-6.9×6 / ipad-13×5、旧版は `_archive/stale_prerebrand/`) |
+| 8 | **審査提出**(アプリ + サブスク2本一緒) | ✅ **完了=審査待ち(Waiting for Review)**。リリース方法=手動。年齢4+/カテゴリ=ヘルスケア&フィットネス+ライフスタイル/価格無料/日本のみ(EU除外)/App Privacy=収集なし/コンテンツ配信権=サードパーティなし/使用許諾=Apple標準。**審査結果メール待ち** |
+| 9 | EU トレーダーステータス | ✅ **EU除外で確定**(配信=日本のみ)。個人連絡先公開を回避 |
+| 10 | アプリ共有 URL を実 App Store URL に差し替え | ⬜ **App Store 数値ID判明=`6774551663`** → `AppSharingConfig.swift` を `https://apps.apple.com/jp/app/id6774551663` に(私が対応可)。[[release-identifiers]] |
 | 11 | E. ウィジェット1タップ記録 / F. Dynamic Island 細部 / G. テーマ×ダークライト / H. 分析 | ⬜ 任意・実機目視 (文言/視認性は確認済) |
 | 12 | **I. 友達 (CloudKit) 実機2アカウント疎通** → OK なら `friendsEnabled` Release=true | ⏳ 2台目 iCloud アカウント待ち (runbook I) |
 
