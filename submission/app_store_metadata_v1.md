@@ -198,7 +198,7 @@ v1 は友達機能を非表示で出荷し、解析 SDK も一切組み込んで
 iPad Pro 13" シミュレータ、ステータスバー 9:41 にクリーン化、`--skip-onboarding
 --seed-demo-data` で 12日連続デモ投入)。旧セット (旧名「シリアルエクササイズ」・
 開発中プレースホルダ文・Apple Intelligence バナー・友達画面混入) は
-`_archive/stale_prerebrand/` に退避済み。
+リポジトリ清掃で削除済み (必要なら git 履歴から復元可)。
 
 ### iPhone 6.9" — `submission/screenshots/iphone-6.9/` (この順で 6 枚)
 
