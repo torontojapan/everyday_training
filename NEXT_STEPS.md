@@ -129,6 +129,7 @@
 
 - iOS 19 / Xcode 18 対応 (リリース時)
 - Instruments 実機計測
+- (任意) `.git` 履歴ダイエット: 過去の画像blob蓄積で `.git`≈336M。`git filter-repo --strip-blobs-bigger-than` 等で圧縮可だが、全SHA書換+force-push+削除済み履歴は復元不可になるトレードオフあり。急がない。
 
 ---
 
