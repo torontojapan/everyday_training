@@ -18,6 +18,11 @@ packages:
   TelemetryDeck:
     url: https://github.com/TelemetryDeck/SwiftSDK
     from: "2.9.0"
+  # 友達機能のプラットフォーム中立バックエンド (Apple↔Android 共有対応)。
+  # 匿名認証 + PostgREST。設定は Secrets.xcconfig (SUPABASE_HOST / SUPABASE_ANON_KEY)。
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.0.0"
 targets:
   GOExercise:
     type: application
@@ -49,10 +54,17 @@ targets:
         # TelemetryDeck の App ID。空の間は計測を送信しない (ゼロ収集を維持)。
         # ダッシュボードで取得した UUID をリリース前に設定する。
         TelemetryDeckAppID: ""
+        # 友達バックエンド (Supabase)。値は Secrets.xcconfig 由来 (gitignore)。
+        # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
+        SupabaseHost: "$(SUPABASE_HOST)"
+        SupabaseAnonKey: "$(SUPABASE_ANON_KEY)"
         CFBundleURLTypes:
           - CFBundleURLName: com.goexercise.app
             CFBundleURLSchemes:
               - goexercise
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.goexercise.app
@@ -62,6 +74,7 @@ targets:
       - target: GOExerciseWidget
         embed: true
       - package: TelemetryDeck
+      - package: Supabase
   GOExerciseWidget:
     type: app-extension
     platform: iOS

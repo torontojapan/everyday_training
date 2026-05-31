@@ -22,18 +22,18 @@ struct GOExerciseApp: App {
     private let sharedModelContainer = AppModelContainer.make()
 
     /// 友達バックエンドの選択。
-    /// - Release: 実 CloudKit (`CloudKitFriendsService`)。
+    /// - Release: Supabase が設定済み (Secrets.xcconfig) なら **Supabase** (中立BE・Apple↔Android)。
+    ///   未設定なら Mock にフォールバック (friends は v1 非表示中なので実害なし。設定後に実接続)。
     /// - DEBUG: 既定は `MockFriendsService` (デモ/スクショ/UI テスト用)。
-    ///   `--cloudkit-friends` 起動引数のときだけ実 CloudKit を使い、実機 2 アカウント
-    ///   の疎通テストができる。
+    ///   `--supabase-friends` で Supabase、`--cloudkit-friends` で旧 CloudKit (参考実装)。
     static func makeFriendsService() -> any FriendsService {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--cloudkit-friends") {
-            return CloudKitFriendsService()
-        }
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("--supabase-friends") { return SupabaseFriendsService() }
+        if args.contains("--cloudkit-friends") { return CloudKitFriendsService() }
         return MockFriendsService()
         #else
-        return CloudKitFriendsService()
+        return SupabaseConfig.isConfigured ? SupabaseFriendsService() : MockFriendsService()
         #endif
     }
 

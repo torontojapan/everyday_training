@@ -29,3 +29,6 @@ logs/
 .codex/
 .gemini/
 .claude/
+
+# Supabase 等の秘匿設定 (anon key 等)。テンプレは Secrets.example.xcconfig
+Secrets.xcconfig
