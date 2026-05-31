@@ -27,12 +27,12 @@ struct GOExerciseApp: App {
     ///   表面化させる (設定漏れを本番でローカル Mock 動作に化けさせない = Codexレビュー反映)。
     ///   → v1.1 アーカイブ前に Secrets.xcconfig の SUPABASE_HOST/ANON_KEY を必ず設定すること。
     /// - DEBUG: 既定は `MockFriendsService` (デモ/スクショ/UI テスト用)。
-    ///   `--supabase-friends` で Supabase、`--cloudkit-friends` で旧 CloudKit (参考実装)。
+    ///   `--supabase-friends` で実 Supabase に接続して手動確認できる。
     static func makeFriendsService() -> any FriendsService {
         #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        if args.contains("--supabase-friends") { return SupabaseFriendsService() }
-        if args.contains("--cloudkit-friends") { return CloudKitFriendsService() }
+        if ProcessInfo.processInfo.arguments.contains("--supabase-friends") {
+            return SupabaseFriendsService()
+        }
         return MockFriendsService()
         #else
         return SupabaseFriendsService()
