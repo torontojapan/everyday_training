@@ -1,6 +1,6 @@
 # Next Steps — GO エクササイズ
 
-最終更新: 2026-05-30 (課金QAローカル完走 + 記録UX大改善 + 連絡先フォーム化を実施・push済。残りは Sandbox/ASCビジネス/友達CloudKit)
+最終更新: 2026-05-31 (TestFlight 配信 + 税務/銀行 → 有料契約「有効」 + サブスクメタ完備 → 課金QA Sandbox 完全制覇。残りは App Store メタデータ提出 / EU / 共有URL / 友達CloudKit)
 
 ---
 
@@ -14,15 +14,27 @@
 - **App Store Connect セットアップ完了**:
   - App ID `com.goexercise.app` 登録 / App Group 紐付け
   - アプリレコード「GO エクササイズ」作成 (SKU `goexercise001`)
-  - 有料App契約に同意済 (※銀行口座・納税フォームは未入力 = 販売開始前に要完了)
+  - **有料App契約「有効」** ✅ (W-8BEN + Certificate of Foreign Status の税フォーム提出済、
+    楽天銀行口座登録済。これで Sandbox/本番の IAP が動作)
   - サブスク2本登録: `…premium_monthly` **¥500** / `…premium_yearly` **¥3,800**、
-    グループ `GO Premium`、両方 **14日無料**、全世界配信、ファミリー共有OFF
+    グループ `GO Premium`、両方 **14日無料**、全世界配信、ファミリー共有OFF。
+    **メタデータ完備=「送信準備完了」** ✅ (グループ表示名「GO プレミアム」+ 各サブスクの表示名/説明/審査用スクショ設定済)
   - Sandbox テスター ×2 (日本)
+- **TestFlight 配信済** ✅: ビルド **1.0 (1)** をアップロード → 処理完了 → 内部テストグループ「自分」で
+  実機 (iPhone 15 Pro) にインストール済。輸出コンプライアンス(暗号化=標準のみ・該当外)回答済。
 - **署名**: `project.yml` に `DEVELOPMENT_TEAM=29YX3L7B47` 設定済。実機ビルド・署名・起動 OK (runbook A 相当 ✅)。
-- **課金QA (runbook B) — ローカル StoreKit で完走**: 価格表示/14日トライアル/購入→体重解放&フリーズ月4/
-  解約→再ロック/二重計上なし(コード)/Ask to Buy 承認反映/規約・プライバシーリンク/機内モード非ロック ✅。
-  審査用ペイウォールスクショ取得済 (`submission/screenshots/01_paywall_6.9.png` 1320×2868)。
-  **B4 削除→復元 / B5 復元ボタンは Sandbox 必須**(ローカルは削除で購入消失するため検証不可) → TestFlight で要確認。
+- **課金QA (runbook B) — 完全制覇** ✅: 価格表示/14日トライアル/購入→体重解放&フリーズ月4/
+  解約→再ロック/二重計上なし(コード)/Ask to Buy 承認反映/規約・プライバシーリンク/機内モード非ロック。
+  審査用ペイウォールスクショ (`submission/screenshots/01_paywall_6.9.png` 1320×2868) は ASC のサブスク審査情報にも設定済。
+  **B4 削除→再インストール→自動復元 ✅ / B5 復元ボタン(同一の `restorePurchases()` 経路)✅** を
+  TestFlight + Sandbox(日本)で本確認済み。
+- **Privacy Manifest 追加済** ✅: `PrivacyInfo.xcprivacy` を app+widget に同梱
+  (UserDefaults=CA92.1 / 追跡なし / 収集なし)。Apple 必須 (ITMS-91053) 対応。
+- **画面の向き指定済** ✅: universal アプリのため `UISupportedInterfaceOrientations`
+  (iPhone=縦 / iPad=4方向) を Info.plist に設定 (アップロード検証 90474 解消)。
+- **バージョン一元管理** ✅: `project.yml` の `MARKETING_VERSION=1.0` / `CURRENT_PROJECT_VERSION=1`
+  (app+widget 継承)。**再アップロードのたびに `CURRENT_PROJECT_VERSION` を +1 する**。
+- **通知/ウィジェット/Live Activity のタップ遷移をホームに統一** ✅。通知設定に「保存して戻る」追加。
 - **記録まわり UX 大改善 (commit `5ba0b68`, push済)**: 時間/回数/セットをプルダウン化 /
   種目ごとにカテゴリ選択 (1記録に複数カテゴリ可、候補も種目カテゴリ連動) / 入力済み種目をアコーディオン最小化 /
   カテゴリ並び 筋トレ→有酸素 / 保存→記録完了画面へ直行 (大きい猫+特大連続日数で達成感) /
@@ -34,7 +46,8 @@
   `friendsEnabled` は Release=false のまま → 実機2アカウント疎通テスト (runbook I) 後に解禁。
   **2026-05-30 進捗**: ポータル/コンテナ設定 ✅・Development スキーマ生成 ✅ (じゅんでサインイン済) →
   **残るは「2台目 iCloud アカウントで申請/承認の疎通」だけ**で中断中 (詳細は下の 🟡 セクション)。
-- **git**: `main` に全コミット・**push 済** (CloudKit / 連絡先フォーム化 / UX大改善まで `5ba0b68` 時点で remote 反映)。
+- **git**: `main` に全コミット済。`f254ef2` まで push 済。**画面向き修正 `3fe4c9c` 以降は未 push の可能性** →
+  `! git push origin main` で確定すること。アップロード済みビルドはローカル Archive 由来。
 
 > 環境注意: リポジトリが `~/Documents` (iCloud 同期下)。大量ファイル操作後は
 > `find . -name "* [0-9].*"` で iCloud 重複ファイルが湧いていないか確認すること。
@@ -49,16 +62,18 @@
 
 | # | タスク | 状態 / 参照 |
 |---|---|---|
-| 1 | A. 実機ビルド・署名・App Group | ✅ 実機起動OK |
-| 2 | **B. 課金 (GOプレミアム) QA ★最重要** | ✅ ローカル完走。**B4/B5 のみ Sandbox 残** (runbook B) |
-| 3 | **B4/B5 を TestFlight + Sandbox で確認** (削除→復元 / 復元ボタン) | ビルド番号↑→Archive→アップロード必要 |
-| 4 | C. 全削除→各ストア即リフレッシュ / D. 通知 | ⬜ 実機 (runbook C/D) |
-| 5 | E. ウィジェット / F. Live Activity 実機目視 | ✅ 文言・視認性は実機確認済 (残: 1タップ記録/Dynamic Island 細部) |
-| 6 | **I. 友達 (CloudKit) 実機2アカウント疎通** → OK なら `friendsEnabled` Release=true | ⏳ 2台目アカウント待ち (runbook I) |
-| 7 | 審査用ペイウォールスクショを **ASC にアップロード** | 取得済 `submission/screenshots/01_paywall_6.9.png`、アップロードのみ |
-| 8 | 銀行口座・納税フォーム入力 (有料App契約を「有効」に) | ⬜ ASC ビジネス |
-| 9 | EU トレーダーステータス提出 (or EU を配信対象から除外) | ⬜ ASC ビジネス |
-| 10 | アプリ共有 URL を実 App Store URL に差し替え | ⬜ 数値ID入手後 `AppSharingConfig.swift` |
+| 1 | A. 実機ビルド・署名・App Group | ✅ 完了 |
+| 2 | **B. 課金 (GOプレミアム) QA ★最重要** | ✅ **完全制覇**(ローカル + Sandbox B4/B5 まで) |
+| 3 | C. 全削除→ウィジェット/Live Activity リセット / D. 通知 | ✅ 実機確認済 (C: リセット+購入保持 / D: 届く+タップ→home) |
+| 4 | 銀行口座・納税フォーム (有料App契約「有効」化) | ✅ 完了 (契約=有効) |
+| 5 | TestFlight アップロード + Sandbox 課金確認 | ✅ 完了 (1.0 build 1 配信・B4/B5 確認済) |
+| 6 | サブスク審査用スクショ/メタデータを ASC に設定 | ✅ 完了 (送信準備完了) |
+| 7 | **App Store メタデータ提出**(説明・キーワード・各サイズのスクショ・年齢レーティング・プライバシー回答=収集なし・カテゴリ) | ⬜ **次の主タスク**(配信タブ) |
+| 8 | **審査提出**(アプリ + サブスクを一緒に) | ⬜ #7 の後 |
+| 9 | EU トレーダーステータス (提出 or EU除外) | ⬜ ASC ビジネス。**個人連絡先が公開される点に注意** → v1 は EU除外推奨 |
+| 10 | アプリ共有 URL を実 App Store URL に差し替え | ⬜ アプリの数値 App Store ID 入手後 `AppSharingConfig.swift`(私が対応可) |
+| 11 | E. ウィジェット1タップ記録 / F. Dynamic Island 細部 / G. テーマ×ダークライト / H. 分析 | ⬜ 任意・実機目視 (文言/視認性は確認済) |
+| 12 | **I. 友達 (CloudKit) 実機2アカウント疎通** → OK なら `friendsEnabled` Release=true | ⏳ 2台目 iCloud アカウント待ち (runbook I) |
 
 ### 🟡 友達 CloudKit 解禁の具体手順 (runbook I) — ⏳ ステップ3で中断中 (2026-05-30)
 
