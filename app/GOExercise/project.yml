@@ -126,6 +126,14 @@ schemes:
       # StoreKit Configuration File: simulator 内で App Store Connect なしに
       # IAP / Subscription の動作テスト ができる。本番ビルドでは無視される。
       storeKitConfiguration: GOExercise/Resources/Products.storekit
+      # 友達 CloudKit 疎通テスト用の起動引数 (DEBUG限定で解釈)。
+      # 既定は無効 = 普段の Debug 実行は従来どおり (friendsEnabled=false / MockFriendsService)。
+      # runbook I の疎通テスト時に Edit Scheme でチェックを入れて有効化する:
+      #   --enable-friends   → AppFeatureFlags.friendsEnabled を true (友達タブ表示)
+      #   --cloudkit-friends → MockFriendsService から実 CloudKitFriendsService へ切替
+      commandLineArguments:
+        "--enable-friends": false
+        "--cloudkit-friends": false
     test:
       targets:
         - GOExerciseTests
