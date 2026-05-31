@@ -99,8 +99,10 @@
 
 > 📌 **再開時のいちばん簡単な道**: 2台目の iCloud アカウント (新規でも予備でもOK) を1つ用意 →
 > 2台目のシミュレータ/実機にログイン → アプリを `--enable-friends --cloudkit-friends` で起動 →
-> じゅん側と申請/承認 → 一通り疎通したら本番 Deploy → フラグ ON。Xcode スキームには起動引数
-> 2つを設定済み。Developer ポータル/コンテナ/Development スキーマは設定済みなので、残りは「2人目」だけ。
+> じゅん側と申請/承認 → 一通り疎通したら本番 Deploy → フラグ ON。**Xcode スキームに起動引数
+> `--enable-friends` / `--cloudkit-friends` を「無効状態」で登録済み (commit `94f5c4f`)** →
+> Edit Scheme でチェックを入れるだけで有効化できる (既定は従来どおり Mock)。
+> Developer ポータル/コンテナ/Development スキーマは設定済みなので、残りは「2人目」だけ。
 
 ### 🟢 P2 — 任意 (リリース後でも可)
 
