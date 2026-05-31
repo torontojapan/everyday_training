@@ -58,7 +58,7 @@
 
 > **📍 今オープンな残タスク (2026-05-31 時点)** — P0 はほぼ完了、審査提出済み。
 > 1. ⏳ **審査結果待ち** (Waiting for Review)。承認なら手動リリース / リジェクトなら Resolution Center 対応。
-> 2. ⏳ **友達バックエンド = 中立BEへ転換** (#12) — Android↔Apple 共有要件で **CloudKit(Apple専用)を断念**。Supabase/Firebase へ移行(設計: `docs/friends_backend_crossplatform.md`)。3LLM監査で Release リーク2件是正済。CloudKit固有バグは深追いしない。
+> 2. 🟢 **友達BE = Supabase 実装済→疎通待ち** (#12) — CloudKit(Apple専用)断念し Supabase で実装(ビルド成功)。3LLM監査でReleaseリーク2件是正・フロントUIテスト5/5 pass。**次のユーザー作業**: Supabaseプロジェクト作成+`supabase/schema.sql`実行+`app/GOExercise/Secrets.xcconfig`記入 → 私が2シミュレータ疎通テスト(2台目Apple ID不要)。設計: `docs/friends_backend_crossplatform.md`。
 > 3. ⬜ **任意 UX 詰め** (#11 / P2 / Codex UX 提案 `docs/ux_review/`) — リリース後で可。
 > ※ メタデータ提出・審査提出・EU除外・共有URL差替・GitHubメール除去 は **完了**。
 
@@ -79,7 +79,7 @@
 | 9 | EU トレーダーステータス | ✅ **EU除外で確定**(配信=日本のみ)。個人連絡先公開を回避 |
 | 10 | アプリ共有 URL を実 App Store URL に差し替え | ✅ **完了**(2026-05-31)。`AppSharingConfig.swift` を `https://apps.apple.com/jp/app/id6774551663` に更新。※反映は次ビルド(審査中の 1.0(1) は凍結)。[[release-identifiers]] |
 | 11 | E. ウィジェット1タップ記録 / F. Dynamic Island 細部 / G. テーマ×ダークライト / H. 分析 | ⬜ 任意・実機目視 (文言/視認性は確認済) |
-| 12 | **I. 友達バックエンドを中立BEへ移行** → 実装→`friendsEnabled` Release=true で解禁 | 🔄 **方針転換 (2026-05-31)**: Android↔Apple 共有要件で CloudKit 断念。中立BE(Supabase推奨/Firebase)へ。設計=`docs/friends_backend_crossplatform.md`。3LLM監査でReleaseリーク2件是正済 (通知/オンボの友達文言)。次: BE確定→`<BE>FriendsService`実装→疎通→解禁(App Privacy更新要) |
+| 12 | **I. 友達バックエンドを中立BE(Supabase)へ移行** → 疎通→`friendsEnabled` Release=true で解禁 | 🟢 **実装済み (2026-05-31・ビルド成功)**: `SupabaseFriendsService` + `supabase/schema.sql`(RLS/匿名認証/双方向friendship)。3LLM監査でReleaseリーク2件是正済。フロントは UIテスト5/5 pass。**次=ユーザー作業**: Supabaseプロジェクト作成→schema実行→`Secrets.xcconfig` 記入 → 私が2シミュレータで疎通テスト(2台目Apple ID不要)→OKで `friendsEnabled` 解禁+App Privacy更新。設計=`docs/friends_backend_crossplatform.md` |
 
 ### 🟡 友達 CloudKit 解禁の具体手順 (runbook I) — ⏳ ステップ3で中断中 (2026-05-30)
 
