@@ -2,16 +2,14 @@ import Foundation
 
 /// アプリ自体を友達/SNS にシェアする際の URL とメッセージを集約。
 ///
-/// **Apple Developer 加入後の差し替え手順**:
-/// `shareURL` を `https://apps.apple.com/app/id<ID>` に変更するだけ。
 /// 各 View 側 (FriendsView / SettingsView) のコードは一切触らない。
 ///
-/// 現状: GitHub Pages のランディングを指す。ランディング側で iOS UA を検出して
-/// 自動で App Store に redirect するように更新する余地も残してある。
+/// App Store 数値ID = 6774551663 (2026-05-31 審査提出時に判明)。
+/// `shareURL` は App Store の製品ページを直接指す。
 enum AppSharingConfig {
     /// シェアに使う遷移先。SNS / メール / メッセージ に貼られて、タップした人
-    /// がインストール画面 (将来: App Store 直接) に飛ぶ。
-    static let shareURL = URL(string: "https://torontojapan.github.io/everyday_training/")!
+    /// が App Store の製品ページに飛ぶ。
+    static let shareURL = URL(string: "https://apps.apple.com/jp/app/id6774551663")!
 
     /// シェアに添える本文。Twitter / LINE / メール本文などで共通利用。
     /// 80 文字以内: SNS でツイート長制限・LINE のプレビュー切れに収まる目安。
