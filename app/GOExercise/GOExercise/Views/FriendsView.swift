@@ -30,6 +30,10 @@ struct FriendsView: View {
     @State private var pendingRemovalFriend: FriendProfile?
     @State private var isShowingMyQR = false
     @State private var cheerTarget: FriendProfile?
+    /// QR ディープリンクの pending code を監視するための共有ルーター (Codex監査#Major1)。
+    @State private var router = DeepLinkRouter.shared
+    /// QR ディープリンクから渡された、友達追加画面のプリフィル用コード。
+    @State private var addInitialCode: String?
     /// Phase 7.0: 友達画面に「リスト / 公園」切替セグメント追加。
     @State private var displayMode: DisplayMode = .park
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
@@ -49,6 +53,7 @@ struct FriendsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await friendsStore.refresh()
+            handlePendingFriendCode()
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
             // 本番でデモ動線が勝手に開かないようにする (debug 引数は Release で無効)。
             #if DEBUG
@@ -79,17 +84,35 @@ struct FriendsView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: cheerToast)
-        .sheet(isPresented: $isShowingAdd) {
+        .sheet(isPresented: $isShowingAdd, onDismiss: {
+            addInitialCode = nil          // プリフィルを破棄
+            tryPresentPendingAdd()        // 保留中の deep link code があれば再開
+        }) {
             NavigationStack {
-                FriendAddView()
+                FriendAddView(initialCode: addInitialCode)
                     .environment(friendsStore)
             }
         }
-        .sheet(isPresented: $isShowingSignIn) {
+        // 表示中に新たな QR/ディープリンク (?code=) が来ても消費する (Codex監査#Major1)。
+        .onChange(of: router.pendingFriendCode) { _, _ in
+            handlePendingFriendCode()
+        }
+        // 削除確認ダイアログ(sheet でない)が閉じた後にも保留 code を再試行 (Codex監査ループ2)。
+        .onChange(of: pendingRemovalFriend == nil) { _, becameNil in
+            if becameNil { tryPresentPendingAdd() }
+        }
+        // サインインシートが「完全に閉じた後」に追加シートを開く (二重 present 回避, Codex監査#Major2)。
+        .sheet(isPresented: $isShowingSignIn, onDismiss: {
+            if friendsStore.isSignedIn {
+                tryPresentPendingAdd()          // サインイン完了 → 追加シートへ
+            } else {
+                router.pendingFriendCode = nil  // キャンセル → 再プロンプトループ回避のため破棄
+            }
+        }) {
             FriendsSignInSheet(isPresented: $isShowingSignIn)
                 .environment(friendsStore)
         }
-        .sheet(item: $detailFriend) { friend in
+        .sheet(item: $detailFriend, onDismiss: { tryPresentPendingAdd() }) { friend in
             FriendDetailView(friend: friend)
                 .environment(friendsStore)
         }
@@ -112,7 +135,7 @@ struct FriendsView: View {
         } message: { _ in
             Text("再度つながるには友達コードで申請が必要です。")
         }
-        .sheet(item: $cheerTarget) { friend in
+        .sheet(item: $cheerTarget, onDismiss: { tryPresentPendingAdd() }) { friend in
             CheerPickerSheet(friend: friend) { kind in
                 cheerTarget = nil
                 Task { await sendCheer(kind, to: friend) }
@@ -127,6 +150,7 @@ struct FriendsView: View {
     private var signedOutBody: some View {
         ScrollView {
             VStack(spacing: 18) {
+                errorBanner
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(Palette.primary)
@@ -146,7 +170,7 @@ struct FriendsView: View {
                 .padding(.top, 12)
                 .accessibilityIdentifier("friends-signin-button")
 
-                Text("※ Apple ID ベースのサインインを将来 CloudKit で実装予定。現在はデモ用のローカルプロフィールを作成します。")
+                Text("登録不要・無料。サインインすると友達コードが発行され、コードやQRでつながれます。表示名はあとから変更できます。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                     .multilineTextAlignment(.center)
@@ -203,6 +227,7 @@ struct FriendsView: View {
     private func signedInBody(profile: FriendProfile) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                errorBanner
                 profileHeader(profile)
 
                 // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
@@ -312,7 +337,7 @@ struct FriendsView: View {
                     .accessibilityLabel(isShowingMyQR ? "QR コードを隠す" : "QR コードを表示")
                     .accessibilityIdentifier("toggle-my-qr")
                 }
-                if isShowingMyQR, let qr = qrImage(text: profile.friendCode) {
+                if isShowingMyQR, let qr = qrImage(text: friendInviteURL(profile.friendCode)) {
                     HStack {
                         Spacer()
                         Image(uiImage: qr)
@@ -414,8 +439,17 @@ struct FriendsView: View {
                     sortMenu
                 }
             }
-            if friendsStore.friends.isEmpty {
-                EmptyStateView(message: "友達コードでつながろう。右上の + から追加できます。")
+            if friendsStore.isLoading && friendsStore.friends.isEmpty {
+                // 初回ロード中。空状態(「友達がいません」)のチラつきを避ける。
+                HStack {
+                    Spacer()
+                    ProgressView().tint(Palette.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 28)
+                .accessibilityIdentifier("friends-loading")
+            } else if friendsStore.friends.isEmpty {
+                EmptyStateView(message: "まだ友達がいません。右上の + から、友達コードやQRでつながろう。")
             } else if displayMode == .park {
                 FriendsParkView(friends: sortedFriends) { friend in
                     detailFriend = friend
@@ -522,6 +556,8 @@ struct FriendsView: View {
                                 .background(Palette.primary.opacity(0.10), in: Circle())
                         }
                         .buttonStyle(.plain)
+                        // 送信中は無効化して連打多重送信を防ぐ (Store 側でも guard 済み)。
+                        .disabled(friendsStore.cheeringCodes.contains(friend.friendCode))
                         .accessibilityLabel("\(friend.displayName) に \(kind.label) を送る")
                         .accessibilityIdentifier("quick-cheer-\(kind.rawValue)-\(friend.friendCode)")
                     }
@@ -564,6 +600,62 @@ struct FriendsView: View {
             } label: {
                 Label("友達を解除", systemImage: "person.crop.circle.badge.minus")
             }
+        }
+    }
+
+    /// QR ディープリンクの pending code を消費して友達追加画面を開く。
+    /// サインイン済みなら即プリフィル表示、未サインインならサインインを促し、
+    /// プロフィール作成後に再度呼ばれて消費される (onChange 連携)。
+    /// pending な friend code の入口。サインイン要否を判定し、可能なら追加シートへ。
+    private func handlePendingFriendCode() {
+        guard router.pendingFriendCode != nil else { return }
+        if friendsStore.isSignedIn {
+            tryPresentPendingAdd()
+        } else {
+            isShowingSignIn = true   // code は保持。サインインシート onDismiss で継続。
+        }
+    }
+
+    /// **他のシートが開いておらず・サインイン済み**のときだけ追加シートを開く。
+    /// present が確実になってから pendingFriendCode を nil 化する (喪失レース回避, Codex監査#Major2)。
+    /// 条件を満たさない場合は何もしない (各シートの onDismiss で再試行される)。
+    private func tryPresentPendingAdd() {
+        guard let code = router.pendingFriendCode, friendsStore.isSignedIn,
+              !isShowingAdd, !isShowingSignIn,
+              detailFriend == nil, cheerTarget == nil, pendingRemovalFriend == nil
+        else { return }
+        router.pendingFriendCode = nil
+        addInitialCode = code
+        isShowingAdd = true
+    }
+
+    /// エラーバナー (signedIn/signedOut 両方の上部)。赤警告にせず peach 系で世界観維持。
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let error = friendsStore.lastError {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 16) {
+                        Button("更新") { Task { await friendsStore.reload() } }
+                            .accessibilityIdentifier("friends-error-reload")
+                        Button("閉じる") { friendsStore.clearError() }
+                            .accessibilityIdentifier("friends-error-dismiss")
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.primaryDeep)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityIdentifier("friends-error-banner")
         }
     }
 
@@ -615,6 +707,12 @@ struct FriendsView: View {
         case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
         default: return Palette.textSecondary
         }
+    }
+
+    /// QR にエンコードする招待ディープリンク。相手が標準カメラで読むと
+    /// `goexercise://friends?code=XXX` で本アプリが開き、追加画面がプリフィルされる。
+    private func friendInviteURL(_ code: String) -> String {
+        "goexercise://friends?code=\(code)"
     }
 
     private func qrImage(text: String) -> UIImage? {

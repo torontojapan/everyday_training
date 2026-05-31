@@ -36,6 +36,42 @@ final class DeepLinkRouterTests: XCTestCase {
     func testPendingRouteInitiallyNil() {
         let router = DeepLinkRouter()
         XCTAssertNil(router.pendingRoute)
+        XCTAssertNil(router.pendingFriendCode)
+    }
+
+    // MARK: - friendCode(from:) 抽出 + 検証 (Codex#6)
+
+    func testFriendCodeExtractionAndValidation() {
+        func code(_ s: String) -> String? { DeepLinkRouter.friendCode(from: URL(string: s)!) }
+        XCTAssertEqual(code("goexercise://friends?code=ABC234"), "ABC234")
+        XCTAssertEqual(code("goexercise://friends?code=abc234"), "ABC234", "小文字は大文字化される")
+        XCTAssertNil(code("goexercise://friends"), "code 無しは nil")
+        XCTAssertNil(code("goexercise://friends?code=AB"), "桁不足は nil")
+        XCTAssertNil(code("goexercise://friends?code=O0I1AB"), "曖昧文字除去で桁不足 → nil")
+    }
+
+    // MARK: - resolve(url:friendsEnabled:) ゲート (Codex#1/#5)
+
+    func testResolveKeepsCodeWhenFriendsEnabled() {
+        let (route, code) = DeepLinkRouter.resolve(url: URL(string: "goexercise://friends?code=ABC234")!,
+                                                   friendsEnabled: true)
+        XCTAssertEqual(route, .friends)
+        XCTAssertEqual(code, "ABC234")
+    }
+
+    func testResolveDropsCodeWhenFriendsDisabled() {
+        // v1 ゲート: friends→home 振替時に code を破棄
+        let (route, code) = DeepLinkRouter.resolve(url: URL(string: "goexercise://friends?code=ABC234")!,
+                                                   friendsEnabled: false)
+        XCTAssertEqual(route, .home)
+        XCTAssertNil(code)
+    }
+
+    func testResolveNonFriendsRouteHasNoCode() {
+        let (route, code) = DeepLinkRouter.resolve(url: URL(string: "goexercise://settings?code=ABC234")!,
+                                                   friendsEnabled: true)
+        XCTAssertEqual(route, .settings)
+        XCTAssertNil(code, "friends 以外に着地するコードは保持しない")
     }
 }
 

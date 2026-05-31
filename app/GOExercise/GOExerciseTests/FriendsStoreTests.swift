@@ -145,6 +145,82 @@ final class FriendsStoreTests: XCTestCase {
             XCTAssertNotNil(store.lastError)
         }
     }
+
+    // MARK: - refresh: loading / error / re-entry (Codex#2/#3/#4)
+
+    func testRefreshSetsHasLoadedOnceAndClearsLoading() async {
+        let stub = StubFriendsService()
+        let s = FriendsStore(service: stub)
+        XCTAssertFalse(s.hasLoadedOnce)
+        await s.refresh()
+        XCTAssertTrue(s.hasLoadedOnce)
+        XCTAssertFalse(s.isLoading)
+        XCTAssertNil(s.lastError)
+    }
+
+    func testRefreshErrorSetsLastErrorAndClearsLoading() async {
+        let stub = StubFriendsService()
+        stub.refreshError = StubFriendsError.boom
+        let s = FriendsStore(service: stub)
+        await s.refresh()
+        XCTAssertEqual(s.lastError, "ネットワークに接続できませんでした")
+        XCTAssertFalse(s.isLoading)
+        s.clearError()
+        XCTAssertNil(s.lastError)
+    }
+
+    func testRefreshReentryGuardRunsServiceOnce() async {
+        let stub = StubFriendsService()
+        stub.useGate = true
+        let s = FriendsStore(service: stub)
+        let t1 = Task { await s.refresh() }      // 先行: gate で suspend
+        while stub.refreshCount == 0 { await Task.yield() }   // t1 が refreshFriends に入るまで待つ
+        await Task { await s.refresh() }.value   // 後発: isRefreshing=true で即 return されるはず
+        XCTAssertEqual(stub.refreshCount, 1, "二重実行ガードで service は1回のみ")
+        stub.releaseGate()
+        await t1.value
+    }
+
+    func testCheerClearsCheeringCodes() async {
+        let stub = StubFriendsService()
+        let s = FriendsStore(service: stub)
+        await s.cheer(.fire, to: "ABC234")
+        XCTAssertTrue(s.cheeringCodes.isEmpty, "送信完了後は cheeringCodes から除去される")
+    }
+}
+
+enum StubFriendsError: Error, LocalizedError {
+    case boom
+    var errorDescription: String? { "ネットワークに接続できませんでした" }
+}
+
+/// 友達 Store のローディング/エラー/再入ガードを決定論的に検証するためのスタブ。
+@MainActor
+final class StubFriendsService: FriendsService {
+    var myProfile: FriendProfile?
+    var refreshError: Error?
+    var refreshCount = 0
+    var useGate = false
+    private var gate: CheckedContinuation<Void, Never>?
+
+    func signIn(displayName: String, username: String) async throws {}
+    func signOut() async {}
+    func refreshFriends() async throws -> [FriendProfile] {
+        refreshCount += 1
+        if useGate { await withCheckedContinuation { gate = $0 } }
+        if let refreshError { throw refreshError }
+        return []
+    }
+    func pendingRequests() async throws -> [FriendRequest] { [] }
+    func sendRequest(to code: String) async throws {}
+    func acceptRequest(_ request: FriendRequest) async throws {}
+    func declineRequest(_ request: FriendRequest) async throws {}
+    func removeFriend(_ profile: FriendProfile) async throws {}
+    func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
+    func publishMyProfile(_ profile: FriendProfile) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+
+    func releaseGate() { gate?.resume(); gate = nil }
 }
 
 @MainActor

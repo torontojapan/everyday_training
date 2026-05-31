@@ -3,13 +3,20 @@ import SwiftUI
 struct FriendAddView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
-    @State private var codeInput = ""
+    /// QR ディープリンク等から渡された初期コード (コード欄をプリフィル)。
+    let initialCode: String?
+    @State private var codeInput: String
     @State private var searchQuery = ""
     @State private var searchResults: [FriendProfile] = []
     @State private var isSearching = false
     @State private var hasSearched = false   // 検索ボタンを押すまで「結果なし」を出さない
     @State private var resultMessage: String?
     @State private var searchTask: Task<Void, Never>?
+
+    init(initialCode: String? = nil) {
+        self.initialCode = initialCode
+        _codeInput = State(initialValue: initialCode ?? "")
+    }
 
     var body: some View {
         Form {

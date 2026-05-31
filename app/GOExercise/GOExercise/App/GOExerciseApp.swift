@@ -95,9 +95,11 @@ struct GOExerciseApp: App {
                     #endif
                 }
                 .onOpenURL { url in
-                    if let route = DeepLinkRouter.route(from: url) {
-                        routeState.override = route
-                    }
+                    // route をパース+ゲート。friends 着地時のみ検証済み code を保持し、
+                    // home へ振替(friends無効)時は code を破棄 (Codex#1)。
+                    let (route, code) = DeepLinkRouter.resolve(url: url)
+                    if let route { routeState.override = route }
+                    DeepLinkRouter.shared.pendingFriendCode = code
                 }
                 .onChange(of: router.pendingRoute) { _, newRoute in
                     guard let newRoute else { return }
