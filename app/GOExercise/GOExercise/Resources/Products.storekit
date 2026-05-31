@@ -1,13 +1,34 @@
 {
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
   "identifier" : "1A8C0C1A-8A2B-4F7A-9C1D-1E2F3A4B5C6D",
-  "nonRenewingSubscriptions" : [],
+  "nonRenewingSubscriptions" : [
+
+  ],
   "products" : [
+
   ],
   "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
-    "_locale" : "ja_JP",
+    "_locale" : "ja",
+    "_renewalBillingIssuesEnabled" : false,
     "_storefront" : "JPN",
-    "_storeKitErrors" : []
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
   },
   "subscriptionGroups" : [
     {
@@ -16,66 +37,120 @@
         {
           "description" : "体重タブの全機能・連続記録フリーズ月4回などを解放するプランです。",
           "displayName" : "GOプレミアム",
-          "locale" : "ja_JP"
+          "locale" : "ja"
         }
       ],
       "name" : "GOPremium",
       "subscriptions" : [
         {
-          "adHocOffers" : [],
-          "codeOffers" : [],
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "3800",
+              "displayPrice" : "3800",
+              "internalID" : "423ABF5F",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
           "displayPrice" : "3800",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560001",
           "introductoryOffer" : {
+            "billingPlanType" : "BILLED_UPFRONT",
             "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560011",
+            "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P2W"
           },
+          "introductoryOffers" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560011",
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "subscriptionPeriod" : "P2W"
+            }
+          ],
           "localizations" : [
             {
               "description" : "GOプレミアムの年額プラン。体重タブ全機能・フリーズ月4回などを解放。14日間無料、その後 ¥3,800/年。",
               "displayName" : "GOプレミアム 年額",
-              "locale" : "ja_JP"
+              "locale" : "ja"
             }
           ],
           "productID" : "com.goexercise.app.premium_yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "GO Premium Yearly",
           "subscriptionGroupID" : "C2D3E4F5-A6B7-4890-BCDE-F12345678901",
-          "type" : "RecurringSubscription"
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         },
         {
-          "adHocOffers" : [],
-          "codeOffers" : [],
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "500",
+              "displayPrice" : "500",
+              "internalID" : "40FC2A14",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
           "displayPrice" : "500",
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560002",
           "introductoryOffer" : {
+            "billingPlanType" : "BILLED_UPFRONT",
             "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560012",
+            "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P2W"
           },
+          "introductoryOffers" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "internalID" : "A1B2C3D4-E5F6-4789-ABCD-EF1234560012",
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "subscriptionPeriod" : "P2W"
+            }
+          ],
           "localizations" : [
             {
               "description" : "GOプレミアムの月額プラン。体重タブ全機能・フリーズ月4回などを解放。14日間無料、その後 ¥500/月。",
               "displayName" : "GOプレミアム 月額",
-              "locale" : "ja_JP"
+              "locale" : "ja"
             }
           ],
           "productID" : "com.goexercise.app.premium_monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "GO Premium Monthly",
           "subscriptionGroupID" : "C2D3E4F5-A6B7-4890-BCDE-F12345678901",
-          "type" : "RecurringSubscription"
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         }
       ]
     }
   ],
   "version" : {
-    "major" : 4,
+    "major" : 5,
     "minor" : 0
   }
 }
