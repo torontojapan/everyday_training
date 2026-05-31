@@ -150,3 +150,19 @@ final class FriendSharedActivityTests: XCTestCase {
         XCTAssertEqual(snap.monthlyAchievedDays, 0)
     }
 }
+
+@MainActor
+final class FriendAvatarIdentityRingTests: XCTestCase {
+    func testHueIsDeterministicAndInRange() {
+        let h1 = FriendAvatarView.identityRingHue(for: "ABC234")
+        let h2 = FriendAvatarView.identityRingHue(for: "ABC234")
+        XCTAssertEqual(h1, h2, "同じコードは同じ色相 (決定論的)")
+        XCTAssertTrue(h1 >= 0 && h1 < 1, "hue は 0..<1 の範囲")
+    }
+
+    func testDifferentCodesProduceDifferentHues() {
+        let a = FriendAvatarView.identityRingHue(for: "AAAAAA")
+        let b = FriendAvatarView.identityRingHue(for: "BBBBBB")
+        XCTAssertNotEqual(a, b, "異なるコードは色相が分かれる(識別性)")
+    }
+}

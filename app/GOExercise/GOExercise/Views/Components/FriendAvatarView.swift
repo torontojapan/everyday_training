@@ -27,13 +27,39 @@ struct FriendAvatarView: View {
                 .clipShape(Circle())
         }
         .overlay {
-            if showsDecorationBorder, friend.decorationTier > 0 {
-                Circle()
-                    .strokeBorder(decorationBorderColor, lineWidth: 2)
-                    .frame(width: size, height: size)
+            if showsDecorationBorder {
+                // 装飾 (tier) があればその色、無ければ friendCode 由来の識別色リング。
+                // 同じ猫種が並んでも一目で区別でき、装飾ランクとも両立する (トンマナ維持の細リング)。
+                if friend.decorationTier > 0 {
+                    Circle()
+                        .strokeBorder(decorationBorderColor, lineWidth: 2)
+                        .frame(width: size, height: size)
+                } else {
+                    Circle()
+                        .strokeBorder(Self.identityRingColor(for: friend.friendCode), lineWidth: 1.5)
+                        .frame(width: size, height: size)
+                }
             }
         }
         .accessibilityLabel("\(friend.displayName) のアバター \(breed.displayName)")
+    }
+
+    /// friendCode から決定論的に色相を導く (同じ猫種でも一目で区別するための識別リング)。
+    /// 0.0..<1.0 の hue を返す純粋関数 (テスト可能)。
+    /// FNV-1a (32bit) で位置依存ハッシュにし、アナグラム衝突や hue 候補の偏りを避ける。
+    static func identityRingHue(for code: String) -> Double {
+        var hash: UInt32 = 2166136261
+        for scalar in code.unicodeScalars {
+            hash ^= scalar.value
+            hash = hash &* 16777619
+        }
+        return Double(hash % 360) / 360.0
+    }
+
+    /// 識別リングの色。彩度・明度は控えめにしてトンマナ (peach 系) を壊さない。
+    static func identityRingColor(for code: String) -> Color {
+        Color(hue: identityRingHue(for: code), saturation: 0.40, brightness: 0.80)
+            .opacity(0.55)
     }
 
     private var decorationBorderColor: Color {

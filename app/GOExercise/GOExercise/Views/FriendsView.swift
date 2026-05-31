@@ -36,7 +36,12 @@ struct FriendsView: View {
     @State private var addInitialCode: String?
     /// Phase 7.0: 友達画面に「リスト / 公園」切替セグメント追加。
     @State private var displayMode: DisplayMode = .park
+    /// チア送信時の喜び演出 (絵文字が弾けて消える)。reduceMotion 時は無効。
+    @State private var cheerBurst: CheerBurst?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
+
+    struct CheerBurst: Identifiable, Equatable { let id = UUID(); let emoji: String }
 
     enum DisplayMode: String, CaseIterable { case park, list }
 
@@ -84,6 +89,18 @@ struct FriendsView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: cheerToast)
+        .overlay {
+            // チア送信の喜び演出: 絵文字が中央で弾けて上へフェード (reduceMotion 時は出さない)。
+            if let burst = cheerBurst {
+                Text(burst.emoji)
+                    .font(.system(size: 96))
+                    .id(burst.id)
+                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: cheerBurst)
         .sheet(isPresented: $isShowingAdd, onDismiss: {
             addInitialCode = nil          // プリフィルを破棄
             tryPresentPendingAdd()        // 保留中の deep link code があれば再開
@@ -195,25 +212,20 @@ struct FriendsView: View {
             subject: Text(AppSharingConfig.shareSubject),
             message: Text(AppSharingConfig.shareMessage)
         ) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "square.and.arrow.up.circle.fill")
-                    .font(.system(size: 26))
+                    .font(.system(size: 22))
                     .foregroundStyle(Palette.primary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("このアプリを友達にシェア")
-                        .font(Typography.body)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text("インストール用リンクが LINE / メッセージなどで送れます")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                        .multilineTextAlignment(.leading)
-                }
+                Text("このアプリを友達にシェア")
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Palette.textSecondary)
             }
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
@@ -226,7 +238,7 @@ struct FriendsView: View {
 
     private func signedInBody(profile: FriendProfile) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
                 errorBanner
                 profileHeader(profile)
 
@@ -401,6 +413,34 @@ struct FriendsView: View {
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
+    /// 友達0人の空状態。テキストだけでなく「待っている猫」で温かく (トンマナ強化)。
+    private var friendsEmptyState: some View {
+        let breed = UserCatPreferences.shared.myCat
+        let asset = CatState.waitingMorning.assetName(breed: breed)
+        let resolved = UIImage(named: asset) != nil ? asset : CatBreed.fallbackAssetName(for: .waitingMorning)
+        return VStack(spacing: 12) {
+            Image(resolved)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 124, height: 124)
+                .opacity(0.95)
+            Text("まだ友達がいません")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+            Text("右上の + から、友達コードや QR でつながろう。\n猫があなたの友達を待っています。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 16)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("friends-empty")
+    }
+
     private var friendsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -449,7 +489,7 @@ struct FriendsView: View {
                 .padding(.vertical, 28)
                 .accessibilityIdentifier("friends-loading")
             } else if friendsStore.friends.isEmpty {
-                EmptyStateView(message: "まだ友達がいません。右上の + から、友達コードやQRでつながろう。")
+                friendsEmptyState
             } else if displayMode == .park {
                 FriendsParkView(friends: sortedFriends) { friend in
                     detailFriend = friend
@@ -661,6 +701,16 @@ struct FriendsView: View {
 
     private func sendCheer(_ kind: CheerKind, to friend: FriendProfile) async {
         hapticFeedback.success()
+        // 喜び演出: 絵文字が中央で弾ける (reduceMotion 時はスキップ)。
+        if !reduceMotion {
+            let burst = CheerBurst(emoji: kind.emoji)
+            cheerBurst = burst
+            Task {
+                try? await Task.sleep(for: .milliseconds(650))
+                // 連続送信で別 burst に置き換わっていたら消さない (id で同一性を判定)。
+                if cheerBurst?.id == burst.id { cheerBurst = nil }
+            }
+        }
         await friendsStore.cheer(kind, to: friend.friendCode)
         let token = UUID()
         cheerToastToken = token
