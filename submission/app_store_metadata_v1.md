@@ -193,22 +193,33 @@ v1 は友達機能を非表示で出荷し、解析 SDK も一切組み込んで
 
 ### v1 提出セット (友達スクショは使わない)
 
-友達タブは非表示なので、以下 **5 枚** を提出 (各サイズ共通の構成):
+**2026-05-31 に現行ブランド (GO エクササイズ) で全面再撮影済み** (iPhone 17 Pro Max /
+iPad Pro 13" シミュレータ、ステータスバー 9:41 にクリーン化、`--skip-onboarding
+--seed-demo-data` で 12日連続デモ投入)。旧セット (旧名「シリアルエクササイズ」・
+開発中プレースホルダ文・Apple Intelligence バナー・友達画面混入) は
+`_archive/stale_prerebrand/` に退避済み。
 
-1. `01_home_demo.png` — ホーム (連続記録 + 週間カレンダー + 猫)
-2. `02_record_entry.png` — 記録入力 (カテゴリ選択 + 種目入力)
-3. `03_history.png` — 履歴 / 月間カレンダー
-4. `04_settings.png` — 設定 (テーマ・通知など)
-5. `05_notification_settings.png` — 通知設定
+### iPhone 6.9" — `submission/screenshots/iphone-6.9/` (この順で 6 枚)
 
-> ❌ 使わない (友達が写っている / v1 非表示): iphone-6.9/ 内の
-> `01_home.png` `02_record.png` `03_friends.png` `04_friend_detail.png` `05_weekly_ranking.png` `06_history.png`
-> (これらは友達版用。v1 では `_demo` / `_entry` / `04_settings` / `05_notification_settings` を使う)
->
-> 任意: ペイウォール `01_paywall_6.9.png` (1320×2868) を訴求に加えてもよい (サブスク説明用)。
+1. `01_home.png` — ホーム (万歳猫 + 12日連続 + 週間カレンダー) ★ヒーロー
+2. `02_streak_share.png` — 連続記録シェアカード (グラデ + 1週間達成 + 猫) ★訴求力高
+3. `03_record.png` — 記録入力 (カテゴリ + よく使う種目 + 体重欄)
+4. `04_history.png` — 履歴 (月間カレンダー: 達成/休養/未達成)
+5. `05_settings.png` — 設定 (GOプレミアム導線 + テーマ + キャラ変更)
+6. `06_paywall.png` — GOプレミアム ペイウォール (サブスク訴求)
 
-撮影元は Xcode Simulator (`xcrun simctl io booted screenshot`)。
-最終アイコン確定後に 6.9" で取り直すのが理想 (現状セットでも提出は可能)。
+### iPad 13" — `submission/screenshots/ipad-13/` (この順で 5 枚)
+
+1. `01_home.png` 2. `02_streak_share.png` 3. `03_record.png` 4. `04_history.png` 5. `05_settings.png`
+
+> 💡 App Store 製品ページで目立つのは**最初の3枚**。`01_home`→`02_streak_share`→`03_record`
+> の並びを推奨 (猫の魅力 → 達成感 → 使い方)。順序は ASC 上でドラッグ変更可。
+> ❌ 通知設定画面は「通知が許可されていません」警告が出るため不採用。友達画面は v1 非表示のため不採用。
+
+再撮影コマンド (参考): `xcrun simctl launch <UDID> com.goexercise.app --seed-demo-data
+--no-notification-prompt --skip-onboarding [--initial-route record|history|settings|streak-share]`
+→ `xcrun simctl io <UDID> screenshot <out.png>`。
+最終アイコン確定後にもう一度撮り直すのが理想 (現状セットで提出は可能)。
 
 ---
 
