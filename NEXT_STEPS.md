@@ -58,7 +58,7 @@
 
 > **📍 今オープンな残タスク (2026-05-31 時点)** — P0 はほぼ完了、審査提出済み。
 > 1. ⏳ **審査結果待ち** (Waiting for Review)。承認なら手動リリース / リジェクトなら Resolution Center 対応。
-> 2. ⏳ **友達 CloudKit 解禁** (#12) — 2台目 Apple ID 入手時 or v1.1。CloudKit 本番 Deploy → `friendsEnabled` Release=true → 共有URLは差替済みなので次ビルドで反映。
+> 2. ⏳ **友達バックエンド = 中立BEへ転換** (#12) — Android↔Apple 共有要件で **CloudKit(Apple専用)を断念**。Supabase/Firebase へ移行(設計: `docs/friends_backend_crossplatform.md`)。3LLM監査で Release リーク2件是正済。CloudKit固有バグは深追いしない。
 > 3. ⬜ **任意 UX 詰め** (#11 / P2 / Codex UX 提案 `docs/ux_review/`) — リリース後で可。
 > ※ メタデータ提出・審査提出・EU除外・共有URL差替・GitHubメール除去 は **完了**。
 
@@ -79,7 +79,7 @@
 | 9 | EU トレーダーステータス | ✅ **EU除外で確定**(配信=日本のみ)。個人連絡先公開を回避 |
 | 10 | アプリ共有 URL を実 App Store URL に差し替え | ✅ **完了**(2026-05-31)。`AppSharingConfig.swift` を `https://apps.apple.com/jp/app/id6774551663` に更新。※反映は次ビルド(審査中の 1.0(1) は凍結)。[[release-identifiers]] |
 | 11 | E. ウィジェット1タップ記録 / F. Dynamic Island 細部 / G. テーマ×ダークライト / H. 分析 | ⬜ 任意・実機目視 (文言/視認性は確認済) |
-| 12 | **I. 友達 (CloudKit) 実機2アカウント疎通** → OK なら `friendsEnabled` Release=true | ⏳ 2台目 iCloud アカウント待ち (runbook I) |
+| 12 | **I. 友達バックエンドを中立BEへ移行** → 実装→`friendsEnabled` Release=true で解禁 | 🔄 **方針転換 (2026-05-31)**: Android↔Apple 共有要件で CloudKit 断念。中立BE(Supabase推奨/Firebase)へ。設計=`docs/friends_backend_crossplatform.md`。3LLM監査でReleaseリーク2件是正済 (通知/オンボの友達文言)。次: BE確定→`<BE>FriendsService`実装→疎通→解禁(App Privacy更新要) |
 
 ### 🟡 友達 CloudKit 解禁の具体手順 (runbook I) — ⏳ ステップ3で中断中 (2026-05-30)
 
