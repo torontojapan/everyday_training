@@ -23,7 +23,9 @@ struct UserCatPickerView: View {
                             Text("一緒にがんばる猫を選ぼう")
                                 .font(Typography.title)
                                 .foregroundStyle(Palette.textPrimary)
-                            Text("選んだ猫はホーム画面・達成演出・友達一覧で使われます。あとから設定でいつでも変更できます。")
+                            Text(AppFeatureFlags.friendsEnabled
+                                 ? "選んだ猫はホーム画面・達成演出・友達一覧で使われます。あとから設定でいつでも変更できます。"
+                                 : "選んだ猫はホーム画面・達成演出で使われます。あとから設定でいつでも変更できます。")
                                 .font(Typography.body)
                                 .foregroundStyle(Palette.textSecondary)
                         }

@@ -27,6 +27,12 @@ enum NotificationPersonality: String, CaseIterable, Sendable, Codable {
         case .friendDriven: return "友達が達成したときだけ反応する"
         }
     }
+
+    /// 友達機能が無効 (v1 非表示) の間は `friendDriven` を選択肢から外す。
+    /// 友達機能の存在が通知設定に漏れないようにするためのゲート。
+    static func visibleCases(friendsEnabled: Bool) -> [NotificationPersonality] {
+        friendsEnabled ? allCases : allCases.filter { $0 != .friendDriven }
+    }
 }
 
 /// `NotificationPersonality` の永続化 (UserDefaults)。デフォルトは voice。
@@ -45,6 +51,11 @@ final class NotificationPersonalityPreferences {
         get {
             guard let raw = defaults.string(forKey: Self.storageKey),
                   let value = NotificationPersonality(rawValue: raw) else {
+                return .voice
+            }
+            // 友達機能が無効な間は friendDriven を選べないため、保存値が
+            // friendDriven でも voice に倒す (ピッカーの選択不整合と漏れ防止)。
+            if value == .friendDriven, !AppFeatureFlags.friendsEnabled {
                 return .voice
             }
             return value

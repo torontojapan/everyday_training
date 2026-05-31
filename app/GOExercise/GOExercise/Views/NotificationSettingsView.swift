@@ -39,7 +39,7 @@ struct NotificationSettingsView: View {
 
             Section {
                 Picker("性格", selection: personalityBinding) {
-                    ForEach(NotificationPersonality.allCases, id: \.self) { mode in
+                    ForEach(NotificationPersonality.visibleCases(friendsEnabled: AppFeatureFlags.friendsEnabled), id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
@@ -51,7 +51,9 @@ struct NotificationSettingsView: View {
             } header: {
                 Text("通知の性格")
             } footer: {
-                Text("静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。")
+                Text(AppFeatureFlags.friendsEnabled
+                     ? "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。"
+                     : "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。")
                     .font(Typography.caption)
             }
 
