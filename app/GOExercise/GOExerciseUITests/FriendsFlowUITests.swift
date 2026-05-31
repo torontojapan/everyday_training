@@ -27,15 +27,14 @@ final class FriendsFlowUITests: XCTestCase {
 
     // MARK: - Friends list
 
-    func testFriendsSignedOutShowsSignInButton() {
-        // Force a clean signed-out state — previous tests may have left a
-        // persisted mock profile in the simulator's UserDefaults.
+    func testFriendsAutoSignsInShowsProfile() {
+        // 友達タブは壁カードを出さず、裏で匿名サインインして即 signed-in UI に着地する。
+        // force-signed-out で起動しても、画面表示時の自動サインインで
+        // 友達追加ボタン (signed-in UI のツールバー) が現れるはず。
         let app = launch(route: "friends", extra: ["--mock-force-signed-out"])
-        // PrimaryButton uses its title as the accessibility identifier, so
-        // the inner ".accessibilityIdentifier(friends-signin-button)" is
-        // shadowed. Match by the visible label instead.
-        let signIn = app.buttons["サインインして始める"]
-        XCTAssertTrue(signIn.waitForExistence(timeout: 8), "サインインボタンが表示されるはず")
+        let addButton = app.buttons.matching(identifier: "friend-add-button").firstMatch
+        XCTAssertTrue(addButton.waitForExistence(timeout: 10),
+                      "自動サインイン後、友達追加ボタン (signed-in UI) が表示されるはず")
     }
 
     func testFriendsSignedInShowsRankingLink() {

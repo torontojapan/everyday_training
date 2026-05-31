@@ -22,7 +22,6 @@ struct FriendsView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
     @State private var isShowingAdd = false
-    @State private var isShowingSignIn = false
     @State private var sortOrder: FriendSortOrder = .streakDesc
     @State private var detailFriend: FriendProfile?
     @State private var cheerToast: String?
@@ -39,6 +38,13 @@ struct FriendsView: View {
     /// チア送信時の喜び演出 (絵文字が弾けて消える)。reduceMotion 時は無効。
     @State private var cheerBurst: CheerBurst?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 初回の「表示名を決めてね」インライン入力を一度きりにするフラグ。
+    @AppStorage("friends.didDismissNamePrompt") private var didDismissNamePrompt = false
+    /// 初回入力カードのテキスト。
+    @State private var namePromptText = ""
+    /// ヘッダーの表示名変更 alert 用。
+    @State private var isShowingRename = false
+    @State private var renameText = ""
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     struct CheerBurst: Identifiable, Equatable { let id = UUID(); let emoji: String }
@@ -50,14 +56,19 @@ struct FriendsView: View {
             if let profile = friendsStore.profile {
                 signedInBody(profile: profile)
             } else {
-                signedOutBody
+                friendsConnectingBody
             }
         }
         .background(Palette.background)
         .navigationTitle("友達")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await friendsStore.refresh()
+            // 壁を出さず、未サインインなら裏で匿名サインイン (内部で refresh)。
+            if friendsStore.isSignedIn {
+                await friendsStore.refresh()
+            } else {
+                await friendsStore.ensureSignedIn()
+            }
             handlePendingFriendCode()
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
             // 本番でデモ動線が勝手に開かないようにする (debug 引数は Release で無効)。
@@ -118,17 +129,6 @@ struct FriendsView: View {
         .onChange(of: pendingRemovalFriend == nil) { _, becameNil in
             if becameNil { tryPresentPendingAdd() }
         }
-        // サインインシートが「完全に閉じた後」に追加シートを開く (二重 present 回避, Codex監査#Major2)。
-        .sheet(isPresented: $isShowingSignIn, onDismiss: {
-            if friendsStore.isSignedIn {
-                tryPresentPendingAdd()          // サインイン完了 → 追加シートへ
-            } else {
-                router.pendingFriendCode = nil  // キャンセル → 再プロンプトループ回避のため破棄
-            }
-        }) {
-            FriendsSignInSheet(isPresented: $isShowingSignIn)
-                .environment(friendsStore)
-        }
         .sheet(item: $detailFriend, onDismiss: { tryPresentPendingAdd() }) { friend in
             FriendDetailView(friend: friend)
                 .environment(friendsStore)
@@ -162,44 +162,44 @@ struct FriendsView: View {
         }
     }
 
-    // MARK: - Signed out
+    // MARK: - Connecting / sign-in failure
 
-    private var signedOutBody: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                errorBanner
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 64))
+    /// 裏で匿名サインイン中は spinner、失敗時のみやさしい再試行を出す
+    /// (サインインの壁カードは廃止。Supabase 匿名認証で操作不要)。
+    private var friendsConnectingBody: some View {
+        VStack(spacing: 16) {
+            if friendsStore.lastError != nil {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 56))
                     .foregroundStyle(Palette.primary)
-                    .padding(.top, 40)
-                Text("友達と連続記録を分かち合う")
+                Text("友達につながれませんでした")
                     .font(Typography.title)
                     .multilineTextAlignment(.center)
-                Text("サインインすると、連続記録と今日のメニュー (種目名のみ) を友達と共有できます。体重・体調などのプライベートな記録は共有されません。")
-                    .font(Typography.body)
-                    .foregroundStyle(Palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-
-                PrimaryButton("サインインして始める", systemImage: "person.crop.circle.badge.checkmark") {
-                    isShowingSignIn = true
-                }
-                .padding(.top, 12)
-                .accessibilityIdentifier("friends-signin-button")
-
-                Text("登録不要・無料。サインインすると友達コードが発行され、コードやQRでつながれます。表示名はあとから変更できます。")
+                // Supabase の生エラー文言は出さず、やさしい固定文でトンマナ維持 (Codex)。
+                Text("通信状況を確認して、もう一度お試しください。")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
-                    .padding(.top, 8)
-
-                // サインイン前でもアプリを友達に紹介できる導線。
-                shareAppCard
-                    .padding(.top, 24)
+                    .padding(.horizontal, 24)
+                PrimaryButton("もう一度ためす", systemImage: "arrow.clockwise") {
+                    Task {
+                        friendsStore.clearError()
+                        await friendsStore.ensureSignedIn()
+                        // サインイン成功時、保留中の deep link code があれば追加シートへ (Codex)。
+                        handlePendingFriendCode()
+                    }
+                }
+                .padding(.top, 8)
+                .accessibilityIdentifier("friends-retry-button")
+            } else {
+                ProgressView()
+                Text("準備しています…")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
             }
-            .padding(20)
         }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// 「このアプリを友達にシェア」セクション。SwiftUI 標準の `ShareLink` で
@@ -242,6 +242,11 @@ struct FriendsView: View {
                 errorBanner
                 profileHeader(profile)
 
+                // 初回のみ: 表示名を決める軽いインライン入力 (スキップ可)。
+                if showNamePrompt(for: profile) {
+                    namePromptCard
+                }
+
                 // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
                 // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
                 // shareAppCard = まだアプリを入れていない人に install 用 URL を投げるため。
@@ -278,6 +283,61 @@ struct FriendsView: View {
                 .accessibilityIdentifier("friend-add-button")
             }
         }
+        .alert("表示名を変更", isPresented: $isShowingRename) {
+            TextField("表示名", text: $renameText)
+            Button("変更") {
+                let name = renameText
+                Task { await friendsStore.updateDisplayName(name) }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("友達に表示される名前です。いつでも変更できます。")
+        }
+    }
+
+    /// 初回の表示名入力を出すか。自動既定名のままで、まだ閉じていないときだけ。
+    private func showNamePrompt(for profile: FriendProfile) -> Bool {
+        !didDismissNamePrompt && profile.displayName == FriendsStore.autoDisplayName
+    }
+
+    /// 初回のみの「表示名を決めてね」インライン入力カード。
+    private var namePromptCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("表示名を決めましょう")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+            Text("友達に表示される名前です。あとからいつでも変更できます。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            TextField("例: ジュン", text: $namePromptText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("friends-name-prompt-field")
+            HStack {
+                Button("あとで") {
+                    didDismissNamePrompt = true
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                Spacer()
+                Button("決定") {
+                    let name = namePromptText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    Task {
+                        await friendsStore.updateDisplayName(name)
+                        // 更新成功時のみ閉じる。失敗時は既定名のままなので再度促す (Codex)。
+                        if friendsStore.profile?.displayName == name {
+                            didDismissNamePrompt = true
+                        }
+                    }
+                }
+                .font(Typography.body.weight(.semibold))
+                .foregroundStyle(Palette.primaryDeep)
+                .disabled(namePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityIdentifier("friends-name-prompt")
     }
 
     /// UI test 用 ID。profileHeader 全体を 1 つの accessibility container として
@@ -302,9 +362,21 @@ struct FriendsView: View {
                         .clipShape(Circle())
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(profile.displayName)
-                        .font(Typography.title)
-                        .foregroundStyle(Palette.textPrimary)
+                    HStack(spacing: 6) {
+                        Text(profile.displayName)
+                            .font(Typography.title)
+                            .foregroundStyle(Palette.textPrimary)
+                        Button {
+                            renameText = profile.displayName == FriendsStore.autoDisplayName ? "" : profile.displayName
+                            isShowingRename = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Palette.textSecondary)
+                        }
+                        .accessibilityLabel("表示名を変更")
+                        .accessibilityIdentifier("friends-rename-button")
+                    }
                     Text("@\(profile.username)")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
@@ -644,15 +716,18 @@ struct FriendsView: View {
     }
 
     /// QR ディープリンクの pending code を消費して友達追加画面を開く。
-    /// サインイン済みなら即プリフィル表示、未サインインならサインインを促し、
-    /// プロフィール作成後に再度呼ばれて消費される (onChange 連携)。
-    /// pending な friend code の入口。サインイン要否を判定し、可能なら追加シートへ。
+    /// サインイン済みなら即プリフィル表示。未サインインなら裏で匿名サインインしてから消費。
+    /// プロフィール生成後に再度呼ばれて消費される (onChange 連携)。
     private func handlePendingFriendCode() {
         guard router.pendingFriendCode != nil else { return }
         if friendsStore.isSignedIn {
             tryPresentPendingAdd()
         } else {
-            isShowingSignIn = true   // code は保持。サインインシート onDismiss で継続。
+            // 壁を出さず裏でサインインし、完了後に追加シートへ (code は保持)。
+            Task {
+                await friendsStore.ensureSignedIn()
+                tryPresentPendingAdd()
+            }
         }
     }
 
@@ -661,7 +736,7 @@ struct FriendsView: View {
     /// 条件を満たさない場合は何もしない (各シートの onDismiss で再試行される)。
     private func tryPresentPendingAdd() {
         guard let code = router.pendingFriendCode, friendsStore.isSignedIn,
-              !isShowingAdd, !isShowingSignIn,
+              !isShowingAdd,
               detailFriend == nil, cheerTarget == nil, pendingRemovalFriend == nil
         else { return }
         router.pendingFriendCode = nil
@@ -844,69 +919,5 @@ enum FriendSorter {
         case .recentlyUpdated:
             return friends.sorted { $0.lastUpdated > $1.lastUpdated }
         }
-    }
-}
-
-// MARK: - Sign in sheet
-
-struct FriendsSignInSheet: View {
-    @Binding var isPresented: Bool
-    @Environment(FriendsStore.self) private var friendsStore
-    @Environment(\.dismiss) private var dismiss
-    @State private var displayName = ""
-    @State private var username = ""
-    @State private var isSubmitting = false
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("表示名") {
-                    TextField("例: ジュン", text: $displayName)
-                }
-                Section("ユーザー名 (検索用)") {
-                    TextField("例: jun88", text: $username)
-                        .textInputAutocapitalization(.never)
-                    Text("半角英数字推奨。後から変更できます。")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                }
-                Section {
-                    Button {
-                        Task { await submit() }
-                    } label: {
-                        if isSubmitting {
-                            ProgressView()
-                        } else {
-                            Text("作成して始める")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                        }
-                    }
-                    .disabled(
-                        displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                        username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                        isSubmitting
-                    )
-                }
-            }
-            .navigationTitle("プロフィール作成")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("キャンセル") {
-                        isPresented = false
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-
-    private func submit() async {
-        isSubmitting = true
-        await friendsStore.signIn(displayName: displayName, username: username)
-        isSubmitting = false
-        isPresented = false
-        dismiss()
     }
 }

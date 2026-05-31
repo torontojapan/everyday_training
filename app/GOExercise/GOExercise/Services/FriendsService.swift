@@ -97,6 +97,8 @@ final class FriendsStore {
     private(set) var cheeringCodes: Set<String> = []
     /// refresh の再入ガード。
     private var isRefreshing = false
+    /// ensureSignedIn の再入ガード (.task / deep link / 再試行が重なる多重サインイン防止, Codex)。
+    private var isSigningIn = false
 
     init(service: any FriendsService) {
         self.service = service
@@ -118,6 +120,37 @@ final class FriendsStore {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// 自動サインイン時の既定表示名。これと一致する間だけ「初回の表示名入力」を促す。
+    static let autoDisplayName = "ねこの友"
+
+    /// 友達タブ初回表示時に裏で匿名サインインする (サインインの壁を出さない)。
+    /// `signIn` は upsert で冪等なので、既存プロフィールがあれば friendCode 等を引き継ぐ。
+    /// 失敗時は `lastError` がセットされ、UI 側で再試行できる。
+    func ensureSignedIn() async {
+        guard profile == nil, !isSigningIn else { return }
+        isSigningIn = true
+        defer { isSigningIn = false }
+        await signIn(displayName: Self.autoDisplayName, username: Self.generatedUsername())
+    }
+
+    /// 検索用の自動 username。一意制約は無いが衝突しにくい短い英数字。
+    private static func generatedUsername() -> String {
+        let suffix = UUID().uuidString
+            .replacingOccurrences(of: "-", with: "")
+            .prefix(6)
+            .lowercased()
+        return "neko\(suffix)"
+    }
+
+    /// 表示名のみ変更する (username/friendCode は不変)。`publishMyProfile` で送信。
+    func updateDisplayName(_ name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, var updated = profile, updated.displayName != trimmed else { return }
+        updated.displayName = trimmed
+        updated.lastUpdated = Date()
+        await publishMyProfile(updated)
     }
 
     func signOut() async {

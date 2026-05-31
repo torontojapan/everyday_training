@@ -74,6 +74,43 @@ final class FriendsStoreTests: XCTestCase {
         XCTAssertTrue(store.requests.isEmpty)
     }
 
+    // MARK: - ensureSignedIn (自動サインイン) / updateDisplayName
+
+    /// 未サインインから自動サインインし、既定表示名が付くこと。
+    func testEnsureSignedInCreatesProfileWithAutoName() async {
+        XCTAssertNil(store.profile)
+        await store.ensureSignedIn()
+        XCTAssertNotNil(store.profile)
+        XCTAssertEqual(store.profile?.displayName, FriendsStore.autoDisplayName)
+    }
+
+    /// 既にサインイン済みなら ensureSignedIn は何もせず friend code を保つ (冪等)。
+    func testEnsureSignedInIsIdempotent() async {
+        await store.signIn(displayName: "ジュン", username: "jun88")
+        let code = store.profile?.friendCode
+        await store.ensureSignedIn()
+        XCTAssertEqual(store.profile?.friendCode, code, "サインイン済みなら再生成しない")
+        XCTAssertEqual(store.profile?.displayName, "ジュン", "表示名も維持される")
+    }
+
+    /// 表示名のみ変更し、friend code / username は不変。
+    func testUpdateDisplayNameChangesOnlyName() async {
+        await store.ensureSignedIn()
+        let code = store.profile?.friendCode
+        let username = store.profile?.username
+        await store.updateDisplayName("ねこマスター")
+        XCTAssertEqual(store.profile?.displayName, "ねこマスター")
+        XCTAssertEqual(store.profile?.friendCode, code)
+        XCTAssertEqual(store.profile?.username, username)
+    }
+
+    /// 空白だけの表示名は無視する。
+    func testUpdateDisplayNameIgnoresBlank() async {
+        await store.signIn(displayName: "ジュン", username: "jun88")
+        await store.updateDisplayName("   ")
+        XCTAssertEqual(store.profile?.displayName, "ジュン")
+    }
+
     // MARK: - cheer
 
     func testCheerCallsService() async {
