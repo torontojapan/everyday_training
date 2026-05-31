@@ -59,7 +59,7 @@
 > **📍 今オープンな残タスク (2026-05-31 時点)** — P0 はほぼ完了、審査提出済み。
 > 1. ⏳ **審査結果待ち** (Waiting for Review)。承認なら手動リリース / リジェクトなら Resolution Center 対応。
 > 2. 🟢🟢 **友達BE = Supabase 疎通検証済** (#12) — front(UIテスト5/5)+back(REST全合格・RLS含む)+iOSアプリ実コードからの書込まで実証(2台目Apple ID不要)。**解禁の残**: テストデータ掃除 / 監査指摘UI改善(エラー表示等) / `friendsEnabled`=true / App Privacy更新 / 新ビルド提出。設計: `docs/friends_backend_crossplatform.md`。
-> 3. ⬜ **任意 UX 詰め** (#11 / P2 / Codex UX 提案 `docs/ux_review/`) — リリース後で可。
+> 3. ⬜ **任意 UX 詰め** (#11 / P2 / Codex UX 提案 `docs/ux_review/`) — リリース後で可。友達UI/UXの出荷品質改善は完了済(#12参照)。
 > ※ メタデータ提出・審査提出・EU除外・共有URL差替・GitHubメール除去 は **完了**。
 
 ### 🔴 P0 — リリースブロッカー (ほぼ実機作業)
@@ -79,7 +79,7 @@
 | 9 | EU トレーダーステータス | ✅ **EU除外で確定**(配信=日本のみ)。個人連絡先公開を回避 |
 | 10 | アプリ共有 URL を実 App Store URL に差し替え | ✅ **完了**(2026-05-31)。`AppSharingConfig.swift` を `https://apps.apple.com/jp/app/id6774551663` に更新。※反映は次ビルド(審査中の 1.0(1) は凍結)。[[release-identifiers]] |
 | 11 | E. ウィジェット1タップ記録 / F. Dynamic Island 細部 / G. テーマ×ダークライト / H. 分析 | ⬜ 任意・実機目視 (文言/視認性は確認済) |
-| 12 | **I. 友達バックエンド=Supabase。疎通検証済→解禁準備** | 🟢🟢 **疎通検証済み (2026-05-31)**: Supabaseプロジェクト作成+schema実行+Secrets記入 完了。**バックエンドREST疎通(2匿名ユーザーで申請→承認→双方向表示→チア+RLS負荷)全合格 / iOSアプリ実コード(supabase-swift)からも書込成功**(2台目Apple ID不要で実証)。フロントUIテスト5/5 pass・3LLM監査リーク2件是正済。**解禁の残作業**: ①テストデータ掃除(SQL) ②監査指摘のUI改善(FriendsViewエラー表示/旧説明文/ローディング) ③`friendsEnabled` Release=true ④App Privacyラベル更新(収集なし→User Content) ⑤新ビルド提出。設計=`docs/friends_backend_crossplatform.md` |
+| 12 | **I. 友達バックエンド=Supabase。疎通検証済→解禁準備** | 🟢🟢 **疎通検証済み (2026-05-31)**: Supabaseプロジェクト作成+schema実行+Secrets記入 完了。**バックエンドREST疎通(2匿名ユーザーで申請→承認→双方向表示→チア+RLS負荷)全合格 / iOSアプリ実コード(supabase-swift)からも書込成功**(2台目Apple ID不要で実証)。フロントUIテスト5/5 pass・3LLM監査リーク2件是正済。**解禁の残作業**: ①テストデータ掃除(SQL)✅ ②監査指摘のUI改善 ✅**完了**(エラーバナー/初回ローディング/旧説明文刷新/cheer連打ガード/QRディープリンク化。設計=`docs/superpowers/specs/2026-05-31-friends-uiux-shipping-quality-design.md`、Codex監査ループで承認・ビルド成功・UIテスト5/5。※ユニットは当環境でApp Group署名hang=Xcodeで要実行) ③`friendsEnabled` Release=true ④App Privacyラベル更新(収集なし→User Content) ⑤新ビルド提出。BE設計=`docs/friends_backend_crossplatform.md` |
 
 ### 🟡 友達 CloudKit 解禁の具体手順 (runbook I) — ⏳ ステップ3で中断中 (2026-05-30)
 
