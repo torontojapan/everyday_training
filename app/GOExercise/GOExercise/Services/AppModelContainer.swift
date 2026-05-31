@@ -49,7 +49,16 @@ enum AppModelContainer {
         // -O で no-op)、アーカイブ前にミスを検知する。Release では transient な失敗で
         // 起動不能にしないよう、ログを残しつつローカルに graceful フォールバックする
         // (3 LLM 監査 / Codex 指摘)。
-        assertionFailure("App Group SwiftData ストアを開けませんでした。App Group entitlement / provisioning を確認してください。Release ではローカルストアにフォールバックします。")
+        // ただし XCTest 実行中はトラップしない: ユニットテストのホストアプリは headless の
+        // xcodebuild 環境で App Group entitlement が適用されず containerURL が nil になり、
+        // ここで assertionFailure するとホストが起動前にクラッシュして
+        // 「test runner hung before establishing connection」になる。テストでは
+        // ローカルストアに graceful フォールバックして起動を妨げない。
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+        if !isRunningTests {
+            assertionFailure("App Group SwiftData ストアを開けませんでした。App Group entitlement / provisioning を確認してください。Release ではローカルストアにフォールバックします。")
+        }
         // フォールバック: ローカルに保存。永続化自体が不能なら致命的として trap。
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         // swiftlint:disable:next force_try
