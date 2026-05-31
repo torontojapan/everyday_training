@@ -71,6 +71,14 @@ create table if not exists public.cheers (
 );
 create index if not exists cheers_to_user_idx on public.cheers (to_user, created_at desc);
 
+-- ============ 権限 (Data API ロールへ明示付与) ============
+-- 「Automatically expose new tables」が OFF でも動くよう明示 GRANT。
+-- 匿名認証ユーザーは authenticated ロール。行の保護は下の RLS が担う。
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on
+  public.profiles, public.friend_requests, public.friendships, public.cheers
+  to authenticated;
+
 -- ============ RLS ============
 alter table public.profiles enable row level security;
 alter table public.friend_requests enable row level security;
