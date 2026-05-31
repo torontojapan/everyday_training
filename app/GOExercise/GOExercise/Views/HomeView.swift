@@ -393,6 +393,12 @@ struct HomeView: View {
     /// 自分の友達プロフィールを実データ (ホームの集計) で更新する。
     /// これが無いと FriendsView の自分カードや週間ランキングが signIn 時の
     /// 初期値 (0 日連続) のまま固定され、ホームの実績と食い違う (3 LLM 監査 B-Critical)。
+    /// 種目詳細の内容比較用シグネチャ。id(UUID) は毎回変わるため除外し、
+    /// 名前・分・回数・セットで比較する (内容変化も検知する: Codexレビュー)。
+    private static func detailSignature(_ details: [SharedExerciseDetail]?) -> [String]? {
+        details?.map { "\($0.name)|\($0.durationMinutes ?? -1)|\($0.reps ?? -1)|\($0.sets ?? -1)" }
+    }
+
     private func syncMyFriendProfile() {
         // 友達機能が無効 (v1) の間は同期不要。本番で friends profile を作らない。
         guard AppFeatureFlags.friendsEnabled else { return }
@@ -404,15 +410,25 @@ struct HomeView: View {
         let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
         let tier = viewModel.catDecoration.tier
         let breed = UserCatPreferences.shared.myCat
+        // 今日の活動 (カテゴリ/種目名/詳細=opt-in) と月次集計を記録から組み立てる。
+        let activity = FriendSharedActivity.build(
+            records: store.records, today: Date(), calendar: .mondayFirst,
+            includeDetail: FriendSharingPreferences.shared.includeExerciseDetail)
         // 実データに変化が無ければ publish しない (lastUpdated は比較に含めない。
         // 含めると毎回必ず差分扱いになり無駄な書き込みが発生する: Codex 指摘)。
+        // 種目詳細は id (UUID) が毎回変わるため detailSignature (名前/分/回数/セット) で比較。
         if current.currentStreak == streak,
            current.totalAchievedDays == achieved,
            current.todayAchieved == todayDone,
            current.weeklyAchievements == weekly,
            current.weeklyTotalMinutes == minutes,
            current.decorationTier == tier,
-           current.myCatBreed == breed {
+           current.myCatBreed == breed,
+           current.todayCategoryName == activity.todayCategoryName,
+           current.todayExerciseNames == activity.todayExerciseNames,
+           Self.detailSignature(current.todayExerciseDetails) == Self.detailSignature(activity.todayExerciseDetails),
+           current.monthlyTotalMinutes == activity.monthlyTotalMinutes,
+           current.monthlyAchievedDays == activity.monthlyAchievedDays {
             return
         }
         var updated = current
@@ -423,6 +439,11 @@ struct HomeView: View {
         updated.weeklyTotalMinutes = minutes
         updated.decorationTier = tier
         updated.myCatBreed = breed
+        updated.todayCategoryName = activity.todayCategoryName
+        updated.todayExerciseNames = activity.todayExerciseNames
+        updated.todayExerciseDetails = activity.todayExerciseDetails
+        updated.monthlyTotalMinutes = activity.monthlyTotalMinutes
+        updated.monthlyAchievedDays = activity.monthlyAchievedDays
         updated.lastUpdated = Date()
         Task { await friendsStore.publishMyProfile(updated) }
     }

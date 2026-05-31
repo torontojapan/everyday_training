@@ -22,8 +22,10 @@ struct GOExerciseApp: App {
     private let sharedModelContainer = AppModelContainer.make()
 
     /// 友達バックエンドの選択。
-    /// - Release: Supabase が設定済み (Secrets.xcconfig) なら **Supabase** (中立BE・Apple↔Android)。
-    ///   未設定なら Mock にフォールバック (friends は v1 非表示中なので実害なし。設定後に実接続)。
+    /// - Release: 常に **Supabase** (中立BE・Apple↔Android)。Secrets.xcconfig 未設定の場合は
+    ///   Mock へ無言フォールバックせず、使用時に `backendUnavailable` を投げてエラーバナーで
+    ///   表面化させる (設定漏れを本番でローカル Mock 動作に化けさせない = Codexレビュー反映)。
+    ///   → v1.1 アーカイブ前に Secrets.xcconfig の SUPABASE_HOST/ANON_KEY を必ず設定すること。
     /// - DEBUG: 既定は `MockFriendsService` (デモ/スクショ/UI テスト用)。
     ///   `--supabase-friends` で Supabase、`--cloudkit-friends` で旧 CloudKit (参考実装)。
     static func makeFriendsService() -> any FriendsService {
@@ -33,7 +35,7 @@ struct GOExerciseApp: App {
         if args.contains("--cloudkit-friends") { return CloudKitFriendsService() }
         return MockFriendsService()
         #else
-        return SupabaseConfig.isConfigured ? SupabaseFriendsService() : MockFriendsService()
+        return SupabaseFriendsService()
         #endif
     }
 
