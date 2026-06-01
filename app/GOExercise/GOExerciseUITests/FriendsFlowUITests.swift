@@ -27,14 +27,24 @@ final class FriendsFlowUITests: XCTestCase {
 
     // MARK: - Friends list
 
-    func testFriendsAutoSignsInShowsProfile() {
-        // 友達タブは壁カードを出さず、裏で匿名サインインして即 signed-in UI に着地する。
-        // force-signed-out で起動しても、画面表示時の自動サインインで
-        // 友達追加ボタン (signed-in UI のツールバー) が現れるはず。
+    func testFriendsLazyConnectShowsProfile() {
+        // lazy 化: タブを開いただけでは匿名サインインせず歓迎画面に留まる
+        // (孤児アカウント/プライバシー対策)。「友達とつながる」= 能動操作の瞬間に
+        // 初めてサインインし、signed-in UI (友達追加ボタン) に着地する。
         let app = launch(route: "friends", extra: ["--mock-force-signed-out"])
+
+        // 起動直後は welcome の「友達とつながる」ボタンが出て、まだ signed-in UI は出ない。
+        let connect = app.buttons.matching(identifier: "friends-connect-button").firstMatch
+        XCTAssertTrue(connect.waitForExistence(timeout: 10),
+                      "未サインインでは歓迎画面の『友達とつながる』が表示されるはず")
         let addButton = app.buttons.matching(identifier: "friend-add-button").firstMatch
+        XCTAssertFalse(addButton.exists,
+                       "タブ表示だけでは signed-in UI (友達追加ボタン) は出ないはず (lazy)")
+
+        // 能動操作でサインイン → signed-in UI に着地。
+        connect.tap()
         XCTAssertTrue(addButton.waitForExistence(timeout: 10),
-                      "自動サインイン後、友達追加ボタン (signed-in UI) が表示されるはず")
+                      "『友達とつながる』後に signed-in UI の友達追加ボタンが表示されるはず")
     }
 
     func testFriendsSignedInShowsRankingLink() {

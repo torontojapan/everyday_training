@@ -5,7 +5,15 @@
 -- 1. https://supabase.com で新規プロジェクト作成 (無料枠でOK / リージョンは Tokyo 推奨)
 -- 2. Authentication → Providers → "Anonymous sign-ins" を ON
 --    (ログイン不要UXを保ちつつ auth.uid() で RLS を効かせるため)
+-- 2-b. 【クライアント対応とセットでのみ ON】Authentication → Attack Protection →
+--    "Enable CAPTCHA protection" (Cloudflare Turnstile)。匿名サインインの量産(濫用)を
+--    遮断する (懸念②)。※ ON にするとサーバが captcha token を必須化するため、先に
+--    アプリ側で Turnstile token を取得し signInAnonymously に渡す実装が必要。
+--    クライアント未対応のまま ON にすると「友達とつながる」/deep link の
+--    サインインが実行時に失敗する (Codex P3)。
 -- 3. SQL Editor にこのファイル全体を貼って Run
+-- 3-b. 孤児(未使用)匿名アカウントの定期削除: supabase/cron/cleanup_orphans.sql も Run
+--    (lazy 化後の残り孤児を日次で掃除。懸念②対策)。
 -- 4. Project Settings → API から「Project URL」と「anon public key」を控える
 --    → アプリ側 Secrets.xcconfig (gitignore) に設定 (後述)
 --
@@ -37,6 +45,22 @@ create table if not exists public.profiles (
 );
 create index if not exists profiles_friend_code_idx on public.profiles (friend_code);
 create index if not exists profiles_username_idx on public.profiles (lower(username));
+
+-- updated_at を「最終活動シグナル」として信頼できるようにする (Codex P2)。
+-- クライアントの upsert は updated_at を明示送信しないため、トリガで更新時に必ず now() を打つ。
+-- これにより孤児削除 cron (supabase/cron/cleanup_orphans.sql) の inactive 判定が
+-- アカウント年齢ではなく実際の最終更新で効く (profile 再 publish のたびに更新)。
+create or replace function public.set_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+  before update on public.profiles
+  for each row execute function public.set_updated_at();
 
 -- ============ friend_requests ============
 create table if not exists public.friend_requests (

@@ -55,25 +55,35 @@ struct FriendsView: View {
         Group {
             if let profile = friendsStore.profile {
                 signedInBody(profile: profile)
-            } else {
+            } else if friendsStore.isSigningIn {
+                // 能動操作でサインイン中だけ spinner。
                 friendsConnectingBody
+            } else {
+                // 未サインインの idle ホームは常に welcome (lazy/opt-in)。直前の
+                // サインイン失敗は welcome 内にインライン表示し、CTA が再試行を兼ねる
+                // (stale な lastError で welcome に戻れなくなる不具合を回避, Codex)。
+                friendsWelcomeBody
             }
         }
         .background(Palette.background)
         .navigationTitle("友達")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            // 壁を出さず、未サインインなら裏で匿名サインイン (内部で refresh)。
+            // lazy 化: タブ表示だけでは匿名アカウントを作らない (孤児/プライバシー対策)。
+            // サインイン済みのときだけ最新化。未サインインは welcome を見せ、能動操作
+            // (友達とつながる / deep link 承認) の瞬間に初めて匿名サインインする。
             if friendsStore.isSignedIn {
                 await friendsStore.refresh()
-            } else {
-                await friendsStore.ensureSignedIn()
             }
-            handlePendingFriendCode()
+            handlePendingFriendCode()   // pending な deep link code がある時だけ lazy サインイン
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
             // 本番でデモ動線が勝手に開かないようにする (debug 引数は Release で無効)。
             #if DEBUG
             let args = ProcessInfo.processInfo.arguments
+            // デモ/スクショ専用の自動オープンは signed-in 前提なので、開く前にサインインを通す。
+            if args.contains("--mock-open-friend-detail") || args.contains("--mock-open-friend-add") {
+                await friendsStore.ensureSignedIn()
+            }
             if args.contains("--mock-open-friend-detail") {
                 // open the highest-streak friend so screenshots show a rich profile
                 let best = FriendSorter.sort(friendsStore.friends, by: .streakDesc).first
@@ -164,42 +174,71 @@ struct FriendsView: View {
 
     // MARK: - Connecting / sign-in failure
 
-    /// 裏で匿名サインイン中は spinner、失敗時のみやさしい再試行を出す
-    /// (サインインの壁カードは廃止。Supabase 匿名認証で操作不要)。
+    /// 能動操作で匿名サインイン中の spinner (壁カードは廃止。Supabase 匿名認証で操作不要)。
+    /// 失敗時の再試行は welcome 側に集約 (idle ホームを常に welcome に保つため, Codex)。
     private var friendsConnectingBody: some View {
         VStack(spacing: 16) {
-            if friendsStore.lastError != nil {
-                Image(systemName: "wifi.exclamationmark")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Palette.primary)
-                Text("友達につながれませんでした")
-                    .font(Typography.title)
-                    .multilineTextAlignment(.center)
-                // Supabase の生エラー文言は出さず、やさしい固定文でトンマナ維持 (Codex)。
-                Text("通信状況を確認して、もう一度お試しください。")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-                PrimaryButton("もう一度ためす", systemImage: "arrow.clockwise") {
-                    Task {
-                        friendsStore.clearError()
-                        await friendsStore.ensureSignedIn()
-                        // サインイン成功時、保留中の deep link code があれば追加シートへ (Codex)。
-                        handlePendingFriendCode()
-                    }
-                }
-                .padding(.top, 8)
-                .accessibilityIdentifier("friends-retry-button")
-            } else {
-                ProgressView()
-                Text("準備しています…")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-            }
+            ProgressView()
+            Text("準備しています…")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Welcome (未サインイン)
+
+    /// 未サインイン時の歓迎画面。タブを開いただけではここに留まり、**クラウドへは一切書き込まない**
+    /// (孤児アカウント/プライバシー対策の lazy 化)。「友達とつながる」= 能動操作の瞬間に初めて
+    /// 匿名サインインする (メール/パスワード不要)。壁ではなく opt-in の入口。
+    private var friendsWelcomeBody: some View {
+        let breed = UserCatPreferences.shared.myCat
+        let asset = CatState.waitingMorning.assetName(breed: breed)
+        let resolved = UIImage(named: asset) != nil ? asset : CatBreed.fallbackAssetName(for: .waitingMorning)
+        return ScrollView {
+            VStack(spacing: 18) {
+                Image(resolved)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 140, height: 140)
+                    .padding(.top, 24)
+                Text("友達と一緒に続けよう")
+                    .font(Typography.title)
+                    .foregroundStyle(Palette.textPrimary)
+                Text("つながると、おたがいの連続記録を見て応援し合えます。\nメールもパスワードも不要です。")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+                // 直前のサインインが失敗していたら、やさしい固定文でインライン表示。
+                // 下の「友達とつながる」がそのまま再試行になる (生エラー文言は出さない)。
+                if friendsStore.lastError != nil {
+                    Text("うまくつながれませんでした。通信状況を確認して、もう一度お試しください。")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.primaryDeep)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 24)
+                        .accessibilityIdentifier("friends-connect-error")
+                }
+                PrimaryButton("友達とつながる", systemImage: "person.2.fill") {
+                    Task {
+                        friendsStore.clearError()
+                        await friendsStore.ensureSignedIn()
+                        // サインイン成功時、保留中の deep link code があれば追加シートへ。
+                        handlePendingFriendCode()
+                    }
+                }
+                .padding(.top, 4)
+                .accessibilityIdentifier("friends-connect-button")
+                shareAppCard
+            }
+            .frame(maxWidth: .infinity)
+            .padding(20)
+        }
+        .accessibilityIdentifier("friends-welcome")
     }
 
     /// 「このアプリを友達にシェア」セクション。SwiftUI 標準の `ShareLink` で

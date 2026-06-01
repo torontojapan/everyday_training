@@ -98,7 +98,9 @@ final class FriendsStore {
     /// refresh の再入ガード。
     private var isRefreshing = false
     /// ensureSignedIn の再入ガード (.task / deep link / 再試行が重なる多重サインイン防止, Codex)。
-    private var isSigningIn = false
+    /// View 側は lazy 化のため「未サインイン welcome / サインイン中 spinner」を出し分ける
+    /// のに参照する (`private(set)`)。
+    private(set) var isSigningIn = false
 
     init(service: any FriendsService) {
         self.service = service
@@ -125,7 +127,8 @@ final class FriendsStore {
     /// 自動サインイン時の既定表示名。これと一致する間だけ「初回の表示名入力」を促す。
     static let autoDisplayName = "ねこの友"
 
-    /// 友達タブ初回表示時に裏で匿名サインインする (サインインの壁を出さない)。
+    /// 能動操作 (友達とつながる / deep link 承認) の瞬間に匿名サインインする (lazy / opt-in)。
+    /// タブを開いただけでは呼ばれない = 未使用ユーザーの孤児アカウントを作らない。
     /// `signIn` は upsert で冪等なので、既存プロフィールがあれば friendCode 等を引き継ぐ。
     /// 失敗時は `lastError` がセットされ、UI 側で再試行できる。
     func ensureSignedIn() async {
