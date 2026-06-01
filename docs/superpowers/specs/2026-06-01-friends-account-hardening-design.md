@@ -211,11 +211,26 @@ appleLinkEnabled(既定 false)ゲート、全 211 ユニット + 5 FriendsFlow U
 
 ---
 
-## 次セッション計画: Android 実装計画書 (タスク#7)
+## 次セッション計画 (順序確定: 2026-06-02)
 
-最終更新: 2026-06-02。iOS 友達機能(②③実装済・①Apple連携+復元入口完了)を踏まえ、
-**Android アプリ(全機能ゼロから / Kotlin + Compose)の実装計画書を作成**する。
-- 計画書を書く → Codex レビュー → **着工の号砲はユーザー承認後**(数ヶ月規模の新規開発)。
+iOS 友達リリース面を**完全に閉じてから** Android へ。各ステップ独立セッション推奨
+(削除はデータ消去を伴うため Codex ループ前提でしっかり)。
+
+### ① 連携アカウント削除導線 ← **最優先 (次セッション)**
+- 審査 **Guideline 5.1.1(v)**: アカウント作成(Apple/Google 連携)を提供するなら**アプリ内削除導線が必須**。
+- 現状 `signOut` は**匿名のみ**クラウド削除。**永続(連携済み)アカウントの削除**が無い。
+- 実装: 本人 uid の `profiles`/`friendships`/`friend_requests`/`cheers` を削除 → ローカルサインアウト、
+  を確認ダイアログ付き UI 導線で。`appleLinkEnabled`/`googleLinkEnabled` ゲート内。
+- 注意: Supabase の `auth.users` 行自体の削除はサーバ権限が要る(anon key 不可)。クライアントは
+  データ削除 + サインアウトまで。auth 行の削除/匿名化は Edge Function か cron で別途検討(要設計判断)。
+
+### ② Google 連携 (iOS)
+- `linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック。Apple と同等の復元/切替/削除。
+- `googleLinkEnabled` ゲート。Supabase の Google provider + redirect URL 設定(ユーザー作業)。
+
+### ③ Android 実装計画書 (タスク#7) — 新セッションで集中
+- Android アプリ(全機能ゼロから / Kotlin + Compose)の**実装計画書を作成** → Codex レビュー →
+  **着工の号砲はユーザー承認後**(数ヶ月規模の新規開発)。
 - Supabase backend は中立設計済み(`docs/friends_backend_crossplatform.md`)= Android も同じ
   匿名認証 + PostgREST + Apple/Google 連携を再利用する前提。
 
