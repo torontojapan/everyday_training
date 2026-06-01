@@ -121,28 +121,37 @@ lazy化を先に入れることで、連携が来るまでの間に識別子を�
   (連続記録/カテゴリ/種目名)が送信される**」に更新。「タブ表示だけでは送信しない」を反映。
 - `docs` のプライバシー方針にも lazy 化を明記。体重・体調は送らない(既存)を再確認。
 
-### Phase 2 (v1.1): Apple + Google identity linking
+### Phase 2: Apple identity linking — **実装済 (config-gated)**。Google/復元入口は follow-up
 
-#### 2-A. クライアント連携 UI (`FriendsView` / 新 `FriendsBackupView`)
-- 論点Bの条件で**消せる「バックアップ」カード**を表示。設定にも常設導線。
-- ボタン: 「Apple でバックアップ」「Google でバックアップ」。
-- 連携成功 → カードは恒久的に消え、ヘッダーに「✓ バックアップ済み」を小さく表示。
+壁打ち(Codex)で確定した最適解で実装。Apple=ネイティブ id_token、Google=web/PKCE(後追い)。
 
-#### 2-B. linking 実装 (`SupabaseFriendsService`)
-- `func linkIdentity(_ provider: .apple | .google) async throws` 追加。
-  Supabase の `auth.linkIdentity` / Sign in with Apple のネイティブフロー(`signInWithIdToken` +
-  link)を用い、**anonymous → permanent** に昇格(uid 不変)。
-- 衝突時(論点C): `identity_already_exists` を捕捉し、UI に二択を提示する error を返す。
-- `is_linked` をクライアントが知るための軽い getter(`session.user.isAnonymous`)を `FriendsStore`
-  に公開(`var isBackedUp: Bool`)。
+#### 2-A. linking 実装 (`SupabaseFriendsService` / `AccountLinking.swift`)
+- **Apple (本実装)**: `AppleSignInCoordinator`(ASAuthorization + SHA256 nonce、Swift6 nonisolated
+  デリゲート→MainActor)で id_token 取得 → `linkIdentityWithIdToken(provider:.apple)` で
+  **anonymous→permanent 昇格(uid 不変)**。`linkApple(idToken:nonce:)`。
+- **衝突 (論点C)**: `AuthError.errorCode == .identityAlreadyExists` を `AccountLinkError.
+  alreadyLinkedToAnotherAccount` に写像 → `FriendsStore.AppleLinkResult.collision` → UI で
+  「既存アカウントに切替/中止」の二択。切替 = `switchToAppleAccount`(`signInWithIdToken` +
+  `signIn` で切替先 profile をロード)。孤児化した匿名 uid は孤児 cron で回収。
+- `isBackedUp` (= `session.user.isAnonymous == false`) を `FriendsStore.backupStatus` に公開。
+- 連携時の落とし穴対応: rawNonce/SHA256 取り違え無し、RNG 失敗は throw(決定的フォールバック禁止)、
+  signOut は**匿名のみクラウド削除・連携済みは保持**(バックアップを壊さない)、連打/継続の再入ガード。
 
-#### 2-C. Android 側(参考・別repo)
-- 同じ Supabase プロジェクトで Google Sign-In による linking を実装(クロスプラットフォーム復旧)。
-  本 spec は iOS が対象だが、schema/方針は共通である旨を明記。
+#### 2-B. クライアント UI (`FriendsView`)
+- 論点Bの条件(`friends>=1 || streak>=7`、未バックアップ、30日未dismiss、連携有効)で
+  **消せる「バックアップ」カード** → 「Apple でバックアップ」。成功でトースト、衝突で二択ダイアログ。
 
-#### 2-D. Sign in with Apple 設定
-- Capabilities に Sign in with Apple を追加。Supabase の Apple provider 設定
-  (Service ID / Key)。Secrets/Info.plist 経由は既存 SupabaseConfig 流儀に合わせる。
+#### 2-C. config-gating
+- `SupabaseConfig.appleLinkEnabled`/`googleLinkEnabled`(Info.plist `FriendsAppleLinkEnabled`/
+  `FriendsGoogleLinkEnabled`、既定 false)。未設定なら `isAccountLinkingEnabled=false` で
+  カード非表示・coordinator 不実行 = **現匿名挙動と不変**。ユニット検証済(gating/衝突/成功/失敗写像)。
+
+#### 2-D. 残 follow-up (Phase 2 完了に必要)
+- **復元入口**: 新端末/再インストール時に welcome から「Apple でサインイン(復元)」。
+  これが無いと連携済みでも新端末で新規匿名になる。`signInWithIdToken(.apple)` で復元。
+- **Google 連携**: `linkIdentity(provider:.google)` の web/PKCE + `goexercise://` コールバック。
+- **設定 (キー所有者)**: Sign in with Apple capability 追加 / Supabase Apple(+Google) provider 設定 /
+  Manual Linking ON / redirect URL 許可。その後 `Friends*LinkEnabled=true`。実機手動検証。
 
 ---
 

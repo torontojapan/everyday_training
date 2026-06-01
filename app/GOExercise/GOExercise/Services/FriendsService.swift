@@ -27,10 +27,32 @@ protocol FriendsService: AnyObject {
     /// 再シードする。実バックエンドでは no-op。アプリ再起動で in-memory friends
     /// が消えるモックを補い、毎回 signIn (= friend code 再生成) を避けるため。
     func seedDemoFriendsIfNeeded() async
+
+    // MARK: - アカウント連携 (Phase 2: 機種変復旧。匿名 uid を保持したまま永続化)
+
+    /// 永続アカウント連携の状態 (匿名でないか)。
+    var backupStatus: AccountBackupStatus { get }
+    /// 現セッションから `backupStatus` を更新する。
+    func refreshBackupStatus() async
+    /// Apple の id_token で現匿名セッションを永続化 (uid 保持)。
+    /// 既に別アカウントに紐付く場合は `AccountLinkError.alreadyLinkedToAnotherAccount`。
+    func linkApple(idToken: String, nonce: String) async throws
+    /// 衝突時の「既存アカウントに切替」。現匿名データは破棄され、Apple 側の既存アカウントに入る。
+    func switchToAppleAccount(idToken: String, nonce: String) async throws
 }
 
 extension FriendsService {
     func seedDemoFriendsIfNeeded() async {}
+
+    // 既定 (Mock 等): 連携は未対応 = 匿名のまま。プロバイダ未設定環境の安全側。
+    var backupStatus: AccountBackupStatus { .anonymous }
+    func refreshBackupStatus() async {}
+    func linkApple(idToken: String, nonce: String) async throws {
+        throw AccountLinkError.providerUnavailable
+    }
+    func switchToAppleAccount(idToken: String, nonce: String) async throws {
+        throw AccountLinkError.providerUnavailable
+    }
 }
 
 enum CheerKind: String, CaseIterable, Sendable {
@@ -119,8 +141,55 @@ final class FriendsStore {
             try await service.signIn(displayName: displayName, username: username)
             profile = service.myProfile
             await refresh()
+            await refreshBackupStatus()   // lazy サインイン後もバックアップ状態を正しく反映
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    // MARK: - アカウント連携 (Phase 2: 機種変復旧)
+
+    /// 永続アカウント連携の状態 (匿名でないか)。
+    private(set) var backupStatus: AccountBackupStatus = .anonymous
+    var isBackedUp: Bool { backupStatus.isBackedUp }
+
+    /// Apple 連携の結果。`collision` は「既存アカウントに切替/中止」の二択を UI に促す。
+    enum AppleLinkResult: Equatable {
+        case linked
+        case collision   // この Apple ID は既に別アカウントに紐付く
+        case failed(String)
+    }
+
+    func refreshBackupStatus() async {
+        await service.refreshBackupStatus()
+        backupStatus = service.backupStatus
+    }
+
+    /// View が `AppleSignInCoordinator` で取得した (idToken, nonce) を渡して連携する。
+    func linkApple(idToken: String, nonce: String) async -> AppleLinkResult {
+        do {
+            try await service.linkApple(idToken: idToken, nonce: nonce)
+            backupStatus = service.backupStatus
+            return .linked
+        } catch AccountLinkError.alreadyLinkedToAnotherAccount {
+            return .collision
+        } catch {
+            let message = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription!
+            return .failed(message)
+        }
+    }
+
+    /// 衝突時の「既存アカウントに切替」。現匿名データは破棄され、プロフィール/友達は再取得。
+    func switchToAppleAccount(idToken: String, nonce: String) async -> Bool {
+        do {
+            try await service.switchToAppleAccount(idToken: idToken, nonce: nonce)
+            profile = service.myProfile
+            backupStatus = service.backupStatus
+            await refresh()
+            return true
+        } catch {
+            lastError = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription
+            return false
         }
     }
 
@@ -161,6 +230,7 @@ final class FriendsStore {
         profile = nil
         friends = []
         requests = []
+        backupStatus = .anonymous
     }
 
     func refresh() async {

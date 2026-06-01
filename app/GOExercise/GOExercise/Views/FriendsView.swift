@@ -45,6 +45,15 @@ struct FriendsView: View {
     /// ヘッダーの表示名変更 alert 用。
     @State private var isShowingRename = false
     @State private var renameText = ""
+    /// Phase 2: アカウント連携(機種変復旧)。バックアップカードの状態。
+    @State private var appleCoordinator = AppleSignInCoordinator()
+    @State private var isLinkingAccount = false
+    @State private var backupToast: String?
+    @State private var pendingSwitchCreds: ApplePendingSwitch?
+    /// バックアップ促しを「あとで」した時刻 (30日沈黙)。
+    @AppStorage("friends.backupPromptDismissedAt") private var backupPromptDismissedAt: Double = 0
+
+    struct ApplePendingSwitch: Identifiable { let id = UUID(); let idToken: String; let nonce: String }
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
     struct CheerBurst: Identifiable, Equatable { let id = UUID(); let emoji: String }
@@ -74,6 +83,9 @@ struct FriendsView: View {
             // (友達とつながる / deep link 承認) の瞬間に初めて匿名サインインする。
             if friendsStore.isSignedIn {
                 await friendsStore.refresh()
+                if SupabaseConfig.isAccountLinkingEnabled {
+                    await friendsStore.refreshBackupStatus()
+                }
             }
             handlePendingFriendCode()   // pending な deep link code がある時だけ lazy サインイン
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
@@ -286,6 +298,11 @@ struct FriendsView: View {
                     namePromptCard
                 }
 
+                // 任意: 機種変でも友達を引き継ぐ「バックアップ」促し (消せる/設定でも可)。
+                if showBackupCard(for: profile) {
+                    backupCard
+                }
+
                 // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
                 // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
                 // shareAppCard = まだアプリを入れていない人に install 用 URL を投げるため。
@@ -332,11 +349,134 @@ struct FriendsView: View {
         } message: {
             Text("友達に表示される名前です。いつでも変更できます。")
         }
+        // 連携の衝突: 既存アカウントに切替(現データ破棄)か中止の二択。マージはしない。
+        .confirmationDialog(
+            "このアカウントは既に別のデータに紐づいています",
+            isPresented: Binding(
+                get: { pendingSwitchCreds != nil },
+                set: { if !$0 { pendingSwitchCreds = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingSwitchCreds
+        ) { creds in
+            Button("既存のアカウントに切り替える", role: .destructive) {
+                let c = creds
+                pendingSwitchCreds = nil
+                guard !isLinkingAccount else { return }
+                isLinkingAccount = true
+                Task {
+                    defer { isLinkingAccount = false }
+                    let ok = await friendsStore.switchToAppleAccount(idToken: c.idToken, nonce: c.nonce)
+                    if ok { showBackupToast("既存のアカウントに切り替えました") }
+                }
+            }
+            Button("中止", role: .cancel) { pendingSwitchCreds = nil }
+        } message: { _ in
+            Text("切り替えると、いまの端末の友達・コードは失われます。")
+        }
+        .overlay(alignment: .bottom) {
+            if let backupToast {
+                Text(backupToast)
+                    .font(Typography.caption)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(.thinMaterial, in: Capsule())
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.bottom, 24)
+                    .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("friends-backup-toast")
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: backupToast)
     }
 
     /// 初回の表示名入力を出すか。自動既定名のままで、まだ閉じていないときだけ。
     private func showNamePrompt(for profile: FriendProfile) -> Bool {
         !didDismissNamePrompt && profile.displayName == FriendsStore.autoDisplayName
+    }
+
+    // MARK: - バックアップ(アカウント連携)カード
+
+    /// バックアップ促しを出すか。連携が有効・未バックアップ・トリガー達成・直近未dismiss。
+    private func showBackupCard(for profile: FriendProfile) -> Bool {
+        guard SupabaseConfig.isAccountLinkingEnabled, !friendsStore.isBackedUp else { return false }
+        let trigger = friendsStore.friends.count >= 1 || profile.currentStreak >= 7
+        guard trigger else { return false }
+        let now = Date().timeIntervalSince1970
+        return now - backupPromptDismissedAt > 30 * 24 * 3600   // dismiss 後30日沈黙
+    }
+
+    private var backupCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("友達を機種変でも引き継ぐ")
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+            Text("バックアップすると、機種変更や再インストールでも友達とコードを引き継げます。メールやパスワードは不要です。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if isLinkingAccount {
+                HStack { Spacer(); ProgressView(); Spacer() }
+            } else {
+                if SupabaseConfig.appleLinkEnabled {
+                    Button {
+                        linkWithApple()
+                    } label: {
+                        Label("Apple でバックアップ", systemImage: "applelogo")
+                            .font(Typography.body.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Palette.primary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityIdentifier("friends-backup-apple")
+                }
+                Button("あとで") { backupPromptDismissedAt = Date().timeIntervalSince1970 }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityIdentifier("friends-backup-card")
+    }
+
+    /// Apple 認可 → 連携。衝突なら二択ダイアログ、成功ならトースト。
+    private func linkWithApple() {
+        guard !isLinkingAccount else { return }   // 連打ガード (同期的に立てる)
+        isLinkingAccount = true
+        Task {
+            defer { isLinkingAccount = false }
+            do {
+                let cred = try await appleCoordinator.requestIdToken()
+                switch await friendsStore.linkApple(idToken: cred.idToken, nonce: cred.nonce) {
+                case .linked:
+                    // 表示名が既定のままで Apple から名前を得られたら反映。
+                    if let name = cred.fullName,
+                       friendsStore.profile?.displayName == FriendsStore.autoDisplayName {
+                        await friendsStore.updateDisplayName(name)
+                    }
+                    showBackupToast("バックアップしました")
+                case .collision:
+                    pendingSwitchCreds = ApplePendingSwitch(idToken: cred.idToken, nonce: cred.nonce)
+                case .failed(let message):
+                    friendsStore.lastError = message
+                }
+            } catch AccountLinkError.cancelled {
+                // 何もしない
+            } catch {
+                friendsStore.lastError = AccountLinkError.failed.errorDescription
+            }
+        }
+    }
+
+    private func showBackupToast(_ text: String) {
+        backupToast = text
+        Task {
+            try? await Task.sleep(for: .seconds(2.0))
+            if backupToast == text { backupToast = nil }
+        }
     }
 
     /// 初回のみの「表示名を決めてね」インライン入力カード。

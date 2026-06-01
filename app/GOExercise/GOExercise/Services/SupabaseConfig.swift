@@ -31,4 +31,19 @@ enum SupabaseConfig {
     static func isCaptchaEnabled(siteKey: String) -> Bool {
         !siteKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    // MARK: - アカウント連携 (Phase 2: 機種変復旧。config-gated)
+
+    /// Apple 連携を有効にするか。Info.plist `FriendsAppleLinkEnabled` (Bool)。
+    /// 既定 false。capability 追加 + Supabase の Apple provider 設定が済んだら true にする。
+    static var appleLinkEnabled: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "FriendsAppleLinkEnabled") as? Bool) ?? false
+    }
+    /// Google 連携を有効にするか。Info.plist `FriendsGoogleLinkEnabled` (Bool)。
+    /// 既定 false。Supabase の Google provider + redirect URL 設定が済んだら true にする。
+    static var googleLinkEnabled: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "FriendsGoogleLinkEnabled") as? Bool) ?? false
+    }
+    /// いずれかの連携が有効か (バックアップカードの表示ゲート)。
+    static var isAccountLinkingEnabled: Bool { appleLinkEnabled || googleLinkEnabled }
 }

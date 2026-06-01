@@ -21,6 +21,7 @@ final class SupabaseFriendsService: FriendsService {
     private static let myProfileKey = "supabase.friends.myProfile.v1"
 
     private(set) var myProfile: FriendProfile?
+    private(set) var backupStatus: AccountBackupStatus = .anonymous
 
     init(defaults: UserDefaults = .standard, captchaProvider: (any CaptchaTokenProviding)? = nil) {
         self.defaults = defaults
@@ -62,6 +63,68 @@ final class SupabaseFriendsService: FriendsService {
     private func requireClient() throws -> SupabaseClient {
         guard let client else { throw FriendsServiceError.backendUnavailable }
         return client
+    }
+
+    // MARK: - アカウント連携 (Phase 2)
+
+    func refreshBackupStatus() async {
+        guard let client else { backupStatus = .anonymous; return }
+        guard let session = try? await client.auth.session else { backupStatus = .anonymous; return }
+        let user = session.user
+        let provider = user.identities?.first(where: { $0.provider != "anonymous" })?.provider
+        backupStatus = AccountBackupStatus(isBackedUp: !user.isAnonymous, providerName: provider)
+    }
+
+    func linkApple(idToken: String, nonce: String) async throws {
+        do {
+            let client = try requireClient()
+            try await client.auth.linkIdentityWithIdToken(
+                credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+            await refreshBackupStatus()
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    func switchToAppleAccount(idToken: String, nonce: String) async throws {
+        do {
+            let client = try requireClient()
+            // 既存アカウントにサインイン (現匿名 uid は破棄 = 参照不能に。孤児は cron で回収)。
+            _ = try await client.auth.signInWithIdToken(
+                credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+            // 切替先アカウントの profile を確実にロード/生成する。signIn は upsert で
+            // 既存プロフィール(表示名/コード)を保持するので、既存ユーザーはそのまま復元される。
+            myProfile = nil
+            defaults.removeObject(forKey: Self.myProfileKey)
+            try await signIn(displayName: Self.fallbackDisplayName, username: Self.fallbackUsername())
+            await refreshBackupStatus()
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    private static let fallbackDisplayName = "ねこの友"
+    private static func fallbackUsername() -> String {
+        "neko" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6).lowercased()
+    }
+
+    /// Supabase の AuthError / バックエンド不可を UI 向けの [[AccountLinkError]] に写像する。
+    private static func mapLinkError(_ error: Error) -> AccountLinkError {
+        if let linkError = error as? AccountLinkError { return linkError }
+        if let serviceError = error as? FriendsServiceError, case .backendUnavailable = serviceError {
+            return .backendUnavailable
+        }
+        guard let authError = error as? AuthError else { return .failed }
+        switch authError.errorCode {
+        case .identityAlreadyExists, .emailExists:
+            return .alreadyLinkedToAnotherAccount
+        case .providerDisabled, .manualLinkingDisabled, .oauthProviderNotSupported:
+            return .providerUnavailable
+        default:
+            return .failed
+        }
     }
 
     // MARK: - Sign in / out
@@ -107,15 +170,21 @@ final class SupabaseFriendsService: FriendsService {
 
     func signOut() async {
         guard let client else { myProfile = nil; defaults.removeObject(forKey: Self.myProfileKey); return }
-        if let uid = try? await ensureUID() {
-            try? await client.from("profiles").delete().eq("user_id", value: uid.uuidString).execute()
+        // セッションは1回だけ読む。**匿名のときだけ**クラウドデータを削除する (=「忘れる」)。
+        // 連携済み(バックアップ)は保持 = 別端末/再サインインで復旧可能。
+        // ensureUID は呼ばない (サインアウト中に新規匿名セッションを作らない / 誤分類削除を防ぐ, Codex)。
+        // セッション取得失敗時は不確実なので削除しない (安全側)。
+        if let session = try? await client.auth.session, session.user.isAnonymous {
+            let uid = session.user.id.uuidString
+            try? await client.from("profiles").delete().eq("user_id", value: uid).execute()
             try? await client.from("friendships").delete()
-                .or("user_a.eq.\(uid.uuidString),user_b.eq.\(uid.uuidString)").execute()
+                .or("user_a.eq.\(uid),user_b.eq.\(uid)").execute()
             try? await client.from("friend_requests").delete()
-                .or("from_user.eq.\(uid.uuidString),to_user.eq.\(uid.uuidString)").execute()
+                .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
         }
         try? await client.auth.signOut()
         myProfile = nil
+        backupStatus = .anonymous
         defaults.removeObject(forKey: Self.myProfileKey)
     }
 
