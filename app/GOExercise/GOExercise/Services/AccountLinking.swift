@@ -45,6 +45,15 @@ enum AccountLinkError: LocalizedError, Equatable {
     }
 }
 
+/// Apple 復元 (`restoreWithApple`) の成否内訳。新端末/再インストールで welcome から実行する。
+/// `Store` 側でこれに `failed` を足して UI へ渡す ([[FriendsStore]].AppleRestoreResult)。
+enum AppleRestoreOutcome: Equatable, Sendable {
+    /// その Apple ID に紐づく既存プロフィールが見つかり、ロードした (友達/コードが戻る)。
+    case restored
+    /// 既存データが無く、新規アカウントとして作成した (実質サインアップ)。
+    case created
+}
+
 /// 連携状態 (UI 表示用)。
 struct AccountBackupStatus: Equatable, Sendable {
     /// 永続アカウントに連携済み (= 匿名でない)。

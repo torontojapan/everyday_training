@@ -59,11 +59,106 @@ final class AccountLinkingTests: XCTestCase {
         XCTAssertTrue(store.isBackedUp)
     }
 
+    // MARK: - 復元入口 (restoreWithApple)
+
+    func testRestoreRestoredLoadsProfile() async {
+        let restored = Self.sampleProfile(code: "ABC123")
+        let store = FriendsStore(service: RestoreStubService(outcome: .restored, restoredProfile: restored))
+        let result = await store.restoreWithApple(idToken: "t", nonce: "n")
+        XCTAssertEqual(result, .restored)
+        XCTAssertEqual(store.profile?.friendCode, "ABC123", "復元成功で既存プロフィールが反映される")
+        XCTAssertTrue(store.isBackedUp)
+    }
+
+    func testRestoreCreatedWhenNoExistingData() async {
+        let store = FriendsStore(service: RestoreStubService(outcome: .created,
+                                                             restoredProfile: Self.sampleProfile(code: "NEW001")))
+        let result = await store.restoreWithApple(idToken: "t", nonce: "n")
+        XCTAssertEqual(result, .created, "既存データ無しは created に写像")
+        XCTAssertTrue(store.isBackedUp)
+    }
+
+    func testRestoreFailureSetsLastError() async {
+        let store = FriendsStore(service: RestoreStubService(error: .backendUnavailable))
+        let result = await store.restoreWithApple(idToken: "t", nonce: "n")
+        if case .failed = result {} else { XCTFail("失敗は .failed に写像されるはず") }
+        XCTAssertNotNil(store.lastError)
+        XCTAssertNil(store.profile, "失敗時は profile を変えない")
+    }
+
+    func testRestoreDefaultUnavailableForMock() async {
+        // Mock は連携未対応 = protocol default で providerUnavailable を throw → failed。
+        let store = FriendsStore(service: MockFriendsService(defaults: makeDefaults()))
+        let result = await store.restoreWithApple(idToken: "t", nonce: "n")
+        if case .failed = result {} else { XCTFail("未対応サービスは failed") }
+    }
+
+    func testAnonymousSessionHasDataDefaultsFalse() async {
+        let store = FriendsStore(service: MockFriendsService(defaults: makeDefaults()))
+        let hasData = await store.anonymousSessionHasData()
+        XCTAssertFalse(hasData, "既定 (未対応/未サインイン) は確認不要 = false")
+    }
+
+    func testAnonymousSessionHasDataReflectsService() async {
+        let store = FriendsStore(service: RestoreStubService(hasData: true))
+        let hasData = await store.anonymousSessionHasData()
+        XCTAssertTrue(hasData)
+    }
+
     // MARK: - helpers
 
     private func makeDefaults() -> UserDefaults {
         UserDefaults(suiteName: "account.linking.tests.\(UUID().uuidString)")!
     }
+
+    static func sampleProfile(code: String) -> FriendProfile {
+        FriendProfile(
+            id: code, friendCode: code, username: code.lowercased(),
+            displayName: code, currentStreak: 0, totalAchievedDays: 0,
+            todayAchieved: false, todayCategoryName: nil, todayExerciseNames: [],
+            decorationTier: 0, lastUpdated: Date(),
+            weeklyAchievements: nil, connectedSince: nil
+        )
+    }
+}
+
+/// 復元/切替の結果だけを差し替える最小スタブ。`restoreWithApple` と
+/// `anonymousSessionHasData` のみ意味を持ち、他は no-op。
+@MainActor
+private final class RestoreStubService: FriendsService {
+    private let outcome: AppleRestoreOutcome
+    private let error: AccountLinkError?
+    private let hasData: Bool
+    private(set) var myProfile: FriendProfile?
+    private(set) var backupStatus: AccountBackupStatus = .anonymous
+
+    init(outcome: AppleRestoreOutcome = .created, error: AccountLinkError? = nil,
+         hasData: Bool = false, restoredProfile: FriendProfile? = nil) {
+        self.outcome = outcome
+        self.error = error
+        self.hasData = hasData
+        self.myProfile = restoredProfile
+    }
+
+    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+        if let error { throw error }
+        backupStatus = AccountBackupStatus(isBackedUp: true, providerName: "apple")
+        return outcome
+    }
+    func anonymousSessionHasData() async -> Bool { hasData }
+
+    func signIn(displayName: String, username: String) async throws {}
+    func signOut() async {}
+    func refreshFriends() async throws -> [FriendProfile] { [] }
+    func pendingRequests() async throws -> [FriendRequest] { [] }
+    func sendRequest(to code: String) async throws {}
+    func acceptRequest(_ request: FriendRequest) async throws {}
+    func declineRequest(_ request: FriendRequest) async throws {}
+    func removeFriend(_ profile: FriendProfile) async throws {}
+    func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
+    func publishMyProfile(_ profile: FriendProfile) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func refreshBackupStatus() async {}
 }
 
 /// 連携の結果だけを差し替えられる最小スタブ。他メソッドは未使用なので no-op/空。

@@ -50,6 +50,9 @@ struct FriendsView: View {
     @State private var isLinkingAccount = false
     @State private var backupToast: String?
     @State private var pendingSwitchCreds: ApplePendingSwitch?
+    /// welcome の復元入口: 匿名残存データがある時の上書き確認ダイアログ (Codex#3)。
+    @State private var isConfirmingRestore = false
+    @Environment(\.colorScheme) private var colorScheme
     /// バックアップ促しを「あとで」した時刻 (30日沈黙)。
     @AppStorage("friends.backupPromptDismissedAt") private var backupPromptDismissedAt: Double = 0
 
@@ -235,7 +238,9 @@ struct FriendsView: View {
                         .padding(.horizontal, 24)
                         .accessibilityIdentifier("friends-connect-error")
                 }
-                PrimaryButton("友達とつながる", systemImage: "person.2.fill") {
+                // appleLinkEnabled 時のみ「この端末で始める」に改称し、復元入口を併設する。
+                // OFF 時は従来通り単独の「友達とつながる」= 現挙動と不変 (Codex#E)。
+                PrimaryButton(connectButtonLabel, systemImage: "person.2.fill") {
                     Task {
                         friendsStore.clearError()
                         await friendsStore.ensureSignedIn()
@@ -245,12 +250,101 @@ struct FriendsView: View {
                 }
                 .padding(.top, 4)
                 .accessibilityIdentifier("friends-connect-button")
+                .disabled(isLinkingAccount)
+
+                if SupabaseConfig.appleLinkEnabled {
+                    appleRestoreSection
+                }
                 shareAppCard
             }
             .frame(maxWidth: .infinity)
             .padding(20)
         }
         .accessibilityIdentifier("friends-welcome")
+        // 残存匿名データありの復元は、上書き前に確認を挟む (Codex#3)。
+        .confirmationDialog(
+            "この端末のデータが置き換わることがあります",
+            isPresented: $isConfirmingRestore,
+            titleVisibility: .visible
+        ) {
+            Button("Apple で復元する", role: .destructive) {
+                Task { await performAppleRestore() }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
+        }
+    }
+
+    /// appleLinkEnabled のときだけ匿名 CTA を「この端末で始める」に改称する。
+    private var connectButtonLabel: String {
+        SupabaseConfig.appleLinkEnabled ? "この端末で始める" : "友達とつながる"
+    }
+
+    /// welcome の復元入口。以前 Apple 連携した人が新端末/再インストールで友達/コードを取り戻す。
+    /// 公式 Sign in with Apple ボタンを使う (独自装飾不可, Codex#F)。
+    @ViewBuilder
+    private var appleRestoreSection: some View {
+        VStack(spacing: 8) {
+            Text("以前 Apple で連携した方")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            if isLinkingAccount {
+                ProgressView()
+                    .frame(height: 46)
+            } else {
+                AppleIDButton(type: .signIn, style: colorScheme == .dark ? .white : .black) {
+                    restoreWithApple()
+                }
+                .frame(height: 46)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("friends-restore-apple")
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    /// 復元入口のタップ起点。残存匿名データがあれば確認を挟み、無ければ即実行する。
+    private func restoreWithApple() {
+        guard !isLinkingAccount else { return }
+        isLinkingAccount = true
+        Task {
+            let hasData = await friendsStore.anonymousSessionHasData()
+            isLinkingAccount = false
+            if hasData {
+                isConfirmingRestore = true
+            } else {
+                await performAppleRestore()
+            }
+        }
+    }
+
+    /// Apple 認可 → 復元を実行する。成功すると profile が入り signedInBody に着地する。
+    private func performAppleRestore() async {
+        guard !isLinkingAccount else { return }
+        isLinkingAccount = true
+        defer { isLinkingAccount = false }
+        do {
+            friendsStore.clearError()
+            let cred = try await appleCoordinator.requestIdToken()
+            switch await friendsStore.restoreWithApple(idToken: cred.idToken, nonce: cred.nonce) {
+            case .restored:
+                handlePendingFriendCode()
+            case .created:
+                // 既存データ無しの新規アカウント (signIn 既定名 "あなた")。Apple から名前を
+                // 得られたら反映する。updateDisplayName 側で同名なら no-op (Codex)。
+                if let name = cred.fullName {
+                    await friendsStore.updateDisplayName(name)
+                }
+                handlePendingFriendCode()
+            case .failed(let message):
+                friendsStore.lastError = message
+            }
+        } catch AccountLinkError.cancelled {
+            // 何もしない (welcome に留まる)。
+        } catch {
+            friendsStore.lastError = AccountLinkError.failed.errorDescription
+        }
     }
 
     /// 「このアプリを友達にシェア」セクション。SwiftUI 標準の `ShareLink` で

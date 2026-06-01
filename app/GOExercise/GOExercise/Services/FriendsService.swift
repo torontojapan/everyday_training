@@ -39,6 +39,12 @@ protocol FriendsService: AnyObject {
     func linkApple(idToken: String, nonce: String) async throws
     /// 衝突時の「既存アカウントに切替」。現匿名データは破棄され、Apple 側の既存アカウントに入る。
     func switchToAppleAccount(idToken: String, nonce: String) async throws
+    /// 新端末/再インストール時の「Apple で復元」。既存プロフィールがあれば `.restored`、
+    /// 無ければ新規作成して `.created`。welcome の復元入口から呼ぶ。
+    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome
+    /// 復元/切替の前に、現在の匿名セッションに失われると困るデータ(友達)があるか。
+    /// 上書き確認ダイアログを出すかの判定に使う。
+    func anonymousSessionHasData() async -> Bool
 }
 
 extension FriendsService {
@@ -53,6 +59,10 @@ extension FriendsService {
     func switchToAppleAccount(idToken: String, nonce: String) async throws {
         throw AccountLinkError.providerUnavailable
     }
+    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+        throw AccountLinkError.providerUnavailable
+    }
+    func anonymousSessionHasData() async -> Bool { false }
 }
 
 enum CheerKind: String, CaseIterable, Sendable {
@@ -119,6 +129,11 @@ final class FriendsStore {
     private(set) var cheeringCodes: Set<String> = []
     /// refresh の再入ガード。
     private var isRefreshing = false
+    /// identity (サインイン中の uid) の世代トークン。サインアウト/復元/切替で +1 する。
+    /// 進行中の `refresh()` が await から戻った時に世代が変わっていたら結果を破棄し、
+    /// 旧アカウントの友達/申請を新プロフィール上へ書き込まない (identity 切替の stale 競合防止, Codex)。
+    private var identityGeneration = 0
+    private func bumpIdentity() { identityGeneration &+= 1 }
     /// ensureSignedIn の再入ガード (.task / deep link / 再試行が重なる多重サインイン防止, Codex)。
     /// View 側は lazy 化のため「未サインイン welcome / サインイン中 spinner」を出し分ける
     /// のに参照する (`private(set)`)。
@@ -185,12 +200,67 @@ final class FriendsStore {
             try await service.switchToAppleAccount(idToken: idToken, nonce: nonce)
             profile = service.myProfile
             backupStatus = service.backupStatus
+            // identity 境界: 世代を進めて進行中の旧 refresh を無効化し、旧アカウントの
+            // 友達/申請を持ち越さない (refresh 失敗/競合時の stale 防止, Codex)。
+            bumpIdentity()
+            friends = []
+            requests = []
             await refresh()
             return true
         } catch {
+            syncIdentityAfterFailure()
             lastError = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription
             return false
         }
+    }
+
+    /// Apple 復元の結果。`failed` はやさしい固定文を保持し UI にそのまま出す。
+    enum AppleRestoreResult: Equatable {
+        case restored   // 既存アカウントの友達/コードが戻った
+        case created    // 既存データ無し → 新規アカウントを作成した
+        case failed(String)
+    }
+
+    /// welcome の復元入口: Apple で既存アカウントを復元する。成功で profile/友達を反映し
+    /// signedInBody に着地する。`restored`/`created` を区別して UI のメッセージを出し分ける。
+    func restoreWithApple(idToken: String, nonce: String) async -> AppleRestoreResult {
+        do {
+            let outcome = try await service.restoreWithApple(idToken: idToken, nonce: nonce)
+            profile = service.myProfile
+            backupStatus = service.backupStatus
+            // identity 境界: 世代を進めて進行中の旧 refresh を無効化し、旧アカウントの友達/申請を
+            // 持ち越さない (refresh 失敗/競合時の stale 防止, Codex)。
+            bumpIdentity()
+            friends = []
+            requests = []
+            await refresh()
+            return outcome == .restored ? .restored : .created
+        } catch {
+            syncIdentityAfterFailure()
+            let message = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription!
+            lastError = message
+            return .failed(message)
+        }
+    }
+
+    /// 復元/切替の前に、現在の匿名セッションに失われると困るデータ(友達)があるか。
+    func anonymousSessionHasData() async -> Bool {
+        await service.anonymousSessionHasData()
+    }
+
+    /// 連携(復元/切替)失敗後にサービスの実状態へ同期する。`signInWithIdToken` 成立後に
+    /// profile ロードが失敗した場合、サービスは session を巻き戻し `myProfile` を nil 化している
+    /// = identity が実際に動いている。その時だけ identity 境界を張り、進行中の旧 refresh を
+    /// 無効化し、旧アカウントの友達/申請を残さない。認可前に失敗した場合 (backend 不可等) は
+    /// identity 不変なので、サインイン済みユーザーの友達リストを誤って消さない (Codex)。
+    private func syncIdentityAfterFailure() {
+        let identityChanged = profile?.friendCode != service.myProfile?.friendCode
+        profile = service.myProfile
+        backupStatus = service.backupStatus
+        guard identityChanged else { return }
+        bumpIdentity()
+        friends = []
+        requests = []
     }
 
     /// 自動サインイン時の既定表示名。これと一致する間だけ「初回の表示名入力」を促す。
@@ -227,6 +297,7 @@ final class FriendsStore {
 
     func signOut() async {
         await service.signOut()
+        bumpIdentity()   // 進行中の refresh が旧アカウントの結果を書き戻すのを防ぐ (Codex)
         profile = nil
         friends = []
         requests = []
@@ -234,16 +305,29 @@ final class FriendsStore {
     }
 
     func refresh() async {
-        guard !isRefreshing else { return }   // 再入ガード (Codex: await前に立てる)
+        guard !isRefreshing else { return }   // 再入ガード: 通常の重複はドロップ (await前に立てる, Codex)
         isRefreshing = true
         isLoading = !hasLoadedOnce             // 初回のみスピナー
         defer { isRefreshing = false; isLoading = false; hasLoadedOnce = true }
-        do {
-            friends = try await service.refreshFriends()
-            requests = try await service.pendingRequests()
-            lastError = nil
-        } catch {
-            lastError = error.localizedDescription
+        var gen = identityGeneration           // この反復が属する identity 世代
+        while true {
+            do {
+                let loadedFriends = try await service.refreshFriends()
+                let loadedRequests = try await service.pendingRequests()
+                // await 中に identity が切替わっていたら旧アカウントの結果を捨てる (Codex)。
+                if gen == identityGeneration {
+                    friends = loadedFriends
+                    requests = loadedRequests
+                    lastError = nil
+                }
+            } catch {
+                if gen == identityGeneration { lastError = error.localizedDescription }
+            }
+            // 走行中に identity が変わっていたら、新 identity で**もう一度だけ**ロードして
+            // 切替/復元後の新アカウントの友達を確実に反映する。サインアウト (profile==nil) は
+            // 再ロードしない。通常の重複 refresh は冒頭の再入ガードでドロップ済み (Codex)。
+            guard gen != identityGeneration, profile != nil else { break }
+            gen = identityGeneration
         }
     }
 

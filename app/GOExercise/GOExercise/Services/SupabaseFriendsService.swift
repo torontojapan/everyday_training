@@ -67,6 +67,41 @@ final class SupabaseFriendsService: FriendsService {
 
     // MARK: - アカウント連携 (Phase 2)
 
+    /// 復元前チェック: 現在の**匿名**セッションに、失われると困るデータ(友達)があるか。
+    /// welcome から復元/切替する際、上書き前に確認ダイアログを出すか判定する (Codex#3)。
+    /// 連携済み(永続)セッションや未サインインは対象外 = false (確認不要)。
+    func anonymousSessionHasData() async -> Bool {
+        guard let client else { return false }
+        // セッション読取は「無セッション」と「一時障害」を区別する (Codex)。
+        // sessionMissing = 確実に無セッション → 失われるデータ無し = false。
+        // それ以外の読取エラーは不確実なので安全側 = true (確認ダイアログを出す)。
+        let session: Session
+        do {
+            session = try await client.auth.session
+        } catch AuthError.sessionMissing {
+            return false
+        } catch {
+            return true
+        }
+        // 連携済み(非匿名)は復元/切替で失われるデータが無い = 確認不要。
+        guard session.user.isAnonymous else { return false }
+        let uid = session.user.id.uuidString
+        // 全カラム select: Row 型は必須カラムを持つので部分 select だと decode が throw する (Codex)。
+        // 友達(承認済み)に加え、保留中の申請も「失われると困るデータ」として扱う。
+        do {
+            let edges: [FriendshipRow] = try await client.from("friendships")
+                .select().or("user_a.eq.\(uid),user_b.eq.\(uid)").limit(1).execute().value
+            if !edges.isEmpty { return true }
+            let reqs: [RequestRow] = try await client.from("friend_requests")
+                .select().or("from_user.eq.\(uid),to_user.eq.\(uid)").limit(1).execute().value
+            return !reqs.isEmpty
+        } catch {
+            // データ有無を判定できない(通信失敗等)ときは安全側 = 確認ダイアログを出す
+            // (fail closed: 上書き前に必ずユーザーへ提示, Codex)。
+            return true
+        }
+    }
+
     func refreshBackupStatus() async {
         guard let client else { backupStatus = .anonymous; return }
         guard let session = try? await client.auth.session else { backupStatus = .anonymous; return }
@@ -89,25 +124,68 @@ final class SupabaseFriendsService: FriendsService {
 
     func switchToAppleAccount(idToken: String, nonce: String) async throws {
         do {
-            let client = try requireClient()
-            // 既存アカウントにサインイン (現匿名 uid は破棄 = 参照不能に。孤児は cron で回収)。
-            _ = try await client.auth.signInWithIdToken(
-                credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
-            )
-            // 切替先アカウントの profile を確実にロード/生成する。signIn は upsert で
-            // 既存プロフィール(表示名/コード)を保持するので、既存ユーザーはそのまま復元される。
-            myProfile = nil
-            defaults.removeObject(forKey: Self.myProfileKey)
-            try await signIn(displayName: Self.fallbackDisplayName, username: Self.fallbackUsername())
-            await refreshBackupStatus()
+            _ = try await signInWithApple(idToken: idToken, nonce: nonce)
         } catch {
             throw Self.mapLinkError(error)
         }
     }
 
-    private static let fallbackDisplayName = "ねこの友"
-    private static func fallbackUsername() -> String {
-        "neko" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6).lowercased()
+    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+        do {
+            // 新端末/再インストール: Apple 既存アカウントにサインインしプロフィールをロード。
+            // 既存行があれば restored、無ければ新規作成で created。
+            let hadProfile = try await signInWithApple(idToken: idToken, nonce: nonce)
+            return hadProfile ? .restored : .created
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    /// Apple id_token で既存(または新規)アカウントにサインインし、プロフィールをロードする共通処理。
+    /// `switchToAppleAccount` (衝突切替) と `restoreWithApple` (復元) が共用する。
+    ///
+    /// **重要 (Codex#1)**: profile ロードは `signIn(displayName:"", username:"")` で**空文字**を渡す。
+    /// `signIn` の `displayName.isEmpty ? existing : input` 分岐により、空文字は既存アカウントの
+    /// `display_name`/`username` を**保持**する (fallback 名を渡すと既存表示名を上書きしてしまう)。
+    ///
+    /// **post-auth 失敗時 (Codex)**: `signInWithIdToken` 成立後に profile ロードが失敗すると、
+    /// セッションだけ Apple 側へ切替わった半端な状態が残り、その後の `ensureSignedIn`(自動既定名)が
+    /// Apple 既存プロフィールを上書きしうる。失敗時は `signOut` で切替を巻き戻し、クリーンな
+    /// サインアウト状態へ戻す (非匿名セッションの signOut はクラウド削除しない = データは無事)。
+    ///
+    /// - Returns: サインイン先 uid に**既存プロフィール行があったか** (restored / created の判定用)。
+    @discardableResult
+    private func signInWithApple(idToken: String, nonce: String) async throws -> Bool {
+        let client = try requireClient()
+        // 既存アカウントにサインイン (現匿名 uid は破棄 = 参照不能に。孤児は cron で回収)。
+        _ = try await client.auth.signInWithIdToken(
+            credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
+        )
+        do {
+            // ローカルキャッシュは切替先のものに置き換える。
+            myProfile = nil
+            defaults.removeObject(forKey: Self.myProfileKey)
+            // signIn の upsert より前に既存有無を確定する (upsert 後では必ず存在してしまうため)。
+            // 全カラム select する: ProfileRow は friend_code 等が必須なので部分 select だと
+            // decode が throw する (Codex)。
+            let session = try await client.auth.session
+            let existing: [ProfileRow] = try await client.from("profiles")
+                .select().eq("user_id", value: session.user.id.uuidString).limit(1).execute().value
+            let hadProfile = !existing.isEmpty
+            // 空文字 = 既存保持。新規(既存なし)時のみ signIn 内の既定値/コード生成で作成される。
+            try await signIn(displayName: "", username: "")
+            await refreshBackupStatus()
+            return hadProfile
+        } catch {
+            // 認可は成立したが profile ロード失敗。切替を巻き戻して安全側へ (上記 doc 参照, Codex)。
+            // scope: .local — このデバイスのセッションのみ破棄する。既定の .global は Apple
+            // アカウントの全デバイスの refresh token を失効させてしまうため使わない (Codex)。
+            try? await client.auth.signOut(scope: .local)
+            myProfile = nil
+            defaults.removeObject(forKey: Self.myProfileKey)
+            await refreshBackupStatus()
+            throw error
+        }
     }
 
     /// Supabase の AuthError / バックエンド不可を UI 向けの [[AccountLinkError]] に写像する。
@@ -132,8 +210,14 @@ final class SupabaseFriendsService: FriendsService {
     func signIn(displayName rawDisplayName: String, username rawUsername: String) async throws {
         let client = try requireClient()
         let uid = try await ensureUID()
-        let displayName = rawDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let username = rawUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 非匿名(連携済み)セッションは既存の実アカウント。自動既定名/生成 username で
+        // display_name/username を上書きしないよう空文字に倒して既存保持させる。これにより
+        // stale-session (認可成立済みだが profile 未キャッシュ、rollback signOut 失敗等) で
+        // 「この端末で始める」を押しても Apple プロフィールを潰さない (Codex)。
+        // gate OFF 時は linking 無効=常に匿名セッションなので挙動不変 = バイト互換。
+        let isAnonymousSession = (try? await client.auth.session)?.user.isAnonymous ?? true
+        let displayName = isAnonymousSession ? rawDisplayName.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        let username = isAnonymousSession ? rawUsername.trimmingCharacters(in: .whitespacesAndNewlines) : ""
 
         // 既存プロフィール (同一 uid) があれば stats を引き継ぐ。
         let existing: [ProfileRow] = try await client.from("profiles")
@@ -191,8 +275,10 @@ final class SupabaseFriendsService: FriendsService {
     private func generateUniqueCode(client: SupabaseClient) async throws -> String {
         for _ in 0..<8 {
             let code = FriendCode.generate()
+            // 全カラム select: ProfileRow は user_id 等が必須なので部分 select だと decode が
+            // throw する (Codex)。存在チェックのみだが既存 Row 型に合わせる。
             let hit: [ProfileRow] = try await client.from("profiles")
-                .select("friend_code").eq("friend_code", value: code).limit(1).execute().value
+                .select().eq("friend_code", value: code).limit(1).execute().value
             if hit.isEmpty { return code }
         }
         return FriendCode.generate()
@@ -275,9 +361,9 @@ final class SupabaseFriendsService: FriendsService {
     func acceptRequest(_ request: FriendRequest) async throws {
         let client = try requireClient()
         let uid = try await ensureUID()
-        // 申請者 uid を friend_code から解決。
+        // 申請者 uid を friend_code から解決 (全カラム select: 部分 select は decode throw, Codex)。
         let fromRows: [ProfileRow] = try await client.from("profiles")
-            .select("user_id").eq("friend_code", value: request.fromProfile.friendCode).limit(1).execute().value
+            .select().eq("friend_code", value: request.fromProfile.friendCode).limit(1).execute().value
         guard let fromID = fromRows.first?.user_id else { throw FriendsServiceError.codeNotFound }
         try await upsertFriendship(client: client, a: uid.uuidString, b: fromID)
         try? await client.from("friend_requests").delete().eq("id", value: request.id).execute()
@@ -293,7 +379,7 @@ final class SupabaseFriendsService: FriendsService {
         let client = try requireClient()
         let uid = try await ensureUID()
         let rows: [ProfileRow] = try await client.from("profiles")
-            .select("user_id").eq("friend_code", value: profile.friendCode).limit(1).execute().value
+            .select().eq("friend_code", value: profile.friendCode).limit(1).execute().value
         guard let otherID = rows.first?.user_id else { return }
         let (a, b) = orderedPair(uid.uuidString, otherID)
         try await client.from("friendships").delete()
@@ -314,7 +400,7 @@ final class SupabaseFriendsService: FriendsService {
         let client = try requireClient()
         let uid = try await ensureUID()
         let rows: [ProfileRow] = try await client.from("profiles")
-            .select("user_id").eq("friend_code", value: friendCode).limit(1).execute().value
+            .select().eq("friend_code", value: friendCode).limit(1).execute().value
         guard let toID = rows.first?.user_id else { throw FriendsServiceError.codeNotFound }
         try await client.from("cheers")
             .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue))
