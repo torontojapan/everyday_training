@@ -185,10 +185,45 @@ lazy化を先に入れることで、連携が来るまでの間に識別子を�
 
 ---
 
-## 次セッション計画: 復元入口 (Codex 計画検証済 = 要修正反映)
+## 復元入口: ✅ 完了 (commit `f28b6e4`, 2026-06-02)
 
-最終更新: 2026-06-01。Phase 2 Apple 連携 (commit `e1fc98c`) の **残り半分 = 復元入口**。
-Codex 壁打ち(計画段階)で判定「要修正」。以下を反映して実装する。
+Phase 2 Apple 連携 (commit `e1fc98c`) の **残り半分 = 復元入口**を実装済み。
+appleLinkEnabled(既定 false)ゲート、全 211 ユニット + 5 FriendsFlow UI テスト緑、
+**Codex(xhigh) 改善ループ 9 周で `patch is correct` 収束**。
+
+### 実装サマリ (実際の落とし所)
+- 既存バグ修正: `switchToAppleAccount` の fallback 名上書き → 空文字 + `signInWithApple` 共用ヘルパー。
+- 公開 API 分離: `linkApple` / `restoreWithApple`(restored/created/failed)/ `switchToAppleAccount`。
+- welcome 2CTA(「この端末で始める」/ 公式 `ASAuthorizationAppleIDButton` ラッパー `AppleIDButton`)。
+- 残存匿名データありは確認ダイアログ(`anonymousSessionHasData`, fail-closed + 保留申請も対象)。
+- **Codex 9 周で潰した追加バグ**(下記いずれも gated OFF で未出荷だったが backend 稼働で顕在化する潜在バグ):
+  - 部分 `select("col")` の decode throw(`ProfileRow`/`FriendshipRow` の必須カラム)→ 全カラム select に是正。
+    復元 probe に加え既存 5 箇所(`generateUniqueCode`/`acceptRequest`/`removeFriend`/`sendCheer`)も修正。
+  - `signIn`: 非匿名(連携済み)セッションは既存プロフィールを保持(自動既定名で上書きしない)。gate OFF は不変。
+  - identity 切替の stale 競合 → 世代トークン(`identityGeneration`)で in-flight refresh を無効化 + 切替後再ロード。
+  - post-auth 失敗 → `signOut(scope:.local)` で巻き戻し(全端末失効を回避)、identity 変化時のみ境界クリア。
+
+### ⚠️ まだ未対応(出荷前に必須)
+- **連携済み(永続)アカウントの削除導線** (審査 Guideline 5.1.1(v))。現状 signOut は匿名のみクラウド削除。
+- **Google 連携**(`linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック)。
+- ユーザー作業: Supabase の Apple provider 設定 / Manual Linking ON / Sign in with Apple capability →
+  `FriendsAppleLinkEnabled=true` で実機手動検証(機種変復旧 E2E)。
+
+---
+
+## 次セッション計画: Android 実装計画書 (タスク#7)
+
+最終更新: 2026-06-02。iOS 友達機能(②③実装済・①Apple連携+復元入口完了)を踏まえ、
+**Android アプリ(全機能ゼロから / Kotlin + Compose)の実装計画書を作成**する。
+- 計画書を書く → Codex レビュー → **着工の号砲はユーザー承認後**(数ヶ月規模の新規開発)。
+- Supabase backend は中立設計済み(`docs/friends_backend_crossplatform.md`)= Android も同じ
+  匿名認証 + PostgREST + Apple/Google 連携を再利用する前提。
+
+---
+
+## 旧: 次セッション計画 (復元入口) — 実装済みのため参考
+
+Codex 壁打ち(計画段階)で判定「要修正」。以下を反映して実装した(上記サマリ参照)。
 
 ### ⚠️ 先に直す既存バグ (commit `e1fc98c` 内, gated OFF で未出荷)
 - `SupabaseFriendsService.switchToAppleAccount` が `signIn(displayName: fallback, username: fallback)`
