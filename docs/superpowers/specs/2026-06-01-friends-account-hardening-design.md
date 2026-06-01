@@ -182,3 +182,43 @@ lazy化を先に入れることで、連携が来るまでの間に識別子を�
 ### Phase 2 (v1.1)
 - 任意の Apple/Google 連携で機種変・再インストール復旧が成立(uid/friendCode/友達 保持)。
 - 連携は壁にならず dismiss 可。衝突はマージせず二択で安全に処理。全テスト green・Codex 承認。
+
+---
+
+## 次セッション計画: 復元入口 (Codex 計画検証済 = 要修正反映)
+
+最終更新: 2026-06-01。Phase 2 Apple 連携 (commit `e1fc98c`) の **残り半分 = 復元入口**。
+Codex 壁打ち(計画段階)で判定「要修正」。以下を反映して実装する。
+
+### ⚠️ 先に直す既存バグ (commit `e1fc98c` 内, gated OFF で未出荷)
+- `SupabaseFriendsService.switchToAppleAccount` が `signIn(displayName: fallback, username: fallback)`
+  を呼ぶが、`signIn` は**非空入力を優先**するため、復元/切替時に既存アカウントの
+  `display_name`/`username` を「ねこの友」等の fallback で**上書きしてしまう**(Codex#1)。
+  → 復元/切替の profile ロードは **空文字を渡す**(`signIn(displayName:"", username:"")`)。
+  `signIn` の `displayName.isEmpty ? existing : displayName` 分岐で**既存を保持**、無い時のみ既定。
+
+### 実装方針 (修正版)
+1. **公開 API は統合しない**(Codex#B): `link`(昇格) / `restore`(復元) / `switch`(衝突切替) は副作用が
+   違うので分離。内部ヘルパー(`signInWithApple(idToken:nonce:loadProfileOnly:)`)は共用可。
+   - `restoreWithApple` は結果を明示: `restored`(既存ありロード) / `created`(新規) / `failed`。
+     `profiles` を uid で引いて既存有無を判定し返す。
+2. **welcome UI**: appleLinkEnabled 時のみ 2 CTA。
+   - 主: 「この端末で始める」(= 現「友達とつながる」匿名)
+   - 副: 「Apple で復元（以前連携した方）」→ AppleSignInCoordinator → restoreWithApple
+   - **公式 Sign in with Apple ボタン**(`ASAuthorizationAppleIDButton` 相当)を使う(独自装飾不可, Codex#F)。
+   - isLinkingAccount 連打ガード。.cancelled 無視・失敗 lastError。成功で signedInBody 着地。
+3. **匿名残存セッションにデータがある状態で復元/切替する場合は確認ダイアログ必須**(Codex#3/A-ii)。
+   welcome は store.profile==nil だが Keychain に旧匿名セッションが残る不整合あり得る。
+   復元前に「現在の端末のデータが失われる可能性」を提示するか、匿名側に friends があれば警告。
+4. **gate OFF をテストで固定**(Codex#E): appleLinkEnabled=false 時にボタン非表示 + 経路未実行。
+5. ユニット: 復元 success(restored)/新規(created)/失敗/ゲートOFF。既存上書きしないことの検証。
+6. ビルド+全ユニット緑 → Codex 改善ループで correct → コミット&プッシュ。
+
+### 審査メモ (Codex#F)
+- Guideline **5.1.1(v)**: アカウント作成を提供するなら**アプリ内アカウント削除導線**が必要。
+  現状 signOut は匿名のみクラウド削除。**連携済み(永続)アカウントの削除導線**を別途用意すること。
+- Guideline 4.8: 将来 Google を足すなら同等の第三者ログイン要件を満たす。
+
+### この後 (別タスク)
+- Google 連携(`linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック)。
+- **Android アプリ(全機能ゼロから / Kotlin+Compose)** = 実装計画書を作成しCodexレビューしてから着工。
