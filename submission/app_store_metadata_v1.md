@@ -3,7 +3,7 @@
 > **これが v1.0 提出の正本**です。App Store Connect の各フィールドにそのまま貼れます。
 > v1 では友達機能 (`AppFeatureFlags.friendsEnabled = false`) を**非表示で出荷**するため、
 > 友達に関する記述・スクショ・データ収集申告は**すべて除外**しています。
-> 友達を解禁する版 (v1.1 予定) のコピーは `app_store_metadata.md` に保存済み。
+> 友達を解禁する版 (v1.1) の正本は `app_store_metadata_v1.1.md`。(旧 `app_store_metadata.md` は非推奨アーカイブ)
 >
 > 最終更新: 2026-05-31
 
@@ -173,13 +173,13 @@ v1 は友達機能を非表示で出荷し、解析 SDK も一切組み込んで
 ### 根拠
 
 - 運動記録・体重・体調・設定はすべて端末内 (SwiftData, ローカルのみ) に保存。
-- ネットワーク送信を伴う機能 (友達 CloudKit) は v1 では無効・非表示 (`friendsEnabled = false`)。
+- ネットワーク送信を伴う機能 (友達 = Supabase 匿名認証) は v1 では無効・非表示 (`friendsEnabled = false`)。
 - 解析/クラッシュ SDK なし (TelemetryDeck は未有効化 = 送信ゼロ)。
 - 広告なし・トラッキングなし (`Used to Track You: No`)。
 - `PrivacyInfo.xcprivacy` 同梱済 (UserDefaults=CA92.1 / 収集なし / 追跡なし)。
 
-> ⚠️ 友達 (CloudKit) を解禁する版 (v1.1) では、User Content / Identifiers の収集申告が必要になる。
-> その際は `app_store_metadata.md` のプライバシー節を参照して更新すること。
+> ⚠️ 友達 (Supabase 匿名認証) を解禁する版 (v1.1) では、User Content / Identifiers の収集申告が必要になる。
+> その際は `app_store_metadata_v1.1.md` のプライバシー節を参照すること。
 
 ---
 
