@@ -95,13 +95,15 @@ lazy化を先に入れることで、連携が来るまでの間に識別子を�
 - スクショ/デモ用の `--mock-*` 自動オープン経路は、開く前に `ensureSignedIn()` を通す(従来は
   タブ表示で signed-in だった前提が崩れるため)。デモのリッチ表示は維持。
 
-#### 1-C. CAPTCHA (Supabase 設定) — **クライアント対応とセットでのみ有効化**
-- Authentication → 匿名サインインに **Cloudflare Turnstile(CAPTCHA)** を用意。
-  ただし ON にするとサーバが captcha token を必須化するため、**先にアプリ側で Turnstile
-  token を取得し `signInAnonymously` に渡す実装が必要**(未対応のまま ON にすると
-  「友達とつながる」/deep link のサインインが実行時に失敗する, Codex P3)。
-- `supabase/schema.sql` のセットアップ手順に「クライアント対応前は ON にしない」を明記済。
-  → token plumbing(クライアント)は Phase 1 残タスク。それまで CAPTCHA は OFF 運用。
+#### 1-C. CAPTCHA (Cloudflare Turnstile) — **クライアント実装済 (config-gated)**
+- `CaptchaTokenProviding` 抽象 + `NoCaptchaTokenProvider`(no-op) + `TurnstileCaptchaTokenProvider`
+  (WKWebView でチャレンジ実行)。`SupabaseFriendsService.ensureUID()` が新規匿名サインイン時のみ
+  `obtainTokenIfNeeded()` → `signInAnonymously(captchaToken:)` に渡す。
+- **config-gated**: `SupabaseConfig.turnstileSiteKey`(Secrets.xcconfig `TURNSTILE_SITE_KEY` →
+  Info.plist)が空なら CAPTCHA 無効 = `captchaToken: nil`(従来挙動と**バイト互換**)。
+- 有効化手順(site key 設定 + Turnstile 許可ドメイン登録 + Supabase 側 ON を同時に)は
+  `supabase/schema.sql` 2-b に明記。ユニット検証済(gating/no-op/エラー文言)。
+  ※ 実 Turnstile webview 経路は実機 + 実キーでの手動確認が残(CI/シミュレータ未到達)。
 
 #### 1-D. 孤児削除 cron (Supabase pg_cron + SQL)
 - `supabase/cron/cleanup_orphans.sql`: **friendship 0件 かつ friend_requests 0件(送受信)

@@ -17,4 +17,18 @@ enum SupabaseConfig {
         return URL(string: "https://\(host)")
     }
     static var isConfigured: Bool { url != nil && !anonKey.isEmpty }
+
+    /// Cloudflare Turnstile の site key。Secrets.xcconfig (`TURNSTILE_SITE_KEY`) → Info.plist
+    /// (`TurnstileSiteKey`) 経由で注入。空の間は CAPTCHA 無効 = 匿名サインインは
+    /// captchaToken なし (従来挙動)。値が入った時のみ [[TurnstileCaptchaTokenProvider]] を使う。
+    static var turnstileSiteKey: String {
+        (Bundle.main.object(forInfoDictionaryKey: "TurnstileSiteKey") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    /// site key が設定されているときだけ CAPTCHA を要求する。
+    static var isCaptchaEnabled: Bool { isCaptchaEnabled(siteKey: turnstileSiteKey) }
+    /// テスト可能な純粋判定 (Info.plist に依存しない)。
+    static func isCaptchaEnabled(siteKey: String) -> Bool {
+        !siteKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }

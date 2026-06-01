@@ -5,12 +5,16 @@
 -- 1. https://supabase.com で新規プロジェクト作成 (無料枠でOK / リージョンは Tokyo 推奨)
 -- 2. Authentication → Providers → "Anonymous sign-ins" を ON
 --    (ログイン不要UXを保ちつつ auth.uid() で RLS を効かせるため)
--- 2-b. 【クライアント対応とセットでのみ ON】Authentication → Attack Protection →
---    "Enable CAPTCHA protection" (Cloudflare Turnstile)。匿名サインインの量産(濫用)を
---    遮断する (懸念②)。※ ON にするとサーバが captcha token を必須化するため、先に
---    アプリ側で Turnstile token を取得し signInAnonymously に渡す実装が必要。
---    クライアント未対応のまま ON にすると「友達とつながる」/deep link の
---    サインインが実行時に失敗する (Codex P3)。
+-- 2-b. CAPTCHA (Cloudflare Turnstile) で匿名サインインの量産(濫用)を遮断する (懸念②)。
+--    アプリ側は token 送信に対応済 (config-gated。TurnstileCaptchaTokenProvider /
+--    signInAnonymously(captchaToken:))。有効化は以下を**同時に**行う (順序を誤ると
+--    サインインが実行時に失敗する):
+--      (1) Cloudflare で Turnstile site key を発行し、許可ドメインに WKWebView の
+--          baseURL ホスト (既定 goexercise.app) を登録。
+--      (2) アプリの Secrets.xcconfig に `TURNSTILE_SITE_KEY = <site key>` を設定して配信。
+--          (空の間は CAPTCHA 無効 = captchaToken なしの従来挙動)
+--      (3) Supabase: Authentication → Attack Protection → "Enable CAPTCHA protection" を ON。
+--    ※ (3) を (2) の配信より先に ON にすると、未対応ビルドのサインインが失敗する。
 -- 3. SQL Editor にこのファイル全体を貼って Run
 -- 3-b. 孤児(未使用)匿名アカウントの定期削除: supabase/cron/cleanup_orphans.sql も Run
 --    (lazy 化後の残り孤児を日次で掃除。懸念②対策)。

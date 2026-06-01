@@ -58,6 +58,9 @@ targets:
         # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
         SupabaseHost: "$(SUPABASE_HOST)"
         SupabaseAnonKey: "$(SUPABASE_ANON_KEY)"
+        # CAPTCHA (Cloudflare Turnstile)。空の間は CAPTCHA 無効 (匿名サインインは
+        # captchaToken なし = 従来挙動)。値を入れると Turnstile チャレンジを実行。
+        TurnstileSiteKey: "$(TURNSTILE_SITE_KEY)"
         CFBundleURLTypes:
           - CFBundleURLName: com.goexercise.app
             CFBundleURLSchemes:

@@ -16,13 +16,15 @@ final class SupabaseFriendsService: FriendsService {
 
     private let client: SupabaseClient?
     private let defaults: UserDefaults
+    private let captchaProvider: any CaptchaTokenProviding
     private let logger = Logger(subsystem: "com.goexercise.app", category: "SupabaseFriends")
     private static let myProfileKey = "supabase.friends.myProfile.v1"
 
     private(set) var myProfile: FriendProfile?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, captchaProvider: (any CaptchaTokenProviding)? = nil) {
         self.defaults = defaults
+        self.captchaProvider = captchaProvider ?? Self.makeCaptchaProvider()
         if let url = SupabaseConfig.url, SupabaseConfig.isConfigured {
             self.client = SupabaseClient(supabaseURL: url, supabaseKey: SupabaseConfig.anonKey)
         } else {
@@ -34,6 +36,16 @@ final class SupabaseFriendsService: FriendsService {
         }
     }
 
+    /// config-gated: site key 未設定なら no-op (captchaToken なし = 従来挙動)。
+    private static func makeCaptchaProvider() -> any CaptchaTokenProviding {
+        #if canImport(WebKit) && os(iOS)
+        if SupabaseConfig.isCaptchaEnabled {
+            return TurnstileCaptchaTokenProvider(siteKey: SupabaseConfig.turnstileSiteKey)
+        }
+        #endif
+        return NoCaptchaTokenProvider()
+    }
+
     private var myCode: String? { myProfile?.friendCode }
 
     // MARK: - Auth
@@ -41,7 +53,9 @@ final class SupabaseFriendsService: FriendsService {
     private func ensureUID() async throws -> UUID {
         guard let client else { throw FriendsServiceError.backendUnavailable }
         if let existing = try? await client.auth.session { return existing.user.id }
-        let session = try await client.auth.signInAnonymously()
+        // 新規匿名サインイン時のみ CAPTCHA トークンを取得 (無効なら nil = 従来挙動)。
+        let captchaToken = try await captchaProvider.obtainTokenIfNeeded()
+        let session = try await client.auth.signInAnonymously(captchaToken: captchaToken)
         return session.user.id
     }
 
