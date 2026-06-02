@@ -88,6 +88,15 @@ final class MockFriendsService: FriendsService {
         defaults.removeObject(forKey: Self.profileKey)
     }
 
+    /// アカウント削除 (審査 5.1.1(v))。モックは in-memory 状態を全消去する (実 BE のデータ消去相当)。
+    func deleteAccount() async throws {
+        myProfile = nil
+        friends.removeAll()
+        requests.removeAll()
+        sentCheers.removeAll()
+        defaults.removeObject(forKey: Self.profileKey)
+    }
+
     func refreshFriends() async throws -> [FriendProfile] {
         guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
         return friends.values.sorted { $0.currentStreak > $1.currentStreak }

@@ -45,6 +45,16 @@ protocol FriendsService: AnyObject {
     /// 復元/切替の前に、現在の匿名セッションに失われると困るデータ(友達)があるか。
     /// 上書き確認ダイアログを出すかの判定に使う。
     func anonymousSessionHasData() async -> Bool
+
+    /// アカウント削除 (審査 Guideline 5.1.1(v): アプリ内のアカウント削除導線)。
+    /// 匿名/連携済み(永続)を問わず、本人 uid の
+    /// `profiles`/`friendships`/`friend_requests`/`cheers` をクラウドから削除し、
+    /// ローカルサインアウトする。`signOut` (匿名のみ削除・連携済みは保持) とは異なり、
+    /// **連携済みアカウントも含めて完全に消す**。
+    /// `auth.users` 行自体の削除は service_role が必要なためクライアントは行わない
+    /// (= 別途 Edge Function。本人のデータが消えれば残る行に PII は無く、cascade で連鎖削除される)。
+    /// 失敗時は throw し、呼び出し側はサインアウトせず再試行可能にする。
+    func deleteAccount() async throws
 }
 
 extension FriendsService {
@@ -63,6 +73,8 @@ extension FriendsService {
         throw AccountLinkError.providerUnavailable
     }
     func anonymousSessionHasData() async -> Bool { false }
+    // 既定 (連携を扱わないスタブ等): 削除導線は実装側で必須。未実装は安全側で throw。
+    func deleteAccount() async throws { throw FriendsServiceError.notSignedIn }
 }
 
 enum CheerKind: String, CaseIterable, Sendable {
@@ -296,12 +308,44 @@ final class FriendsStore {
     }
 
     func signOut() async {
+        // 削除進行中は signOut を弾く (Codex round3)。削除は複数の await を挟むため、
+        // 途中で signOut が割り込むとセッション/ローカル状態が消え、in-flight な削除が
+        // 部分削除のまま失敗 + ユーザーはサインアウト済みという不整合になり、
+        // 「失敗時はサインアウトせず再試行」の契約が壊れる。
+        guard !isDeletingAccount else { return }
         await service.signOut()
         bumpIdentity()   // 進行中の refresh が旧アカウントの結果を書き戻すのを防ぐ (Codex)
         profile = nil
         friends = []
         requests = []
         backupStatus = .anonymous
+    }
+
+    /// 削除進行中フラグ (連打防止 + UI のスピナー/disabled)。
+    private(set) var isDeletingAccount = false
+
+    /// アカウント削除 (審査 5.1.1(v))。本人のクラウドデータを全消去しローカルサインアウトする。
+    /// 成功で welcome (profile==nil) に着地。失敗は `lastError` をセットし**サインアウトしない**
+    /// = 再試行できる (部分削除は冪等なので再実行で完了する)。連携済みアカウントも消える。
+    /// - Returns: 削除に成功したか。
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        guard !isDeletingAccount else { return false }   // 連打ガード (await 前に立てる)
+        isDeletingAccount = true
+        defer { isDeletingAccount = false }
+        do {
+            try await service.deleteAccount()
+            bumpIdentity()   // 進行中の refresh が結果を書き戻すのを防ぐ (signOut と同様)
+            profile = nil
+            friends = []
+            requests = []
+            backupStatus = .anonymous
+            lastError = nil
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
     }
 
     func refresh() async {

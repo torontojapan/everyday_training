@@ -272,6 +272,63 @@ final class SupabaseFriendsService: FriendsService {
         defaults.removeObject(forKey: Self.myProfileKey)
     }
 
+    /// アカウント削除 (審査 5.1.1(v))。匿名/連携済みを問わず本人 uid のデータを全消去する。
+    ///
+    /// **`signOut` との違い**: signOut は「匿名のみ」削除し連携済みは保持する (バックアップを壊さない)。
+    /// 本メソッドはユーザーが明示的に「削除」を選んだ導線専用で、**連携済みも含めて消す**。
+    ///
+    /// **削除範囲**: `cheers`/`friend_requests`/`friendships`/`profiles` を RLS の本人行のみ削除
+    /// (相互行 `friendships` は1行なので相手側からも即座に消える)。`cheers` は schema.sql に
+    /// `cheers_delete` ポリシーを追加して当事者削除を許可済み。
+    ///
+    /// **`auth.users` 行**: anon key では削除不可 (service_role 必須)。本メソッドはデータ消去 +
+    /// ローカルサインアウトまで。auth 行自体の削除/匿名化は Edge Function `delete-account`
+    /// (service_role + `auth.admin.deleteUser`) で別途行う設計 (supabase/functions/delete-account)。
+    /// データが消えていれば残る auth 行に PII は無く、行削除時に各表は cascade で連鎖削除される。
+    ///
+    /// **失敗時**: 途中 (セッション取得 / 各 delete / signOut) で throw した場合はサインアウトせず
+    /// throw を伝播し、UI で再試行できる (各 delete は冪等なので再実行で完了する)。
+    /// 無セッションは `notSignedIn` で throw する (誤った成功報告を避ける, Codex round1)。
+    func deleteAccount() async throws {
+        let client = try requireClient()
+        // ensureUID は呼ばない (削除中に新規匿名セッションを作らない)。
+        // セッションが取れないと anon key では本人データを削除できない。**成功と誤報告しない** —
+        // throw して呼び出し側で profile を保持し再試行できるようにする (Codex round1)。
+        // 早期 return でローカルだけ掃除すると、サーバ行が残ったまま「削除完了」と見え、
+        // かつサインアウトで再試行不能になる。削除導線は signedInBody (profile!=nil =
+        // 過去にサーバ行を作成済) からのみ出るため、無セッションはデータ取りこぼしを意味する。
+        let session: Session
+        do {
+            session = try await client.auth.session
+        } catch {
+            throw FriendsServiceError.notSignedIn
+        }
+        let uid = session.user.id.uuidString
+        // FK は全て auth.users を参照 (表間 FK 無し) のため削除順は任意。冪等。
+        try await client.from("cheers").delete()
+            .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
+        try await client.from("friend_requests").delete()
+            .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
+        try await client.from("friendships").delete()
+            .or("user_a.eq.\(uid),user_b.eq.\(uid)").execute()
+        try await client.from("profiles").delete()
+            .eq("user_id", value: uid).execute()
+        // データ消去成立後に **`.global`** サインアウト。削除では本人の全デバイスの refresh token を
+        // 失効させたい (Codex round2: 別デバイスが生きたセッションでデータを再作成する account
+        // resurrection を防ぐ)。連携済みアカウントが複数端末にあるケースを潰す。
+        // ※ rollback 経路 (signInWithApple の失敗時) は失敗操作なので他端末を巻き込まない .local だが、
+        //   こちらは**意図的な削除**なので全端末失効が正しい。匿名は端末ローカル1セッションのみ=実質同じ。
+        // ※ 残存の access token (既定~1h) が切れるまでの窓と auth.users 行自体の削除は service_role
+        //   が要るため、完全消去は Edge Function `delete-account` (supabase/functions) で行う設計。
+        // **`try?` にしない (Codex round1)**: signOut 失敗を握り潰すと、セッションが残ったまま
+        // 「削除成功」と報告され、次の ensureSignedIn が**削除済み uid のプロフィールを再作成**して
+        // しまう。失敗は throw し、データ削除は冪等なので再試行で収束させる。
+        try await client.auth.signOut(scope: .global)
+        myProfile = nil
+        backupStatus = .anonymous
+        defaults.removeObject(forKey: Self.myProfileKey)
+    }
+
     private func generateUniqueCode(client: SupabaseClient) async throws -> String {
         for _ in 0..<8 {
             let code = FriendCode.generate()

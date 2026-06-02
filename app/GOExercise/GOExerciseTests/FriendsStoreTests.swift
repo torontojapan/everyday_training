@@ -74,6 +74,85 @@ final class FriendsStoreTests: XCTestCase {
         XCTAssertTrue(store.requests.isEmpty)
     }
 
+    // MARK: - deleteAccount (審査 5.1.1(v))
+
+    /// 削除成功で profile/friends/requests/backupStatus がクリアされ welcome に着地する。
+    func testDeleteAccountClearsStateAndSignsOut() async {
+        await store.signIn(displayName: "ジュン", username: "jun88")
+        XCTAssertNotNil(store.profile)
+        XCTAssertFalse(store.friends.isEmpty)
+
+        let ok = await store.deleteAccount()
+
+        XCTAssertTrue(ok)
+        XCTAssertNil(store.profile)
+        XCTAssertTrue(store.friends.isEmpty)
+        XCTAssertTrue(store.requests.isEmpty)
+        XCTAssertFalse(store.isBackedUp)
+        XCTAssertNil(store.lastError)
+        XCTAssertNil(service.myProfile, "サービス側のクラウド/in-memory データも消える")
+    }
+
+    /// 削除失敗時はサインアウトせず profile を保持し、lastError を出して再試行できる。
+    func testDeleteAccountFailureKeepsSignedIn() async {
+        let stub = StubFriendsService()
+        stub.myProfile = make("ME1234")
+        let s = FriendsStore(service: stub)
+        s.profile = stub.myProfile
+        stub.deleteError = StubFriendsError.boom
+
+        let ok = await s.deleteAccount()
+
+        XCTAssertFalse(ok)
+        XCTAssertNotNil(s.profile, "失敗時はサインアウトしない (再試行可能)")
+        XCTAssertEqual(s.lastError, "ネットワークに接続できませんでした")
+        XCTAssertEqual(stub.deleteCount, 1)
+    }
+
+    /// 連打しても service.deleteAccount は1回だけ (再入ガード)。
+    func testDeleteAccountReentryGuard() async {
+        let stub = StubFriendsService()
+        stub.myProfile = make("ME1234")
+        stub.useDeleteGate = true
+        let s = FriendsStore(service: stub)
+        s.profile = stub.myProfile
+
+        let t1 = Task { await s.deleteAccount() }       // 先行: gate で suspend
+        while stub.deleteCount == 0 { await Task.yield() }  // t1 が deleteAccount に入るまで待つ
+        let second = await Task { await s.deleteAccount() }.value  // 後発: 即 false で return
+        XCTAssertFalse(second, "進行中は連打を弾く")
+        XCTAssertEqual(stub.deleteCount, 1, "再入ガードで service は1回のみ")
+        stub.releaseDeleteGate()
+        _ = await t1.value
+    }
+
+    /// 削除進行中の signOut は弾かれる (Codex round3: 割り込みで部分削除になる競合を防ぐ)。
+    func testSignOutBlockedDuringDeletion() async {
+        let stub = StubFriendsService()
+        stub.myProfile = make("ME1234")
+        stub.useDeleteGate = true
+        let s = FriendsStore(service: stub)
+        s.profile = stub.myProfile
+
+        let t1 = Task { await s.deleteAccount() }          // 先行: delete gate で suspend
+        while stub.deleteCount == 0 { await Task.yield() }  // 削除が in-flight になるまで待つ
+        await s.signOut()                                   // 割り込み signOut は即 return されるはず
+        XCTAssertEqual(stub.signOutCount, 0, "削除中の signOut は service に到達しない")
+        XCTAssertNotNil(s.profile, "削除中の signOut で profile を消さない")
+        stub.releaseDeleteGate()
+        _ = await t1.value
+    }
+
+    private func make(_ code: String) -> FriendProfile {
+        FriendProfile(
+            id: code, friendCode: code, username: code.lowercased(),
+            displayName: code, currentStreak: 0, totalAchievedDays: 0,
+            todayAchieved: false, todayCategoryName: nil, todayExerciseNames: [],
+            decorationTier: 0, lastUpdated: Date(),
+            weeklyAchievements: nil, connectedSince: nil
+        )
+    }
+
     // MARK: - ensureSignedIn (自動サインイン) / updateDisplayName
 
     /// 未サインインから自動サインインし、既定表示名が付くこと。
@@ -238,10 +317,22 @@ final class StubFriendsService: FriendsService {
     var refreshError: Error?
     var refreshCount = 0
     var useGate = false
+    var deleteError: Error?
+    var deleteCount = 0
+    var useDeleteGate = false
+    var signOutCount = 0
     private var gate: CheckedContinuation<Void, Never>?
+    private var deleteGate: CheckedContinuation<Void, Never>?
 
     func signIn(displayName: String, username: String) async throws {}
-    func signOut() async {}
+    func signOut() async { signOutCount += 1 }
+    func deleteAccount() async throws {
+        deleteCount += 1
+        if useDeleteGate { await withCheckedContinuation { deleteGate = $0 } }
+        if let deleteError { throw deleteError }
+        myProfile = nil
+    }
+    func releaseDeleteGate() { deleteGate?.resume(); deleteGate = nil }
     func refreshFriends() async throws -> [FriendProfile] {
         refreshCount += 1
         if useGate { await withCheckedContinuation { gate = $0 } }

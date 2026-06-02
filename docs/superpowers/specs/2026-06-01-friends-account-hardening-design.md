@@ -216,13 +216,46 @@ appleLinkEnabled(既定 false)ゲート、全 211 ユニット + 5 FriendsFlow U
 iOS 友達リリース面を**完全に閉じてから** Android へ。各ステップ独立セッション推奨
 (削除はデータ消去を伴うため Codex ループ前提でしっかり)。
 
-### ① 連携アカウント削除導線 ← **最優先 (次セッション)**
+### ① 連携アカウント削除導線: ✅ 実装済 (2026-06-02)
 - 審査 **Guideline 5.1.1(v)**: アカウント作成(Apple/Google 連携)を提供するなら**アプリ内削除導線が必須**。
-- 現状 `signOut` は**匿名のみ**クラウド削除。**永続(連携済み)アカウントの削除**が無い。
-- 実装: 本人 uid の `profiles`/`friendships`/`friend_requests`/`cheers` を削除 → ローカルサインアウト、
-  を確認ダイアログ付き UI 導線で。`appleLinkEnabled`/`googleLinkEnabled` ゲート内。
-- 注意: Supabase の `auth.users` 行自体の削除はサーバ権限が要る(anon key 不可)。クライアントは
-  データ削除 + サインアウトまで。auth 行の削除/匿名化は Edge Function か cron で別途検討(要設計判断)。
+- 現状 `signOut` は**匿名のみ**クラウド削除。**永続(連携済み)アカウントの削除**が無かった。
+
+#### 実装サマリ
+- `FriendsService.deleteAccount()` を protocol に追加 (extension 既定は安全側で throw)。
+- `SupabaseFriendsService.deleteAccount()`: 本人 uid の `cheers`/`friend_requests`/
+  `friendships`/`profiles` を削除 → `signOut(scope:.global)` で**全端末の refresh token を失効**。
+  匿名/連携済みを問わず消す (`signOut` の「匿名のみ削除」とは別物)。各 delete は冪等、
+  途中失敗 (セッション取得 / delete / signOut) は throw 伝播でサインアウトせず再試行可能。
+  無セッションは `notSignedIn` で throw (誤った成功報告を避ける)。
+- **Codex 改善ループ (xhigh) で潰したバグ**:
+  - round1: 無セッションを「成功」と早期 return → サーバ行が残るのに削除完了と誤報告 +
+    サインアウトで再試行不能。→ throw に是正。`signOut` の `try?` で失敗握り潰し → セッション
+    残存で再作成リスク。→ `try` 伝播に是正。
+  - round2: `.local` サインアウトでは別端末が生きたセッションでデータを再作成しうる
+    (account resurrection)。→ 意図的削除なので `.global` 失効に是正 (rollback 経路は失敗操作
+    なので `.local` のまま)。残る access token 窓 (~1h) と `auth.users` 行削除は Edge Function 担当。
+- `FriendsStore.deleteAccount() -> Bool`: 連打ガード (`isDeletingAccount`)、成功で
+  profile/friends/requests/backupStatus クリア + `bumpIdentity()`、失敗は lastError。
+- `FriendsView`: サインアウト下に **`SupabaseConfig.isAccountLinkingEnabled` ゲートで**
+  「アカウントを削除」(赤) → 確認ダイアログ (完全削除・復元不可を明示) → 成功トースト。
+  gate OFF は導線非表示 = 現挙動と不変。
+- **schema 修正**: `cheers` に `cheers_delete` RLS ポリシーを追加 (当事者削除を許可)。
+  これが無いと RLS で client の cheers 削除が **0 行へ静かにフィルタ**される潜在バグだった。
+- `MockFriendsService.deleteAccount()` (in-memory 全消去) + ユニット3本
+  (成功でクリア / 失敗で保持・lastError / 連打ガード)。
+
+#### `auth.users` 行削除の方針 (要設計判断 → 確定: Edge Function 採用)
+- anon key では `auth.users` 行**自体**は削除不可 (service_role 必須)。クライアントは
+  データ消去 + ローカルサインアウトまで。残る auth 行に PII は無く、行削除時に各表は
+  `on delete cascade` で連鎖削除される。
+- **採用**: Edge Function `supabase/functions/delete-account/index.ts` (スキャフォルド済)。
+  呼び出し元 JWT で本人 uid を検証 → service_role の `auth.admin.deleteUser(uid)`。
+  - cron 拡張を**不採用**の理由: 連携済みを cron で掃除するには「削除予約」状態が要り、
+    その行自体が PII/複雑性を増やす。Edge Function は無状態で即時・単純。
+  - 孤児 cron (`cleanup_orphans.sql`) は引き続き**匿名の未使用のみ**を対象 (役割分担)。
+- **残作業 (キー所有者)**: `supabase functions deploy delete-account` → デプロイ後に
+  クライアントを best-effort 呼び出し (`functions.invoke`) へ更新する follow-up。
+  本セッションのクライアントは**データ削除 + ローカルサインアウトまで**で審査要件を満たす。
 
 ### ② Google 連携 (iOS)
 - `linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック。Apple と同等の復元/切替/削除。

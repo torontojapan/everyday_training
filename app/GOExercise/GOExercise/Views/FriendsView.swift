@@ -52,6 +52,8 @@ struct FriendsView: View {
     @State private var pendingSwitchCreds: ApplePendingSwitch?
     /// welcome の復元入口: 匿名残存データがある時の上書き確認ダイアログ (Codex#3)。
     @State private var isConfirmingRestore = false
+    /// アカウント削除 (審査 5.1.1(v)) の確認ダイアログ。
+    @State private var isConfirmingDelete = false
     @Environment(\.colorScheme) private var colorScheme
     /// バックアップ促しを「あとで」した時刻 (30日沈黙)。
     @AppStorage("friends.backupPromptDismissedAt") private var backupPromptDismissedAt: Double = 0
@@ -416,9 +418,27 @@ struct FriendsView: View {
                         .font(Typography.caption)
                 }
                 .padding(.top, 20)
+
+                // アカウント削除 (審査 Guideline 5.1.1(v))。アカウント作成(連携)を提供する
+                // 場合に必須のアプリ内削除導線。連携が有効なときだけ表示する (gate OFF は不変)。
+                if SupabaseConfig.isAccountLinkingEnabled {
+                    Button(role: .destructive) {
+                        isConfirmingDelete = true
+                    } label: {
+                        Label("アカウントを削除", systemImage: "trash")
+                            .font(Typography.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .disabled(friendsStore.isDeletingAccount)
+                    .accessibilityIdentifier("friends-delete-account")
+                }
             }
             .padding(20)
         }
+        // 削除進行中は他の操作 (サインアウト/応援/承認/解除/追加/改名) を不可にして競合を防ぐ
+        // (Codex round3: signOut 等の割り込みで部分削除になるのを UI 側でも遮断)。削除は短時間で、
+        // 成功すると welcome へ遷移する。
+        .disabled(friendsStore.isDeletingAccount)
         .refreshable {
             await friendsStore.refresh()
         }
@@ -467,6 +487,21 @@ struct FriendsView: View {
             Button("中止", role: .cancel) { pendingSwitchCreds = nil }
         } message: { _ in
             Text("切り替えると、いまの端末の友達・コードは失われます。")
+        }
+        // アカウント削除 (審査 5.1.1(v))。連携済みも含め本人データを完全消去する。
+        .confirmationDialog(
+            "アカウントを削除しますか？",
+            isPresented: $isConfirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("アカウントを削除", role: .destructive) {
+                // 成功すると profile==nil で welcome に遷移する (それ自体が完了フィードバック)。
+                // 失敗は store.lastError がエラーバナーに出る。
+                Task { await friendsStore.deleteAccount() }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("友達・コード・応援などすべてのデータが完全に削除され、元に戻せません。バックアップ済みでも復元できなくなります。")
         }
         .overlay(alignment: .bottom) {
             if let backupToast {
@@ -1008,7 +1043,12 @@ struct FriendsView: View {
     /// present が確実になってから pendingFriendCode を nil 化する (喪失レース回避, Codex監査#Major2)。
     /// 条件を満たさない場合は何もしない (各シートの onDismiss で再試行される)。
     private func tryPresentPendingAdd() {
+        // 削除進行中は deep link 由来の追加シートも開かない (Codex round4)。signedInBody の
+        // `.disabled` はシート presentation を止めないため、唯一の present 経路であるここで
+        // ガードして、削除中に sendRequest がサーバ行を再作成するのを防ぐ。code は保持され、
+        // 削除完了で welcome に着地後 (または再サインイン後) に各 onDismiss/.task で再開する。
         guard let code = router.pendingFriendCode, friendsStore.isSignedIn,
+              !friendsStore.isDeletingAccount,
               !isShowingAdd,
               detailFriend == nil, cheerTarget == nil, pendingRemovalFriend == nil
         else { return }

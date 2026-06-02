@@ -171,3 +171,10 @@ create policy cheers_insert on public.cheers
 drop policy if exists cheers_select on public.cheers;
 create policy cheers_select on public.cheers
   for select to authenticated using (auth.uid() = from_user or auth.uid() = to_user);
+-- アカウント削除導線 (審査 5.1.1(v)) のため、当事者は自分の cheer 行を削除できる。
+-- これが無いと RLS により client の delete が 0 行へ静かにフィルタされる。
+-- (auth.users 行を service_role で消せば cascade で消えるが、クライアント主導の
+--  明示削除も担保する。)
+drop policy if exists cheers_delete on public.cheers;
+create policy cheers_delete on public.cheers
+  for delete to authenticated using (auth.uid() = from_user or auth.uid() = to_user);
