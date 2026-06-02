@@ -20,8 +20,13 @@
 //   2. service_role key は Edge Function 環境に自動注入される
 //      (SUPABASE_SERVICE_ROLE_KEY / SUPABASE_URL)。手動設定不要。
 //   3. 認証必須にする (verify_jwt=ON が既定)。匿名 JWT でも user は取れる。
-//   4. デプロイ後、クライアントを best-effort 呼び出しに更新する follow-up は別タスク
-//      (本セッションのクライアントはデータ削除 + ローカルサインアウトまで)。
+//
+// 【クライアント連携 — 実装済 (2026-06-03)】
+//   `SupabaseFriendsService.deleteAccount()` がこの関数を **正本 (authoritative)** として呼ぶ:
+//   2xx 成功 = 完全削除 (auth ユーザー削除 → cascade で全表 + 全セッション失効)。
+//   未デプロイ (404) / ネット断 / lost-response はクライアント側の RLS データ削除 +
+//   best-effort signOut にフォールバック (審査要件は満たす)。デプロイ済みなのに 5xx/401 で
+//   失敗した場合は fail closed (クライアントは throw して再試行) = サイレント成功を避ける。
 //
 // 動作未確認 (キー所有者が deploy + 実 JWT で検証するまでスキャフォルド扱い)。
 
