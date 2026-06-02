@@ -257,9 +257,38 @@ iOS 友達リリース面を**完全に閉じてから** Android へ。各ステ
   クライアントを best-effort 呼び出し (`functions.invoke`) へ更新する follow-up。
   本セッションのクライアントは**データ削除 + ローカルサインアウトまで**で審査要件を満たす。
 
-### ② Google 連携 (iOS)
-- `linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック。Apple と同等の復元/切替/削除。
+### ② Google 連携 (iOS): ✅ 実装済 (2026-06-02)
+- `linkIdentity(provider:.google)` web/PKCE + `goexercise://` コールバック。Apple と同等の連携/復元/切替/削除。
 - `googleLinkEnabled` ゲート。Supabase の Google provider + redirect URL 設定(ユーザー作業)。
+- `googleLinkEnabled`(既定 false)ゲート、全 224 ユニット緑、**Codex(gpt-5.5, xhigh)改善ループ 2 周で
+  `patch is correct` 収束**(round1 で access_denied 写像漏れを是正)。
+
+#### 実装サマリ (実際の落とし所)
+- **経路差**: Apple=ネイティブ id_token、Google=**web/PKCE**。`GoogleSignInCoordinator`
+  (`ASWebAuthenticationSession`, callbackURLScheme=`goexercise`, 再入ガード/`.canceledLogin`→`.cancelled`)が
+  認可 URL を提示しコールバック URL を返すだけ。認可 URL 生成 + PKCE code 交換は Service が担う:
+  - 連携(昇格): `getLinkIdentityURL(.google)` → flow → `session(from:)`。uid/friendCode/友達 不変。
+  - 復元/切替: `getOAuthSignInURL(.google)` → flow → `session(from:)` → `signInWithGoogle` ヘルパで
+    profile ロード(空文字 signIn で既存保持)+ post-auth 失敗時 `signOut(scope:.local)` 巻き戻し(Apple と同型)。
+- **衝突 (論点C)**: web/PKCE では `identity_already_exists` はコールバック URL の error_code に載って
+  `AuthError.pkceGrantCodeExchange(error:code:)` で throw される(`errorCode` は `.unknown`)。
+  `mapPKCECallback(code:error:)` で `alreadyLinkedToAnotherAccount` に写像 → UI で二択。
+  切替は creds を再利用できないため web flow を再度通す(`isConfirmingGoogleSwitch`)。
+- **provider-neutral 化**: `AppleRestoreOutcome→RestoreOutcome`、`FriendsStore.AppleLinkResult→LinkResult`、
+  `AppleRestoreResult→RestoreResult`(case 名は不変 = Apple 挙動不変)。`.cancelled` を追加し、web flow 内
+  キャンセルをエラーバナーなしで welcome に留める。`performSwitch`/`performRestore` で Apple/Google を DRY 化。
+- **削除導線**: `deleteAccount()` は provider 非依存。`isAccountLinkingEnabled` ゲートでそのまま効く(確認済)。
+- **gate-OFF バイト互換**: `FriendsGoogleLinkEnabled` は Info.plist 未追加(既定 false)。カード/ボタン非表示・
+  coordinator 不実行。`connectButtonLabel` は `isAccountLinkingEnabled` 判定に変更(Apple/Google 共通)。
+- **Codex round1 修正**: `access_denied`(error_code 不在)で SDK が `code="unspecified_code"` を入れるため
+  `code ?? error` だと `.failed` になっていた。両フィールドを見つつプレースホルダを無視するよう是正。
+- **ビルド統合**: 新規 `.swift` 2 本(coordinator/button)は `project.pbxproj` に手動登録
+  (このプロジェクトは file-synchronized group でないため)。
+
+#### ⚠️ 残作業 (出荷前 / キー所有者)
+- Supabase の Google provider 設定 + **Manual Linking ON** + redirect URL `goexercise://auth-callback` 許可。
+- `FriendsGoogleLinkEnabled=true` で実機手動検証(連携→削除→再インストール→Google で復元 の E2E)。
+- **公式 Google "G" ブランドアセット**へ差し替え([[GoogleGMark]] は近似描画のプレースホルダ)。
 
 ### ③ Android 実装計画書 (タスク#7) — 新セッションで集中
 - Android アプリ(全機能ゼロから / Kotlin + Compose)の**実装計画書を作成** → Codex レビュー →

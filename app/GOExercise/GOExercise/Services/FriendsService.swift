@@ -41,7 +41,19 @@ protocol FriendsService: AnyObject {
     func switchToAppleAccount(idToken: String, nonce: String) async throws
     /// 新端末/再インストール時の「Apple で復元」。既存プロフィールがあれば `.restored`、
     /// 無ければ新規作成して `.created`。welcome の復元入口から呼ぶ。
-    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome
+    func restoreWithApple(idToken: String, nonce: String) async throws -> RestoreOutcome
+
+    // MARK: Google (web/PKCE。Apple のネイティブ id_token とは経路が違う)
+
+    /// Google の web/PKCE フローで現匿名セッションを永続化 (uid 保持)。
+    /// `flow` が認可 URL を提示しコールバック URL を返す ([[GoogleSignInCoordinator]])。
+    /// 既に別アカウントに紐付く場合は `AccountLinkError.alreadyLinkedToAnotherAccount`。
+    func linkGoogle(presenting flow: WebAuthFlow) async throws
+    /// 衝突時の「既存アカウントに切替」(Google)。現匿名データは破棄され、Google 側の既存アカウントに入る。
+    func switchToGoogleAccount(presenting flow: WebAuthFlow) async throws
+    /// 新端末/再インストール時の「Google で復元」。既存があれば `.restored`、無ければ `.created`。
+    func restoreWithGoogle(presenting flow: WebAuthFlow) async throws -> RestoreOutcome
+
     /// 復元/切替の前に、現在の匿名セッションに失われると困るデータ(友達)があるか。
     /// 上書き確認ダイアログを出すかの判定に使う。
     func anonymousSessionHasData() async -> Bool
@@ -69,7 +81,16 @@ extension FriendsService {
     func switchToAppleAccount(idToken: String, nonce: String) async throws {
         throw AccountLinkError.providerUnavailable
     }
-    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+    func restoreWithApple(idToken: String, nonce: String) async throws -> RestoreOutcome {
+        throw AccountLinkError.providerUnavailable
+    }
+    func linkGoogle(presenting flow: WebAuthFlow) async throws {
+        throw AccountLinkError.providerUnavailable
+    }
+    func switchToGoogleAccount(presenting flow: WebAuthFlow) async throws {
+        throw AccountLinkError.providerUnavailable
+    }
+    func restoreWithGoogle(presenting flow: WebAuthFlow) async throws -> RestoreOutcome {
         throw AccountLinkError.providerUnavailable
     }
     func anonymousSessionHasData() async -> Bool { false }
@@ -180,10 +201,11 @@ final class FriendsStore {
     private(set) var backupStatus: AccountBackupStatus = .anonymous
     var isBackedUp: Bool { backupStatus.isBackedUp }
 
-    /// Apple 連携の結果。`collision` は「既存アカウントに切替/中止」の二択を UI に促す。
-    enum AppleLinkResult: Equatable {
+    /// 連携の結果 (Apple/Google 共通)。`collision` は「既存アカウントに切替/中止」の二択を UI に促す。
+    enum LinkResult: Equatable {
         case linked
-        case collision   // この Apple ID は既に別アカウントに紐付く
+        case collision   // この Apple/Google ID は既に別アカウントに紐付く
+        case cancelled   // ユーザーが認可をキャンセル (web flow 内など)。エラー表示しない。
         case failed(String)
     }
 
@@ -193,13 +215,31 @@ final class FriendsStore {
     }
 
     /// View が `AppleSignInCoordinator` で取得した (idToken, nonce) を渡して連携する。
-    func linkApple(idToken: String, nonce: String) async -> AppleLinkResult {
+    func linkApple(idToken: String, nonce: String) async -> LinkResult {
         do {
             try await service.linkApple(idToken: idToken, nonce: nonce)
             backupStatus = service.backupStatus
             return .linked
         } catch AccountLinkError.alreadyLinkedToAnotherAccount {
             return .collision
+        } catch AccountLinkError.cancelled {
+            return .cancelled
+        } catch {
+            let message = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription!
+            return .failed(message)
+        }
+    }
+
+    /// View が `GoogleSignInCoordinator` の web/PKCE フローを渡して連携する (Apple と対称)。
+    func linkGoogle(presenting flow: WebAuthFlow) async -> LinkResult {
+        do {
+            try await service.linkGoogle(presenting: flow)
+            backupStatus = service.backupStatus
+            return .linked
+        } catch AccountLinkError.alreadyLinkedToAnotherAccount {
+            return .collision
+        } catch AccountLinkError.cancelled {
+            return .cancelled
         } catch {
             let message = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription!
             return .failed(message)
@@ -208,8 +248,19 @@ final class FriendsStore {
 
     /// 衝突時の「既存アカウントに切替」。現匿名データは破棄され、プロフィール/友達は再取得。
     func switchToAppleAccount(idToken: String, nonce: String) async -> Bool {
+        await performSwitch { try await self.service.switchToAppleAccount(idToken: idToken, nonce: nonce) }
+    }
+
+    /// 衝突時の「既存アカウントに切替」(Google)。再度 web flow を通る (Apple と異なり creds を再利用できない)。
+    func switchToGoogleAccount(presenting flow: WebAuthFlow) async -> Bool {
+        await performSwitch { try await self.service.switchToGoogleAccount(presenting: flow) }
+    }
+
+    /// Apple/Google 共通の切替処理。成功で identity 境界を張り直し友達/申請を再取得する。
+    /// キャンセルは静かに false (エラー表示しない)。失敗は lastError をセットして false。
+    private func performSwitch(_ op: () async throws -> Void) async -> Bool {
         do {
-            try await service.switchToAppleAccount(idToken: idToken, nonce: nonce)
+            try await op()
             profile = service.myProfile
             backupStatus = service.backupStatus
             // identity 境界: 世代を進めて進行中の旧 refresh を無効化し、旧アカウントの
@@ -219,6 +270,9 @@ final class FriendsStore {
             requests = []
             await refresh()
             return true
+        } catch AccountLinkError.cancelled {
+            // 認可前のキャンセルは identity 不変。状態を触らず静かに false。
+            return false
         } catch {
             syncIdentityAfterFailure()
             lastError = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription
@@ -226,18 +280,30 @@ final class FriendsStore {
         }
     }
 
-    /// Apple 復元の結果。`failed` はやさしい固定文を保持し UI にそのまま出す。
-    enum AppleRestoreResult: Equatable {
+    /// 復元の結果 (Apple/Google 共通)。`failed` はやさしい固定文を保持し UI にそのまま出す。
+    enum RestoreResult: Equatable {
         case restored   // 既存アカウントの友達/コードが戻った
         case created    // 既存データ無し → 新規アカウントを作成した
+        case cancelled  // ユーザーが認可をキャンセル。エラー表示しない。
         case failed(String)
     }
 
     /// welcome の復元入口: Apple で既存アカウントを復元する。成功で profile/友達を反映し
     /// signedInBody に着地する。`restored`/`created` を区別して UI のメッセージを出し分ける。
-    func restoreWithApple(idToken: String, nonce: String) async -> AppleRestoreResult {
+    func restoreWithApple(idToken: String, nonce: String) async -> RestoreResult {
+        await performRestore { try await self.service.restoreWithApple(idToken: idToken, nonce: nonce) }
+    }
+
+    /// welcome の復元入口: Google (web/PKCE) で既存アカウントを復元する (Apple と対称)。
+    func restoreWithGoogle(presenting flow: WebAuthFlow) async -> RestoreResult {
+        await performRestore { try await self.service.restoreWithGoogle(presenting: flow) }
+    }
+
+    /// Apple/Google 共通の復元処理。成功で identity 境界を張り直し友達/申請を再取得する。
+    /// キャンセルは静かに `.cancelled` (エラー表示しない)。失敗は lastError + `.failed`。
+    private func performRestore(_ op: () async throws -> RestoreOutcome) async -> RestoreResult {
         do {
-            let outcome = try await service.restoreWithApple(idToken: idToken, nonce: nonce)
+            let outcome = try await op()
             profile = service.myProfile
             backupStatus = service.backupStatus
             // identity 境界: 世代を進めて進行中の旧 refresh を無効化し、旧アカウントの友達/申請を
@@ -247,6 +313,9 @@ final class FriendsStore {
             requests = []
             await refresh()
             return outcome == .restored ? .restored : .created
+        } catch AccountLinkError.cancelled {
+            // 認可前のキャンセルは identity 不変。profile を変えず静かに welcome に留まる。
+            return .cancelled
         } catch {
             syncIdentityAfterFailure()
             let message = (error as? AccountLinkError)?.errorDescription ?? AccountLinkError.failed.errorDescription!

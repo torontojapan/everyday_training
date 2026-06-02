@@ -46,4 +46,11 @@ enum SupabaseConfig {
     }
     /// いずれかの連携が有効か (バックアップカードの表示ゲート)。
     static var isAccountLinkingEnabled: Bool { appleLinkEnabled || googleLinkEnabled }
+
+    /// Google web/PKCE OAuth のコールバック先。既存の `goexercise` スキーム
+    /// (Info.plist `CFBundleURLSchemes` に登録済) を使う。ASWebAuthenticationSession が
+    /// この scheme でリダイレクトを捕捉するため、`.onOpenURL` には流れない (友達コードの
+    /// deep link とは衝突しない)。
+    /// **キー所有者作業**: Supabase の "Redirect URLs" 許可リストにこの URL を登録する。
+    static var googleRedirectURL: URL { URL(string: "goexercise://auth-callback")! }
 }

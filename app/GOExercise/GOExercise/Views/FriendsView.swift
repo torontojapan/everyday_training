@@ -50,6 +50,13 @@ struct FriendsView: View {
     @State private var isLinkingAccount = false
     @State private var backupToast: String?
     @State private var pendingSwitchCreds: ApplePendingSwitch?
+    /// Phase 2: Google 連携 (web/PKCE)。Apple とは経路が違う (ASWebAuthenticationSession)。
+    @State private var googleCoordinator = GoogleSignInCoordinator()
+    /// Google 衝突時の「既存アカウントに切替/中止」二択ダイアログ。Apple と異なり creds を
+    /// 再利用できない (web flow を再度通す) ため bool フラグで保持する。
+    @State private var isConfirmingGoogleSwitch = false
+    /// welcome の Google 復元入口: 匿名残存データがある時の上書き確認ダイアログ。
+    @State private var isConfirmingGoogleRestore = false
     /// welcome の復元入口: 匿名残存データがある時の上書き確認ダイアログ (Codex#3)。
     @State private var isConfirmingRestore = false
     /// アカウント削除 (審査 5.1.1(v)) の確認ダイアログ。
@@ -254,8 +261,8 @@ struct FriendsView: View {
                 .accessibilityIdentifier("friends-connect-button")
                 .disabled(isLinkingAccount)
 
-                if SupabaseConfig.appleLinkEnabled {
-                    appleRestoreSection
+                if SupabaseConfig.isAccountLinkingEnabled {
+                    restoreSection
                 }
                 shareAppCard
             }
@@ -276,31 +283,52 @@ struct FriendsView: View {
         } message: {
             Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
         }
+        // 残存匿名データありの Google 復元も、上書き前に確認を挟む (Apple と対称)。
+        .confirmationDialog(
+            "この端末のデータが置き換わることがあります",
+            isPresented: $isConfirmingGoogleRestore,
+            titleVisibility: .visible
+        ) {
+            Button("Google で復元する", role: .destructive) {
+                Task { await performGoogleRestore() }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
+        }
     }
 
-    /// appleLinkEnabled のときだけ匿名 CTA を「この端末で始める」に改称する。
+    /// いずれかの連携が有効なときだけ匿名 CTA を「この端末で始める」に改称する。
     private var connectButtonLabel: String {
-        SupabaseConfig.appleLinkEnabled ? "この端末で始める" : "友達とつながる"
+        SupabaseConfig.isAccountLinkingEnabled ? "この端末で始める" : "友達とつながる"
     }
 
-    /// welcome の復元入口。以前 Apple 連携した人が新端末/再インストールで友達/コードを取り戻す。
-    /// 公式 Sign in with Apple ボタンを使う (独自装飾不可, Codex#F)。
+    /// welcome の復元入口。以前 Apple/Google 連携した人が新端末/再インストールで友達/コードを取り戻す。
+    /// Apple は公式 Sign in with Apple ボタン (独自装飾不可, Codex#F)、Google はブランド準拠ボタン。
     @ViewBuilder
-    private var appleRestoreSection: some View {
+    private var restoreSection: some View {
         VStack(spacing: 8) {
-            Text("以前 Apple で連携した方")
+            Text("以前連携した方はこちら")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
             if isLinkingAccount {
                 ProgressView()
                     .frame(height: 46)
             } else {
-                AppleIDButton(type: .signIn, style: colorScheme == .dark ? .white : .black) {
-                    restoreWithApple()
+                if SupabaseConfig.appleLinkEnabled {
+                    AppleIDButton(type: .signIn, style: colorScheme == .dark ? .white : .black) {
+                        restoreWithApple()
+                    }
+                    .frame(height: 46)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("friends-restore-apple")
                 }
-                .frame(height: 46)
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("friends-restore-apple")
+                if SupabaseConfig.googleLinkEnabled {
+                    GoogleSignInButton(title: "Google で復元") {
+                        restoreWithGoogle()
+                    }
+                    .accessibilityIdentifier("friends-restore-google")
+                }
             }
         }
         .padding(.top, 2)
@@ -339,6 +367,9 @@ struct FriendsView: View {
                     await friendsStore.updateDisplayName(name)
                 }
                 handlePendingFriendCode()
+            case .cancelled:
+                // 何もしない (welcome に留まる)。Apple は通常 coordinator 側で cancel を捕捉する。
+                break
             case .failed(let message):
                 friendsStore.lastError = message
             }
@@ -347,6 +378,46 @@ struct FriendsView: View {
         } catch {
             friendsStore.lastError = AccountLinkError.failed.errorDescription
         }
+    }
+
+    /// Google 復元入口のタップ起点。残存匿名データがあれば確認を挟み、無ければ即実行する (Apple と対称)。
+    private func restoreWithGoogle() {
+        guard !isLinkingAccount else { return }
+        isLinkingAccount = true
+        Task {
+            let hasData = await friendsStore.anonymousSessionHasData()
+            isLinkingAccount = false
+            if hasData {
+                isConfirmingGoogleRestore = true
+            } else {
+                await performGoogleRestore()
+            }
+        }
+    }
+
+    /// Google 認可 (web/PKCE) → 復元を実行する。成功すると profile が入り signedInBody に着地する。
+    private func performGoogleRestore() async {
+        guard !isLinkingAccount else { return }
+        isLinkingAccount = true
+        defer { isLinkingAccount = false }
+        friendsStore.clearError()
+        switch await friendsStore.restoreWithGoogle(presenting: googleFlow) {
+        case .restored, .created:
+            // Google の web flow からは表示名を得られない (signIn 既定名 "あなた")。
+            handlePendingFriendCode()
+        case .cancelled:
+            // 何もしない (welcome に留まる)。
+            break
+        case .failed(let message):
+            friendsStore.lastError = message
+        }
+    }
+
+    /// View が `GoogleSignInCoordinator` の web/PKCE フローを Service へ渡すためのクロージャ。
+    /// coordinator を値キャプチャし、self (View) はキャプチャしない。
+    private var googleFlow: WebAuthFlow {
+        let coordinator = googleCoordinator
+        return { url in try await coordinator.presentWebFlow(url: url) }
     }
 
     /// 「このアプリを友達にシェア」セクション。SwiftUI 標準の `ShareLink` で
@@ -488,6 +559,19 @@ struct FriendsView: View {
         } message: { _ in
             Text("切り替えると、いまの端末の友達・コードは失われます。")
         }
+        // Google 連携の衝突: Apple と対称。切替は web flow を再度通すため creds は保持しない。
+        .confirmationDialog(
+            "このアカウントは既に別のデータに紐づいています",
+            isPresented: $isConfirmingGoogleSwitch,
+            titleVisibility: .visible
+        ) {
+            Button("既存のアカウントに切り替える", role: .destructive) {
+                performGoogleSwitch()
+            }
+            Button("中止", role: .cancel) {}
+        } message: {
+            Text("切り替えると、いまの端末の友達・コードは失われます。")
+        }
         // アカウント削除 (審査 5.1.1(v))。連携済みも含め本人データを完全消去する。
         .confirmationDialog(
             "アカウントを削除しますか？",
@@ -560,6 +644,12 @@ struct FriendsView: View {
                     }
                     .accessibilityIdentifier("friends-backup-apple")
                 }
+                if SupabaseConfig.googleLinkEnabled {
+                    GoogleSignInButton(title: "Google でバックアップ") {
+                        linkWithGoogle()
+                    }
+                    .accessibilityIdentifier("friends-backup-google")
+                }
                 Button("あとで") { backupPromptDismissedAt = Date().timeIntervalSince1970 }
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
@@ -589,6 +679,8 @@ struct FriendsView: View {
                     showBackupToast("バックアップしました")
                 case .collision:
                     pendingSwitchCreds = ApplePendingSwitch(idToken: cred.idToken, nonce: cred.nonce)
+                case .cancelled:
+                    break
                 case .failed(let message):
                     friendsStore.lastError = message
                 }
@@ -597,6 +689,37 @@ struct FriendsView: View {
             } catch {
                 friendsStore.lastError = AccountLinkError.failed.errorDescription
             }
+        }
+    }
+
+    /// Google 認可 (web/PKCE) → 連携。衝突なら二択ダイアログ、成功ならトースト (Apple と対称)。
+    private func linkWithGoogle() {
+        guard !isLinkingAccount else { return }   // 連打ガード (同期的に立てる)
+        isLinkingAccount = true
+        Task {
+            defer { isLinkingAccount = false }
+            switch await friendsStore.linkGoogle(presenting: googleFlow) {
+            case .linked:
+                // Google の web flow からは表示名を得られないため updateDisplayName はしない。
+                showBackupToast("バックアップしました")
+            case .collision:
+                isConfirmingGoogleSwitch = true
+            case .cancelled:
+                break
+            case .failed(let message):
+                friendsStore.lastError = message
+            }
+        }
+    }
+
+    /// Google 衝突時の「既存アカウントに切替」。再度 web flow を通り、成功でトースト。
+    private func performGoogleSwitch() {
+        guard !isLinkingAccount else { return }
+        isLinkingAccount = true
+        Task {
+            defer { isLinkingAccount = false }
+            let ok = await friendsStore.switchToGoogleAccount(presenting: googleFlow)
+            if ok { showBackupToast("既存のアカウントに切り替えました") }
         }
     }
 

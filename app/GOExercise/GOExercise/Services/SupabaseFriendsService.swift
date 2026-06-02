@@ -130,7 +130,7 @@ final class SupabaseFriendsService: FriendsService {
         }
     }
 
-    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+    func restoreWithApple(idToken: String, nonce: String) async throws -> RestoreOutcome {
         do {
             // 新端末/再インストール: Apple 既存アカウントにサインインしプロフィールをロード。
             // 既存行があれば restored、無ければ新規作成で created。
@@ -138,6 +138,87 @@ final class SupabaseFriendsService: FriendsService {
             return hadProfile ? .restored : .created
         } catch {
             throw Self.mapLinkError(error)
+        }
+    }
+
+    // MARK: Google (web/PKCE)
+    //
+    // Apple のネイティブ id_token と違い、Google は Supabase の OAuth(PKCE) を web で通す:
+    //   1. 認可 URL を生成 (link は `getLinkIdentityURL`、restore/switch は `getOAuthSignInURL`)
+    //      — この時点で SDK が PKCE code verifier を保存する。
+    //   2. `flow` (ASWebAuthenticationSession) で web 認可 → `goexercise://` コールバック URL を取得。
+    //   3. `session(from:)` が PKCE code を交換しセッションを確立する。
+    // 衝突 (identity_already_exists) はコールバック URL の error_code に載り、`session(from:)` が
+    // `AuthError.pkceGrantCodeExchange(code:)` で throw する → `mapLinkError` で写像 (Apple と対称)。
+
+    func linkGoogle(presenting flow: WebAuthFlow) async throws {
+        do {
+            let client = try requireClient()
+            // 現匿名セッションを保持したまま Google identity を連結 (uid 不変の昇格)。
+            let response = try await client.auth.getLinkIdentityURL(
+                provider: .google, redirectTo: SupabaseConfig.googleRedirectURL
+            )
+            let callbackURL = try await flow(response.url)
+            _ = try await client.auth.session(from: callbackURL)
+            await refreshBackupStatus()
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    func switchToGoogleAccount(presenting flow: WebAuthFlow) async throws {
+        do {
+            _ = try await signInWithGoogle(presenting: flow)
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    func restoreWithGoogle(presenting flow: WebAuthFlow) async throws -> RestoreOutcome {
+        do {
+            let hadProfile = try await signInWithGoogle(presenting: flow)
+            return hadProfile ? .restored : .created
+        } catch {
+            throw Self.mapLinkError(error)
+        }
+    }
+
+    /// Google web/PKCE で既存(または新規)アカウントにサインインし、プロフィールをロードする共通処理。
+    /// `switchToGoogleAccount` (衝突切替) と `restoreWithGoogle` (復元) が共用する。
+    /// post-auth 失敗時の巻き戻し方針・空文字 signIn による既存保持は `signInWithApple` と同一
+    /// (詳細はそちらの doc コメント参照)。
+    /// - Returns: サインイン先 uid に**既存プロフィール行があったか** (restored / created の判定用)。
+    @discardableResult
+    private func signInWithGoogle(presenting flow: WebAuthFlow) async throws -> Bool {
+        let client = try requireClient()
+        // 認可 URL を生成 (PKCE verifier を保存) → web 認可 → コールバックで code 交換。
+        // 現匿名 uid は破棄され、Google 側の既存(または新規)アカウントに入る。
+        let url = try client.auth.getOAuthSignInURL(
+            provider: .google, redirectTo: SupabaseConfig.googleRedirectURL
+        )
+        let callbackURL = try await flow(url)
+        _ = try await client.auth.session(from: callbackURL)
+        do {
+            // ローカルキャッシュは切替先のものに置き換える。
+            myProfile = nil
+            defaults.removeObject(forKey: Self.myProfileKey)
+            // signIn の upsert より前に既存有無を確定する (upsert 後では必ず存在してしまうため)。
+            let session = try await client.auth.session
+            let existing: [ProfileRow] = try await client.from("profiles")
+                .select().eq("user_id", value: session.user.id.uuidString).limit(1).execute().value
+            let hadProfile = !existing.isEmpty
+            // 空文字 = 既存保持。新規(既存なし)時のみ signIn 内の既定値/コード生成で作成される。
+            try await signIn(displayName: "", username: "")
+            await refreshBackupStatus()
+            return hadProfile
+        } catch {
+            // 認可は成立したが profile ロード失敗。切替を巻き戻して安全側へ (signInWithApple と同様)。
+            // scope: .local — このデバイスのセッションのみ破棄 (.global は全端末失効のため使わない)。
+            try? await client.auth.signOut(scope: .local)
+            myProfile = nil
+            defaults.removeObject(forKey: Self.myProfileKey)
+            await refreshBackupStatus()
+            throw error
         }
     }
 
@@ -195,6 +276,12 @@ final class SupabaseFriendsService: FriendsService {
             return .backendUnavailable
         }
         guard let authError = error as? AuthError else { return .failed }
+        // Google web/PKCE: 衝突/プロバイダ無効/拒否はコールバック URL の error_code / error に載って
+        // `pkceGrantCodeExchange` として throw される。`errorCode` は .unknown になるので、
+        // 関連値の code / error 文字列を直接写像する (Apple の id_token 経路と対称)。
+        if case let .pkceGrantCodeExchange(_, errorString, code) = authError {
+            return mapPKCECallback(code: code, error: errorString)
+        }
         switch authError.errorCode {
         case .identityAlreadyExists, .emailExists:
             return .alreadyLinkedToAnotherAccount
@@ -203,6 +290,34 @@ final class SupabaseFriendsService: FriendsService {
         default:
             return .failed
         }
+    }
+
+    /// コールバック URL の `error_code` (code) と OAuth2 `error` (error) を写像する (PKCE web flow)。
+    /// SDK は該当パラメータが無いと `"unspecified_code"`/`"unspecified_error"` のプレースホルダを
+    /// 入れるため、両フィールドを見つつプレースホルダは無視する (Codex round1)。
+    /// 例: Google 同意画面の拒否は `error=access_denied` のみで `error_code` 不在 = code はプレースホルダ
+    /// になり得るので、error 側も評価しないと `.cancelled` を取り逃す。
+    private static func mapPKCECallback(code: String?, error: String?) -> AccountLinkError {
+        let tokens = [code, error].compactMap { $0 }
+            .filter { $0 != "unspecified_code" && $0 != "unspecified_error" }
+        for token in tokens {
+            switch token {
+            case ErrorCode.identityAlreadyExists.rawValue,
+                 ErrorCode.emailExists.rawValue,
+                 ErrorCode.userAlreadyExists.rawValue:
+                return .alreadyLinkedToAnotherAccount
+            case ErrorCode.providerDisabled.rawValue,
+                 ErrorCode.manualLinkingDisabled.rawValue,
+                 ErrorCode.oauthProviderNotSupported.rawValue:
+                return .providerUnavailable
+            case "access_denied":
+                // Google の同意画面でユーザーが拒否/中止した場合。エラー扱いにしない。
+                return .cancelled
+            default:
+                continue
+            }
+        }
+        return .failed
     }
 
     // MARK: - Sign in / out

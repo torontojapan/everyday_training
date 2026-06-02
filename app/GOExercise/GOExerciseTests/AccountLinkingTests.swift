@@ -59,6 +59,77 @@ final class AccountLinkingTests: XCTestCase {
         XCTAssertTrue(store.isBackedUp)
     }
 
+    // MARK: - Google 連携 (web/PKCE。Apple と対称な写像)
+
+    func testLinkGoogleMapsCollision() async {
+        let store = FriendsStore(service: LinkStubService(linkError: .alreadyLinkedToAnotherAccount))
+        let result = await store.linkGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .collision, "identity_already_exists 相当は collision に写像")
+    }
+
+    func testLinkGoogleMapsFailure() async {
+        let store = FriendsStore(service: LinkStubService(linkError: .providerUnavailable))
+        let result = await store.linkGoogle(presenting: Self.noopFlow)
+        if case .failed = result { } else { XCTFail("provider 不可は failed に写像されるはず") }
+    }
+
+    func testLinkGoogleMapsCancelled() async {
+        let store = FriendsStore(service: LinkStubService(linkError: .cancelled))
+        let result = await store.linkGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .cancelled, "キャンセルは .cancelled に写像 (エラー表示しない)")
+        XCTAssertNil(store.lastError)
+    }
+
+    func testLinkGoogleSuccess() async {
+        let store = FriendsStore(service: LinkStubService(linkError: nil, linkedStatus:
+            AccountBackupStatus(isBackedUp: true, providerName: "google")))
+        let result = await store.linkGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .linked)
+        XCTAssertTrue(store.isBackedUp)
+    }
+
+    func testRestoreGoogleRestoredLoadsProfile() async {
+        let restored = Self.sampleProfile(code: "GGL123")
+        let store = FriendsStore(service: RestoreStubService(outcome: .restored,
+                                                             restoredProfile: restored, provider: "google"))
+        let result = await store.restoreWithGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .restored)
+        XCTAssertEqual(store.profile?.friendCode, "GGL123", "復元成功で既存プロフィールが反映される")
+        XCTAssertTrue(store.isBackedUp)
+    }
+
+    func testRestoreGoogleCreatedWhenNoExistingData() async {
+        let store = FriendsStore(service: RestoreStubService(outcome: .created,
+                                                             restoredProfile: Self.sampleProfile(code: "GNEW01"),
+                                                             provider: "google"))
+        let result = await store.restoreWithGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .created, "既存データ無しは created に写像")
+        XCTAssertTrue(store.isBackedUp)
+    }
+
+    func testRestoreGoogleFailureSetsLastError() async {
+        let store = FriendsStore(service: RestoreStubService(error: .backendUnavailable))
+        let result = await store.restoreWithGoogle(presenting: Self.noopFlow)
+        if case .failed = result {} else { XCTFail("失敗は .failed に写像されるはず") }
+        XCTAssertNotNil(store.lastError)
+        XCTAssertNil(store.profile, "失敗時は profile を変えない")
+    }
+
+    func testRestoreGoogleCancelledKeepsWelcome() async {
+        let store = FriendsStore(service: RestoreStubService(error: .cancelled))
+        let result = await store.restoreWithGoogle(presenting: Self.noopFlow)
+        XCTAssertEqual(result, .cancelled, "キャンセルは .cancelled に写像")
+        XCTAssertNil(store.lastError, "キャンセルでエラーバナーを出さない")
+        XCTAssertNil(store.profile, "キャンセルで profile を変えない")
+    }
+
+    func testRestoreGoogleDefaultUnavailableForMock() async {
+        // Mock は連携未対応 = protocol default で providerUnavailable を throw → failed。
+        let store = FriendsStore(service: MockFriendsService(defaults: makeDefaults()))
+        let result = await store.restoreWithGoogle(presenting: Self.noopFlow)
+        if case .failed = result {} else { XCTFail("未対応サービスは failed") }
+    }
+
     // MARK: - 復元入口 (restoreWithApple)
 
     func testRestoreRestoredLoadsProfile() async {
@@ -111,6 +182,9 @@ final class AccountLinkingTests: XCTestCase {
         UserDefaults(suiteName: "account.linking.tests.\(UUID().uuidString)")!
     }
 
+    /// Google 連携テスト用の no-op web フロー。スタブは flow を呼ばないので戻り値は使われない。
+    @MainActor static let noopFlow: WebAuthFlow = { _ in URL(string: "goexercise://auth-callback")! }
+
     static func sampleProfile(code: String) -> FriendProfile {
         FriendProfile(
             id: code, friendCode: code, username: code.lowercased(),
@@ -122,27 +196,35 @@ final class AccountLinkingTests: XCTestCase {
     }
 }
 
-/// 復元/切替の結果だけを差し替える最小スタブ。`restoreWithApple` と
+/// 復元/切替の結果だけを差し替える最小スタブ。`restoreWithApple`/`restoreWithGoogle` と
 /// `anonymousSessionHasData` のみ意味を持ち、他は no-op。
 @MainActor
 private final class RestoreStubService: FriendsService {
-    private let outcome: AppleRestoreOutcome
+    private let outcome: RestoreOutcome
     private let error: AccountLinkError?
     private let hasData: Bool
+    private let provider: String
     private(set) var myProfile: FriendProfile?
     private(set) var backupStatus: AccountBackupStatus = .anonymous
 
-    init(outcome: AppleRestoreOutcome = .created, error: AccountLinkError? = nil,
-         hasData: Bool = false, restoredProfile: FriendProfile? = nil) {
+    init(outcome: RestoreOutcome = .created, error: AccountLinkError? = nil,
+         hasData: Bool = false, restoredProfile: FriendProfile? = nil, provider: String = "apple") {
         self.outcome = outcome
         self.error = error
         self.hasData = hasData
+        self.provider = provider
         self.myProfile = restoredProfile
     }
 
-    func restoreWithApple(idToken: String, nonce: String) async throws -> AppleRestoreOutcome {
+    func restoreWithApple(idToken: String, nonce: String) async throws -> RestoreOutcome {
+        try restore()
+    }
+    func restoreWithGoogle(presenting flow: WebAuthFlow) async throws -> RestoreOutcome {
+        try restore()
+    }
+    private func restore() throws -> RestoreOutcome {
         if let error { throw error }
-        backupStatus = AccountBackupStatus(isBackedUp: true, providerName: "apple")
+        backupStatus = AccountBackupStatus(isBackedUp: true, providerName: provider)
         return outcome
     }
     func anonymousSessionHasData() async -> Bool { hasData }
@@ -188,6 +270,10 @@ private final class LinkStubService: FriendsService {
 
     func refreshBackupStatus() async {}
     func linkApple(idToken: String, nonce: String) async throws {
+        if let linkError { throw linkError }
+        backupStatus = linkedStatus
+    }
+    func linkGoogle(presenting flow: WebAuthFlow) async throws {
         if let linkError { throw linkError }
         backupStatus = linkedStatus
     }

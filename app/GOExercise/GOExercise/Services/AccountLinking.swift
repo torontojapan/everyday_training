@@ -45,14 +45,21 @@ enum AccountLinkError: LocalizedError, Equatable {
     }
 }
 
-/// Apple 復元 (`restoreWithApple`) の成否内訳。新端末/再インストールで welcome から実行する。
-/// `Store` 側でこれに `failed` を足して UI へ渡す ([[FriendsStore]].AppleRestoreResult)。
-enum AppleRestoreOutcome: Equatable, Sendable {
-    /// その Apple ID に紐づく既存プロフィールが見つかり、ロードした (友達/コードが戻る)。
+/// 復元 (`restoreWithApple` / `restoreWithGoogle`) の成否内訳。新端末/再インストールで
+/// welcome から実行する。`Store` 側でこれに `failed`/`cancelled` を足して UI へ渡す
+/// ([[FriendsStore]].RestoreResult)。Apple/Google で意味は同一なので provider-neutral。
+enum RestoreOutcome: Equatable, Sendable {
+    /// その Apple/Google ID に紐づく既存プロフィールが見つかり、ロードした (友達/コードが戻る)。
     case restored
     /// 既存データが無く、新規アカウントとして作成した (実質サインアップ)。
     case created
 }
+
+/// Google 連携 (web/PKCE) の認可フロー。認可 URL を ASWebAuthenticationSession で開き、
+/// `goexercise://` のコールバック URL を返す。View が [[GoogleSignInCoordinator]] を渡し、
+/// Service 側 (Supabase) が前後で認可 URL 生成と PKCE code 交換 (`session(from:)`) を行う。
+/// Apple はネイティブ id_token なので不要 (経路が違う)。
+typealias WebAuthFlow = @MainActor (_ url: URL) async throws -> URL
 
 /// 連携状態 (UI 表示用)。
 struct AccountBackupStatus: Equatable, Sendable {
