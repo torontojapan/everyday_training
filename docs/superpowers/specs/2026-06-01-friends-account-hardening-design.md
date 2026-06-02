@@ -290,9 +290,16 @@ iOS 友達リリース面を**完全に閉じてから** Android へ。各ステ
 - `FriendsGoogleLinkEnabled=true` で実機手動検証(連携→削除→再インストール→Google で復元 の E2E)。
 - **公式 Google "G" ブランドアセット**へ差し替え([[GoogleGMark]] は近似描画のプレースホルダ)。
 
-### ③ Android 実装計画書 (タスク#7) — 新セッションで集中
-- Android アプリ(全機能ゼロから / Kotlin + Compose)の**実装計画書を作成** → Codex レビュー →
-  **着工の号砲はユーザー承認後**(数ヶ月規模の新規開発)。
+### ③ Android 実装計画書 (タスク#7): ✅ 計画作成済 (2026-06-02) — **着工はユーザー承認待ち**
+- 実装計画書 = **`docs/superpowers/specs/2026-06-02-android-implementation-plan.md`**。
+  Kotlin+Compose / 純ネイティブ(KMP不採用)/ Supabase 同一プロジェクト共有で Apple↔Android 相互フレンド。
+  認証は iOS と**鏡像**(Android: Google=native id_token / Apple=web PKCE Custom Tabs)。
+  スコープは**段階的**(P1=コア+友達+連携+課金+審査、体重/生理/ウィジェット等は P1.x)。
+- **Codex(gpt-5.5 xhigh) 改善ループ 3 周で `patch is correct` 収束**:
+  round1=Data safety 申告不足(Health&fitness/分析を追加)・Billing 7→最新(9)・exact alarm→WorkManager 既定・
+  EncryptedSharedPreferences deprecated 是正。round2=パリティ表の取り残し2件+supabase-kt API 名を Kotlin 正名へ。
+- **着工の号砲はユーザー承認後**(数ヶ月規模)。承認時に計画 §15 の判断(特に v1 スコープ A / 分析push B)を確定。
+- 友達版の本リリースは iOS v1.0 審査承認後(順序厳守)。
 - Supabase backend は中立設計済み(`docs/friends_backend_crossplatform.md`)= Android も同じ
   匿名認証 + PostgREST + Apple/Google 連携を再利用する前提。
 
