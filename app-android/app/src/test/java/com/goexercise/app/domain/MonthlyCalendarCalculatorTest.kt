@@ -41,6 +41,34 @@ class MonthlyCalendarCalculatorTest {
     }
 
     @Test
+    fun cellsAlwaysFillCompleteWeeks() {
+        // iOS と同様、セル数は常に 7 の倍数(先頭+末尾を空白で詰める)。
+        for (m in 1..12) {
+            val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, m), emptyList(), today = LocalDate.of(2026, 12, 31))
+            assertEquals("month=$m は7の倍数でない", 0, cells.size % 7)
+        }
+    }
+
+    @Test
+    fun trailingBlanksPadLastWeek() {
+        // 2026-08-01 は土曜(leading=5)。5+31=36 → 42(6週)に詰める。
+        assertEquals(java.time.DayOfWeek.SATURDAY, LocalDate.of(2026, 8, 1).dayOfWeek)
+        val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 8), emptyList(), today = LocalDate.of(2026, 12, 31))
+        assertEquals(42, cells.size)
+        assertNull(cells.last().date) // 末尾は空白
+    }
+
+    @Test
+    fun achievedCountExcludesRest() {
+        // restLimit>0 で未記録日は Rest 扱いになるが、達成数には含めない。
+        val today = LocalDate.of(2026, 5, 31)
+        val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 5), listOf(record(10)), today = today)
+        // 5/10 のみ Achieved。Rest 日(自動休養)は achievedDaysInMonth に入らない。
+        assertEquals(1, MonthlyCalendarCalculator.achievedDaysInMonth(cells))
+        assertTrue(MonthlyCalendarCalculator.restDaysInMonth(cells) >= 1)
+    }
+
+    @Test
     fun futureMonthDaysAreFuture() {
         val today = LocalDate.of(2026, 5, 15)
         val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 5), emptyList(), today = today)

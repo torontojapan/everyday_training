@@ -1,13 +1,20 @@
 package com.goexercise.app.domain
 
-/** 1 日の達成状態。iOS `DailyStatus` の移植(symbol / countsAsAchieved を含む)。 */
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * 1 日の達成状態。iOS `DailyStatus`(String, Codable)の移植(symbol / countsAsAchieved を含む)。
+ * @SerialName で iOS rawValue(achieved/rest/...)と JSON 表現を一致させる。
+ */
+@Serializable
 enum class DailyStatus(val symbol: String) {
-    Achieved("○"),
-    Rest("休"),
-    Missed("×"),
-    Future("-"),
-    TodayPending("・"),
-    TodayAchieved("◎");
+    @SerialName("achieved") Achieved("○"),
+    @SerialName("rest") Rest("休"),
+    @SerialName("missed") Missed("×"),
+    @SerialName("future") Future("-"),
+    @SerialName("todayPending") TodayPending("・"),
+    @SerialName("todayAchieved") TodayAchieved("◎");
 
     val countsAsAchieved: Boolean
         get() = this == Achieved || this == Rest || this == TodayAchieved

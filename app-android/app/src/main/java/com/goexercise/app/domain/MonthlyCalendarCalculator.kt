@@ -33,10 +33,20 @@ object MonthlyCalendarCalculator {
             )
             MonthCell(date, status)
         }
-        return blanks + days
+        // iOS と同様、末尾も 7 列の行が埋まるまで空白で詰める(MonthlyCalendarView)。
+        val cells = (blanks + days).toMutableList()
+        while (cells.size % 7 != 0) cells.add(MonthCell(null, null))
+        return cells
     }
 
-    /** 当月の達成日数(達成扱い = countsAsAchieved)。 */
+    /**
+     * 当月の「達成」日数。iOS の月サマリーと一致させ **休養(Rest)は含めない**
+     * (Achieved/TodayAchieved のみ。MonthlyCalendarView.summaryText 参照)。
+     */
     fun achievedDaysInMonth(cells: List<MonthCell>): Int =
-        cells.count { it.date != null && it.status?.countsAsAchieved == true }
+        cells.count { it.status == DailyStatus.Achieved || it.status == DailyStatus.TodayAchieved }
+
+    /** 当月の休養(Rest)日数。iOS は達成と分離表示する。 */
+    fun restDaysInMonth(cells: List<MonthCell>): Int =
+        cells.count { it.status == DailyStatus.Rest }
 }
