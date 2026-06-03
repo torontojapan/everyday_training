@@ -2,6 +2,8 @@ package com.goexercise.app.presentation.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.analytics.Analytics
+import com.goexercise.app.analytics.AnalyticsEvent
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +32,7 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             settings.setCatBreed(breed)
             settings.setOnboardingComplete()
+            Analytics.track(AnalyticsEvent.OnboardingCompleted)
         }
     }
 }

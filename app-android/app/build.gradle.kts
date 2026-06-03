@@ -56,6 +56,11 @@ android {
         // メントを実 Play なしで確認)。Play Console にサブスク商品を作成し内部テスト配信が整ったら
         // true にする(#10)。
         buildConfigField("Boolean", "PLAY_BILLING_ENABLED", secret("PLAY_BILLING_ENABLED").ifBlank { "false" })
+
+        // 分析(TelemetryDeck, プライバシー配慮型)。iOS Info.plist TelemetryDeckAppID 相当。
+        // 未設定(空)なら NoopAnalytics で一切送信しない(プライバシーラベル「データ収集なし」を維持)。
+        // 実際の送信は release ビルド かつ App ID 設定時のみ(Analytics.configureIfPossible)。
+        buildConfigField("String", "TELEMETRYDECK_APP_ID", "\"${secret("TELEMETRYDECK_APP_ID")}\"")
     }
 
     buildTypes {
@@ -135,6 +140,9 @@ dependencies {
     // ホーム画面ウィジェット(Jetpack Glance)。連続日数+猫を表示。
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+
+    // 分析(TelemetryDeck, プライバシー配慮型・匿名)。App ID 未設定なら no-op。
+    implementation(libs.telemetrydeck.kotlin.sdk)
 
     testImplementation(libs.junit)
 

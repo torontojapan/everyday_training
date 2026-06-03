@@ -2,6 +2,8 @@ package com.goexercise.app.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.analytics.Analytics
+import com.goexercise.app.analytics.AnalyticsEvent
 import com.goexercise.app.data.DataManagementRepository
 import com.goexercise.app.data.billing.PremiumRepository
 import com.goexercise.app.data.settings.NotificationPrefsRepository
@@ -72,6 +74,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 onReady(dataManagement.exportJson(clock.instant()))
+                Analytics.track(AnalyticsEvent.DataExported)
             } finally {
                 _isBusy.value = false
             }
@@ -85,6 +88,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 onDone(dataManagement.deleteAllRecords())
+                Analytics.track(AnalyticsEvent.DataDeleted)
             } finally {
                 _isBusy.value = false
             }

@@ -2,6 +2,8 @@ package com.goexercise.app.presentation.record
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.analytics.Analytics
+import com.goexercise.app.analytics.AnalyticsEvent
 import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.domain.WorkoutCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,6 +62,8 @@ class RecordViewModel @Inject constructor(
             runCatching { repository.save(record) }
                 .onSuccess {
                     _state.update { it.copy(isSaving = false) }
+                    val category = current.drafts.firstOrNull()?.category?.name ?: "unknown"
+                    Analytics.track(AnalyticsEvent.RecordCreated(category))
                     _saved.send(Unit)
                 }
                 .onFailure { e ->
