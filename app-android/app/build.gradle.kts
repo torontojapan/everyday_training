@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,14 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
+
+// Supabase 接続情報は local.properties(gitignore)から BuildConfig へ注入(iOS の Secrets.xcconfig 相当)。
+// 未設定なら空文字 → SupabaseConfig.isConfigured=false で friends は Mock フォールバック。
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun secret(key: String): String = (localProps.getProperty(key) ?: "").trim()
 
 // Compile with the JDK running Gradle (Android Studio's JBR 21) but emit JVM 17
 // bytecode. Avoids Gradle toolchain auto-provisioning (no JDK 17 installed locally).
@@ -29,6 +38,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        // iOS と同一 Supabase プロジェクトを共有(friend code 名前空間共有)。
+        buildConfigField("String", "SUPABASE_HOST", "\"${secret("SUPABASE_HOST")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secret("SUPABASE_ANON_KEY")}\"")
     }
 
     buildTypes {
@@ -47,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -79,6 +93,13 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+
+    // Supabase(friends バックエンド, iOS と同一プロジェクト共有)。
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.functions)
+    implementation(libs.ktor.client.okhttp)
 
     testImplementation(libs.junit)
 
