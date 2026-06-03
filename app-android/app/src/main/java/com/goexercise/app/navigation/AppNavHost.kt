@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.goexercise.app.presentation.home.HomeRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /**
@@ -29,7 +30,12 @@ fun AppNavHost(
     NavHost(navController = navController, startDestination = AppRoute.Home.path) {
         AppRoute.entries.forEach { route ->
             composable(route.path) {
-                RoutePlaceholder(route)
+                when (route) {
+                    AppRoute.Home -> HomeRoute(
+                        onRecordClick = { navController.navigate(AppRoute.Record.path) },
+                    )
+                    else -> RoutePlaceholder(route)
+                }
             }
         }
     }
