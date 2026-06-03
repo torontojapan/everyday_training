@@ -29,13 +29,18 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 import com.goexercise.app.ui.theme.colorForStatus
 
 @Composable
-fun HistoryRoute(viewModel: HistoryViewModel = hiltViewModel()) {
+fun HistoryRoute(onUseRescue: () -> Unit = {}, viewModel: HistoryViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth)
+    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue)
 }
 
 @Composable
-fun HistoryContent(state: HistoryUiState, onPrev: () -> Unit = {}, onNext: () -> Unit = {}) {
+fun HistoryContent(
+    state: HistoryUiState,
+    onPrev: () -> Unit = {},
+    onNext: () -> Unit = {},
+    onUseRescue: () -> Unit = {},
+) {
     val palette = LocalAppPalette.current
     Column(
         modifier = Modifier
@@ -67,6 +72,7 @@ fun HistoryContent(state: HistoryUiState, onPrev: () -> Unit = {}, onNext: () ->
                 repeat(7 - week.size) { Box(Modifier.weight(1f)) } // 末週の埋め
             }
         }
+        TextButton(onClick = onUseRescue) { Text("連続記録フリーズを使う") }
     }
 }
 
