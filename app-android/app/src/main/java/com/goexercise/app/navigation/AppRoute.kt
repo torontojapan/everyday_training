@@ -17,16 +17,5 @@ enum class AppRoute(val path: String) {
     companion object {
         fun fromPath(path: String): AppRoute? =
             entries.firstOrNull { it.path == path.lowercase() }
-
-        /**
-         * `goexercise://<host>[?code=...]` を AppRoute に解決する(iOS DeepLinkRouter.route 相当)。
-         * scheme 不一致/未知ホストは null。friend code 抽出と feature-flag ゲートは
-         * friends フェーズ(P1b-1)で FriendCodeValidator と共に移植する。
-         */
-        fun fromUri(scheme: String?, host: String?): AppRoute? {
-            if (scheme?.lowercase() != "goexercise") return null
-            val key = host?.lowercase() ?: return null
-            return fromPath(key)
-        }
     }
 }
