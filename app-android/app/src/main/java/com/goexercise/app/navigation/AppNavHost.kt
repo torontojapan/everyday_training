@@ -10,6 +10,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,11 +36,21 @@ private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正�
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
+    deepLinkUri: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val tabs = BottomTab.visible()
     val showBottomBar = tabs.any { it.route == currentRoute }
+
+    // goexercise:// を解決して遷移(feature flag で friends→home 振替)。friendCode はフレンド画面実装時に消費。
+    LaunchedEffect(deepLinkUri) {
+        val uri = deepLinkUri ?: return@LaunchedEffect
+        val (route, _) = DeepLink.resolve(uri)
+        route?.let { navController.navigate(it.path) }
+        onDeepLinkConsumed()
+    }
 
     Scaffold(
         bottomBar = {

@@ -7,11 +7,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WorkoutDao {
-    @Query("SELECT * FROM workout_records ORDER BY dateEpochDay DESC")
+    // 同一日内の順序を安定化(SQLite は ORDER 未指定だと順序未保証)。
+    @Query("SELECT * FROM workout_records ORDER BY dateEpochDay DESC, updatedAtEpochMs DESC")
     fun observeAll(): Flow<List<WorkoutRecordEntity>>
 
-    @Query("SELECT * FROM workout_records WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay")
+    @Query("SELECT * FROM workout_records WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay, updatedAtEpochMs")
     suspend fun rangeOnce(startEpochDay: Long, endEpochDay: Long): List<WorkoutRecordEntity>
+
+    @Query("SELECT * FROM workout_records WHERE id = :id")
+    suspend fun findById(id: String): WorkoutRecordEntity?
 
     @Upsert
     suspend fun upsert(record: WorkoutRecordEntity)

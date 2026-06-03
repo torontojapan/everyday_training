@@ -50,6 +50,11 @@ android {
     }
 }
 
+// Room スキーマを app/schemas に出力(exportSchema=true)。将来の migration テストの基準。
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

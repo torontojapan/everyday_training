@@ -22,26 +22,44 @@ fun GOExerciseTheme(
     theme: AppTheme = AppTheme.Peach,
     content: @Composable () -> Unit,
 ) {
+    // container/variant 系まで AppTheme から写像する。FilterChip 選択色・NavigationBar の
+    // indicator は secondaryContainer を使うため、ここを埋めないとテーマ外の色が出る(Codexレビュー)。
     val scheme = if (theme.isDark) {
         darkColorScheme(
             primary = theme.primary,
-            secondary = theme.secondary,
-            background = theme.background,
-            surface = theme.surface,
             onPrimary = theme.background,
+            primaryContainer = theme.secondary,
+            onPrimaryContainer = theme.textPrimary,
+            secondary = theme.secondary,
+            onSecondary = theme.textPrimary,
+            secondaryContainer = theme.chipBackground,
+            onSecondaryContainer = theme.textPrimary,
+            background = theme.background,
             onBackground = theme.textPrimary,
+            surface = theme.surface,
             onSurface = theme.textPrimary,
+            surfaceVariant = theme.chipBackground,
+            onSurfaceVariant = theme.textSecondary,
+            outline = theme.textSecondary,
             error = theme.missed,
         )
     } else {
         lightColorScheme(
             primary = theme.primary,
-            secondary = theme.secondary,
-            background = theme.background,
-            surface = theme.surface,
             onPrimary = theme.surface,
+            primaryContainer = theme.chipBackground,
+            onPrimaryContainer = theme.textPrimary,
+            secondary = theme.secondary,
+            onSecondary = theme.textPrimary,
+            secondaryContainer = theme.chipBackground,
+            onSecondaryContainer = theme.textPrimary,
+            background = theme.background,
             onBackground = theme.textPrimary,
+            surface = theme.surface,
             onSurface = theme.textPrimary,
+            surfaceVariant = theme.chipBackground,
+            onSurfaceVariant = theme.textSecondary,
+            outline = theme.textSecondary,
             error = theme.missed,
         )
     }

@@ -18,8 +18,8 @@ import java.time.LocalDateTime
  * 移植済みドメインロジック(streak / 週次 / 達成 / 猫状態 / lifetime / 装飾)を 1 箇所に束ねる。
  * 純粋に保つことで coroutine 無しで単体テストでき、iOS HomeViewModel.refresh の集計と対応づく。
  *
- * 未対応(後続フェーズ): rescuedDates(保険チケット), streakExtendedThisRun, マイルストーン,
- * 運動トレンド集計(today/week summary)。現状 rescuedDates は空で計算する。
+ * 未対応(後続フェーズ): rescuedDates(保険チケット), streakExtendedThisRun, マイルストーン。
+ * 現状 rescuedDates は空で計算する。運動トレンド集計(today/week)と初回利用日は実装済み。
  */
 object HomeStateReducer {
 
@@ -27,6 +27,7 @@ object HomeStateReducer {
         records: List<WorkoutRecord>,
         now: LocalDateTime,
         rescuedDates: Set<java.time.LocalDate> = emptySet(),
+        firstUseDate: java.time.LocalDate? = null,
     ): HomeUiState {
         val today = now.toLocalDate()
 
@@ -37,7 +38,9 @@ object HomeStateReducer {
         val streak = StreakCalculator.streakState(records, today, rescuedDates)
         val todayStatus = weekStatuses.firstOrNull { it.date == today }?.status ?: DailyStatus.TodayPending
 
-        val firstUse = records.minByOrNull { it.date }?.date ?: today
+        // 永続化された初回利用日を優先(記録の無い期間も利用日数に含める。iOS LifetimeUsageTracker)。
+        // 未永続なら最古記録日、それも無ければ今日にフォールバック。
+        val firstUse = firstUseDate ?: records.minByOrNull { it.date }?.date ?: today
         val lifetime = LifetimeStatsCalculator.calculate(records, firstUse, today)
         val decoration = CatDecoration.of(lifetime.achievedDays)
 

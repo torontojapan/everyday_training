@@ -1,6 +1,7 @@
 package com.goexercise.app.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -10,7 +11,7 @@ import androidx.room.PrimaryKey
  * - createdAt/updatedAt は epoch milli。ドメインモデルは純粋に保つため、これらは
  *   データ層だけが持ち、Repository が書き込み時に設定する。
  */
-@Entity(tableName = "workout_records")
+@Entity(tableName = "workout_records", indices = [Index("dateEpochDay")])
 data class WorkoutRecordEntity(
     @PrimaryKey val id: String,
     val dateEpochDay: Long,

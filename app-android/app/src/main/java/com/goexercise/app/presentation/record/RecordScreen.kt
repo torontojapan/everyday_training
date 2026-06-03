@@ -19,7 +19,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,19 +27,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import com.goexercise.app.domain.WorkoutCategory
 import com.goexercise.app.ui.theme.LocalAppPalette
 
-/** Record ルートのエントリ。保存完了で onSaved、戻るで onBack。 */
+/** Record ルートのエントリ。保存完了は one-shot イベントで onSaved、戻るで onBack。 */
 @Composable
 fun RecordRoute(
     onSaved: () -> Unit = {},
     onBack: () -> Unit = {},
     viewModel: RecordViewModel = hiltViewModel(),
 ) {
-    val state = viewModel.state
-    LaunchedEffect(state.saved) {
-        if (state.saved) onSaved()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.saved.collect { onSaved() }
     }
     RecordContent(
         state = state,
@@ -57,7 +59,7 @@ fun RecordRoute(
 fun RecordContent(
     state: RecordUiState,
     onBack: () -> Unit = {},
-    onCategory: (WorkoutCategory) -> Unit = {},
+    onCategory: (String, WorkoutCategory) -> Unit = { _, _ -> },
     onMemo: (String) -> Unit = {},
     onUpdateDraft: (String, (ExerciseDraft) -> ExerciseDraft) -> Unit = { _, _ -> },
     onAddExercise: () -> Unit = {},
@@ -78,24 +80,11 @@ fun RecordContent(
             Text("記録する", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
         }
 
-        Text("カテゴリ", color = palette.textSecondary, fontSize = 13.sp)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            WorkoutCategory.entries.forEach { cat ->
-                FilterChip(
-                    selected = state.category == cat,
-                    onClick = { onCategory(cat) },
-                    label = { Text(cat.displayName) },
-                )
-            }
-        }
-
         state.drafts.forEach { draft ->
             ExerciseDraftCard(
                 draft = draft,
                 canRemove = state.drafts.size > 1,
+                onCategory = { cat -> onCategory(draft.id, cat) },
                 onChange = { updated -> onUpdateDraft(draft.id) { updated } },
                 onRemove = { onRemoveExercise(draft.id) },
             )
@@ -115,9 +104,10 @@ fun RecordContent(
             enabled = state.canSave,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("保存する")
+            Text(if (state.isSaving) "保存中…" else "保存する")
         }
-        if (!state.canSave) {
+        state.errorMessage?.let { Text(it, color = palette.missed, fontSize = 12.sp) }
+        if (state.validExercises().isEmpty()) {
             Text("種目名を1つ以上入力してください", color = palette.textSecondary, fontSize = 12.sp)
         }
     }
@@ -127,12 +117,22 @@ fun RecordContent(
 private fun ExerciseDraftCard(
     draft: ExerciseDraft,
     canRemove: Boolean,
+    onCategory: (WorkoutCategory) -> Unit,
     onChange: (ExerciseDraft) -> Unit,
     onRemove: () -> Unit,
 ) {
     val palette = LocalAppPalette.current
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 種目ごとのカテゴリ選択(複数カテゴリ混在可)。
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                WorkoutCategory.entries.forEach { cat ->
+                    FilterChip(selected = draft.category == cat, onClick = { onCategory(cat) }, label = { Text(cat.displayName) })
+                }
+            }
             OutlinedTextField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
@@ -141,9 +141,9 @@ private fun ExerciseDraftCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("分", draft.minutes, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
-                NumberField("回数", draft.reps, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
-                NumberField("セット", draft.sets, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
+                NumberField("分", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
+                NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
+                NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
             }
             if (canRemove) {
                 TextButton(onClick = onRemove) { Text("この種目を削除") }
@@ -153,10 +153,10 @@ private fun ExerciseDraftCard(
 }
 
 @Composable
-private fun NumberField(label: String, value: String, modifier: Modifier, onValueChange: (String) -> Unit) {
+private fun NumberField(label: String, value: String, maxDigits: Int, modifier: Modifier, onValueChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
-        onValueChange = { input -> onValueChange(input.filter { it.isDigit() }) },
+        onValueChange = { input -> onValueChange(RecordUiState.clampDigits(input, maxDigits)) },
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

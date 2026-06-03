@@ -35,9 +35,10 @@ object DeepLink {
         return AppRoute.fromPath(parsed.host)
     }
 
-    /** `?code=` を抽出し sanitize + 検証。不在/不正は null。 */
+    /** `?code=` を抽出し sanitize + 検証。friends 以外のホスト/不在/不正は null。 */
     fun friendCode(uri: String): String? {
         val parsed = parse(uri) ?: return null
+        if (parsed.scheme != SCHEME || parsed.host != AppRoute.Friends.path) return null
         val rawValue = parsed.query
             ?.split("&")
             ?.firstOrNull { it.startsWith("code=") }

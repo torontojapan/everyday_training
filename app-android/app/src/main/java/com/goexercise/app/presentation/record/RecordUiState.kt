@@ -6,55 +6,65 @@ import com.goexercise.app.domain.WorkoutRecord
 import java.time.LocalDate
 import java.util.UUID
 
+/** 数値入力の上限桁(Int overflow / 非現実値ガード)。 */
+private const val MINUTES_MAX_DIGITS = 4 // 〜9999 分
+private const val COUNT_MAX_DIGITS = 4   // 回数/セット 〜9999
+
 /**
  * 記録入力フォームの 1 種目分の下書き。iOS `RecordEntryViewModel.ExerciseDraft` の移植。
- * 数値はフォーム入力なので String で保持し、保存時に Int 化(空/0/非数値 = 未設定)。
- * v1 はカテゴリを記録単位(RecordUiState.category)で持つ。種目ごとカテゴリは後続で拡張。
+ * **カテゴリは種目ごと**に持つ(1 記録に複数カテゴリ混在可。iOS と保存 JSON を一致させる)。
+ * 数値はフォーム入力なので String、保存時に Int 化(空/0/非数値 = 未設定)。
  */
 data class ExerciseDraft(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
+    val category: WorkoutCategory = WorkoutCategory.Strength,
     val minutes: String = "",
     val reps: String = "",
     val sets: String = "",
     val memo: String = "",
 )
 
-/** 記録入力画面の状態。 */
+/** 記録入力画面の状態。`saved` は one-shot イベント化したので状態には持たない。 */
 data class RecordUiState(
-    val category: WorkoutCategory = WorkoutCategory.Strength,
     val drafts: List<ExerciseDraft> = listOf(ExerciseDraft()),
     val memo: String = "",
-    val saved: Boolean = false,
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null,
 ) {
     /** 種目名が入っている下書きだけを ExerciseItem 化(iOS validExercises 相当)。 */
     fun validExercises(): List<ExerciseItem> =
         drafts.mapNotNull { d ->
             val name = d.name.trim()
             if (name.isEmpty()) return@mapNotNull null
-            val durationSeconds = d.minutes.trim().toIntOrNull()?.takeIf { it > 0 }?.times(60)
             ExerciseItem(
                 id = d.id,
                 name = name,
-                durationSeconds = durationSeconds,
+                durationSeconds = d.minutes.trim().toIntOrNull()?.takeIf { it > 0 }?.times(60),
                 reps = d.reps.trim().toIntOrNull()?.takeIf { it > 0 },
                 sets = d.sets.trim().toIntOrNull()?.takeIf { it > 0 },
                 memo = d.memo.trim().ifEmpty { null },
-                category = category,
+                category = d.category,
             )
         }
 
-    val canSave: Boolean get() = validExercises().isNotEmpty()
+    val canSave: Boolean get() = validExercises().isNotEmpty() && !isSaving
 
-    /** 保存用 WorkoutRecord を組み立てる。有効種目が無ければ null(保存不可)。 */
+    /** 保存用 WorkoutRecord。代表カテゴリは先頭の有効種目(iOS primaryCategory)。 */
     fun toRecord(date: LocalDate): WorkoutRecord? {
         val exercises = validExercises()
         if (exercises.isEmpty()) return null
         return WorkoutRecord(
             date = date,
-            category = category,
+            category = exercises.first().category ?: WorkoutCategory.Strength,
             exercises = exercises,
             memo = memo.trim().ifEmpty { null },
         )
+    }
+
+    companion object {
+        fun clampDigits(input: String, max: Int): String = input.filter { it.isDigit() }.take(max)
+        const val minutesMaxDigits = MINUTES_MAX_DIGITS
+        const val countMaxDigits = COUNT_MAX_DIGITS
     }
 }

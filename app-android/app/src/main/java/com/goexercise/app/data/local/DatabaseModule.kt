@@ -20,6 +20,7 @@ object DatabaseModule {
     @Singleton
     fun provideJson(): Json = Json {
         ignoreUnknownKeys = true // 後方互換: 旧/新フィールド差異を許容
+        coerceInputValues = true // 未知 enum 値や null を既定値へ寄せる(壊れた行で落とさない)
         encodeDefaults = true
     }
 
@@ -29,6 +30,7 @@ object DatabaseModule {
         Room.databaseBuilder(context, AppDatabase::class.java, "goexercise.db").build()
 
     @Provides
+    @Singleton
     fun provideWorkoutDao(db: AppDatabase): WorkoutDao = db.workoutDao()
 }
 
@@ -36,5 +38,6 @@ object DatabaseModule {
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
     @Binds
+    @Singleton
     abstract fun bindWorkoutRepository(impl: WorkoutRepositoryImpl): WorkoutRepository
 }

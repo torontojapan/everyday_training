@@ -17,6 +17,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- goexercise:// ディープリンク(通知タップ/QR/共有リンク)。iOS の URL scheme と対称。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="goexercise" />
+            </intent-filter>
         </activity>
     </application>
 
