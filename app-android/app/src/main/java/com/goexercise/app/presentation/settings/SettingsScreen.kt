@@ -22,10 +22,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,8 +55,15 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val catBreed by viewModel.catBreed.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
+    val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
+
+    // Android 13+ は通知 ON 時に POST_NOTIFICATIONS を要求。許可されたら有効化する。
+    val notifPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.setReminder(true, reminder.hour, reminder.minute) }
+
     SettingsContent(
         selected = theme,
         onSelect = viewModel::setTheme,
@@ -71,6 +82,17 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onDeleteAll = {
             viewModel.deleteAllRecords { n -> deletedMsg = "${n} 件の記録を削除しました" }
         },
+        reminder = reminder,
+        onToggleReminder = { enabled ->
+            if (enabled && android.os.Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                viewModel.setReminder(enabled, reminder.hour, reminder.minute)
+            }
+        },
+        onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
     )
 }
 
@@ -86,6 +108,9 @@ fun SettingsContent(
     statusMessage: String? = null,
     onExport: () -> Unit = {},
     onDeleteAll: () -> Unit = {},
+    reminder: com.goexercise.app.data.settings.ReminderPrefs = com.goexercise.app.data.settings.ReminderPrefs(),
+    onToggleReminder: (Boolean) -> Unit = {},
+    onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -102,6 +127,9 @@ fun SettingsContent(
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
         CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
+
+        Text("通知", color = palette.textSecondary, fontSize = 13.sp)
+        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
 
         Text("テーマ", color = palette.textSecondary, fontSize = 13.sp)
         AppTheme.entries.forEach { theme ->
@@ -269,7 +297,52 @@ private fun shareJsonExport(context: Context, jsonText: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "application/json"
         putExtra(Intent.EXTRA_STREAM, uri)
+        // ClipData を付けないと chooser(intentresolver)のプレビューが URI を読めず Permission Denial になる。
+        clipData = android.content.ClipData.newRawUri("export", uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, "データをエクスポート"))
+}
+
+/** 毎日のリマインダー(ON/OFF + 時刻)。ON は通知権限取得後に有効化される(Route 側で要求)。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderSection(
+    palette: AppTheme,
+    reminder: com.goexercise.app.data.settings.ReminderPrefs,
+    onToggle: (Boolean) -> Unit,
+    onSetTime: (Int, Int) -> Unit,
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("毎日のリマインダー", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text("運動を続けるための通知", color = palette.textSecondary, fontSize = 12.sp)
+                }
+                Switch(checked = reminder.enabled, onCheckedChange = onToggle)
+            }
+            if (reminder.enabled) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("時刻", color = palette.textSecondary, fontSize = 13.sp)
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { showTimePicker = true }) {
+                        Text("%02d:%02d".format(reminder.hour, reminder.minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+    if (showTimePicker) {
+        val state = rememberTimePickerState(initialHour = reminder.hour, initialMinute = reminder.minute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("通知の時刻") },
+            text = { TimePicker(state = state) },
+            confirmButton = { TextButton(onClick = { onSetTime(state.hour, state.minute); showTimePicker = false }) { Text("設定", color = palette.primaryDeep) } },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("キャンセル") } },
+            containerColor = palette.surface,
+        )
+    }
 }

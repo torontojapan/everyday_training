@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.DataManagementRepository
 import com.goexercise.app.data.billing.PremiumRepository
+import com.goexercise.app.data.settings.NotificationPrefsRepository
+import com.goexercise.app.data.settings.ReminderPrefs
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,8 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     premium: PremiumRepository,
     private val dataManagement: DataManagementRepository,
+    private val notificationPrefs: NotificationPrefsRepository,
+    private val reminderScheduler: ReminderScheduler,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -42,6 +47,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setCatBreed(breed: CatBreed) {
         viewModelScope.launch { repository.setCatBreed(breed) }
+    }
+
+    /** 毎日のリマインダー設定(ON/OFF + 時刻)。 */
+    val reminder: StateFlow<ReminderPrefs> = notificationPrefs.prefs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReminderPrefs())
+
+    /** リマインダーを設定(保存 + AlarmManager 予約/解除)。enabled=true は通知権限取得後に呼ぶこと。 */
+    fun setReminder(enabled: Boolean, hour: Int, minute: Int) {
+        viewModelScope.launch {
+            notificationPrefs.set(enabled, hour, minute)
+            if (enabled) reminderScheduler.schedule(hour, minute) else reminderScheduler.cancel()
+        }
     }
 
     /** データ管理処理中(エクスポート/削除)。連打ガード + UI スピナー。 */

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 毎日のリマインダー通知(#A-2-3)。exact alarm は使わない(inexact=権限不要)。 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:name=".GOExerciseApp"
         android:allowBackup="true"
@@ -37,6 +41,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- リマインダー発火(アプリ内 PendingIntent からのみ)。 -->
+        <receiver
+            android:name=".notification.ReminderReceiver"
+            android:exported="false" />
+        <!-- 再起動でアラームが消えるので再予約する。 -->
+        <receiver
+            android:name=".notification.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
