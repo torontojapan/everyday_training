@@ -12,6 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,6 +24,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.goexercise.app.presentation.friends.FriendsRoute
+import com.goexercise.app.presentation.friends.WeeklyRankingRoute
 import com.goexercise.app.presentation.history.HistoryRoute
 import com.goexercise.app.presentation.home.HomeRoute
 import com.goexercise.app.presentation.record.RecordRoute
@@ -46,11 +51,15 @@ fun AppNavHost(
     val tabs = BottomTab.visible()
     val showBottomBar = tabs.any { it.route == currentRoute }
 
-    // goexercise:// を解決して遷移(feature flag で friends→home 振替)。friendCode はフレンド画面実装時に消費。
+    // friends に着地した deep link の検証済みコード。FriendsRoute が消費し追加シートを開く。
+    var pendingFriendCode by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // goexercise:// を解決して遷移(feature flag で friends→home 振替)。
     LaunchedEffect(deepLinkUri) {
         val uri = deepLinkUri ?: return@LaunchedEffect
-        val (route, _) = DeepLink.resolve(uri)
+        val (route, code) = DeepLink.resolve(uri)
         route?.let {
+            if (it == AppRoute.Friends && code != null) pendingFriendCode = code
             navController.navigate(it.path) { launchSingleTop = true } // 同一 deep link で重複積みしない
         }
         onDeepLinkConsumed()
@@ -90,6 +99,14 @@ fun AppNavHost(
                         AppRoute.Settings -> SettingsRoute()
                         AppRoute.History -> HistoryRoute(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
+                        )
+                        AppRoute.Friends -> FriendsRoute(
+                            onOpenRanking = { navController.navigate(AppRoute.WeeklyRanking.path) },
+                            pendingFriendCode = pendingFriendCode,
+                            onCodeConsumed = { pendingFriendCode = null },
+                        )
+                        AppRoute.WeeklyRanking -> WeeklyRankingRoute(
+                            onBack = { navController.popBackStack() },
                         )
                         else -> RoutePlaceholder(route.path)
                     }

@@ -101,6 +101,9 @@ dependencies {
     implementation(libs.supabase.functions)
     implementation(libs.ktor.client.okhttp)
 
+    // QR コード生成 (友達コードの招待リンクを QR 化)。pure-Java で実通信不要。
+    implementation(libs.zxing.core)
+
     testImplementation(libs.junit)
 
     debugImplementation(libs.androidx.ui.tooling)
