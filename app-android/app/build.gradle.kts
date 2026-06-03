@@ -38,6 +38,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // iOS と同一 Supabase プロジェクトを共有(friend code 名前空間共有)。
         buildConfigField("String", "SUPABASE_HOST", "\"${secret("SUPABASE_HOST")}\"")
@@ -78,6 +79,8 @@ android {
         compose = true
         buildConfig = true
     }
+    // Room の exportSchema 出力を計装テストの assets として読めるようにする(MigrationTestHelper 用)。
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
 }
 
 // Room スキーマを app/schemas に出力(exportSchema=true)。将来の migration テストの基準。
@@ -130,6 +133,12 @@ dependencies {
     implementation(libs.androidx.browser)
 
     testImplementation(libs.junit)
+
+    // 計装テスト(Room MigrationTestHelper で v1→v2 migration を実機/emu 検証)。
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.room.testing)
 
     debugImplementation(libs.androidx.ui.tooling)
 }
