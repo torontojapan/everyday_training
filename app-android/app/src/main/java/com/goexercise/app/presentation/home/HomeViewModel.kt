@@ -3,6 +3,7 @@ package com.goexercise.app.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.WorkoutRepository
+import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -27,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     repository: WorkoutRepository,
+    rescueTickets: RescueTicketRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) : ViewModel() {
@@ -37,8 +39,13 @@ class HomeViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<HomeUiState> =
-        combine(repository.observeRecords(), timeKeyTicker(), settings.firstUseDate) { records, _, firstUse ->
-            HomeStateReducer.reduce(records, LocalDateTime.now(clock), firstUseDate = firstUse)
+        combine(
+            repository.observeRecords(),
+            timeKeyTicker(),
+            settings.firstUseDate,
+            rescueTickets.rescuedDates,
+        ) { records, _, firstUse, rescued ->
+            HomeStateReducer.reduce(records, LocalDateTime.now(clock), rescuedDates = rescued, firstUseDate = firstUse)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

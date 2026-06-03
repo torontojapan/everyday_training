@@ -3,6 +3,7 @@ package com.goexercise.app.presentation.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.WorkoutRepository
+import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.domain.MonthlyCalendarCalculator
 import com.goexercise.app.domain.MonthlyCalendarCalculator.MonthCell
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,14 +31,20 @@ data class HistoryUiState(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     repository: WorkoutRepository,
+    rescueTickets: RescueTicketRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val selectedMonth = MutableStateFlow(YearMonth.now(clock))
 
     val uiState: StateFlow<HistoryUiState> =
-        combine(repository.observeRecords(), selectedMonth, todayTicker()) { records, month, today ->
-            val cells = MonthlyCalendarCalculator.cells(month, records, today)
+        combine(
+            repository.observeRecords(),
+            selectedMonth,
+            todayTicker(),
+            rescueTickets.rescuedDates,
+        ) { records, month, today, rescued ->
+            val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
             HistoryUiState(month, cells, MonthlyCalendarCalculator.achievedDaysInMonth(cells))
         }.stateIn(
             viewModelScope,
