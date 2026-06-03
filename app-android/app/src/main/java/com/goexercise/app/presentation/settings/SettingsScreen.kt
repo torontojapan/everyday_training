@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 
@@ -35,7 +37,15 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
-    SettingsContent(selected = theme, onSelect = viewModel::setTheme, isPremium = isPremium, onOpenPremium = onOpenPremium)
+    val catBreed by viewModel.catBreed.collectAsStateWithLifecycle()
+    SettingsContent(
+        selected = theme,
+        onSelect = viewModel::setTheme,
+        isPremium = isPremium,
+        onOpenPremium = onOpenPremium,
+        catBreed = catBreed,
+        onSelectBreed = viewModel::setCatBreed,
+    )
 }
 
 @Composable
@@ -44,6 +54,8 @@ fun SettingsContent(
     onSelect: (AppTheme) -> Unit = {},
     isPremium: Boolean = false,
     onOpenPremium: () -> Unit = {},
+    catBreed: CatBreed = CatBreed.Default,
+    onSelectBreed: (CatBreed) -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -58,9 +70,41 @@ fun SettingsContent(
 
         PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
 
+        Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
+        CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
+
         Text("テーマ", color = palette.textSecondary, fontSize = 13.sp)
         AppTheme.entries.forEach { theme ->
             ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
+        }
+    }
+}
+
+/** 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。 */
+@Composable
+private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (CatBreed) -> Unit) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CatBreed.entries.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { breed ->
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
+                                .clickable { onSelect(breed) }
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            CatAvatar(breed = breed, size = 52.dp)
+                            Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
+                        }
+                    }
+                    repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }

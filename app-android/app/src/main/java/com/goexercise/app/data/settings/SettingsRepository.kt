@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.ui.theme.AppTheme
 import java.time.LocalDate
 import dagger.Binds
@@ -27,6 +28,10 @@ interface SettingsRepository {
     /** 初回利用日(累計利用日数の起点)。未設定なら null。iOS LifetimeUsageTracker 相当。 */
     val firstUseDate: Flow<LocalDate?>
     suspend fun setFirstUseDateIfAbsent(date: LocalDate)
+
+    /** ユーザーが選んだ猫種。未選択は orange。iOS UserCatPreferences.myCat 相当。 */
+    val catBreed: Flow<CatBreed>
+    suspend fun setCatBreed(breed: CatBreed)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -35,6 +40,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private val themeKey = stringPreferencesKey("theme")
     private val firstUseKey = longPreferencesKey("first_use_epoch_day")
+    private val catBreedKey = stringPreferencesKey("cat_breed")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
         prefs[themeKey]?.let { name -> runCatching { AppTheme.valueOf(name) }.getOrNull() } ?: AppTheme.Peach
@@ -52,6 +58,14 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { prefs ->
             if (prefs[firstUseKey] == null) prefs[firstUseKey] = date.toEpochDay()
         }
+    }
+
+    override val catBreed: Flow<CatBreed> = dataStore.data.map { prefs ->
+        CatBreed.fromRaw(prefs[catBreedKey])
+    }
+
+    override suspend fun setCatBreed(breed: CatBreed) {
+        dataStore.edit { it[catBreedKey] = breed.rawValue }
     }
 }
 

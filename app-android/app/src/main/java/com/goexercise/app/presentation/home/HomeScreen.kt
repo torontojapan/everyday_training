@@ -74,7 +74,12 @@ fun HomeContent(
 private fun CatTheater(state: HomeUiState) {
     val palette = LocalAppPalette.current
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = state.catState.emoji, fontSize = 56.sp)
+        // 猫劇場: ユーザーの猫種 × 今の状態(77 画像)。
+        com.goexercise.app.ui.components.CatImage(
+            breed = state.catBreed,
+            state = state.catState,
+            modifier = Modifier.size(96.dp),
+        )
         Surface(
             color = palette.surface,
             shape = RoundedCornerShape(20.dp),
