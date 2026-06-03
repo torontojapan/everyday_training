@@ -42,11 +42,12 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 @Composable
 fun HomeRoute(
     onRecordClick: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
-    HomeContent(state = state, onRecordClick = onRecordClick)
+    HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
     pendingMilestone?.let { milestone ->
         MilestoneCelebrationDialog(
             milestone = milestone,
@@ -85,6 +86,7 @@ private fun MilestoneCelebrationDialog(milestone: Milestone, onDismiss: () -> Un
 fun HomeContent(
     state: HomeUiState,
     onRecordClick: () -> Unit = {},
+    onShareClick: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -103,6 +105,15 @@ fun HomeContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("記録する")
+        }
+        // 連続記録がある時だけシェア導線を出す(マイルストーン画像)。
+        if (state.streak.currentStreak > 0) {
+            TextButton(
+                onClick = onShareClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
+            }
         }
     }
 }

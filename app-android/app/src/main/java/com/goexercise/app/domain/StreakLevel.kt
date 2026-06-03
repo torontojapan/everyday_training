@@ -60,6 +60,24 @@ enum class StreakLevel {
             Legend -> "GO エクササイズで1年連続達成しました✨ #LEGEND"
         }
 
+    /** シェアカードに出す猫の状態(低レベル=達成 / 高レベル=連続更新)。breed と組み合わせ画像解決。 */
+    val catState: CatState
+        get() = when (this) {
+            Zero, Sprout, Week, TwoWeeks -> CatState.Celebrating
+            Month, Century, Legend -> CatState.StreakExtended
+        }
+
+    /** 背景グラデーション色(ARGB Int, 左上→右下)。iOS `gradientColors` の RGB と一致させる。 */
+    val gradientColors: List<Int>
+        get() = when (this) {
+            Zero, Sprout -> listOf(0xFFFFC9A8.toInt(), 0xFFE8895C.toInt())
+            Week -> listOf(0xFFFF8A5C.toInt(), 0xFF8FD9A8.toInt())
+            TwoWeeks -> listOf(0xFFFF8C80.toInt(), 0xFFF2C74D.toInt())
+            Month -> listOf(0xFFFF6E4F.toInt(), 0xFFF59E33.toInt())
+            Century -> listOf(0xFF8C4DF2.toInt(), 0xFFFF8C80.toInt(), 0xFFFFD94D.toInt())
+            Legend -> listOf(0xFFFFD94D.toInt(), 0xFFF273BF.toInt(), 0xFF8C4DF2.toInt(), 0xFF4DBFF2.toInt())
+        }
+
     companion object {
         fun of(streak: Int): StreakLevel = when {
             streak < 1 -> Zero

@@ -57,4 +57,18 @@ class StreakLevelTest {
             assertTrue(StreakLevel.of(streak).shareMessage.contains("GO エクササイズ"))
         }
     }
+
+    @Test
+    fun gradientHasAtLeastTwoColors() {
+        // シェアカードの背景は最低 2 色のグラデーション(LinearGradient が成立する)。
+        StreakLevel.entries.forEach { assertTrue(it.gradientColors.size >= 2) }
+    }
+
+    @Test
+    fun catStateMapsLowToCelebratingHighToStreakExtended() {
+        assertEquals(CatState.Celebrating, StreakLevel.of(1).catState)
+        assertEquals(CatState.Celebrating, StreakLevel.of(14).catState)
+        assertEquals(CatState.StreakExtended, StreakLevel.of(30).catState)
+        assertEquals(CatState.StreakExtended, StreakLevel.of(365).catState)
+    }
 }

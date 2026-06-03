@@ -32,6 +32,7 @@ import com.goexercise.app.presentation.premium.PaywallContext
 import com.goexercise.app.presentation.premium.PremiumPaywallRoute
 import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.presentation.rescue.RescueRoute
+import com.goexercise.app.presentation.share.StreakShareRoute
 import com.goexercise.app.presentation.settings.SettingsRoute
 import com.goexercise.app.presentation.weight.WeightRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -95,6 +96,10 @@ fun AppNavHost(
                     when (route) {
                         AppRoute.Home -> HomeRoute(
                             onRecordClick = { navController.navigate(AppRoute.Record.path) },
+                            onShareClick = { navController.navigate(AppRoute.StreakShare.path) },
+                        )
+                        AppRoute.StreakShare -> StreakShareRoute(
+                            onBack = { navController.popBackStack() },
                         )
                         AppRoute.Record -> RecordRoute(
                             onSaved = { navController.popBackStack() },
