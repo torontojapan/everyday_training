@@ -71,6 +71,8 @@ class PremiumViewModel @Inject constructor(
     fun restore() {
         if (_isWorking.value) return
         _isWorking.value = true
+        // 復元での isPremiumActive false→true を購入完了と誤計測しないよう、進行中の購入対象をクリア。
+        pendingPurchase = null
         viewModelScope.launch {
             try { premium.restore() } finally { _isWorking.value = false }
         }

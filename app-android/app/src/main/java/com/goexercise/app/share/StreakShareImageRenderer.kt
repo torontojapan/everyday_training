@@ -14,6 +14,8 @@ import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.StreakLevel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.cos
 import kotlin.math.min
@@ -90,16 +92,22 @@ object StreakShareImageRenderer {
         return bmp
     }
 
-    /** Bitmap を cache/shared に PNG で書き出し、FileProvider 経由で共有 chooser を開く。 */
-    fun share(context: Context, streak: Int, breed: CatBreed) {
-        val dir = File(context.cacheDir, "shared").apply { mkdirs() }
-        // 過去のシェア画像を溜めない(書き出し前に古い分を消す)。
-        dir.listFiles { f -> f.name.startsWith("goexercise-streak-") }?.forEach { it.delete() }
-        val file = File(dir, "goexercise-streak-${System.currentTimeMillis()}.png")
-        file.outputStream().use { render(context, streak, breed).compress(Bitmap.CompressFormat.PNG, 100, it) }
-
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    /**
+     * Bitmap を cache/shared に PNG で書き出し、FileProvider 経由で共有 chooser を開く。
+     * 描画(1080×1440)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
+     * (重い処理を UI スレッドから外す)。呼び出し側のコルーチン(VM/Compose scope)から呼ぶこと。
+     */
+    suspend fun share(context: Context, streak: Int, breed: CatBreed) {
+        val app = context.applicationContext
         val level = StreakLevel.of(streak)
+        val uri = withContext(Dispatchers.IO) {
+            val dir = File(app.cacheDir, "shared").apply { mkdirs() }
+            // 過去のシェア画像を溜めない(書き出し前に古い分を消す)。
+            dir.listFiles { f -> f.name.startsWith("goexercise-streak-") }?.forEach { it.delete() }
+            val file = File(dir, "goexercise-streak-${System.currentTimeMillis()}.png")
+            file.outputStream().use { render(app, streak, breed).compress(Bitmap.CompressFormat.PNG, 100, it) }
+            FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
+        }
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
@@ -108,7 +116,10 @@ object StreakShareImageRenderer {
             clipData = android.content.ClipData.newRawUri("streak", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "連続記録をシェア"))
+        withContext(Dispatchers.Main) {
+            // chooser は元の Activity context から開く(applicationContext だと NEW_TASK が要る)。
+            context.startActivity(Intent.createChooser(intent, "連続記録をシェア"))
+        }
     }
 
     // ---- 描画ヘルパ ----

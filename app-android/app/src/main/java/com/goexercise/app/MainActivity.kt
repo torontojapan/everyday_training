@@ -11,13 +11,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.goexercise.app.navigation.AppNavHost
 import com.goexercise.app.presentation.friends.RealAccountAuthCoordinator
 import com.goexercise.app.presentation.onboarding.OnboardingScreen
 import com.goexercise.app.presentation.onboarding.OnboardingViewModel
 import com.goexercise.app.presentation.settings.SettingsViewModel
 import com.goexercise.app.ui.theme.GOExerciseTheme
+import androidx.glance.appwidget.updateAll
+import com.goexercise.app.widget.StreakWidget
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -48,6 +52,13 @@ class MainActivity : ComponentActivity() {
         // Custom Tab を閉じて戻ってきた(callback 未配達)Apple web フローはキャンセル扱いで畳む。
         // redirect が onNewIntent で配達済みなら no-op(コルーチンのハング/leak 防止)。
         RealAccountAuthCoordinator.cancelPendingIfUnfinished()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // アプリを離れる時にホーム画面ウィジェットを更新する。Glance の updatePeriodMillis(30分)を
+        // 待たず、直前の記録/削除/猫変更/フリーズ使用を反映する(最も低結合な単一トリガ)。
+        lifecycleScope.launch { runCatching { StreakWidget().updateAll(applicationContext) } }
     }
 
     /**
