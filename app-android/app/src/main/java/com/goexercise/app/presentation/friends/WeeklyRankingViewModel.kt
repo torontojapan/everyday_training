@@ -42,10 +42,18 @@ class WeeklyRankingViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            runCatching {
-                me = service.myProfile()
-                friends = service.refreshFriends()
+            // lazy/opt-in: 未サインインのまま refreshFriends() を呼ぶと Supabase 実装が
+            // 匿名サインインしてしまう(孤児/プライバシー対策に反する)。プロフィールが
+            // 無ければ何もしない。iOS 同様ランキングはサインイン済みでのみ算出する。
+            val myProfile = runCatching { service.myProfile() }.getOrNull()
+            if (myProfile == null) {
+                me = null
+                friends = emptyList()
+                _uiState.update { it.copy(isLoading = false) }
+                return@launch
             }
+            me = myProfile
+            friends = runCatching { service.refreshFriends() }.getOrDefault(emptyList())
             recompute()
         }
     }

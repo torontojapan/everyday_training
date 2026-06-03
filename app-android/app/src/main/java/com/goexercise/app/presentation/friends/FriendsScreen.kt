@@ -117,28 +117,24 @@ fun FriendsContent(
 ) {
     val palette = LocalAppPalette.current
 
-    // deep link コードの保留 → サインイン後に追加シートを開く(iOS handlePendingFriendCode 相当)。
-    var pendingCode by remember { mutableStateOf(initialAddCode) }
-    LaunchedEffect(initialAddCode) {
-        if (initialAddCode != null) {
-            pendingCode = initialAddCode
-            onAddCodeConsumed()
-        }
-    }
-
     var addSheetCode by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var cheerTarget by remember { mutableStateOf<FriendProfile?>(null) }
 
-    LaunchedEffect(pendingCode, state.isSignedIn) {
-        val code = pendingCode ?: return@LaunchedEffect
-        if (state.isSignedIn) {
-            addSheetCode = code
-            showAdd = true
-            pendingCode = null
-        } else if (!state.isConnecting) {
-            onConnect() // 壁を出さず裏でサインイン → isSignedIn 反転でこの effect が再走し追加へ。
+    // deep link コードは「安全に提示できる時だけ」消費する(iOS tryPresentPendingAdd 相当)。
+    // nav 側の pendingFriendCode は rememberSaveable なので、提示前に画面が再生成されても
+    // コードは失われない。未サインインなら壁を出さず裏で connect() し、サインイン後に
+    // この effect が再走して提示する。他シートが開いている間は提示せず、閉じれば再開する。
+    LaunchedEffect(initialAddCode, state.isSignedIn, showAdd, cheerTarget) {
+        val code = initialAddCode ?: return@LaunchedEffect
+        if (!state.isSignedIn) {
+            if (!state.isConnecting) onConnect()
+            return@LaunchedEffect
         }
+        if (showAdd || cheerTarget != null) return@LaunchedEffect
+        addSheetCode = code
+        showAdd = true
+        onAddCodeConsumed() // 提示が確定してから nav 側のコードを消費する。
     }
 
     Box(modifier = Modifier.fillMaxSize().background(palette.background)) {

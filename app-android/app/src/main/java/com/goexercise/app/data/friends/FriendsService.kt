@@ -8,7 +8,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
-/** Supabase `profiles` 行。snake_case を @SerialName で iOS スキーマと一致。 */
+/**
+ * Supabase `profiles` 行。snake_case を @SerialName で iOS スキーマと一致。
+ *
+ * TODO(#10 実通信PoC): `weekly_achievements`(週次達成 bool×7)を decode していないため、
+ * 実バックエンドでは [FriendProfile.weeklyAchievements] が常に null となり、週間ランキングの
+ * 達成日数(第3タイブレーク)が 0 固定になる。Mock では正しく算出される。サーバ列の有無を
+ * 確認のうえ、存在すればここで decode + 書込み(publishMyProfile)に追加する。
+ */
 @Serializable
 data class ProfileRow(
     @SerialName("user_id") val userId: String,
