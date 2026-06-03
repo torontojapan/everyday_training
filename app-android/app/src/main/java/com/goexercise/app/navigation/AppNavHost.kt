@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.goexercise.app.presentation.home.HomeRoute
+import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /**
@@ -33,6 +34,10 @@ fun AppNavHost(
                 when (route) {
                     AppRoute.Home -> HomeRoute(
                         onRecordClick = { navController.navigate(AppRoute.Record.path) },
+                    )
+                    AppRoute.Record -> RecordRoute(
+                        onSaved = { navController.popBackStack() },
+                        onBack = { navController.popBackStack() },
                     )
                     else -> RoutePlaceholder(route)
                 }
