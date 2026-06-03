@@ -94,6 +94,7 @@ fun FriendsRoute(
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val myBreed by viewModel.myBreed.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // 追加/ランキングから戻る・アプリ復帰のたびに最新化(別 VM の add がサーバを変えるため)。
     LifecycleResumeEffect(Unit) {
@@ -130,6 +131,7 @@ fun FriendsRoute(
         onToastConsumed = viewModel::consumeToast,
         onClearError = viewModel::clearError,
         linking = linking,
+        myBreed = myBreed,
     )
 }
 
@@ -152,6 +154,7 @@ fun FriendsContent(
     onToastConsumed: () -> Unit = {},
     onClearError: () -> Unit = {},
     linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
+    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
 ) {
     val palette = LocalAppPalette.current
     val scope = rememberCoroutineScope()
@@ -221,6 +224,7 @@ fun FriendsContent(
                 onBackupApple = { linking.onLinkApple { r -> handleLink(r, FriendsLinkProvider.Apple) } },
                 onBackupGoogle = { linking.onLinkGoogle { r -> handleLink(r, FriendsLinkProvider.Google) } },
                 onDeleteClick = { confirmDelete = true },
+                myBreed = myBreed,
             )
             state.isConnecting -> ConnectingBody(palette)
             else -> WelcomeBody(
@@ -231,6 +235,7 @@ fun FriendsContent(
                 isLinking = state.isLinkingAccount,
                 onRestoreApple = { startRestore(FriendsLinkProvider.Apple) },
                 onRestoreGoogle = { startRestore(FriendsLinkProvider.Google) },
+                myBreed = myBreed,
             )
         }
 
@@ -339,6 +344,7 @@ private fun WelcomeBody(
     isLinking: Boolean = false,
     onRestoreApple: () -> Unit = {},
     onRestoreGoogle: () -> Unit = {},
+    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
 ) {
     Column(
         modifier = Modifier
@@ -349,7 +355,11 @@ private fun WelcomeBody(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(8.dp))
-        Text("🐱", fontSize = 72.sp)
+        com.goexercise.app.ui.components.CatImage(
+            breed = myBreed,
+            state = com.goexercise.app.domain.CatState.WaitingMorning,
+            modifier = Modifier.size(120.dp),
+        )
         Text("友達と一緒に続けよう", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         Text(
             "つながると、おたがいの連続記録を見て応援し合えます。\nメールもパスワードも不要です。",
@@ -456,6 +466,7 @@ private fun SignedInBody(
     onBackupApple: () -> Unit = {},
     onBackupGoogle: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
+    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
 ) {
     val profile = state.profile ?: return
     // 削除進行中は他操作を不可にして競合(部分削除)を防ぐ。
@@ -477,7 +488,7 @@ private fun SignedInBody(
             ErrorBanner(state.errorMessage, palette, onClearError)
         }
 
-        ProfileHeaderCard(profile, palette, onRename)
+        ProfileHeaderCard(profile, palette, onRename, myBreed)
 
         // バックアップ促し: 連携有効・未バックアップ・トリガー(友達1人以上 or 7日連続)・未dismiss。
         val showBackup = linking.enabled && !state.backupStatus.isBackedUp && !backupDismissed &&
@@ -545,7 +556,12 @@ private fun BackupCard(
 }
 
 @Composable
-private fun ProfileHeaderCard(profile: FriendProfile, palette: AppTheme, onRename: (String) -> Unit) {
+private fun ProfileHeaderCard(
+    profile: FriendProfile,
+    palette: AppTheme,
+    onRename: (String) -> Unit,
+    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+) {
     var showQr by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -553,10 +569,7 @@ private fun ProfileHeaderCard(profile: FriendProfile, palette: AppTheme, onRenam
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Box(
-                    modifier = Modifier.size(56.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center,
-                ) { Text("🐱", fontSize = 30.sp) }
+                com.goexercise.app.ui.components.CatAvatar(breed = myBreed, size = 56.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(profile.displayName, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)

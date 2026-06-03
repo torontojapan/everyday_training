@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -78,12 +79,17 @@ sealed interface RestoreResult {
 class FriendsViewModel @Inject constructor(
     private val service: FriendsService,
     private val authCoordinator: AccountAuthCoordinator,
+    settings: com.goexercise.app.data.settings.SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FriendsUiState())
     val uiState: StateFlow<FriendsUiState> = _uiState.asStateFlow()
 
     val isMock: Boolean get() = service.isMock
+
+    /** 自分の猫種(welcome / プロフィールのアバター表示用)。友達のアバターは breed 未保持で当面 emoji。 */
+    val myBreed: StateFlow<com.goexercise.app.domain.CatBreed> = settings.catBreed
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), com.goexercise.app.domain.CatBreed.Default)
 
     /** 連携 UI の表示ゲート(既定 false = 連携 UI 非表示で従来挙動)。iOS isAccountLinkingEnabled。 */
     val isAccountLinkingEnabled: Boolean get() = SupabaseConfig.isAccountLinkingEnabled
