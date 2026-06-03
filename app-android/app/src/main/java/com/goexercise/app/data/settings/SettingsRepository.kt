@@ -32,6 +32,10 @@ interface SettingsRepository {
     /** ユーザーが選んだ猫種。未選択は orange。iOS UserCatPreferences.myCat 相当。 */
     val catBreed: Flow<CatBreed>
     suspend fun setCatBreed(breed: CatBreed)
+
+    /** オンボーディング(初回の猫選択)を完了したか。iOS UserCatPreferences.hasCompletedOnboarding 相当。 */
+    val onboardingComplete: Flow<Boolean>
+    suspend fun setOnboardingComplete()
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -41,6 +45,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val themeKey = stringPreferencesKey("theme")
     private val firstUseKey = longPreferencesKey("first_use_epoch_day")
     private val catBreedKey = stringPreferencesKey("cat_breed")
+    private val onboardingKey = androidx.datastore.preferences.core.booleanPreferencesKey("onboarding_complete")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
         prefs[themeKey]?.let { name -> runCatching { AppTheme.valueOf(name) }.getOrNull() } ?: AppTheme.Peach
@@ -66,6 +71,16 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setCatBreed(breed: CatBreed) {
         dataStore.edit { it[catBreedKey] = breed.rawValue }
+    }
+
+    // 明示フラグが無い既存インストール(アップグレード)は、初回利用日が既にあれば「オンボ済」とみなす
+    // (新規キーの欠如で既存ユーザーを猫選択に押し戻さない)。新規インストールは両方とも無く false。
+    override val onboardingComplete: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[onboardingKey] ?: (prefs[firstUseKey] != null)
+    }
+
+    override suspend fun setOnboardingComplete() {
+        dataStore.edit { it[onboardingKey] = true }
     }
 }
 

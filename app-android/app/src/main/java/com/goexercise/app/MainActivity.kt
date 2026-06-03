@@ -13,6 +13,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.navigation.AppNavHost
 import com.goexercise.app.presentation.friends.RealAccountAuthCoordinator
+import com.goexercise.app.presentation.onboarding.OnboardingScreen
+import com.goexercise.app.presentation.onboarding.OnboardingViewModel
 import com.goexercise.app.presentation.settings.SettingsViewModel
 import com.goexercise.app.ui.theme.GOExerciseTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -70,7 +72,14 @@ private fun App(
     // 永続化済みテーマ(DataStore)を購読してアプリ全体に適用。設定画面の切替が即反映される。
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
+    val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+    val onboarded by onboardingViewModel.isComplete.collectAsStateWithLifecycle()
     GOExerciseTheme(theme = theme) {
-        AppNavHost(deepLinkUri = deepLinkUri, onDeepLinkConsumed = onDeepLinkConsumed)
+        when (onboarded) {
+            // null=DataStore 読込前。チラつき防止に何も出さない(直後に false/true が来る)。
+            null -> Unit
+            false -> OnboardingScreen(onFinish = onboardingViewModel::complete)
+            true -> AppNavHost(deepLinkUri = deepLinkUri, onDeepLinkConsumed = onDeepLinkConsumed)
+        }
     }
 }
