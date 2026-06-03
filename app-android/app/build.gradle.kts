@@ -132,6 +132,10 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.androidx.browser)
 
+    // ホーム画面ウィジェット(Jetpack Glance)。連続日数+猫を表示。
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     testImplementation(libs.junit)
 
     // 計装テスト(Room MigrationTestHelper で v1→v2 migration を実機/emu 検証)。
