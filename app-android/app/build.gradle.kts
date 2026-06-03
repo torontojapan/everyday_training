@@ -42,6 +42,14 @@ android {
         // iOS と同一 Supabase プロジェクトを共有(friend code 名前空間共有)。
         buildConfigField("String", "SUPABASE_HOST", "\"${secret("SUPABASE_HOST")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secret("SUPABASE_ANON_KEY")}\"")
+
+        // アカウント連携(#5 / Phase2)の有効化ゲート。iOS Info.plist FriendsApple/GoogleLinkEnabled 相当。
+        // 既定 false(= 連携 UI 非表示で従来挙動)。Supabase コンソール設定 + Credential Manager の
+        // Web Client ID が揃ってから true にする(#10 実通信)。
+        buildConfigField("Boolean", "FRIENDS_APPLE_LINK_ENABLED", secret("FRIENDS_APPLE_LINK_ENABLED").ifBlank { "false" })
+        buildConfigField("Boolean", "FRIENDS_GOOGLE_LINK_ENABLED", secret("FRIENDS_GOOGLE_LINK_ENABLED").ifBlank { "false" })
+        // Google native(Credential Manager)用 Web Client ID。未設定なら Google 連携は実行不可。
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${secret("GOOGLE_WEB_CLIENT_ID")}\"")
     }
 
     buildTypes {

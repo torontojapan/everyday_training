@@ -101,6 +101,26 @@ interface FriendsService {
     suspend fun removeFriend(profile: FriendProfile)
     suspend fun sendCheer(kind: CheerKind, toCode: String)
     suspend fun publishMyProfile(profile: FriendProfile)
+
+    // ---- アカウント連携(#5 / Phase2。既定は未サポート=providerUnavailable, iOS 既定実装と同型)----
+    // **Android は iOS の鏡像**: Google=native id_token(iOS の Apple 相当)/ Apple=web/PKCE(iOS の Google 相当)。
+    /** 永続アカウント連携の状態(匿名でないか)。 */
+    val backupStatus: AccountBackupStatus get() = AccountBackupStatus.Anonymous
+    suspend fun refreshBackupStatus() {}
+    /** 復元/切替の前に、現匿名セッションに失われると困るデータ(友達)があるか。 */
+    suspend fun anonymousSessionHasData(): Boolean = false
+    /** アカウント削除(審査 5.1.1(v))。 */
+    suspend fun deleteAccount() { throw FriendsError.NotSignedIn }
+
+    // Google = native id_token(Credential Manager)。uid 保持で連結 / 切替 / 復元。
+    suspend fun linkGoogleIdToken(idToken: String) { throw AccountLinkError.ProviderUnavailable }
+    suspend fun switchToGoogleIdToken(idToken: String) { throw AccountLinkError.ProviderUnavailable }
+    suspend fun restoreWithGoogleIdToken(idToken: String): RestoreOutcome { throw AccountLinkError.ProviderUnavailable }
+
+    // Apple = web/PKCE(Custom Tabs)。flow が認可 URL を開き callback を返す。
+    suspend fun linkAppleWeb(flow: WebAuthFlow) { throw AccountLinkError.ProviderUnavailable }
+    suspend fun switchToAppleWeb(flow: WebAuthFlow) { throw AccountLinkError.ProviderUnavailable }
+    suspend fun restoreWithAppleWeb(flow: WebAuthFlow): RestoreOutcome { throw AccountLinkError.ProviderUnavailable }
 }
 
 /**
@@ -113,6 +133,7 @@ class MockFriendsService : FriendsService {
     private var me: FriendProfile? = null
     private val friends = mutableListOf<FriendProfile>()
     private val incoming = mutableListOf<FriendRequest>()
+    private var backup = AccountBackupStatus.Anonymous
 
     override suspend fun myProfile(): FriendProfile? = me
 
@@ -133,6 +154,7 @@ class MockFriendsService : FriendsService {
         me = null
         friends.clear()
         incoming.clear()
+        backup = AccountBackupStatus.Anonymous
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> = friends.toList()
@@ -168,6 +190,77 @@ class MockFriendsService : FriendsService {
 
     override suspend fun publishMyProfile(profile: FriendProfile) {
         me = profile
+    }
+
+    // ---- アカウント連携シミュレーション(dev/screenshot 用。iOS Mock は providerUnavailable 既定だが、
+    // Android は連携 UI/VM フローを実通信なしで通せるよう簡易シミュレートする)----
+    override val backupStatus: AccountBackupStatus get() = backup
+
+    override suspend fun refreshBackupStatus() { /* backup は同期的に最新 */ }
+
+    override suspend fun anonymousSessionHasData(): Boolean = friends.isNotEmpty() && !backup.isBackedUp
+
+    override suspend fun deleteAccount() {
+        me = null
+        friends.clear()
+        incoming.clear()
+        backup = AccountBackupStatus.Anonymous
+    }
+
+    override suspend fun linkGoogleIdToken(idToken: String) {
+        if (idToken.contains("collide")) throw AccountLinkError.AlreadyLinkedToAnotherAccount
+        backup = AccountBackupStatus(isBackedUp = true, providerName = "google")
+    }
+
+    override suspend fun switchToGoogleIdToken(idToken: String) {
+        // 切替: 現データ破棄 → 既存アカウントをロード(Mock は profile を保持し backup 済みにする)。
+        ensureMockProfile("google")
+    }
+
+    override suspend fun restoreWithGoogleIdToken(idToken: String): RestoreOutcome =
+        restoreMock(provider = "google", asNew = idToken.contains("new"))
+
+    override suspend fun linkAppleWeb(flow: WebAuthFlow) {
+        consumeMockCallback(flow)
+        backup = AccountBackupStatus(isBackedUp = true, providerName = "apple")
+    }
+
+    override suspend fun switchToAppleWeb(flow: WebAuthFlow) {
+        consumeMockCallback(flow)
+        ensureMockProfile("apple")
+    }
+
+    override suspend fun restoreWithAppleWeb(flow: WebAuthFlow): RestoreOutcome {
+        val asNew = consumeMockCallback(flow).contains("new")
+        return restoreMock(provider = "apple", asNew = asNew)
+    }
+
+    /** Mock の web flow callback を解釈し、衝突/キャンセルを例外に写像する(iOS mapPKCECallback 相当の簡易版)。 */
+    private suspend fun consumeMockCallback(flow: WebAuthFlow): String {
+        val cb = flow("https://mock.supabase.co/authorize?provider=apple")
+        when {
+            cb.contains("identity_already_exists") -> throw AccountLinkError.AlreadyLinkedToAnotherAccount
+            cb.contains("access_denied") -> throw AccountLinkError.Cancelled
+            cb.contains("provider_disabled") -> throw AccountLinkError.ProviderUnavailable
+        }
+        return cb
+    }
+
+    private fun ensureMockProfile(provider: String) {
+        if (me == null) {
+            me = FriendProfile(friendCode = FriendCode.generate(), username = "you", displayName = "あなた", currentStreak = 0, totalAchievedDays = 0, todayAchieved = false)
+        }
+        backup = AccountBackupStatus(isBackedUp = true, providerName = provider)
+    }
+
+    private fun restoreMock(provider: String, asNew: Boolean): RestoreOutcome {
+        ensureMockProfile(provider)
+        return if (asNew) {
+            RestoreOutcome.Created
+        } else {
+            seedDemo() // 既存アカウントの友達/申請が「戻った」体で復元
+            RestoreOutcome.Restored
+        }
     }
 
     private fun seedDemo() {

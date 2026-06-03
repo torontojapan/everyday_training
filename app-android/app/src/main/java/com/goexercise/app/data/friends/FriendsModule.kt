@@ -1,5 +1,7 @@
 package com.goexercise.app.data.friends
 
+import com.goexercise.app.presentation.friends.AccountAuthCoordinator
+import com.goexercise.app.presentation.friends.MockAccountAuthCoordinator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,4 +24,12 @@ object FriendsModule {
         } else {
             MockFriendsService()
         }
+
+    /**
+     * 連携の認証 coordinator。dev は Mock(実通信なしでフロー確認)。
+     * **実 Credential Manager / Custom Tabs 実装は #10**(Web Client ID + Supabase 設定 + 実機)。
+     */
+    @Provides
+    @Singleton
+    fun provideAccountAuthCoordinator(): AccountAuthCoordinator = MockAccountAuthCoordinator()
 }

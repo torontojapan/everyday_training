@@ -1,9 +1,14 @@
 package com.goexercise.app.presentation.friends
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.data.friends.AccountBackupStatus
+import com.goexercise.app.data.friends.AccountLinkError
 import com.goexercise.app.data.friends.FriendsError
 import com.goexercise.app.data.friends.FriendsService
+import com.goexercise.app.data.friends.RestoreOutcome
+import com.goexercise.app.data.friends.SupabaseConfig
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendSortOrder
@@ -34,10 +39,32 @@ data class FriendsUiState(
     /** 応援送信中のコード(連打多重送信ガード)。iOS `cheeringCodes`。 */
     val cheeringCodes: Set<String> = emptySet(),
     val errorMessage: String? = null,
-    /** 一時トースト(応援/申請の結果)。表示後に [consumeToast] でクリア。 */
+    /** 一時トースト(応援/申請/連携の結果)。表示後に [consumeToast] でクリア。 */
     val toast: String? = null,
+    /** アカウント連携状態(匿名/Apple/Google)。#5。 */
+    val backupStatus: AccountBackupStatus = AccountBackupStatus.Anonymous,
+    /** 連携(バックアップ/復元/切替)処理中。連打ガード + UI spinner。 */
+    val isLinkingAccount: Boolean = false,
+    /** アカウント削除進行中。削除中は他操作をロックする(iOS isDeletingAccount)。 */
+    val isDeletingAccount: Boolean = false,
 ) {
     val sortedFriends: List<FriendProfile> get() = FriendSorter.sort(friends, sortOrder)
+}
+
+/** 連携(Apple/Google 共通)の結果。`Collision` は「既存に切替/中止」の二択を促す。iOS LinkResult。 */
+sealed interface LinkResult {
+    data object Linked : LinkResult
+    data object Collision : LinkResult
+    data object Cancelled : LinkResult
+    data class Failed(val message: String) : LinkResult
+}
+
+/** 復元(Apple/Google 共通)の結果。iOS RestoreResult。 */
+sealed interface RestoreResult {
+    data object Restored : RestoreResult
+    data object Created : RestoreResult
+    data object Cancelled : RestoreResult
+    data class Failed(val message: String) : RestoreResult
 }
 
 /**
@@ -50,12 +77,23 @@ data class FriendsUiState(
 @HiltViewModel
 class FriendsViewModel @Inject constructor(
     private val service: FriendsService,
+    private val authCoordinator: AccountAuthCoordinator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FriendsUiState())
     val uiState: StateFlow<FriendsUiState> = _uiState.asStateFlow()
 
     val isMock: Boolean get() = service.isMock
+
+    /** 連携 UI の表示ゲート(既定 false = 連携 UI 非表示で従来挙動)。iOS isAccountLinkingEnabled。 */
+    val isAccountLinkingEnabled: Boolean get() = SupabaseConfig.isAccountLinkingEnabled
+    val appleLinkEnabled: Boolean get() = SupabaseConfig.appleLinkEnabled
+    val googleLinkEnabled: Boolean get() = SupabaseConfig.googleLinkEnabled
+
+    /** identity(サインイン中の uid)の世代。切替/復元/サインアウト/削除で進め、進行中の旧 load を無効化する
+     *  (iOS identityGeneration。旧アカウントの友達/申請を新プロフィール上へ書かないため)。 */
+    private var identityGeneration = 0
+    private fun bumpIdentity() { identityGeneration++ }
 
     /** サインイン済みのときだけ最新化(未サインインは welcome のまま、クラウドへ書き込まない)。 */
     fun refreshIfSignedIn() {
@@ -81,18 +119,31 @@ class FriendsViewModel @Inject constructor(
     }
 
     private suspend fun load() {
-        val profile = service.myProfile()
+        val gen = identityGeneration
+        val profile = service.myProfile() // suspend: この await 中に identity が変わり得る
+        if (gen != identityGeneration) return // 切替/復元/サインアウトが割り込んだら以降の UI 書込みを破棄
         if (profile == null) {
-            _uiState.update { it.copy(isSignedIn = false, profile = null, friends = emptyList(), requests = emptyList()) }
+            _uiState.update { it.copy(isSignedIn = false, profile = null, friends = emptyList(), requests = emptyList(), backupStatus = AccountBackupStatus.Anonymous) }
             return
         }
         _uiState.update { it.copy(isSignedIn = true, isLoading = it.friends.isEmpty()) }
         try {
             val friends = service.refreshFriends()
             val requests = service.pendingRequests()
-            _uiState.update { it.copy(profile = profile, friends = friends, requests = requests, isLoading = false) }
+            if (SupabaseConfig.isAccountLinkingEnabled) service.refreshBackupStatus()
+            // await 中に identity が切替わっていたら旧アカウントの結果を捨てる(iOS と同じ)。stale でも
+            // 自分が出したスピナーは残さない(isLoading をクリア。新世代の load/リセットが正状態を持つ)。
+            if (gen == identityGeneration) {
+                _uiState.update { it.copy(profile = profile, friends = friends, requests = requests, backupStatus = service.backupStatus, isLoading = false) }
+            } else {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         } catch (e: Exception) {
-            _uiState.update { it.copy(profile = profile, isLoading = false, errorMessage = friendly(e)) }
+            if (gen == identityGeneration) {
+                _uiState.update { it.copy(profile = profile, isLoading = false, errorMessage = friendly(e)) }
+            } else {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
@@ -161,9 +212,131 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
+    // ================= アカウント連携(#5)=================
+    // **Android は鏡像**: Google=native id_token(Credential Manager)/ Apple=web/PKCE(Custom Tabs)。
+    // 画面が Context を渡し、coordinator から id_token / WebAuthFlow を取得して Service へ流す。
+
+    /** Apple でバックアップ(連携)。衝突なら Collision を返し UI が切替確認を出す。 */
+    fun linkApple(context: Context, onResult: (LinkResult) -> Unit) =
+        performLink(onResult) { service.linkAppleWeb(authCoordinator.appleWebFlow(context)) }
+
+    /** Google でバックアップ(連携)。native id_token。 */
+    fun linkGoogle(context: Context, onResult: (LinkResult) -> Unit) =
+        performLink(onResult) { service.linkGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performLink(onResult: (LinkResult) -> Unit, op: suspend () -> Unit) {
+        if (_uiState.value.isLinkingAccount) return
+        _uiState.update { it.copy(isLinkingAccount = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result: LinkResult = try {
+                op()
+                _uiState.update { it.copy(backupStatus = service.backupStatus, toast = "バックアップしました") }
+                LinkResult.Linked
+            } catch (e: AccountLinkError.AlreadyLinkedToAnotherAccount) {
+                LinkResult.Collision
+            } catch (e: AccountLinkError.Cancelled) {
+                LinkResult.Cancelled
+            } catch (e: Exception) {
+                val msg = friendly(e)
+                _uiState.update { it.copy(errorMessage = msg) }
+                LinkResult.Failed(msg)
+            } finally {
+                _uiState.update { it.copy(isLinkingAccount = false) }
+            }
+            onResult(result)
+        }
+    }
+
+    /** 衝突時「既存アカウントに切替」。現匿名データ破棄 → 既存アカウントをロード。 */
+    fun switchToApple(context: Context) =
+        performSwitch { service.switchToAppleWeb(authCoordinator.appleWebFlow(context)) }
+
+    fun switchToGoogle(context: Context) =
+        performSwitch { service.switchToGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performSwitch(op: suspend () -> Unit) {
+        if (_uiState.value.isLinkingAccount) return
+        _uiState.update { it.copy(isLinkingAccount = true, errorMessage = null) }
+        viewModelScope.launch {
+            try {
+                op()
+                bumpIdentity() // identity 境界: 旧 refresh を無効化し旧友達/申請を持ち越さない。
+                _uiState.update { it.copy(friends = emptyList(), requests = emptyList()) }
+                load()
+                _uiState.update { it.copy(backupStatus = service.backupStatus, toast = "既存のアカウントに切り替えました") }
+            } catch (e: AccountLinkError.Cancelled) {
+                // 認可前キャンセル: identity 不変。何もしない。
+            } catch (e: Exception) {
+                // op() がセッションを変えた後に失敗した可能性 → identity 境界を張り直し、新セッションの
+                // 状態へ寄せて旧プロフィール残留を防ぐ(iOS syncIdentityAfterFailure 相当)。
+                recoverIdentityAfterFailure(e)
+            } finally {
+                _uiState.update { it.copy(isLinkingAccount = false) }
+            }
+        }
+    }
+
+    /** 連携(切替/復元)失敗後の identity 同期。セッションが変わっていても旧友達/申請を残さない。 */
+    private suspend fun recoverIdentityAfterFailure(e: Throwable) {
+        bumpIdentity()
+        _uiState.update { it.copy(friends = emptyList(), requests = emptyList(), errorMessage = friendly(e)) }
+        load()
+    }
+
+    /** welcome の復元入口。restored/created/cancelled/failed を区別して返す。 */
+    fun restoreWithApple(context: Context, onResult: (RestoreResult) -> Unit) =
+        performRestore(onResult) { service.restoreWithAppleWeb(authCoordinator.appleWebFlow(context)) }
+
+    fun restoreWithGoogle(context: Context, onResult: (RestoreResult) -> Unit) =
+        performRestore(onResult) { service.restoreWithGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performRestore(onResult: (RestoreResult) -> Unit, op: suspend () -> RestoreOutcome) {
+        if (_uiState.value.isLinkingAccount) return
+        _uiState.update { it.copy(isLinkingAccount = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result: RestoreResult = try {
+                val outcome = op()
+                bumpIdentity()
+                _uiState.update { it.copy(friends = emptyList(), requests = emptyList()) }
+                load()
+                _uiState.update { it.copy(backupStatus = service.backupStatus) }
+                if (outcome == RestoreOutcome.Restored) RestoreResult.Restored else RestoreResult.Created
+            } catch (e: AccountLinkError.Cancelled) {
+                RestoreResult.Cancelled
+            } catch (e: Exception) {
+                // 復元途中でセッションが変わった後の失敗に備え identity を張り直す(切替と対称)。
+                recoverIdentityAfterFailure(e)
+                RestoreResult.Failed(friendly(e))
+            } finally {
+                _uiState.update { it.copy(isLinkingAccount = false) }
+            }
+            onResult(result)
+        }
+    }
+
+    /** 復元/切替の前に、現匿名セッションに失われると困るデータがあるか(上書き確認の要否)。 */
+    suspend fun anonymousSessionHasData(): Boolean = service.anonymousSessionHasData()
+
+    /** アカウント削除(審査 5.1.1(v))。成功で welcome に着地。失敗は errorMessage(サインアウトしない=再試行可)。 */
+    fun deleteAccount() {
+        if (_uiState.value.isDeletingAccount) return
+        _uiState.update { it.copy(isDeletingAccount = true) }
+        viewModelScope.launch {
+            try {
+                service.deleteAccount()
+                bumpIdentity()
+                _uiState.value = FriendsUiState() // welcome に着地(= 完了フィードバック)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isDeletingAccount = false, errorMessage = friendly(e)) }
+            }
+        }
+    }
+
     fun signOut() {
+        if (_uiState.value.isDeletingAccount) return // 削除進行中は signOut を弾く(部分削除防止, iOS)
         viewModelScope.launch {
             runCatching { service.signOut() }
+            bumpIdentity()
             _uiState.value = FriendsUiState()
         }
     }
@@ -171,8 +344,9 @@ class FriendsViewModel @Inject constructor(
     fun consumeToast() = _uiState.update { it.copy(toast = null) }
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
 
-    /** FriendsError は利用者向けの日本語文言を持つ。それ以外は汎用文言に丸める。 */
+    /** AccountLinkError / FriendsError は利用者向け日本語文言を持つ。それ以外は汎用文言に丸める。 */
     private fun friendly(e: Throwable): String = when (e) {
+        is AccountLinkError -> e.message ?: GENERIC_ERROR
         is FriendsError -> e.message ?: GENERIC_ERROR
         else -> GENERIC_ERROR
     }

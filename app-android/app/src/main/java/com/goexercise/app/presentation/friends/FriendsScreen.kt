@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.data.friends.FriendsLinkProvider
 import com.goexercise.app.domain.friends.CheerKind
 import com.goexercise.app.domain.friends.FriendCodeValidator
 import com.goexercise.app.domain.friends.FriendProfile
@@ -63,6 +66,25 @@ import com.goexercise.app.domain.friends.FriendSortOrder
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/**
+ * 連携 UI(#5)のハンドラ束。Context 依存の連携呼び出しを Route 側で束ね、stateless な
+ * [FriendsContent] へ渡す。既定は全 disabled(= 連携 UI 非表示で従来挙動)。
+ */
+data class FriendsLinkingHandlers(
+    val enabled: Boolean = false,
+    val appleEnabled: Boolean = false,
+    val googleEnabled: Boolean = false,
+    val onLinkApple: ((LinkResult) -> Unit) -> Unit = {},
+    val onLinkGoogle: ((LinkResult) -> Unit) -> Unit = {},
+    val onSwitchApple: () -> Unit = {},
+    val onSwitchGoogle: () -> Unit = {},
+    val onRestoreApple: ((RestoreResult) -> Unit) -> Unit = {},
+    val onRestoreGoogle: ((RestoreResult) -> Unit) -> Unit = {},
+    val onDelete: () -> Unit = {},
+    val hasAnonymousData: suspend () -> Boolean = { false },
+)
 
 @Composable
 fun FriendsRoute(
@@ -72,11 +94,25 @@ fun FriendsRoute(
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     // 追加/ランキングから戻る・アプリ復帰のたびに最新化(別 VM の add がサーバを変えるため)。
     LifecycleResumeEffect(Unit) {
         viewModel.refreshIfSignedIn()
         onPauseOrDispose { }
     }
+    val linking = FriendsLinkingHandlers(
+        enabled = viewModel.isAccountLinkingEnabled,
+        appleEnabled = viewModel.appleLinkEnabled,
+        googleEnabled = viewModel.googleLinkEnabled,
+        onLinkApple = { cb -> viewModel.linkApple(context, cb) },
+        onLinkGoogle = { cb -> viewModel.linkGoogle(context, cb) },
+        onSwitchApple = { viewModel.switchToApple(context) },
+        onSwitchGoogle = { viewModel.switchToGoogle(context) },
+        onRestoreApple = { cb -> viewModel.restoreWithApple(context, cb) },
+        onRestoreGoogle = { cb -> viewModel.restoreWithGoogle(context, cb) },
+        onDelete = viewModel::deleteAccount,
+        hasAnonymousData = viewModel::anonymousSessionHasData,
+    )
     FriendsContent(
         state = state,
         initialAddCode = pendingFriendCode,
@@ -93,6 +129,7 @@ fun FriendsRoute(
         onOpenRanking = onOpenRanking,
         onToastConsumed = viewModel::consumeToast,
         onClearError = viewModel::clearError,
+        linking = linking,
     )
 }
 
@@ -114,12 +151,37 @@ fun FriendsContent(
     onOpenRanking: () -> Unit = {},
     onToastConsumed: () -> Unit = {},
     onClearError: () -> Unit = {},
+    linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
 ) {
     val palette = LocalAppPalette.current
+    val scope = rememberCoroutineScope()
 
     var addSheetCode by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var cheerTarget by remember { mutableStateOf<FriendProfile?>(null) }
+
+    // 連携(#5)ダイアログ状態。
+    var collisionProvider by remember { mutableStateOf<FriendsLinkProvider?>(null) }
+    var restoreConfirmProvider by remember { mutableStateOf<FriendsLinkProvider?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var backupDismissed by remember { mutableStateOf(false) } // セッション内「あとで」(30日沈黙の永続は #10 TODO)
+
+    // 連携失敗→Collision のとき切替確認を出す。
+    fun handleLink(result: LinkResult, provider: FriendsLinkProvider) {
+        if (result is LinkResult.Collision) collisionProvider = provider
+    }
+    // 復元入口: 匿名残存データがあれば上書き確認、無ければ即実行。
+    fun startRestore(provider: FriendsLinkProvider) {
+        scope.launch {
+            if (linking.hasAnonymousData()) {
+                restoreConfirmProvider = provider
+            } else if (provider == FriendsLinkProvider.Apple) {
+                linking.onRestoreApple {}
+            } else {
+                linking.onRestoreGoogle {}
+            }
+        }
+    }
 
     // deep link コードは「安全に提示できる時だけ」消費する(iOS tryPresentPendingAdd 相当)。
     // nav 側の pendingFriendCode は rememberSaveable なので、提示前に画面が再生成されても
@@ -153,13 +215,74 @@ fun FriendsContent(
                 onAddClick = { addSheetCode = null; showAdd = true },
                 onRemove = onRemove,
                 onOpenCheerPicker = { cheerTarget = it },
+                linking = linking,
+                backupDismissed = backupDismissed,
+                onDismissBackup = { backupDismissed = true },
+                onBackupApple = { linking.onLinkApple { r -> handleLink(r, FriendsLinkProvider.Apple) } },
+                onBackupGoogle = { linking.onLinkGoogle { r -> handleLink(r, FriendsLinkProvider.Google) } },
+                onDeleteClick = { confirmDelete = true },
             )
             state.isConnecting -> ConnectingBody(palette)
-            else -> WelcomeBody(palette, errorMessage = state.errorMessage, onConnect = onConnect)
+            else -> WelcomeBody(
+                palette = palette,
+                errorMessage = state.errorMessage,
+                onConnect = onConnect,
+                linking = linking,
+                isLinking = state.isLinkingAccount,
+                onRestoreApple = { startRestore(FriendsLinkProvider.Apple) },
+                onRestoreGoogle = { startRestore(FriendsLinkProvider.Google) },
+            )
         }
 
-        // トースト(応援/申請の結果)を下部に。
+        // トースト(応援/申請/連携の結果)を下部に。
         ToastOverlay(state.toast, palette, onToastConsumed)
+    }
+
+    // 連携の衝突: 既存アカウントに切替(現データ破棄)か中止の二択。
+    collisionProvider?.let { provider ->
+        AlertDialog(
+            onDismissRequest = { collisionProvider = null },
+            title = { Text("このアカウントは既に別のデータに紐づいています") },
+            text = { Text("切り替えると、いまの端末の友達・コードは失われます。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (provider == FriendsLinkProvider.Apple) linking.onSwitchApple() else linking.onSwitchGoogle()
+                    collisionProvider = null
+                }) { Text("既存のアカウントに切り替える", color = palette.primaryDeep) }
+            },
+            dismissButton = { TextButton(onClick = { collisionProvider = null }) { Text("中止") } },
+        )
+    }
+
+    // 復元前の上書き確認(匿名残存データあり)。
+    restoreConfirmProvider?.let { provider ->
+        AlertDialog(
+            onDismissRequest = { restoreConfirmProvider = null },
+            title = { Text("この端末のデータが置き換わることがあります") },
+            text = { Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (provider == FriendsLinkProvider.Apple) linking.onRestoreApple {} else linking.onRestoreGoogle {}
+                    restoreConfirmProvider = null
+                }) { Text("${provider.displayName} で復元する", color = palette.primaryDeep) }
+            },
+            dismissButton = { TextButton(onClick = { restoreConfirmProvider = null }) { Text("キャンセル") } },
+        )
+    }
+
+    // アカウント削除(審査 5.1.1(v))。
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("アカウントを削除しますか？") },
+            text = { Text("友達・コード・応援などすべてのデータが完全に削除され、元に戻せません。バックアップ済みでも復元できなくなります。") },
+            confirmButton = {
+                TextButton(onClick = { linking.onDelete(); confirmDelete = false }) {
+                    Text("アカウントを削除", color = palette.primaryDeep)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
+        )
     }
 
     if (showAdd) {
@@ -208,7 +331,15 @@ private fun ConnectingBody(palette: AppTheme) {
 }
 
 @Composable
-private fun WelcomeBody(palette: AppTheme, errorMessage: String?, onConnect: () -> Unit) {
+private fun WelcomeBody(
+    palette: AppTheme,
+    errorMessage: String?,
+    onConnect: () -> Unit,
+    linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
+    isLinking: Boolean = false,
+    onRestoreApple: () -> Unit = {},
+    onRestoreGoogle: () -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -233,10 +364,43 @@ private fun WelcomeBody(palette: AppTheme, errorMessage: String?, onConnect: () 
             onClick = onConnect,
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth(),
+            // 連携有効時は「この端末で始める」(復元入口を併設, iOS connectButtonLabel)。
         ) {
-            Text("👥  友達とつながる", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(if (linking.enabled) "👥  この端末で始める" else "👥  友達とつながる", color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
+        // 以前 Apple/Google 連携した人の復元入口(連携有効時のみ)。
+        if (linking.enabled) {
+            RestoreSection(palette, linking, isLinking, onRestoreApple, onRestoreGoogle)
         }
         ShareAppCard(palette)
+    }
+}
+
+/** welcome の復元入口。以前連携した人が新端末/再インストールで友達/コードを取り戻す。 */
+@Composable
+private fun RestoreSection(
+    palette: AppTheme,
+    linking: FriendsLinkingHandlers,
+    isLinking: Boolean,
+    onRestoreApple: () -> Unit,
+    onRestoreGoogle: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("以前連携した方はこちら", fontSize = 12.sp, color = palette.textSecondary)
+        if (isLinking) {
+            CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(28.dp))
+        } else {
+            if (linking.appleEnabled) {
+                OutlinedButton(onClick = onRestoreApple, modifier = Modifier.fillMaxWidth()) { Text(" Apple で復元") }
+            }
+            if (linking.googleEnabled) {
+                OutlinedButton(onClick = onRestoreGoogle, modifier = Modifier.fillMaxWidth()) { Text("G Google で復元") }
+            }
+        }
     }
 }
 
@@ -286,8 +450,16 @@ private fun SignedInBody(
     onAddClick: () -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
+    linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
+    backupDismissed: Boolean = false,
+    onDismissBackup: () -> Unit = {},
+    onBackupApple: () -> Unit = {},
+    onBackupGoogle: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
 ) {
     val profile = state.profile ?: return
+    // 削除進行中は他操作を不可にして競合(部分削除)を防ぐ。
+    val locked = state.isDeletingAccount
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -298,7 +470,7 @@ private fun SignedInBody(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("友達", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onAddClick) { Text("＋ 追加") }
+            OutlinedButton(onClick = onAddClick, enabled = !locked) { Text("＋ 追加") }
         }
 
         if (state.errorMessage != null) {
@@ -306,6 +478,14 @@ private fun SignedInBody(
         }
 
         ProfileHeaderCard(profile, palette, onRename)
+
+        // バックアップ促し: 連携有効・未バックアップ・トリガー(友達1人以上 or 7日連続)・未dismiss。
+        val showBackup = linking.enabled && !state.backupStatus.isBackedUp && !backupDismissed &&
+            (state.friends.isNotEmpty() || profile.currentStreak >= 7)
+        if (showBackup) {
+            BackupCard(palette, linking, state.isLinkingAccount, onBackupApple, onBackupGoogle, onDismissBackup)
+        }
+
         ShareAppCard(palette)
 
         if (state.requests.isNotEmpty()) {
@@ -314,8 +494,52 @@ private fun SignedInBody(
 
         FriendsSection(state, palette, onSetSort, onOpenRanking, onCheer, onRemove, onOpenCheerPicker)
 
-        TextButton(onClick = onSignOut, modifier = Modifier.padding(top = 12.dp)) {
+        TextButton(onClick = onSignOut, enabled = !locked, modifier = Modifier.padding(top = 12.dp)) {
             Text("サインアウト", color = palette.textSecondary, fontSize = 13.sp)
+        }
+
+        // アカウント削除(審査 5.1.1(v))。連携有効時のみ表示。
+        if (linking.enabled) {
+            TextButton(onClick = onDeleteClick, enabled = !locked) {
+                Text(if (locked) "削除しています…" else "アカウントを削除", color = palette.primaryDeep, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+/** 機種変でも友達を引き継ぐバックアップ促しカード。iOS backupCard 相当。 */
+@Composable
+private fun BackupCard(
+    palette: AppTheme,
+    linking: FriendsLinkingHandlers,
+    isLinking: Boolean,
+    onBackupApple: () -> Unit,
+    onBackupGoogle: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("友達を機種変でも引き継ぐ", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Text(
+                "バックアップすると、機種変更や再インストールでも友達とコードを引き継げます。メールやパスワードは不要です。",
+                fontSize = 12.sp,
+                color = palette.textSecondary,
+            )
+            if (isLinking) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(28.dp)) }
+            } else {
+                if (linking.googleEnabled) {
+                    Button(onClick = onBackupGoogle, colors = ButtonDefaults.buttonColors(containerColor = palette.primary), modifier = Modifier.fillMaxWidth()) {
+                        Text("G Google でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                if (linking.appleEnabled) {
+                    Button(onClick = onBackupApple, colors = ButtonDefaults.buttonColors(containerColor = palette.primary), modifier = Modifier.fillMaxWidth()) {
+                        Text(" Apple でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text("あとで", color = palette.textSecondary, fontSize = 13.sp) }
+            }
         }
     }
 }

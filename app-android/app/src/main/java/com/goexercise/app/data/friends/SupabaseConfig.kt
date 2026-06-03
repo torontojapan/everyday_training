@@ -12,4 +12,22 @@ object SupabaseConfig {
     val anonKey: String get() = BuildConfig.SUPABASE_ANON_KEY.trim()
     val url: String? get() = host.ifBlank { null }?.let { "https://$it" }
     val isConfigured: Boolean get() = url != null && anonKey.isNotBlank()
+
+    // ---- アカウント連携(#5 / Phase2。config-gated)----
+    // iOS SupabaseConfig.appleLinkEnabled / googleLinkEnabled / isAccountLinkingEnabled 相当。
+    /** Apple 連携(web/PKCE)を有効にするか。既定 false。 */
+    val appleLinkEnabled: Boolean get() = BuildConfig.FRIENDS_APPLE_LINK_ENABLED
+    /** Google 連携(native id_token)を有効にするか。既定 false。 */
+    val googleLinkEnabled: Boolean get() = BuildConfig.FRIENDS_GOOGLE_LINK_ENABLED
+    /** いずれかの連携が有効か(バックアップ/復元/削除 UI の表示ゲート)。 */
+    val isAccountLinkingEnabled: Boolean get() = appleLinkEnabled || googleLinkEnabled
+    /** Google native(Credential Manager)用 Web Client ID。 */
+    val googleWebClientId: String get() = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+
+    /**
+     * Apple web/PKCE OAuth のコールバック先。iOS と同じ `goexercise://auth-callback`。
+     * **キー所有者作業(#10)**: Supabase の "Redirect URLs" 許可リストに登録する。Apple web の
+     * callback は通常の deep link(§11 ルート)に流さず、ここで code を抽出して exchange する。
+     */
+    const val googleRedirectUrl: String = "goexercise://auth-callback"
 }
