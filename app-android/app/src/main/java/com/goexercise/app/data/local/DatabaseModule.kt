@@ -27,11 +27,18 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "goexercise.db").build()
+        Room.databaseBuilder(context, AppDatabase::class.java, "goexercise.db")
+            // dev: v1→v2 は破壊的再生成(未リリース=本番データ無し)。**#10 で実 Migration に差し替え**。
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
 
     @Provides
     @Singleton
     fun provideWorkoutDao(db: AppDatabase): WorkoutDao = db.workoutDao()
+
+    @Provides
+    @Singleton
+    fun provideWeightDao(db: AppDatabase): WeightDao = db.weightDao()
 }
 
 @Module

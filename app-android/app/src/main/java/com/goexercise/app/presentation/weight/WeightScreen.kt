@@ -1,0 +1,444 @@
+@file:OptIn(ExperimentalLayoutApi::class)
+
+package com.goexercise.app.presentation.weight
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.domain.ChartPeriod
+import com.goexercise.app.domain.WeightStats
+import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.LocalAppPalette
+import java.time.LocalDate
+import kotlin.math.abs
+
+@Composable
+fun WeightRoute(onOpenPremium: () -> Unit = {}, viewModel: WeightViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val palette = LocalAppPalette.current
+    Box(Modifier.fillMaxSize().background(palette.background)) {
+        WeightContent(
+            state = state,
+            onAdd = viewModel::addWeight,
+            onDelete = viewModel::deleteEntry,
+            onSetPeriod = viewModel::setPeriod,
+            onSetTarget = viewModel::setTargetKg,
+            onSetHeight = viewModel::setHeightCm,
+            onToggleCycle = viewModel::toggleCycleOverlay,
+            onTogglePeriodDay = viewModel::togglePeriodDay,
+            // 未加入時は中身をぼかして操作不可にする(iOS WeightTabRootView)。
+            blurred = !state.isPremium,
+        )
+        if (!state.isPremium) {
+            LockedOverlay(palette, onOpenPremium)
+        }
+    }
+}
+
+@Composable
+private fun WeightContent(
+    state: WeightUiState,
+    onAdd: (LocalDate, Double, String?) -> Unit,
+    onDelete: (String) -> Unit,
+    onSetPeriod: (ChartPeriod) -> Unit,
+    onSetTarget: (Double?) -> Unit,
+    onSetHeight: (Double?) -> Unit,
+    onToggleCycle: () -> Unit,
+    onTogglePeriodDay: (LocalDate) -> Unit,
+    blurred: Boolean,
+) {
+    val palette = LocalAppPalette.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (blurred) Modifier.blur(8.dp) else Modifier)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("体重", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        HeroCard(state, palette, onSetTarget)
+        BmiStrip(state, palette, onSetHeight)
+        EntryCard(palette, onAdd)
+        if (state.dailyChart.size >= 2) {
+            ChartSection(state, palette, onSetPeriod, onToggleCycle)
+        }
+        ReportCard(state, palette)
+        CyclePanel(state, palette, onTogglePeriodDay)
+        HistoryList(state, palette, onDelete)
+    }
+}
+
+@Composable
+private fun LockedOverlay(palette: AppTheme, onOpenPremium: () -> Unit) {
+    // 全画面で**タップを消費**し、ぼかした下層フォームへ非加入ユーザーが触れて
+    // 体重/目標/生理日を変更できないようにする(iOS .disabled(!isUnlocked) 相当)。
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .padding(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(color = palette.surface, shape = RoundedCornerShape(24.dp)) {
+            Column(
+                Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text("👑", fontSize = 44.sp)
+                Text("体重タブは GOプレミアム機能です", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center)
+                Text("14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。", fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+                Button(onClick = onOpenPremium, colors = ButtonDefaults.buttonColors(containerColor = palette.primary)) {
+                    Text("GOプレミアムを見る", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Double?) -> Unit) {
+    var showTargetDialog by remember { mutableStateOf(false) }
+    Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("最新の体重", fontSize = 12.sp, color = palette.textSecondary)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
+                    fontSize = 44.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+                )
+                Text(" kg", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.remainingToTarget?.let { rem ->
+                    val within = abs(rem) < 0.05
+                    Chip(if (within) "✓ 目標圏内" else "📏 あと %.1fkg".format(abs(rem)), if (within) palette.success else palette.primaryDeep, palette)
+                }
+                state.weekStats?.change?.let { ch ->
+                    Chip("${if (ch <= 0) "↘" else "↗"} 今週 %+.1fkg".format(ch), if (ch <= 0) palette.success else palette.primaryDeep, palette)
+                }
+                state.forecastDays?.let { d ->
+                    Chip(if (d == 0) "🎯 目標達成" else "⏳ あと約${d}日", palette.settingsAccent, palette)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                state.health.startKg?.let { Text("開始 %.1f →".format(it), fontSize = 12.sp, color = palette.textSecondary) }
+                Spacer(Modifier.width(6.dp))
+                Text(state.health.targetKg?.let { "目標 %.1f kg".format(it) } ?: "目標未設定", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) "目標を設定" else "変更", color = palette.primaryDeep, fontSize = 12.sp) }
+            }
+        }
+    }
+    if (showTargetDialog) {
+        NumberDialog("目標体重 (kg)", state.health.targetKg, palette, onDismiss = { showTargetDialog = false }) {
+            onSetTarget(it); showTargetDialog = false
+        }
+    }
+}
+
+@Composable
+private fun BmiStrip(state: WeightUiState, palette: AppTheme, onSetHeight: (Double?) -> Unit) {
+    var showHeightDialog by remember { mutableStateOf(false) }
+    Surface(color = palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("📏 ", fontSize = 13.sp)
+            if (state.bmi != null) {
+                Text("BMI %.1f".format(state.bmi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep)
+                state.health.heightCm?.let { Text("  身長 ${it.toInt()}cm", fontSize = 12.sp, color = palette.textSecondary) }
+            } else {
+                Text("身長を設定すると BMI が表示されます", fontSize = 12.sp, color = palette.textSecondary)
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { showHeightDialog = true }) { Text("編集", color = palette.primaryDeep, fontSize = 12.sp) }
+        }
+    }
+    if (showHeightDialog) {
+        NumberDialog("身長 (cm)", state.health.heightCm, palette, onDismiss = { showHeightDialog = false }) {
+            onSetHeight(it); showHeightDialog = false
+        }
+    }
+}
+
+@Composable
+private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> Unit) {
+    var weight by remember { mutableStateOf("") }
+    var memo by remember { mutableStateOf("") }
+    var daysAgo by remember { mutableStateOf(0) } // 0=今日, 1=昨日, 2=一昨日
+    val labels = listOf("今日", "昨日", "一昨日")
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("記録する", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                labels.forEachIndexed { i, label ->
+                    val sel = daysAgo == i
+                    Surface(
+                        color = if (sel) palette.primary else palette.chipBackground,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.clickable { daysAgo = i },
+                    ) {
+                        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = weight, onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("体重 (kg)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(value = memo, onValueChange = { memo = it }, label = { Text("メモ (任意)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Button(
+                onClick = {
+                    weight.toDoubleOrNull()?.let { onAdd(LocalDate.now().minusDays(daysAgo.toLong()), it, memo.ifBlank { null }); weight = ""; memo = "" }
+                },
+                enabled = weight.toDoubleOrNull() != null,
+                colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("✓ 保存", color = Color.White) }
+        }
+    }
+}
+
+@Composable
+private fun ChartSection(state: WeightUiState, palette: AppTheme, onSetPeriod: (ChartPeriod) -> Unit, onToggleCycle: () -> Unit) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("推移", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Spacer(Modifier.weight(1f))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ChartPeriod.entries.forEach { p ->
+                        val sel = p == state.period
+                        Surface(color = if (sel) palette.primary else palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.clickable { onSetPeriod(p) }) {
+                            Text(p.shortLabel, fontSize = 11.sp, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                        }
+                    }
+                }
+            }
+            WeightChart(state, palette, Modifier.fillMaxWidth().height(200.dp))
+            if (state.periodDays.isNotEmpty()) {
+                Text(
+                    if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
+                    fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modifier) {
+    val daily = state.dailyChart // 古→新
+    val today = LocalDate.now()
+    val xMinDay = daily.first().date.toEpochDay().toFloat()
+    val xMaxDay = today.toEpochDay().toFloat()
+    val xSpan = (xMaxDay - xMinDay).coerceAtLeast(1f)
+    val allKg = daily.map { it.weightKg } + state.trend.map { it.average }
+    val yMin = (allKg.min() - 0.5)
+    val yMax = (allKg.max() + 0.5)
+    val ySpan = (yMax - yMin).coerceAtLeast(0.1)
+    val primary = palette.primary
+    val primaryDeep = palette.primaryDeep
+
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        fun px(day: Float) = (day - xMinDay) / xSpan * w
+        fun py(kg: Double) = (h - ((kg - yMin) / ySpan * h)).toFloat()
+
+        // 周期帯(背景)
+        state.cycleSpans.forEach { span ->
+            val x0 = px(span.startDay.toEpochDay().toFloat()).coerceIn(0f, w)
+            val x1 = px(span.endDay.toEpochDay().toFloat()).coerceIn(0f, w)
+            if (x1 > x0) {
+                drawRect(color = Color(span.phase.tintArgb).copy(alpha = 0.13f), topLeft = Offset(x0, 0f), size = androidx.compose.ui.geometry.Size(x1 - x0, h))
+            }
+        }
+        // 7日移動平均トレンド(破線)
+        if (state.trend.size >= 2) {
+            val path = Path()
+            state.trend.forEachIndexed { i, p ->
+                val x = px(p.date.toEpochDay().toFloat()); val y = py(p.average)
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, color = primaryDeep.copy(alpha = 0.45f), style = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f))))
+        }
+        // 日次の実測ライン + 点
+        val raw = Path()
+        daily.forEachIndexed { i, e ->
+            val x = px(e.date.toEpochDay().toFloat()); val y = py(e.weightKg)
+            if (i == 0) raw.moveTo(x, y) else raw.lineTo(x, y)
+        }
+        drawPath(raw, color = primary, style = Stroke(width = 6f))
+        daily.forEach { e ->
+            drawCircle(color = primaryDeep, radius = 7f, center = Offset(px(e.date.toEpochDay().toFloat()), py(e.weightKg)))
+        }
+    }
+}
+
+@Composable
+private fun ReportCard(state: WeightUiState, palette: AppTheme) {
+    if (state.weekStats == null && state.monthStats == null) return
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("レポート", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            state.weekStats?.let { StatsRow("今週 (7 日)", it, palette) }
+            state.monthStats?.let { StatsRow("今月 (30 日)", it, palette) }
+        }
+    }
+}
+
+@Composable
+private fun StatsRow(label: String, s: WeightStats, palette: AppTheme) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row {
+            Text(label, fontSize = 12.sp, color = palette.textSecondary)
+            Spacer(Modifier.weight(1f))
+            Text("%+.1f kg".format(s.change), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = if (s.change <= 0) palette.success else palette.primaryDeep)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatCell("最小", s.min, palette)
+            StatCell("平均", s.average, palette)
+            StatCell("最大", s.max, palette)
+        }
+    }
+}
+
+@Composable
+private fun StatCell(title: String, value: Double, palette: AppTheme) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, fontSize = 10.sp, color = palette.textSecondary)
+        Text("%.1f".format(value), fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
+    }
+}
+
+@Composable
+private fun CyclePanel(state: WeightUiState, palette: AppTheme, onTogglePeriodDay: (LocalDate) -> Unit) {
+    val today = LocalDate.now()
+    val isMarked = today in state.periodDays
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("月経周期オーバーレイ", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Text("生理日を登録すると、グラフ背景に周期の相(月経/卵胞/排卵/黄体)が重なります。黄体期は水分で体重が増えやすい時期です。", fontSize = 11.sp, color = palette.textSecondary)
+            // 凡例
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                com.goexercise.app.domain.CyclePhase.entries.forEach { phase ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(12.dp).background(Color(phase.tintArgb).copy(alpha = 0.65f), RoundedCornerShape(2.dp)))
+                        Text(phase.displayName, fontSize = 11.sp, color = palette.textPrimary)
+                    }
+                }
+            }
+            Button(
+                onClick = { onTogglePeriodDay(today) },
+                colors = ButtonDefaults.buttonColors(containerColor = if (isMarked) palette.chipBackground else palette.primary),
+            ) {
+                Text(if (isMarked) "今日の生理日登録を解除" else "今日を生理日に登録", color = if (isMarked) palette.textPrimary else Color.White, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryList(state: WeightUiState, palette: AppTheme, onDelete: (String) -> Unit) {
+    if (state.entries.isEmpty()) return
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("履歴 (${state.entries.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        state.entries.take(30).forEach { e ->
+            Surface(color = palette.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${e.date}", fontSize = 13.sp, color = palette.textPrimary)
+                        e.memo?.let { Text(it, fontSize = 11.sp, color = palette.textSecondary) }
+                    }
+                    Text("%.1f kg".format(e.weightKg), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
+                    TextButton(onClick = { pendingDelete = e.id }) { Text("🗑", fontSize = 14.sp) }
+                }
+            }
+        }
+    }
+    pendingDelete?.let { id ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("削除しますか？") },
+            confirmButton = { TextButton(onClick = { onDelete(id); pendingDelete = null }) { Text("削除", color = palette.primaryDeep) } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("キャンセル") } },
+            containerColor = palette.surface,
+        )
+    }
+}
+
+@Composable
+private fun Chip(text: String, fg: Color, palette: AppTheme) {
+    Surface(color = fg.copy(alpha = 0.12f), shape = RoundedCornerShape(50)) {
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+    }
+}
+
+@Composable
+private fun NumberDialog(title: String, initial: Double?, palette: AppTheme, onDismiss: () -> Unit, onConfirm: (Double?) -> Unit) {
+    var text by remember { mutableStateOf(initial?.let { "%.1f".format(it) } ?: "") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text, onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(text.toDoubleOrNull()) }) { Text("保存", color = palette.primaryDeep) } },
+        dismissButton = { TextButton(onClick = { onConfirm(null) }) { Text("クリア", color = palette.textSecondary) } },
+        containerColor = palette.surface,
+    )
+}

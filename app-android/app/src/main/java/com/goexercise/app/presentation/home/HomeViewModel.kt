@@ -2,12 +2,16 @@ package com.goexercise.app.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.data.WeightRepository
 import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.data.milestone.MilestoneRepository
 import com.goexercise.app.data.rescue.RescueTicketRepository
+import com.goexercise.app.data.settings.HealthRepository
 import com.goexercise.app.data.settings.SettingsRepository
+import com.goexercise.app.domain.ChartPeriod
 import com.goexercise.app.domain.Milestone
 import com.goexercise.app.domain.MilestoneDetector
+import com.goexercise.app.domain.WeightAnalytics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,6 +39,8 @@ class HomeViewModel @Inject constructor(
     rescueTickets: RescueTicketRepository,
     private val settings: SettingsRepository,
     private val milestones: MilestoneRepository,
+    private val weightRepo: WeightRepository,
+    private val health: HealthRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -67,14 +73,24 @@ class HomeViewModel @Inject constructor(
             uiState,
             settings.firstUseDate,
             milestones.state,
-        ) { state, firstUse, milestoneState ->
+            health.prefs,
+            weightRepo.observeEntries(),
+        ) { state, firstUse, milestoneState, healthPrefs, weightEntries ->
             if (!milestoneState.migrated) return@combine null // migration 完了まで出さない
+            val today = LocalDate.now(clock)
+            // 体重マイルストーン(#9 接続): 開始時/現在体重 + 減量目標で発火。
+            val currentKg = WeightAnalytics.dailyLatest(weightEntries, ChartPeriod.All, today).firstOrNull()?.weightKg
+            val weightSnapshot = MilestoneDetector.WeightLossSnapshot(
+                startKg = healthPrefs.startKg,
+                currentKg = currentKg,
+                isLossGoal = healthPrefs.isLossGoal,
+            )
             val candidates = MilestoneDetector.candidates(
                 firstUseDate = firstUse,
-                today = LocalDate.now(clock),
+                today = today,
                 lifetimeAchieved = state.lifetimeStats.achievedDays,
                 currentStreak = state.streak.currentStreak,
-                weightLoss = null, // 体重(#9)接続時に snapshot を渡す
+                weightLoss = weightSnapshot,
             )
             MilestoneDetector.nextPending(candidates, milestoneState.acknowledged)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

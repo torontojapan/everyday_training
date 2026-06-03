@@ -33,6 +33,7 @@ import com.goexercise.app.presentation.premium.PremiumPaywallRoute
 import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.presentation.rescue.RescueRoute
 import com.goexercise.app.presentation.settings.SettingsRoute
+import com.goexercise.app.presentation.weight.WeightRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
@@ -117,8 +118,10 @@ fun AppNavHost(
                     }
                 }
             }
-            // 体重タブ(AppRoute 外)。premium=P1.x で本実装。
-            composable(WEIGHT_ROUTE) { RoutePlaceholder(WEIGHT_ROUTE) }
+            // 体重タブ(premium。未加入は paywall[weight 文脈]へ)。
+            composable(WEIGHT_ROUTE) {
+                WeightRoute(onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.Weight.name}") })
+            }
             // フリーズ使用(履歴から遷移)。無料枠なら paywall(freeze 文脈)へ誘導。
             composable(RESCUE_ROUTE) {
                 RescueRoute(
