@@ -13,14 +13,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.DailyStatusEntry
+import com.goexercise.app.domain.Milestone
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.GOExerciseTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -40,7 +45,39 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
     HomeContent(state = state, onRecordClick = onRecordClick)
+    pendingMilestone?.let { milestone ->
+        MilestoneCelebrationDialog(
+            milestone = milestone,
+            onDismiss = { viewModel.acknowledgeMilestone(milestone) },
+        )
+    }
+}
+
+/** 達成お祝いダイアログ(emoji + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */
+@Composable
+private fun MilestoneCelebrationDialog(milestone: Milestone, onDismiss: () -> Unit) {
+    val palette = LocalAppPalette.current
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Text(milestone.emoji, fontSize = 48.sp) },
+        title = { Text(milestone.headline, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center) },
+        text = { Text(milestone.detail, color = palette.textSecondary, textAlign = TextAlign.Center) },
+        confirmButton = {
+            TextButton(onClick = {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, "${milestone.shareMessage}\nhttps://goexercise.app")
+                }
+                runCatching { context.startActivity(Intent.createChooser(intent, "シェア")) }
+                onDismiss()
+            }) { Text("シェアする", color = palette.primaryDeep, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("閉じる", color = palette.textSecondary) } },
+        containerColor = palette.surface,
+    )
 }
 
 /** ステートレスなホーム本体(プレビュー/テストしやすいよう状態を引数で受ける)。 */
