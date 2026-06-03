@@ -120,9 +120,10 @@ private fun WeekStrip(week: List<DailyStatusEntry>) {
 @Composable
 private fun StatsRow(state: HomeUiState) {
     val palette = LocalAppPalette.current
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         StatPill(label = "連続", value = "${state.streak.currentStreak}日", modifier = Modifier.weight(1f))
         StatPill(label = "累計達成", value = "${state.lifetimeStats.achievedDays}日", modifier = Modifier.weight(1f))
+        StatPill(label = "今週", value = "${state.weeklySummary.totalMinutes}分", modifier = Modifier.weight(1f))
         val decoText = if (state.catDecoration == com.goexercise.app.domain.CatDecoration.None) "—" else state.catDecoration.emoji
         StatPill(label = "ランク", value = decoText, modifier = Modifier.weight(1f))
     }

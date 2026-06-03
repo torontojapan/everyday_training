@@ -5,6 +5,7 @@ import com.goexercise.app.domain.CatDecoration
 import com.goexercise.app.domain.CatMessageProvider
 import com.goexercise.app.domain.CatStateResolver
 import com.goexercise.app.domain.DailyStatus
+import com.goexercise.app.domain.ExerciseTrendSummary
 import com.goexercise.app.domain.LifetimeStatsCalculator
 import com.goexercise.app.domain.RestDayResolver
 import com.goexercise.app.domain.StreakCalculator
@@ -54,6 +55,9 @@ object HomeStateReducer {
         )
         val catMessage = CatMessageProvider.message(catState, today)
 
+        val todaySummary = ExerciseTrendSummary.today(records, today)
+        val weeklySummary = ExerciseTrendSummary.week(records, today)
+
         return HomeUiState(
             streak = streak,
             weekStatuses = weekStatuses,
@@ -63,6 +67,8 @@ object HomeStateReducer {
             catMessage = catMessage,
             lifetimeStats = lifetime,
             catDecoration = decoration,
+            todaySummary = todaySummary,
+            weeklySummary = weeklySummary,
         )
     }
 }

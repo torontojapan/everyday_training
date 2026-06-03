@@ -5,6 +5,7 @@ import com.goexercise.app.domain.CatMessage
 import com.goexercise.app.domain.CatState
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.DailyStatusEntry
+import com.goexercise.app.domain.ExerciseTrendSummary
 import com.goexercise.app.domain.LifetimeStatsCalculator
 import com.goexercise.app.domain.StreakState
 import com.goexercise.app.domain.WeeklyProgress
@@ -22,4 +23,6 @@ data class HomeUiState(
     val catMessage: CatMessage = CatMessage("🐱", "今日も1分だけやってみよ？"),
     val lifetimeStats: LifetimeStatsCalculator.Stats = LifetimeStatsCalculator.Stats(0, 1),
     val catDecoration: CatDecoration = CatDecoration.None,
+    val todaySummary: ExerciseTrendSummary.DailySummary = ExerciseTrendSummary.DailySummary(emptyMap(), 0, 0),
+    val weeklySummary: ExerciseTrendSummary.WeeklySummary = ExerciseTrendSummary.WeeklySummary(emptyList(), 0, emptyList()),
 )
