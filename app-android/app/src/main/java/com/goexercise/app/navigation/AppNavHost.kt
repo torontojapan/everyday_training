@@ -5,63 +5,99 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.goexercise.app.presentation.home.HomeRoute
 import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
+private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
+
 /**
- * P0 のナビ骨組み。iOS `AppRoute` の全ルートに対応する NavHost を張り、
- * いまは各ルートにプレースホルダ画面を割り当てる。実画面(ホーム/記録/履歴/設定/
- * 友達/週間ランキング等)は後続フェーズで差し替える。タブ/ディープリンク/通知タップは
- * この route 体系に集約する(iOS と同じ単一真実源)。
+ * アプリの骨格。ボトムタブ(home/履歴/体重/友達/設定)を持つ Scaffold + NavHost。
+ * 記録入力(record)等の詳細画面ではボトムバーを隠す。iOS `MainTabView` 相当。
  */
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
 ) {
-    NavHost(navController = navController, startDestination = AppRoute.Home.path) {
-        AppRoute.entries.forEach { route ->
-            composable(route.path) {
-                when (route) {
-                    AppRoute.Home -> HomeRoute(
-                        onRecordClick = { navController.navigate(AppRoute.Record.path) },
-                    )
-                    AppRoute.Record -> RecordRoute(
-                        onSaved = { navController.popBackStack() },
-                        onBack = { navController.popBackStack() },
-                    )
-                    else -> RoutePlaceholder(route)
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val tabs = BottomTab.visible()
+    val showBottomBar = tabs.any { it.route == currentRoute }
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = currentRoute == tab.route,
+                            onClick = { navController.navigateToTab(tab.route) },
+                            icon = { Text(tab.emoji) },
+                            label = { Text(tab.label) },
+                        )
+                    }
                 }
             }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = AppRoute.Home.path,
+            modifier = Modifier.padding(innerPadding),
+        ) {
+            AppRoute.entries.forEach { route ->
+                composable(route.path) {
+                    when (route) {
+                        AppRoute.Home -> HomeRoute(
+                            onRecordClick = { navController.navigate(AppRoute.Record.path) },
+                        )
+                        AppRoute.Record -> RecordRoute(
+                            onSaved = { navController.popBackStack() },
+                            onBack = { navController.popBackStack() },
+                        )
+                        else -> RoutePlaceholder(route.path)
+                    }
+                }
+            }
+            // 体重タブ(AppRoute 外)。premium=P1.x で本実装。
+            composable(WEIGHT_ROUTE) { RoutePlaceholder(WEIGHT_ROUTE) }
         }
     }
 }
 
+/** タブ選択時のナビ。バックスタックを積まず状態を保存/復元する(標準のタブ挙動)。 */
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
-private fun RoutePlaceholder(route: AppRoute) {
+private fun RoutePlaceholder(route: String) {
     val palette = LocalAppPalette.current
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = route.name, style = MaterialTheme.typography.titleLarge)
-        Text(
-            text = "route: goexercise://${route.path}",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            text = "theme: ${palette.displayName}",
-            style = MaterialTheme.typography.bodySmall,
-        )
+        Text(text = route, style = MaterialTheme.typography.titleLarge, color = palette.textPrimary)
+        Text(text = "(この画面は今後のフェーズで実装)", style = MaterialTheme.typography.bodySmall, color = palette.textSecondary)
     }
 }
