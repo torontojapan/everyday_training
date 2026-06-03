@@ -16,7 +16,8 @@ object RestDayResolver {
     fun weekStart(date: LocalDate): LocalDate =
         date.minusDays((date.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
 
-    private fun daysInWeek(weekStart: LocalDate): List<LocalDate> =
+    /** 週(月曜起点)の 7 日。iOS `Calendar.days(in:)` 相当。 */
+    fun weekDays(weekStart: LocalDate): List<LocalDate> =
         (0L until 7L).map { weekStart.plusDays(it) }
 
     fun restDays(
@@ -33,7 +34,7 @@ object RestDayResolver {
             .map { it.date }
             .toSet()
 
-        val candidates = daysInWeek(weekStart).filter { day ->
+        val candidates = weekDays(weekStart).filter { day ->
             !day.isAfter(today) && !achievedDays.contains(day)
         }
 

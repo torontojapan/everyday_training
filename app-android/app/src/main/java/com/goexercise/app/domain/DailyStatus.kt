@@ -13,6 +13,13 @@ enum class DailyStatus(val symbol: String) {
         get() = this == Achieved || this == Rest || this == TodayAchieved
 }
 
+/** 1 日分の状態エントリ(週/月カレンダー用)。iOS `DailyStatusEntry` の移植。 */
+data class DailyStatusEntry(
+    val date: java.time.LocalDate,
+    val status: DailyStatus,
+    val recordIds: List<String>,
+)
+
 /** 連続記録の集計。iOS `StreakState` の移植。 */
 data class StreakState(
     val currentStreak: Int,
