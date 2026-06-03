@@ -29,6 +29,8 @@ interface HealthRepository {
     suspend fun setTargetKg(kg: Double?)
     suspend fun setHeightCm(cm: Double?)
     suspend fun setIsLossGoal(isLoss: Boolean)
+    /** 体重ゴール/身長を全消去(データ全削除導線。体重記録と一緒に消す=開始体重の孤児化も防ぐ)。 */
+    suspend fun clearAll()
 }
 
 class HealthRepositoryImpl @Inject constructor(
@@ -64,6 +66,12 @@ class HealthRepositoryImpl @Inject constructor(
 
     override suspend fun setIsLossGoal(isLoss: Boolean) {
         dataStore.edit { it[lossGoalKey] = isLoss }
+    }
+
+    override suspend fun clearAll() {
+        dataStore.edit { prefs ->
+            listOf(startKey, targetKey, heightKey, lossGoalKey).forEach { prefs.remove(it) }
+        }
     }
 }
 

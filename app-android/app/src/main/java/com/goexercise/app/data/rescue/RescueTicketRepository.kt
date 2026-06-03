@@ -26,6 +26,9 @@ interface RescueTicketRepository {
 
     /** 指定日にフリーズを消費。枠切れ/同日二重なら false。 */
     suspend fun useTicket(date: LocalDate, allowance: Int): Boolean
+
+    /** 救済使用日を全消去(データ全削除導線。残すと削除後も達成扱いの日が残る)。 */
+    suspend fun clearAll()
 }
 
 class RescueTicketRepositoryImpl @Inject constructor(
@@ -48,6 +51,10 @@ class RescueTicketRepositoryImpl @Inject constructor(
             prefs[usedKey] = set
         }
         return true
+    }
+
+    override suspend fun clearAll() {
+        dataStore.edit { it.remove(usedKey) }
     }
 }
 

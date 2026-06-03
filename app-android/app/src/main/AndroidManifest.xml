@@ -26,6 +26,17 @@
                 <data android:scheme="goexercise" />
             </intent-filter>
         </activity>
+
+        <!-- データエクスポート / マイルストーン画像の共有用。cache 配下のファイルを安全に共有する。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

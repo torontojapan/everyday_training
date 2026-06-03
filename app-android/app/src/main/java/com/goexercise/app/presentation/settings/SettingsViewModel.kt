@@ -2,22 +2,28 @@ package com.goexercise.app.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.goexercise.app.data.DataManagementRepository
 import com.goexercise.app.data.billing.PremiumRepository
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.ui.theme.AppTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Clock
 import javax.inject.Inject
 
-/** 設定の VM。テーマの購読/更新 + プレミアム加入状態。ルートの App() とも共有(同一 DataStore Flow で同期)。 */
+/** 設定の VM。テーマ/猫/プレミアム + データ管理(エクスポート/全削除)。ルートの App() と共有。 */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     premium: PremiumRepository,
+    private val dataManagement: DataManagementRepository,
+    private val clock: Clock,
 ) : ViewModel() {
 
     val theme: StateFlow<AppTheme> = repository.theme
@@ -36,5 +42,35 @@ class SettingsViewModel @Inject constructor(
 
     fun setCatBreed(breed: CatBreed) {
         viewModelScope.launch { repository.setCatBreed(breed) }
+    }
+
+    /** データ管理処理中(エクスポート/削除)。連打ガード + UI スピナー。 */
+    private val _isBusy = MutableStateFlow(false)
+    val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()
+
+    /** 全記録を JSON 文字列にして返す(画面側でファイル化+共有)。 */
+    fun exportData(onReady: (String) -> Unit) {
+        if (_isBusy.value) return
+        _isBusy.value = true
+        viewModelScope.launch {
+            try {
+                onReady(dataManagement.exportJson(clock.instant()))
+            } finally {
+                _isBusy.value = false
+            }
+        }
+    }
+
+    /** 運動/体重/体調の全記録を削除(課金状態は対象外)。 */
+    fun deleteAllRecords(onDone: (Int) -> Unit = {}) {
+        if (_isBusy.value) return
+        _isBusy.value = true
+        viewModelScope.launch {
+            try {
+                onDone(dataManagement.deleteAllRecords())
+            } finally {
+                _isBusy.value = false
+            }
+        }
     }
 }

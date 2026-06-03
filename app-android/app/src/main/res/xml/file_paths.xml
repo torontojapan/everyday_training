@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 共有用に書き出す一時ファイル(データエクスポート JSON / マイルストーン画像)。 -->
+    <cache-path name="shared" path="shared/" />
+</paths>

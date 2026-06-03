@@ -18,6 +18,8 @@ import javax.inject.Singleton
 interface MenstrualRepository {
     val periodDays: Flow<Set<LocalDate>>
     suspend fun toggle(date: LocalDate)
+    /** 全削除(データ全削除導線)。 */
+    suspend fun clearAll()
 }
 
 class MenstrualRepositoryImpl @Inject constructor(
@@ -36,6 +38,10 @@ class MenstrualRepositoryImpl @Inject constructor(
             val cur = prefs[key] ?: emptySet()
             prefs[key] = if (day in cur) cur - day else cur + day
         }
+    }
+
+    override suspend fun clearAll() {
+        dataStore.edit { it.remove(key) }
     }
 }
 

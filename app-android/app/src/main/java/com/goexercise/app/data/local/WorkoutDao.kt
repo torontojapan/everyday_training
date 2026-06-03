@@ -22,4 +22,10 @@ interface WorkoutDao {
 
     @Query("DELETE FROM workout_records WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    @Query("SELECT * FROM workout_records ORDER BY dateEpochDay, updatedAtEpochMs, id")
+    suspend fun getAllOnce(): List<WorkoutRecordEntity>
+
+    @Query("DELETE FROM workout_records")
+    suspend fun clearAll()
 }

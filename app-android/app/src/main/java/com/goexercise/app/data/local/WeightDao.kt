@@ -16,4 +16,10 @@ interface WeightDao {
 
     @Query("DELETE FROM weight_entries WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    @Query("SELECT * FROM weight_entries ORDER BY recordedAtEpochMs")
+    suspend fun getAllOnce(): List<WeightEntryEntity>
+
+    @Query("DELETE FROM weight_entries")
+    suspend fun clearAll()
 }
