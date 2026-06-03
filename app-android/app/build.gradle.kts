@@ -59,7 +59,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // #10: R8 縮小 + リソース shrink を有効化。keep ルールは proguard-rules.pro /
+            // res/raw/keep.xml(cat_* 動的リソース)。署名は #10 のキー所有者作業で追加。
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -119,6 +122,12 @@ dependencies {
 
     // Google Play Billing(サブスク課金 / プレミアム エンタイトルメント)。
     implementation(libs.billing.ktx)
+
+    // アカウント連携(#10): Google native id_token = Credential Manager / Apple web = Custom Tabs。
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
+    implementation(libs.androidx.browser)
 
     testImplementation(libs.junit)
 

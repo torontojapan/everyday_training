@@ -2,6 +2,8 @@ package com.goexercise.app.data.local
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.data.WorkoutRepositoryImpl
 import dagger.Binds
@@ -12,6 +14,21 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import javax.inject.Singleton
+
+/**
+ * v1→v2: weight_entries テーブル + index を追加(WeightEntry 導入)。SQL は **schemas/2.json の
+ * createSql を逐語コピー**しているため Room の identity-hash 検証に一致する(出荷データを破壊しない)。
+ */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `weight_entries` (`id` TEXT NOT NULL, `recordedAtEpochMs` INTEGER NOT NULL, " +
+                "`weightKg` REAL NOT NULL, `memo` TEXT, `createdAtEpochMs` INTEGER NOT NULL, " +
+                "`updatedAtEpochMs` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_weight_entries_recordedAtEpochMs` ON `weight_entries` (`recordedAtEpochMs`)")
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -28,8 +45,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "goexercise.db")
-            // dev: v1→v2 は破壊的再生成(未リリース=本番データ無し)。**#10 で実 Migration に差し替え**。
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(MIGRATION_1_2) // v1→v2: weight_entries 追加(本番データを保持)
             .build()
 
     @Provides

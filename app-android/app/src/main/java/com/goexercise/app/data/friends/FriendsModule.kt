@@ -2,6 +2,7 @@ package com.goexercise.app.data.friends
 
 import com.goexercise.app.presentation.friends.AccountAuthCoordinator
 import com.goexercise.app.presentation.friends.MockAccountAuthCoordinator
+import com.goexercise.app.presentation.friends.RealAccountAuthCoordinator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,10 +27,12 @@ object FriendsModule {
         }
 
     /**
-     * 連携の認証 coordinator。dev は Mock(実通信なしでフロー確認)。
-     * **実 Credential Manager / Custom Tabs 実装は #10**(Web Client ID + Supabase 設定 + 実機)。
+     * 連携の認証 coordinator。Supabase 設定済(#10 で anon key 投入)なら実 Credential Manager /
+     * Custom Tabs、未設定の dev では Mock(実通信なしでフロー確認)。実 Google 連携には併せて
+     * GOOGLE_WEB_CLIENT_ID が必要。
      */
     @Provides
     @Singleton
-    fun provideAccountAuthCoordinator(): AccountAuthCoordinator = MockAccountAuthCoordinator()
+    fun provideAccountAuthCoordinator(): AccountAuthCoordinator =
+        if (SupabaseConfig.isConfigured) RealAccountAuthCoordinator() else MockAccountAuthCoordinator()
 }
