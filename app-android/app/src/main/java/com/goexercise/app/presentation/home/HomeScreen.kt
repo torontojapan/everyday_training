@@ -107,7 +107,7 @@ private fun WeekStrip(week: List<DailyStatusEntry>) {
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(colorFor(entry.status)),
+                        .background(com.goexercise.app.ui.theme.colorForStatus(entry.status)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(text = entry.status.symbol, fontSize = 14.sp)
@@ -141,18 +141,6 @@ private fun StatPill(label: String, value: String, modifier: Modifier = Modifier
             Text(text = value, color = palette.textPrimary, fontWeight = FontWeight.Bold)
             Text(text = label, color = palette.textSecondary, fontSize = 11.sp, textAlign = TextAlign.Center)
         }
-    }
-}
-
-@Composable
-private fun colorFor(status: DailyStatus) = with(LocalAppPalette.current) {
-    when (status) {
-        DailyStatus.TodayAchieved -> primary
-        DailyStatus.Achieved -> success
-        DailyStatus.Rest -> restDay
-        DailyStatus.Missed -> missed
-        DailyStatus.TodayPending -> secondary
-        DailyStatus.Future -> chipBackground
     }
 }
 

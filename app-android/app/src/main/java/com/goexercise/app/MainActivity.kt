@@ -5,8 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.navigation.AppNavHost
-import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.presentation.settings.SettingsViewModel
 import com.goexercise.app.ui.theme.GOExerciseTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,9 +24,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun App() {
-    // P0: 既定テーマ固定。テーマ切替UI + DataStore 永続化(iOS の UserDefaults 相当)は
-    // 永続層フェーズで追加する。
-    GOExerciseTheme(theme = AppTheme.Peach) {
+    // 永続化済みテーマ(DataStore)を購読してアプリ全体に適用。設定画面の切替が即反映される。
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
+    GOExerciseTheme(theme = theme) {
         AppNavHost()
     }
 }

@@ -20,8 +20,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.goexercise.app.presentation.history.HistoryRoute
 import com.goexercise.app.presentation.home.HomeRoute
 import com.goexercise.app.presentation.record.RecordRoute
+import com.goexercise.app.presentation.settings.SettingsRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
@@ -70,6 +72,8 @@ fun AppNavHost(
                             onSaved = { navController.popBackStack() },
                             onBack = { navController.popBackStack() },
                         )
+                        AppRoute.Settings -> SettingsRoute()
+                        AppRoute.History -> HistoryRoute()
                         else -> RoutePlaceholder(route.path)
                     }
                 }
