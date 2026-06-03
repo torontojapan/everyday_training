@@ -144,3 +144,72 @@ supabase functions deploy delete-account
 - 衝突写像: `mapLinkError` / `mapPKCECallback`。削除: `deleteAccount`(Edge Function 正本 + フォールバック)。
 - UI: `FriendsView`(バックアップカード / welcome 復元 / 衝突二択 / 削除確認)。
 - 設定ゲート: `SupabaseConfig.{appleLinkEnabled,googleLinkEnabled,isAccountLinkingEnabled,googleRedirectURL}`。
+
+---
+
+## 7. Android 版 (#10) 追加手順 — キー所有者作業
+
+> Android(`app-android/`)は **iOS と同一 Supabase プロジェクトを共有**(friend code 名前空間共有 =
+> Apple↔Android 相互フレンド)。**§1 のコンソール設定は共用**。**Android は iOS の鏡像**:
+> Google=native id_token(Credential Manager)/ Apple=web/PKCE(Custom Tabs)。
+> dev はすべて Mock 経路で動作確認済み。下記を投入すると実経路へ自動で切り替わる。
+
+### 7-A. 接続情報を `app-android/local.properties`(gitignore)へ
+```
+SUPABASE_HOST=<iOS と同じ host>.supabase.co
+SUPABASE_ANON_KEY=<iOS と同じ anon key>
+```
+→ `SupabaseConfig.isConfigured=true` になり、friends は実 `SupabaseFriendsService`、連携 coordinator は
+実 `RealAccountAuthCoordinator`(Credential Manager / Custom Tabs)に自動切替。
+
+### 7-B. Google **Web** Client ID(Credential Manager 用)
+```
+GOOGLE_WEB_CLIENT_ID=<...>.apps.googleusercontent.com
+```
+- **Web アプリケーション型**の OAuth クライアント ID を使う(Android 型ではない)。Supabase の Google
+  provider に登録したものと同一でよい。未設定だと Google 連携は `providerUnavailable` で安全側。
+- Custom Tabs の Apple web callback `goexercise://auth-callback` は **§1-D の Redirect URLs に登録必須**
+  (iOS と共用済みのはず。Android も同 URL)。
+
+### 7-C. 連携フラグを ON(検証ビルド限定 / `local.properties`)
+```
+FRIENDS_APPLE_LINK_ENABLED=true
+FRIENDS_GOOGLE_LINK_ENABLED=true
+```
+→ welcome の復元入口・バックアップカード・削除導線が表示される(既定 false = 非表示で不変)。
+
+### 7-D. Play Billing(課金)
+1. Play Console で **サブスク商品**を作成: `com.goexercise.app.premium_monthly` / `..._yearly`
+   (iOS の `premium_monthly/yearly` に対応する **Play 上の別 productId**)。
+2. base plan に **14 日無料トライアル offer** を追加(`trialOffer()` が priceAmountMicros==0 のフェーズを
+   優先選択する前提)。
+3. **内部テスト**トラックに署名済み AAB を配信(Billing は実機 + ストア商品が無いとテスト不可)。
+4. `local.properties` に `PLAY_BILLING_ENABLED=true` → 実 `PlayBillingPremiumRepository` に切替。
+
+### 7-E. リリース署名 + ビルド
+- keystore を作成し `app-android/app/build.gradle.kts` に `signingConfigs` + release へ適用(本番鍵は
+  リポジトリに入れない。`keystore.properties` は gitignore)。
+- R8 縮小 / リソース shrink は**設定済み**(`isMinifyEnabled`/`isShrinkResources=true`、keep は
+  `proguard-rules.pro` + `res/raw/keep.xml` で cat_* 保護)。`./gradlew :app:bundleRelease` で AAB。
+- Room v1→v2 の実 Migration は**実装 + 計装テスト green 済み**(`MIGRATION_1_2` / `MigrationTest`)。
+
+### 7-F. 審査 / ストア整備
+- **アカウント削除 URL**: `docs/account-deletion.md`(公開先 URL を Play / App の該当欄に登録)。
+- **Data safety フォーム**: 友達=共有プロフィール/連携(任意)。運動・体重はローカルのみ(クラウド送信なし)。
+- ペイウォールのサブスク開示(価格/周期/自動更新/トライアル後課金/解約=Play 定期購入)は実装済み。
+
+### 7-G. Android 実機 E2E マトリクス
+| # | シナリオ | 期待 |
+|---|---|---|
+| 1 | Google でバックアップ(native) | Credential Manager → linked、再起動で復元可 |
+| 2 | Apple でバックアップ(web/Custom Tabs) | callback 受領 → linked。**Tab を閉じる**と Cancelled で畳む(ハング無し) |
+| 3 | 別端末で復元(Google/Apple) | restored で友達/コードが戻る |
+| 4 | 衝突(既存 ID に別データ) | 「既存に切替/中止」二択 → 切替で identity 張り直し |
+| 5 | アカウント削除 | EF 200=即時 / 404・ネット断=RLS フォールバック / 500=fail closed(再試行) |
+| 6 | **Apple↔Android 友達** | iOS で生成した friend code を Android で追加(逆も)= 相互フレンド成立 |
+| 7 | 課金 | 14日無料で購入 → isPremium → rescue 月4 / 体重タブ解錠 |
+| 8 | v1→v2 アップグレード | v1 配信済み端末へ v2 を上書き → クラッシュ無し・既存運動記録保持 |
+
+### 7-H. ロールバック(Android)
+- `FRIENDS_*_LINK_ENABLED` / `PLAY_BILLING_ENABLED` を false → 各 UI 非表示・経路未実行。
+- `SUPABASE_*` を空に戻せば全面 Mock 経路へ(コンソール障害時の安全退避)。
