@@ -32,13 +32,19 @@ import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 @Composable
-fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val theme by viewModel.theme.collectAsStateWithLifecycle()
-    SettingsContent(selected = theme, onSelect = viewModel::setTheme)
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
+    SettingsContent(selected = theme, onSelect = viewModel::setTheme, isPremium = isPremium, onOpenPremium = onOpenPremium)
 }
 
 @Composable
-fun SettingsContent(selected: AppTheme, onSelect: (AppTheme) -> Unit = {}) {
+fun SettingsContent(
+    selected: AppTheme,
+    onSelect: (AppTheme) -> Unit = {},
+    isPremium: Boolean = false,
+    onOpenPremium: () -> Unit = {},
+) {
     val palette = LocalAppPalette.current
     Column(
         modifier = Modifier
@@ -49,9 +55,41 @@ fun SettingsContent(selected: AppTheme, onSelect: (AppTheme) -> Unit = {}) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("設定", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = palette.textPrimary)
+
+        PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
+
         Text("テーマ", color = palette.textSecondary, fontSize = 13.sp)
         AppTheme.entries.forEach { theme ->
             ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
+        }
+    }
+}
+
+@Composable
+private fun PremiumCard(isPremium: Boolean, palette: AppTheme, onClick: () -> Unit) {
+    Surface(
+        color = palette.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, palette.primary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("👑", fontSize = 22.sp)
+            Column(Modifier.weight(1f)) {
+                Text("GOプレミアム", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                Text(
+                    if (isPremium) "加入済み・全機能が使えます" else "14日間無料で全機能を解放",
+                    color = palette.textSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+            Text(if (isPremium) "✓" else "›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }

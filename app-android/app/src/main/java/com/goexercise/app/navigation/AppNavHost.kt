@@ -28,6 +28,8 @@ import com.goexercise.app.presentation.friends.FriendsRoute
 import com.goexercise.app.presentation.friends.WeeklyRankingRoute
 import com.goexercise.app.presentation.history.HistoryRoute
 import com.goexercise.app.presentation.home.HomeRoute
+import com.goexercise.app.presentation.premium.PaywallContext
+import com.goexercise.app.presentation.premium.PremiumPaywallRoute
 import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.presentation.rescue.RescueRoute
 import com.goexercise.app.presentation.settings.SettingsRoute
@@ -35,6 +37,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 
 private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
 private const val RESCUE_ROUTE = "rescue" // フリーズ使用(履歴から遷移する詳細画面)
+private const val PREMIUM_ROUTE = "premium" // GOプレミアム ペイウォール(#6)。?ctx= で文脈を渡す
 
 /**
  * アプリの骨格。ボトムタブ(home/履歴/体重/友達/設定)を持つ Scaffold + NavHost。
@@ -96,7 +99,9 @@ fun AppNavHost(
                             onSaved = { navController.popBackStack() },
                             onBack = { navController.popBackStack() },
                         )
-                        AppRoute.Settings -> SettingsRoute()
+                        AppRoute.Settings -> SettingsRoute(
+                            onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.General.name}") },
+                        )
                         AppRoute.History -> HistoryRoute(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
                         )
@@ -114,8 +119,19 @@ fun AppNavHost(
             }
             // 体重タブ(AppRoute 外)。premium=P1.x で本実装。
             composable(WEIGHT_ROUTE) { RoutePlaceholder(WEIGHT_ROUTE) }
-            // フリーズ使用(履歴から遷移)。
-            composable(RESCUE_ROUTE) { RescueRoute(onBack = { navController.popBackStack() }) }
+            // フリーズ使用(履歴から遷移)。無料枠なら paywall(freeze 文脈)へ誘導。
+            composable(RESCUE_ROUTE) {
+                RescueRoute(
+                    onBack = { navController.popBackStack() },
+                    onUpgrade = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.Freeze.name}") },
+                )
+            }
+            // GOプレミアム ペイウォール(#6)。ctx で見出しを出し分ける。
+            composable("$PREMIUM_ROUTE/{ctx}") { entry ->
+                val ctx = runCatching { PaywallContext.valueOf(entry.arguments?.getString("ctx") ?: "") }
+                    .getOrDefault(PaywallContext.General)
+                PremiumPaywallRoute(context = ctx, onClose = { navController.popBackStack() })
+            }
         }
     }
 }

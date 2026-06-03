@@ -50,6 +50,11 @@ android {
         buildConfigField("Boolean", "FRIENDS_GOOGLE_LINK_ENABLED", secret("FRIENDS_GOOGLE_LINK_ENABLED").ifBlank { "false" })
         // Google native(Credential Manager)用 Web Client ID。未設定なら Google 連携は実行不可。
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${secret("GOOGLE_WEB_CLIENT_ID")}\"")
+
+        // Play Billing(#6 / P1c)の有効化ゲート。既定 false = Mock 課金(dev で paywall/エンタイトル
+        // メントを実 Play なしで確認)。Play Console にサブスク商品を作成し内部テスト配信が整ったら
+        // true にする(#10)。
+        buildConfigField("Boolean", "PLAY_BILLING_ENABLED", secret("PLAY_BILLING_ENABLED").ifBlank { "false" })
     }
 
     buildTypes {
@@ -111,6 +116,9 @@ dependencies {
 
     // QR コード生成 (友達コードの招待リンクを QR 化)。pure-Java で実通信不要。
     implementation(libs.zxing.core)
+
+    // Google Play Billing(サブスク課金 / プレミアム エンタイトルメント)。
+    implementation(libs.billing.ktx)
 
     testImplementation(libs.junit)
 

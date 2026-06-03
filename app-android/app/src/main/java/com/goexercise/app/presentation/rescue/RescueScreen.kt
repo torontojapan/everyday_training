@@ -34,9 +34,9 @@ import com.goexercise.app.ui.theme.colorForStatus
 import java.time.LocalDate
 
 @Composable
-fun RescueRoute(onBack: () -> Unit = {}, viewModel: RescueViewModel = hiltViewModel()) {
+fun RescueRoute(onBack: () -> Unit = {}, onUpgrade: () -> Unit = {}, viewModel: RescueViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    RescueContent(state, onBack, viewModel::useTicket, viewModel::prevMonth, viewModel::nextMonth)
+    RescueContent(state, onBack, viewModel::useTicket, viewModel::prevMonth, viewModel::nextMonth, onUpgrade)
 }
 
 @Composable
@@ -46,6 +46,7 @@ fun RescueContent(
     onUse: (LocalDate) -> Unit = {},
     onPrev: () -> Unit = {},
     onNext: () -> Unit = {},
+    onUpgrade: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -61,6 +62,19 @@ fun RescueContent(
                 Text("今月の残り: ${state.remaining} / ${state.allowance} 枚", fontWeight = FontWeight.Bold, color = palette.textPrimary)
                 Text("未達成の日(×)をタップすると、その日を達成扱いにして連続記録を守れます。",
                     color = palette.textSecondary, fontSize = 12.sp)
+            }
+        }
+        // 無料枠(月1)のときだけプレミアム誘導(月4枚)。加入済み(allowance>=4)では非表示。
+        if (state.allowance < 4) {
+            Surface(
+                color = palette.primary.copy(alpha = 0.10f),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onUpgrade),
+            ) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("👑 プレミアムでフリーズを月4回に", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text("›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
