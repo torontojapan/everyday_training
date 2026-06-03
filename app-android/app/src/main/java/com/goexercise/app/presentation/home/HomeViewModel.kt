@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,7 +37,7 @@ class HomeViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<HomeUiState> =
-        combine(repository.observeRecords(), minuteTicker(), settings.firstUseDate) { records, _, firstUse ->
+        combine(repository.observeRecords(), timeKeyTicker(), settings.firstUseDate) { records, _, firstUse ->
             HomeStateReducer.reduce(records, LocalDateTime.now(clock), firstUseDate = firstUse)
         }.stateIn(
             scope = viewModelScope,
@@ -44,11 +45,16 @@ class HomeViewModel @Inject constructor(
             initialValue = HomeUiState(),
         )
 
-    /** 購読中だけ 1 分ごとに発火(WhileSubscribed が非表示時に停止)。日跨ぎ/時間帯変化の再計算用。 */
-    private fun minuteTicker() = flow {
+    /**
+     * 購読中 1 分ごとに現在の (日付, 時) を発火し distinctUntilChanged で重複除去。
+     * 猫状態は時間帯(朝/昼/夜)、today/猫メッセージは日付に依存するので、**時が変わった時だけ**
+     * 下流を再計算する(毎分のフル再計算を回避。WhileSubscribed が非表示時に停止)。
+     */
+    private fun timeKeyTicker() = flow {
         while (true) {
-            emit(Unit)
+            val now = LocalDateTime.now(clock)
+            emit(now.toLocalDate() to now.hour)
             delay(60_000)
         }
-    }
+    }.distinctUntilChanged()
 }

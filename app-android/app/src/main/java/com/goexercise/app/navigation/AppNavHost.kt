@@ -48,7 +48,9 @@ fun AppNavHost(
     LaunchedEffect(deepLinkUri) {
         val uri = deepLinkUri ?: return@LaunchedEffect
         val (route, _) = DeepLink.resolve(uri)
-        route?.let { navController.navigate(it.path) }
+        route?.let {
+            navController.navigate(it.path) { launchSingleTop = true } // 同一 deep link で重複積みしない
+        }
         onDeepLinkConsumed()
     }
 
