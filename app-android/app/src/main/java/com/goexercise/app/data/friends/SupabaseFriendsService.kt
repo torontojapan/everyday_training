@@ -144,7 +144,10 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
     }
 
     override suspend fun publishMyProfile(profile: FriendProfile) {
-        val uid = ensureUid()
+        // **非作成**: publish は常に「既存プロフィールの更新」。ensureUid は使わない
+        // (Home の自動 publish 等で未サインイン時に呼ばれても匿名アカウントを新規作成させない=opt-in 厳守。
+        //  作成は signIn/連携/復元のみ)。サインアウト直後のレースでも孤児を作らず NotSignedIn で弾く。
+        val uid = client.auth.currentUserOrNull()?.id ?: throw FriendsError.NotSignedIn
         val row = ProfileRow(
             userId = uid,
             friendCode = profile.friendCode,
@@ -155,9 +158,11 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
             todayAchieved = profile.todayAchieved,
             todayCategoryName = profile.todayCategoryName,
             decorationTier = profile.decorationTier,
+            weeklyAchievements = profile.weeklyAchievementsOrEmpty,
             weeklyTotalMinutes = profile.weeklyTotalMinutes,
             monthlyTotalMinutes = profile.monthlyTotalMinutes,
             monthlyAchievedDays = profile.monthlyAchievedDays,
+            myCatBreed = profile.myCatBreed?.rawValue,
         )
         client.from("profiles").upsert(row) { onConflict = "user_id" }
     }

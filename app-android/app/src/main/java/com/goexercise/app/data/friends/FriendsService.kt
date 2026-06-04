@@ -10,11 +10,8 @@ import java.util.UUID
 
 /**
  * Supabase `profiles` 行。snake_case を @SerialName で iOS スキーマと一致。
- *
- * TODO(#10 実通信PoC): `weekly_achievements`(週次達成 bool×7)を decode していないため、
- * 実バックエンドでは [FriendProfile.weeklyAchievements] が常に null となり、週間ランキングの
- * 達成日数(第3タイブレーク)が 0 固定になる。Mock では正しく算出される。サーバ列の有無を
- * 確認のうえ、存在すればここで decode + 書込み(publishMyProfile)に追加する。
+ * `weekly_achievements`(bool×7, 月→日)と `my_cat_breed` も decode/encode する
+ * (実通信 2026-06-04 で列の実在を curl 確認済。iOS ProfileRow と完全一致)。
  */
 @Serializable
 data class ProfileRow(
@@ -27,9 +24,11 @@ data class ProfileRow(
     @SerialName("today_achieved") val todayAchieved: Boolean = false,
     @SerialName("today_category_name") val todayCategoryName: String? = null,
     @SerialName("decoration_tier") val decorationTier: Int = 0,
+    @SerialName("weekly_achievements") val weeklyAchievements: List<Boolean>? = null,
     @SerialName("weekly_total_minutes") val weeklyTotalMinutes: Int? = null,
     @SerialName("monthly_total_minutes") val monthlyTotalMinutes: Int? = null,
     @SerialName("monthly_achieved_days") val monthlyAchievedDays: Int? = null,
+    @SerialName("my_cat_breed") val myCatBreed: String? = null,
 )
 
 @Serializable
@@ -70,9 +69,13 @@ internal fun ProfileRow.toProfile(): FriendProfile = FriendProfile(
     todayAchieved = todayAchieved,
     todayCategoryName = todayCategoryName,
     decorationTier = decorationTier,
+    weeklyAchievements = weeklyAchievements,
     weeklyTotalMinutes = weeklyTotalMinutes,
     monthlyTotalMinutes = monthlyTotalMinutes,
     monthlyAchievedDays = monthlyAchievedDays,
+    // 未知/将来の breed は **null**(orange に潰さない)。iOS の `CatBreed(rawValue:)`=未知 nil と一致。
+    // fromRaw(=Default) はローカル設定用で、サーバ decode には使わない。
+    myCatBreed = myCatBreed?.let { raw -> com.goexercise.app.domain.CatBreed.entries.firstOrNull { it.rawValue == raw } },
 )
 
 /** friends 操作のエラー。iOS FriendsServiceError 相当。 */
@@ -265,8 +268,8 @@ class MockFriendsService : FriendsService {
 
     private fun seedDemo() {
         if (friends.isEmpty()) {
-            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false)))
-            friends.add(FriendProfile("XYZ789", "kenta", "けんた", currentStreak = 3, totalAchievedDays = 8, todayAchieved = false, weeklyTotalMinutes = 45, weeklyAchievements = listOf(true, false, false, true, false, false, false)))
+            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false), myCatBreed = com.goexercise.app.domain.CatBreed.Black))
+            friends.add(FriendProfile("XYZ789", "kenta", "けんた", currentStreak = 3, totalAchievedDays = 8, todayAchieved = false, weeklyTotalMinutes = 45, weeklyAchievements = listOf(true, false, false, true, false, false, false), myCatBreed = com.goexercise.app.domain.CatBreed.Gray))
         }
         if (incoming.isEmpty()) {
             incoming.add(FriendRequest(id = UUID.randomUUID().toString(), fromProfile = FriendProfile("REQ456", "mei", "めい", currentStreak = 5, totalAchievedDays = 15, todayAchieved = true)))

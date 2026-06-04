@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.WeightRepository
 import com.goexercise.app.data.WorkoutRepository
+import com.goexercise.app.data.friends.FriendsService
 import com.goexercise.app.data.milestone.MilestoneRepository
 import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.HealthRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -41,6 +43,7 @@ class HomeViewModel @Inject constructor(
     private val milestones: MilestoneRepository,
     private val weightRepo: WeightRepository,
     private val health: HealthRepository,
+    private val friendsService: FriendsService,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -111,6 +114,33 @@ class HomeViewModel @Inject constructor(
             val streakKeys = MilestoneDetector.currentStreakMilestones(state.streak.currentStreak)
                 .map { Milestone.CurrentStreak(it).key }
             milestones.migrateExpandedThresholdsIfNeeded(streakKeys)
+        }
+    }
+
+    // 友達バックエンドへ自分の実統計(連続/週次達成/猫種など)を反映する(iOS `HomeView` の
+    // publishMyProfile ミラー)。**opt-in 厳守**: 既にサインイン済み(`myProfile() != null`)の時だけ
+    // publish し、匿名アカウントを新規作成しない。統計が実際に変わった時だけ送る(毎分 ticker や
+    // 初期空状態では送らない)。送信失敗(ネット断等)はホームを壊さないよう runCatching で握る。
+    init {
+        viewModelScope.launch {
+            // de-dupe は collector 内で手動管理する。**未サインインのサンプルでは進めない**ことで、
+            // 「未サインイン中に統計を観測 → 後で Friends からサインイン → 統計据え置きでも初回 publish される」
+            // を保証する(distinctUntilChangedBy を上流に置くと未サインインで消費され初回 publish が欠落する: Codex)。
+            var lastPublishedSig: List<Any?>? = null
+            uiState
+                .filter { it.weekStatuses.isNotEmpty() } // reduce 済みの実状態のみ
+                .collect { state ->
+                    val sig = MyFriendProfileBuilder.statsSignature(state)
+                    if (sig == lastPublishedSig) return@collect // publish 済みの統計は再評価しない(時刻 ticker 等の無駄打ち回避)
+                    runCatching {
+                        // 未サインインは送らない・作らない(myProfile は未サインイン時 network 不要で null)。
+                        // ここで return すると lastPublishedSig を進めないので、サインイン後に再評価される。
+                        val current = friendsService.myProfile() ?: return@collect
+                        val updated = MyFriendProfileBuilder.build(state, current)
+                        if (updated != current) friendsService.publishMyProfile(updated) // 変化が無ければ書かない(iOS guard 相当)
+                        lastPublishedSig = sig // サインイン済みで評価できた時だけ de-dupe を進める
+                    }
+                }
         }
     }
 

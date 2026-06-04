@@ -18,6 +18,8 @@ data class FriendProfile(
     val weeklyTotalMinutes: Int? = null,
     val monthlyTotalMinutes: Int? = null,
     val monthlyAchievedDays: Int? = null,
+    /** 共有する猫の種類(友達一覧のアバター表示用)。未設定は emoji フォールバック。iOS `myCatBreed` 相当。 */
+    val myCatBreed: com.goexercise.app.domain.CatBreed? = null,
 ) {
     val id: String get() = friendCode
 

@@ -95,6 +95,7 @@ fun FriendsRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val myBreed by viewModel.myBreed.collectAsStateWithLifecycle()
+    val backupSuppressed by viewModel.backupSuppressed.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // 追加/ランキングから戻る・アプリ復帰のたびに最新化(別 VM の add がサーバを変えるため)。
     LifecycleResumeEffect(Unit) {
@@ -132,6 +133,8 @@ fun FriendsRoute(
         onClearError = viewModel::clearError,
         linking = linking,
         myBreed = myBreed,
+        persistedBackupDismissed = backupSuppressed,
+        onDismissBackupPersist = viewModel::dismissBackupPrompt,
     )
 }
 
@@ -155,6 +158,8 @@ fun FriendsContent(
     onClearError: () -> Unit = {},
     linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
     myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    persistedBackupDismissed: Boolean = false,
+    onDismissBackupPersist: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val scope = rememberCoroutineScope()
@@ -167,7 +172,7 @@ fun FriendsContent(
     var collisionProvider by remember { mutableStateOf<FriendsLinkProvider?>(null) }
     var restoreConfirmProvider by remember { mutableStateOf<FriendsLinkProvider?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var backupDismissed by remember { mutableStateOf(false) } // セッション内「あとで」(30日沈黙の永続は #10 TODO)
+    var backupDismissed by remember { mutableStateOf(false) } // セッション内「あとで」(即時非表示)。永続は persistedBackupDismissed。
 
     // 連携失敗→Collision のとき切替確認を出す。
     fun handleLink(result: LinkResult, provider: FriendsLinkProvider) {
@@ -219,8 +224,8 @@ fun FriendsContent(
                 onRemove = onRemove,
                 onOpenCheerPicker = { cheerTarget = it },
                 linking = linking,
-                backupDismissed = backupDismissed,
-                onDismissBackup = { backupDismissed = true },
+                backupDismissed = backupDismissed || persistedBackupDismissed,
+                onDismissBackup = { backupDismissed = true; onDismissBackupPersist() },
                 onBackupApple = { linking.onLinkApple { r -> handleLink(r, FriendsLinkProvider.Apple) } },
                 onBackupGoogle = { linking.onLinkGoogle { r -> handleLink(r, FriendsLinkProvider.Google) } },
                 onDeleteClick = { confirmDelete = true },
@@ -790,7 +795,10 @@ private fun FriendCard(
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Avatar(palette, 56.dp)
+                // 友達が猫種を共有していれば実猫アバター、未共有(旧クライアント等)は emoji フォールバック。
+                friend.myCatBreed?.let { breed ->
+                    com.goexercise.app.ui.components.CatAvatar(breed = breed, size = 56.dp)
+                } ?: Avatar(palette, 56.dp)
                 Column(Modifier.weight(1f)) {
                     Text(friend.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
                     if (friend.username.isNotBlank()) {

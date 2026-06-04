@@ -43,6 +43,10 @@ interface SettingsRepository {
      */
     val analyticsEnabled: Flow<Boolean>
     suspend fun setAnalyticsEnabled(enabled: Boolean)
+
+    /** バックアップ促し(BackupCard)を「あとで」で閉じた日。30日間は再表示しない(iOS の沈黙期間)。未設定は null。 */
+    val backupPromptDismissedAt: Flow<LocalDate?>
+    suspend fun dismissBackupPrompt(date: LocalDate)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -54,6 +58,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val catBreedKey = stringPreferencesKey("cat_breed")
     private val onboardingKey = androidx.datastore.preferences.core.booleanPreferencesKey("onboarding_complete")
     private val analyticsKey = androidx.datastore.preferences.core.booleanPreferencesKey("analytics_enabled")
+    private val backupDismissedKey = longPreferencesKey("backup_prompt_dismissed_epoch_day")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
         prefs[themeKey]?.let { name -> runCatching { AppTheme.valueOf(name) }.getOrNull() } ?: AppTheme.Peach
@@ -98,6 +103,14 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setAnalyticsEnabled(enabled: Boolean) {
         dataStore.edit { it[analyticsKey] = enabled }
+    }
+
+    override val backupPromptDismissedAt: Flow<LocalDate?> = dataStore.data.map { prefs ->
+        prefs[backupDismissedKey]?.let { LocalDate.ofEpochDay(it) }
+    }
+
+    override suspend fun dismissBackupPrompt(date: LocalDate) {
+        dataStore.edit { it[backupDismissedKey] = date.toEpochDay() }
     }
 }
 

@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -79,7 +80,7 @@ sealed interface RestoreResult {
 class FriendsViewModel @Inject constructor(
     private val service: FriendsService,
     private val authCoordinator: AccountAuthCoordinator,
-    settings: com.goexercise.app.data.settings.SettingsRepository,
+    private val settings: com.goexercise.app.data.settings.SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FriendsUiState())
@@ -87,9 +88,19 @@ class FriendsViewModel @Inject constructor(
 
     val isMock: Boolean get() = service.isMock
 
-    /** 自分の猫種(welcome / プロフィールのアバター表示用)。友達のアバターは breed 未保持で当面 emoji。 */
+    /** 自分の猫種(welcome / プロフィールのアバター表示用)。友達カードのアバターも breed 共有で実猫化。 */
     val myBreed: StateFlow<com.goexercise.app.domain.CatBreed> = settings.catBreed
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), com.goexercise.app.domain.CatBreed.Default)
+
+    /** バックアップ促しを「あとで」で閉じてから 30 日以内か(永続)。true の間は BackupCard を出さない。 */
+    val backupSuppressed: StateFlow<Boolean> = settings.backupPromptDismissedAt
+        .map { d -> d != null && java.time.temporal.ChronoUnit.DAYS.between(d, java.time.LocalDate.now()) < 30 }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+
+    /** 「あとで」をタップ: 本日を記録(30 日沈黙を永続化)。iOS の dismiss 永続に対応。 */
+    fun dismissBackupPrompt() {
+        viewModelScope.launch { settings.dismissBackupPrompt(java.time.LocalDate.now()) }
+    }
 
     /** 連携 UI の表示ゲート(既定 false = 連携 UI 非表示で従来挙動)。iOS isAccountLinkingEnabled。 */
     val isAccountLinkingEnabled: Boolean get() = SupabaseConfig.isAccountLinkingEnabled
