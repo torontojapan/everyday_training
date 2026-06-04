@@ -507,7 +507,8 @@ final class SupabaseFriendsService: FriendsService {
             .select().eq("status", value: "active")
             .or("user_a.eq.\(uid.uuidString),user_b.eq.\(uid.uuidString)")
             .execute().value
-        let otherIDs = edges.map { $0.user_a == uid.uuidString ? $0.user_b : $0.user_a }
+        let me = uid.uuidString.lowercased()   // DB の user_a/b は小文字。大小混在の == は常に不一致になる。
+        let otherIDs = edges.map { $0.user_a.lowercased() == me ? $0.user_b : $0.user_a }
         guard !otherIDs.isEmpty else { return [] }
 
         let rows: [ProfileRow] = try await client.from("profiles")
@@ -611,8 +612,12 @@ final class SupabaseFriendsService: FriendsService {
 
     // MARK: - Helpers
 
+    /// user_a < user_b 正規化。`UUID.uuidString` は大文字・DB由来IDは小文字のため、
+    /// 比較・格納とも小文字に揃える (混在のまま比較すると Swift の大小区別で順序が反転し、
+    /// Postgres 側 `check (user_a < user_b)` に違反する = iOS 固有の承認失敗バグの修正)。
     private func orderedPair(_ x: String, _ y: String) -> (String, String) {
-        x < y ? (x, y) : (y, x)
+        let lx = x.lowercased(), ly = y.lowercased()
+        return lx < ly ? (lx, ly) : (ly, lx)
     }
 
     private func upsertFriendship(client: SupabaseClient, a: String, b: String) async throws {
