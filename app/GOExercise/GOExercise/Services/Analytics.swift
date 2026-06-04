@@ -72,14 +72,25 @@ enum Analytics {
     /// 差し替え可能な実体 (テストでは Noop のまま)。
     static var service: AnalyticsService = NoopAnalytics()
 
+    /// 匿名分析を共有するか (既定 true = 匿名 ON)。設定の「利用状況の分析を共有」でオプトアウト可。
+    /// UserDefaults に永続。false の間は [track]/[configureIfPossible] が一切送信・初期化しない。
+    /// (Android `Analytics.consentGranted` と対称)。
+    static let analyticsEnabledKey = "analyticsEnabled"
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: analyticsEnabledKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: analyticsEnabledKey) }
+    }
+
     static func track(_ event: AnalyticsEvent) {
+        guard isEnabled else { return } // オプトアウト中は送らない
         service.track(event)
     }
 
-    /// 起動時に一度だけ呼ぶ。App ID が設定済み かつ Release ビルドのときだけ
-    /// TelemetryDeck を有効化する。
+    /// 起動時に一度だけ呼ぶ。**ユーザーが分析を許可** かつ App ID 設定済み かつ Release ビルドの
+    /// ときだけ TelemetryDeck を有効化する。オプトアウト中は SDK 自体を起動しない。
     static func configureIfPossible() {
         #if canImport(TelemetryDeck) && !DEBUG
+        guard isEnabled else { return } // オプトアウト中は初期化もしない
         guard let appID = telemetryAppID, !appID.isEmpty else { return }
         TelemetryDeck.initialize(config: TelemetryDeck.Config(appID: appID))
         service = TelemetryDeckAnalytics()

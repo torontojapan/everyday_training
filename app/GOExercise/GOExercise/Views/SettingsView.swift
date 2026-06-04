@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var isShowingDeleteConfirm = false
     @State private var exportShareURL: URL?
     @State private var dataActionMessage: String?
+    /// 匿名分析の共有 (既定 ON / opt-out)。UserDefaults "analyticsEnabled" = Analytics.isEnabled と同一キー。
+    @AppStorage(Analytics.analyticsEnabledKey) private var analyticsEnabled = true
     private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
 
@@ -220,6 +222,21 @@ struct SettingsView: View {
                 Text("データ管理")
             } footer: {
                 Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
+            }
+
+            Section {
+                Toggle(isOn: $analyticsEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("利用状況の分析を共有")
+                            .foregroundStyle(Palette.textPrimary)
+                        Text("アプリ改善のための匿名データ(個人を特定しません)。OFF にすると一切送信しません。")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+                .accessibilityIdentifier("analytics-opt-out-toggle")
+            } header: {
+                Text("プライバシー")
             }
 
             Section("アプリ情報") {
