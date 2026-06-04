@@ -7,6 +7,7 @@ import com.goexercise.app.domain.CatStateResolver
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.ExerciseTrendSummary
 import com.goexercise.app.domain.LifetimeStatsCalculator
+import com.goexercise.app.domain.MonthlyCalendarCalculator
 import com.goexercise.app.domain.RestDayResolver
 import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.domain.WeeklyProgressCalculator
@@ -61,6 +62,12 @@ object HomeStateReducer {
         val todaySummary = ExerciseTrendSummary.today(records, today)
         val weeklySummary = ExerciseTrendSummary.week(records, today)
 
+        // 当月集計(友達BEの月次ランキング用。iOS パリティ)。達成日数は Rest 除外(iOS 月サマリーと一致)。
+        val monthlyAchievedDays = MonthlyCalendarCalculator.achievedDaysInMonth(
+            MonthlyCalendarCalculator.cells(java.time.YearMonth.from(today), records, today, rescuedDates),
+        )
+        val monthlyTotalMinutes = ExerciseTrendSummary.monthTotalMinutes(records, today)
+
         return HomeUiState(
             streak = streak,
             weekStatuses = weekStatuses,
@@ -72,6 +79,8 @@ object HomeStateReducer {
             catDecoration = decoration,
             todaySummary = todaySummary,
             weeklySummary = weeklySummary,
+            monthlyTotalMinutes = monthlyTotalMinutes,
+            monthlyAchievedDays = monthlyAchievedDays,
         )
     }
 }

@@ -59,6 +59,14 @@ object ExerciseTrendSummary {
         return WeeklySummary(usedCategories, totalDurationSeconds, topExerciseNames)
     }
 
+    /** 当月(monthContaining の属する暦月)の運動時間合計(分)。週次 totalDurationSeconds と同じ流儀。 */
+    fun monthTotalMinutes(records: List<WorkoutRecord>, monthContaining: LocalDate): Int {
+        val month = java.time.YearMonth.from(monthContaining)
+        val seconds = records.filter { java.time.YearMonth.from(it.date) == month }
+            .flatMap { it.exercises }.mapNotNull { it.durationSeconds }.sum()
+        return seconds / 60
+    }
+
     private fun dailySummary(records: List<WorkoutRecord>): DailySummary {
         val categoryCounts = records.groupingBy { it.category }.eachCount()
         val exercises = records.flatMap { it.exercises }

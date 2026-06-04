@@ -27,4 +27,7 @@ data class HomeUiState(
     val catDecoration: CatDecoration = CatDecoration.None,
     val todaySummary: ExerciseTrendSummary.DailySummary = ExerciseTrendSummary.DailySummary(emptyMap(), 0, 0),
     val weeklySummary: ExerciseTrendSummary.WeeklySummary = ExerciseTrendSummary.WeeklySummary(emptyList(), 0, emptyList()),
+    /** 当月の運動時間合計(分)と達成日数。友達バックエンドの月次ランキング用(iOS パリティ)。 */
+    val monthlyTotalMinutes: Int = 0,
+    val monthlyAchievedDays: Int = 0,
 )

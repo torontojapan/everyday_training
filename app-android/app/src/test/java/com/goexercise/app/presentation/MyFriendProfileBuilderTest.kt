@@ -51,6 +51,8 @@ class MyFriendProfileBuilderTest {
                 usedCategories = listOf(WorkoutCategory.Strength),
                 totalDurationSeconds = 1800, topExerciseNames = emptyList(),
             ),
+            monthlyTotalMinutes = 240,
+            monthlyAchievedDays = 12,
         )
     }
 
@@ -67,6 +69,8 @@ class MyFriendProfileBuilderTest {
         assertEquals(true, p.todayAchieved)
         assertEquals(CatBreed.Black, p.myCatBreed)
         assertEquals(30, p.weeklyTotalMinutes) // 1800s / 60
+        assertEquals(240, p.monthlyTotalMinutes)
+        assertEquals(12, p.monthlyAchievedDays)
         assertEquals(CatDecoration.of(23).tier, p.decorationTier)
         // weekly_achievements は countsAsAchieved(rest/todayAchieved 含む)= iOS と同一
         assertEquals(

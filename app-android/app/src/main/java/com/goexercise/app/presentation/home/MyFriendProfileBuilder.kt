@@ -22,6 +22,8 @@ object MyFriendProfileBuilder {
             decorationTier = state.catDecoration.tier,
             weeklyAchievements = state.weekStatuses.map { it.status.countsAsAchieved },
             weeklyTotalMinutes = state.weeklySummary.totalMinutes,
+            monthlyTotalMinutes = state.monthlyTotalMinutes,
+            monthlyAchievedDays = state.monthlyAchievedDays,
             myCatBreed = state.catBreed,
         )
     }
@@ -36,6 +38,8 @@ object MyFriendProfileBuilder {
         state.todayStatus.countsAsAchieved,
         state.weekStatuses.map { it.status.countsAsAchieved },
         state.weeklySummary.totalMinutes,
+        state.monthlyTotalMinutes,
+        state.monthlyAchievedDays,
         state.todaySummary.categoryCounts.maxByOrNull { it.value }?.key?.displayName,
         state.catDecoration.tier,
         state.catBreed,
