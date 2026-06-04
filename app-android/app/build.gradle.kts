@@ -17,6 +17,13 @@ val localProps = Properties().apply {
 }
 fun secret(key: String): String = (localProps.getProperty(key) ?: "").trim()
 
+// リリース署名: keystore.properties(gitignore)から読む。本番鍵/パスワードはリポジトリに入れない。
+// ファイルが無い環境(CI / 別開発者)でも release ビルドは通る(未署名で出力されるだけ)。
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+
 // Compile with the JDK running Gradle (Android Studio's JBR 21) but emit JVM 17
 // bytecode. Avoids Gradle toolchain auto-provisioning (no JDK 17 installed locally).
 kotlin {
@@ -63,16 +70,32 @@ android {
         buildConfigField("String", "TELEMETRYDECK_APP_ID", "\"${secret("TELEMETRYDECK_APP_ID")}\"")
     }
 
+    signingConfigs {
+        // keystore.properties がある時だけ release 署名設定を作る(無い環境は未署名ビルド)。
+        if (keystorePropsFile.exists()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // #10: R8 縮小 + リソース shrink を有効化。keep ルールは proguard-rules.pro /
-            // res/raw/keep.xml(cat_* 動的リソース)。署名は #10 のキー所有者作業で追加。
+            // res/raw/keep.xml(cat_* 動的リソース)。
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // 署名: keystore.properties がある時のみ適用(無ければ未署名)。
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

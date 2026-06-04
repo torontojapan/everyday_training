@@ -22,6 +22,13 @@
 -keep class com.goexercise.app.data.friends.RequestWrite { *; }
 -keep class com.goexercise.app.data.friends.CheerWrite { *; }
 
+# ---- TelemetryDeck の任意 kotlinx-datetime 参照 ----
+# TelemetryDeck SDK の CalendarParameterProvider が kotlinx.datetime.* を参照するが、本アプリは
+# 同ライブラリを同梱しない(該当 provider 未使用)。R8 full-mode は未解決参照をエラー化するため
+# 警告抑制(AGP 生成 missing_rules.txt と一致)。実行時は当該コードパスに到達しない。
+-dontwarn kotlinx.datetime.Clock$System
+-dontwarn kotlinx.datetime.Instant
+
 # ---- 動的リソース解決(getIdentifier)----
 # 猫 77 画像は cat_<breed>_<state> を resources.getIdentifier で解決するため、コード参照が無く
 # R8 のコード解析からは未使用に見える。リソース保持は res/raw/keep.xml(tools:keep)で行う。

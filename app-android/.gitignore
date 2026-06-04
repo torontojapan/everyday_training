@@ -10,3 +10,9 @@
 *.apk
 *.aab
 /app/build/
+
+# リリース署名(本番鍵 + パスワードは絶対にコミットしない)
+/keystore/
+*.jks
+*.keystore
+keystore.properties
