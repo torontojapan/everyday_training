@@ -63,6 +63,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** 匿名の利用状況分析(TelemetryDeck)を共有するか。既定 true(匿名 ON)。設定でオプトアウト可。 */
+    val analyticsEnabled: StateFlow<Boolean> = repository.analyticsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** 分析共有の ON/OFF。永続化 + 即時に送信ゲートを反映(App 側の購読も拾うがラグを無くす)。 */
+    fun setAnalyticsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setAnalyticsEnabled(enabled)
+            Analytics.consentGranted = enabled
+        }
+    }
+
     /** データ管理処理中(エクスポート/削除)。連打ガード + UI スピナー。 */
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()

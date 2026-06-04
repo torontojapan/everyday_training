@@ -86,7 +86,16 @@ object Analytics {
     @Volatile
     var service: AnalyticsService = NoopAnalytics
 
+    /**
+     * ユーザーの匿名分析オプトイン状態(既定 true = 匿名 ON)。設定のトグルから [SettingsRepository.analyticsEnabled]
+     * を購読して更新する。false の間は [track] が一切送信しない(オプトアウト)。App ID 未設定/DEBUG では
+     * そもそも service=Noop なので二重に安全。
+     */
+    @Volatile
+    var consentGranted: Boolean = true
+
     fun track(event: AnalyticsEvent) {
+        if (!consentGranted) return
         service.track(event)
     }
 

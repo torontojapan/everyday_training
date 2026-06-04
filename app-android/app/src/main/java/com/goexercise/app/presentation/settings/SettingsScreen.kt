@@ -56,6 +56,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val catBreed by viewModel.catBreed.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
+    val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -93,6 +94,8 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
             }
         },
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
+        analyticsEnabled = analyticsEnabled,
+        onToggleAnalytics = viewModel::setAnalyticsEnabled,
     )
 }
 
@@ -111,6 +114,8 @@ fun SettingsContent(
     reminder: com.goexercise.app.data.settings.ReminderPrefs = com.goexercise.app.data.settings.ReminderPrefs(),
     onToggleReminder: (Boolean) -> Unit = {},
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
+    analyticsEnabled: Boolean = true,
+    onToggleAnalytics: (Boolean) -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -138,6 +143,26 @@ fun SettingsContent(
 
         Text("データ管理", color = palette.textSecondary, fontSize = 13.sp)
         DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
+
+        Text("プライバシー", color = palette.textSecondary, fontSize = 13.sp)
+        AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
+    }
+}
+
+/** 匿名の利用状況分析(TelemetryDeck)の共有 ON/OFF。既定 ON・いつでもオプトアウト可。個人特定なし。 */
+@Composable
+private fun AnalyticsSection(palette: AppTheme, enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("利用状況の分析を共有", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                Text(
+                    "アプリ改善のための匿名の利用データ(個人を特定しません)。OFF にすると一切送信しません。",
+                    color = palette.textSecondary, fontSize = 12.sp,
+                )
+            }
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
     }
 }
 

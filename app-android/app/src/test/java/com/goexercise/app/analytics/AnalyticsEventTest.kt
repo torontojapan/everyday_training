@@ -1,6 +1,8 @@
 package com.goexercise.app.analytics
 
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -37,5 +39,29 @@ class AnalyticsEventTest {
         Analytics.service = NoopAnalytics
         Analytics.track(AnalyticsEvent.AppOpen)
         Analytics.track(AnalyticsEvent.RecordCreated("cardio"))
+    }
+
+    @After
+    fun resetConsent() {
+        Analytics.consentGranted = true
+        Analytics.service = NoopAnalytics
+    }
+
+    @Test
+    fun `opt-out suppresses all sends regardless of service`() {
+        // オプトアウト(consentGranted=false)中は、実 service が刺さっていても track は一切呼ばない。
+        var sent = 0
+        Analytics.service = object : AnalyticsService {
+            override fun track(event: AnalyticsEvent) { sent++ }
+        }
+        Analytics.consentGranted = false
+        Analytics.track(AnalyticsEvent.AppOpen)
+        Analytics.track(AnalyticsEvent.RecordCreated("cardio"))
+        assertEquals(0, sent)
+
+        // 再オプトイン後は届く。
+        Analytics.consentGranted = true
+        Analytics.track(AnalyticsEvent.AppOpen)
+        assertTrue(sent > 0)
     }
 }

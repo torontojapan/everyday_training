@@ -36,6 +36,13 @@ interface SettingsRepository {
     /** オンボーディング(初回の猫選択)を完了したか。iOS UserCatPreferences.hasCompletedOnboarding 相当。 */
     val onboardingComplete: Flow<Boolean>
     suspend fun setOnboardingComplete()
+
+    /**
+     * 匿名の利用状況分析(TelemetryDeck)を共有するか。**既定 true(匿名 ON)**・設定でオプトアウト可。
+     * 個人を特定しない匿名計測で、OFF にすると一切送信しない(Analytics.consentGranted を制御)。
+     */
+    val analyticsEnabled: Flow<Boolean>
+    suspend fun setAnalyticsEnabled(enabled: Boolean)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -46,6 +53,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val firstUseKey = longPreferencesKey("first_use_epoch_day")
     private val catBreedKey = stringPreferencesKey("cat_breed")
     private val onboardingKey = androidx.datastore.preferences.core.booleanPreferencesKey("onboarding_complete")
+    private val analyticsKey = androidx.datastore.preferences.core.booleanPreferencesKey("analytics_enabled")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
         prefs[themeKey]?.let { name -> runCatching { AppTheme.valueOf(name) }.getOrNull() } ?: AppTheme.Peach
@@ -81,6 +89,15 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setOnboardingComplete() {
         dataStore.edit { it[onboardingKey] = true }
+    }
+
+    // 既定 true(匿名 ON)。明示的に false を入れた時だけオプトアウト。
+    override val analyticsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[analyticsKey] ?: true
+    }
+
+    override suspend fun setAnalyticsEnabled(enabled: Boolean) {
+        dataStore.edit { it[analyticsKey] = enabled }
     }
 }
 
