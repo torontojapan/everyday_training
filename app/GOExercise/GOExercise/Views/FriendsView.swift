@@ -167,13 +167,12 @@ struct FriendsView: View {
             FriendDetailView(friend: friend)
                 .environment(friendsStore)
         }
-        .confirmationDialog(
+        .alert(
             pendingRemovalFriend.map { "\($0.displayName) を友達から外しますか？" } ?? "",
             isPresented: Binding(
                 get: { pendingRemovalFriend != nil },
                 set: { if !$0 { pendingRemovalFriend = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingRemovalFriend
         ) { friend in
             Button("友達を解除", role: .destructive) {
@@ -271,10 +270,9 @@ struct FriendsView: View {
         }
         .accessibilityIdentifier("friends-welcome")
         // 残存匿名データありの復元は、上書き前に確認を挟む (Codex#3)。
-        .confirmationDialog(
+        .alert(
             "この端末のデータが置き換わることがあります",
-            isPresented: $isConfirmingRestore,
-            titleVisibility: .visible
+            isPresented: $isConfirmingRestore
         ) {
             Button("Apple で復元する", role: .destructive) {
                 Task { await performAppleRestore() }
@@ -284,10 +282,9 @@ struct FriendsView: View {
             Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
         }
         // 残存匿名データありの Google 復元も、上書き前に確認を挟む (Apple と対称)。
-        .confirmationDialog(
+        .alert(
             "この端末のデータが置き換わることがあります",
-            isPresented: $isConfirmingGoogleRestore,
-            titleVisibility: .visible
+            isPresented: $isConfirmingGoogleRestore
         ) {
             Button("Google で復元する", role: .destructive) {
                 Task { await performGoogleRestore() }
@@ -530,18 +527,18 @@ struct FriendsView: View {
                 let name = renameText
                 Task { await friendsStore.updateDisplayName(name) }
             }
+            .keyboardShortcut(.defaultAction)   // 太字の標準アクション (薄いtint色での可読性対策)
             Button("キャンセル", role: .cancel) {}
         } message: {
             Text("友達に表示される名前です。いつでも変更できます。")
         }
         // 連携の衝突: 既存アカウントに切替(現データ破棄)か中止の二択。マージはしない。
-        .confirmationDialog(
+        .alert(
             "このアカウントは既に別のデータに紐づいています",
             isPresented: Binding(
                 get: { pendingSwitchCreds != nil },
                 set: { if !$0 { pendingSwitchCreds = nil } }
             ),
-            titleVisibility: .visible,
             presenting: pendingSwitchCreds
         ) { creds in
             Button("既存のアカウントに切り替える", role: .destructive) {
@@ -560,10 +557,9 @@ struct FriendsView: View {
             Text("切り替えると、いまの端末の友達・コードは失われます。")
         }
         // Google 連携の衝突: Apple と対称。切替は web flow を再度通すため creds は保持しない。
-        .confirmationDialog(
+        .alert(
             "このアカウントは既に別のデータに紐づいています",
-            isPresented: $isConfirmingGoogleSwitch,
-            titleVisibility: .visible
+            isPresented: $isConfirmingGoogleSwitch
         ) {
             Button("既存のアカウントに切り替える", role: .destructive) {
                 performGoogleSwitch()
@@ -573,10 +569,9 @@ struct FriendsView: View {
             Text("切り替えると、いまの端末の友達・コードは失われます。")
         }
         // アカウント削除 (審査 5.1.1(v))。連携済みも含め本人データを完全消去する。
-        .confirmationDialog(
+        .alert(
             "アカウントを削除しますか？",
-            isPresented: $isConfirmingDelete,
-            titleVisibility: .visible
+            isPresented: $isConfirmingDelete
         ) {
             Button("アカウントを削除", role: .destructive) {
                 // 成功すると profile==nil で welcome に遷移する (それ自体が完了フィードバック)。

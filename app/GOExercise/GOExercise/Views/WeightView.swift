@@ -111,7 +111,7 @@ struct WeightView: View {
             store?.fetchEntries()
             menstrualStore?.fetchEntries()
         }
-        .confirmationDialog(
+        .alert(
             "削除しますか？",
             isPresented: Binding(get: { isShowingDeleteConfirm != nil },
                                   set: { if !$0 { isShowingDeleteConfirm = nil } }),
@@ -138,6 +138,7 @@ struct WeightView: View {
                 TextField("例: 165", text: $heightInput)
                     .keyboardType(.decimalPad)
                 Button("保存") { saveHeight() }
+                    .keyboardShortcut(.defaultAction)   // 太字の標準アクション (薄いtint色対策)
                 Button("クリア", role: .destructive) {
                     healthPrefs.heightCentimeters = nil
                 }
@@ -146,6 +147,7 @@ struct WeightView: View {
                 TextField("例: 60.0", text: $targetInput)
                     .keyboardType(.decimalPad)
                 Button("保存") { saveTarget() }
+                    .keyboardShortcut(.defaultAction)   // 太字の標準アクション (薄いtint色対策)
                 Button("クリア", role: .destructive) {
                     healthPrefs.targetKilograms = nil
                     healthPrefs.startKilograms = nil

@@ -36,10 +36,10 @@ struct FriendDetailView: View {
                         .accessibilityIdentifier("friend-detail-close")
                 }
             }
-            .confirmationDialog(
+            // 中央表示の標準アラート (popover の矢印/配置崩れを避ける。iPhone/iPad 共通で安定)。
+            .alert(
                 "\(friend.displayName) を友達から外しますか？",
-                isPresented: $pendingRemoval,
-                titleVisibility: .visible
+                isPresented: $pendingRemoval
             ) {
                 Button("友達を解除", role: .destructive) {
                     Task {

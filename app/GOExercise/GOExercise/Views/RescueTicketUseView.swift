@@ -52,16 +52,16 @@ struct RescueTicketUseView: View {
                 workoutStore = WorkoutStore(context: modelContext)
             }
         }
-        .confirmationDialog(
+        .alert(
             confirmTitle,
             isPresented: Binding(get: { pendingDate != nil },
                                   set: { if !$0 { pendingDate = nil } }),
-            titleVisibility: .visible,
             presenting: pendingDate
         ) { date in
             Button("適用する") {
                 apply(date: date)
             }
+            .keyboardShortcut(.defaultAction)   // 太字の標準アクションにして可読性を上げる (薄いtint色対策)
             Button("キャンセル", role: .cancel) {
                 pendingDate = nil
             }

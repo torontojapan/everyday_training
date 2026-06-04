@@ -311,10 +311,9 @@ struct SettingsView: View {
                 ShareSheet(items: [url])
             }
         }
-        .confirmationDialog(
+        .alert(
             "すべての記録を削除しますか？",
-            isPresented: $isShowingDeleteConfirm,
-            titleVisibility: .visible
+            isPresented: $isShowingDeleteConfirm
         ) {
             Button("削除する", role: .destructive) { deleteAllData() }
             Button("キャンセル", role: .cancel) {}
