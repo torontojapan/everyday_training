@@ -239,7 +239,7 @@ struct FriendsView: View {
                 // 直前のサインインが失敗していたら、やさしい固定文でインライン表示。
                 // 下の「友達とつながる」がそのまま再試行になる (生エラー文言は出さない)。
                 if friendsStore.lastError != nil {
-                    Text("うまくつながれませんでした。通信状況を確認して、もう一度お試しください。")
+                    Text("うまくつながれませんでした。少し時間をおいて、もう一度お試しください。")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.primaryDeep)
                         .multilineTextAlignment(.center)
