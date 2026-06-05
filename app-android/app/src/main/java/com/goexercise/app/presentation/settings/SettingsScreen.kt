@@ -57,6 +57,12 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
+    val myFriendCode by viewModel.myFriendCode.collectAsStateWithLifecycle()
+    val referralSummary by viewModel.referralSummary.collectAsStateWithLifecycle()
+    val laterCode by viewModel.laterCode.collectAsStateWithLifecycle()
+    val laterSubmitting by viewModel.laterSubmitting.collectAsStateWithLifecycle()
+    val laterAccepted by viewModel.laterAccepted.collectAsStateWithLifecycle()
+    val referralError by viewModel.referralError.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -96,6 +102,22 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
         analyticsEnabled = analyticsEnabled,
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
+        myFriendCode = myFriendCode,
+        referralStarBadges = referralSummary.starBadges,
+        canEnterCodeLater = viewModel.canEnterCodeLater,
+        onShareInvite = { code ->
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, viewModel.inviteMessage(code))
+            }
+            context.startActivity(Intent.createChooser(intent, "友達を招待"))
+        },
+        laterCode = laterCode,
+        onLaterCodeChange = viewModel::onLaterCodeChange,
+        laterSubmitting = laterSubmitting,
+        laterAccepted = laterAccepted,
+        onSubmitLaterInvite = viewModel::submitLaterInvite,
+        referralError = referralError,
     )
 }
 
@@ -116,6 +138,16 @@ fun SettingsContent(
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
     analyticsEnabled: Boolean = true,
     onToggleAnalytics: (Boolean) -> Unit = {},
+    myFriendCode: String? = null,
+    referralStarBadges: Int = 0,
+    canEnterCodeLater: Boolean = false,
+    onShareInvite: (String) -> Unit = {},
+    laterCode: String = "",
+    onLaterCodeChange: (String) -> Unit = {},
+    laterSubmitting: Boolean = false,
+    laterAccepted: Boolean = false,
+    onSubmitLaterInvite: () -> Unit = {},
+    referralError: String? = null,
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -135,6 +167,23 @@ fun SettingsContent(
 
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
         ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
+
+        if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+            Text("友達を招待", color = palette.textSecondary, fontSize = 13.sp)
+            ReferralSection(
+                palette = palette,
+                myFriendCode = myFriendCode,
+                starBadges = referralStarBadges,
+                canEnterCodeLater = canEnterCodeLater,
+                onShareInvite = onShareInvite,
+                laterCode = laterCode,
+                onLaterCodeChange = onLaterCodeChange,
+                laterSubmitting = laterSubmitting,
+                laterAccepted = laterAccepted,
+                onSubmitLaterInvite = onSubmitLaterInvite,
+                referralError = referralError,
+            )
+        }
 
         Text("テーマ", color = palette.textSecondary, fontSize = 13.sp)
         AppTheme.entries.forEach { theme ->
@@ -308,6 +357,70 @@ private fun DataManagementSection(
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )
+    }
+}
+
+/** 友達を招待: 共有(招待コード入り)/ 星バッジ数 / 後から招待コードを入力(初回7日以内)。 */
+@Composable
+private fun ReferralSection(
+    palette: AppTheme,
+    myFriendCode: String?,
+    starBadges: Int,
+    canEnterCodeLater: Boolean,
+    onShareInvite: (String) -> Unit,
+    laterCode: String,
+    onLaterCodeChange: (String) -> Unit,
+    laterSubmitting: Boolean,
+    laterAccepted: Boolean,
+    onSubmitLaterInvite: () -> Unit,
+    referralError: String?,
+) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 招待コードが取れている時だけ共有行を出す(プロフィール取得前は非表示)。
+            myFriendCode?.let { code ->
+                Surface(
+                    color = palette.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, palette.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .clickable { onShareInvite(code) },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("🎁", fontSize = 22.sp)
+                        Column(Modifier.weight(1f)) {
+                            Text("友達を招待する", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                            Text(
+                                "招待コードを共有すると、お互いにフリーズがもらえます。",
+                                color = palette.textSecondary, fontSize = 12.sp,
+                            )
+                        }
+                        Text("›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+            }
+
+            Text("⭐ 紹介した友達: ${starBadges} 人", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+
+            if (canEnterCodeLater) {
+                if (laterAccepted) {
+                    Text("招待コードを適用しました！", color = palette.primaryDeep, fontSize = 13.sp)
+                } else {
+                    com.goexercise.app.presentation.referral.InviteCodeField(
+                        code = laterCode,
+                        onCodeChange = onLaterCodeChange,
+                        isSubmitting = laterSubmitting,
+                        onSubmit = onSubmitLaterInvite,
+                    )
+                    referralError?.let { Text(it, color = palette.primaryDeep, fontSize = 12.sp) }
+                }
+            }
+        }
     }
 }
 
