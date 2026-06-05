@@ -97,7 +97,7 @@ private fun App(
         when (onboarded) {
             // null=DataStore 読込前。チラつき防止に何も出さない(直後に false/true が来る)。
             null -> Unit
-            false -> OnboardingScreen(onFinish = onboardingViewModel::complete)
+            false -> OnboardingScreen(onFinish = onboardingViewModel::complete, viewModel = onboardingViewModel)
             true -> AppNavHost(deepLinkUri = deepLinkUri, onDeepLinkConsumed = onDeepLinkConsumed)
         }
     }

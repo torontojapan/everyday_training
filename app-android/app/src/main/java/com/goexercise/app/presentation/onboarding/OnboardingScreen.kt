@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -47,6 +49,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 fun OnboardingScreen(
     initialBreed: CatBreed = CatBreed.Default,
     onFinish: (CatBreed) -> Unit,
+    viewModel: OnboardingViewModel? = null,
 ) {
     val palette = LocalAppPalette.current
     // 回転/Activity 再生成でも選択を保持(rememberSaveable は enum 不可なので rawValue を保存)。
@@ -94,6 +97,24 @@ fun OnboardingScreen(
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
+
+        if (viewModel != null && com.goexercise.app.AppFeatureFlags.isReferralActive) {
+            val accepted by viewModel.inviteAccepted.collectAsStateWithLifecycle()
+            if (accepted) {
+                Text("招待コードを適用しました！", color = palette.primaryDeep)
+            } else {
+                val inviteCode by viewModel.inviteCode.collectAsStateWithLifecycle()
+                val submitting by viewModel.inviteSubmitting.collectAsStateWithLifecycle()
+                val inviteErr by viewModel.inviteError.collectAsStateWithLifecycle()
+                com.goexercise.app.presentation.referral.InviteCodeField(
+                    code = inviteCode,
+                    onCodeChange = viewModel::onInviteCodeChange,
+                    isSubmitting = submitting,
+                    onSubmit = viewModel::submitInvite,
+                )
+                inviteErr?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
 
