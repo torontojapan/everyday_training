@@ -15,6 +15,13 @@ enum AppFeatureFlags {
     /// 「収集なし → User Content / Identifiers (App機能・トラッキングなし)」に更新する。
     static let friendsEnabled = true
 
+    /// 友達紹介(リファラル)を有効にするか。友達 BE 前提なので friendsEnabled と AND で使う。
+    /// 単独で false にすれば紹介 UI/ポーリングだけを止められる(キルスイッチ)。
+    static let referralEnabled = true
+
+    /// 紹介機能を出してよいか(友達が有効 かつ 紹介が有効)。
+    static var isReferralActive: Bool { friendsEnabled && referralEnabled }
+
     /// 友達機能が無効なときに到達してはいけないルートを `.home` に振り替える。
     /// ディープリンク (`goexercise://friends` 等) や `--initial-route` で
     /// friends/weeklyRanking に飛ばされても、隠している間はホームに着地させる。

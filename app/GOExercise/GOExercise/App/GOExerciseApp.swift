@@ -7,7 +7,15 @@ struct GOExerciseApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var themeStore = ThemeStore.shared
-    @State private var friendsStore = FriendsStore(service: GOExerciseApp.makeFriendsService())
+    /// friendsStore と referralStore で **同一** の FriendsService インスタンスを共有する。
+    /// makeFriendsService() は呼ぶたびに新インスタンスを返すため、別々に作ると
+    /// サインイン状態やデータが食い違う。ここで 1 度だけ生成して両者に渡す。
+    private static let sharedFriendsService: any FriendsService = GOExerciseApp.makeFriendsService()
+    @State private var friendsStore = FriendsStore(service: GOExerciseApp.sharedFriendsService)
+    @State private var referralStore = ReferralStore(
+        service: GOExerciseApp.sharedFriendsService,
+        isSignedIn: { GOExerciseApp.sharedFriendsService.myProfile != nil }
+    )
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
     @State private var userCatPrefs = UserCatPreferences.shared
@@ -46,6 +54,7 @@ struct GOExerciseApp: App {
                 .environment(friendsStore)
                 .environment(storeKit)
                 .environment(rescueTicketStore)
+                .environment(referralStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
@@ -71,6 +80,13 @@ struct GOExerciseApp: App {
 
                     // StoreKit: 起動時に商品ロード + entitlement 評価。
                     await storeKit.loadProducts()
+
+                    // 友達紹介: サインイン済みなら起動時に「紹介者ポップ」を取り込む。
+                    // 未サインインは ReferralStore 側で no-op(匿名アカウントを作らない)。
+                    if AppFeatureFlags.isReferralActive {
+                        await referralStore.refresh()
+                        await referralStore.pollReferrerPops()
+                    }
 
                     // 以下の mock 系起動引数は UI テスト / スクショ専用。Release では
                     // コンパイル除外し、本番で偽の友達データ生成やサインアウトが
