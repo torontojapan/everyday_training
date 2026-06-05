@@ -6,9 +6,14 @@ import SwiftUI
 struct UserCatPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
+    @Environment(FriendsStore.self) private var friendsStore
     @State private var prefs = UserCatPreferences.shared
     @State private var selected: CatBreed
     @State private var showPaywall = false
+    @State private var inviteCode = ""
+    @State private var isSubmittingInvite = false
+    @State private var inviteAccepted = false
     let isOnboarding: Bool
 
     init(isOnboarding: Bool = false) {
@@ -47,6 +52,25 @@ struct UserCatPickerView: View {
                         }
                     }
                     .padding(.horizontal, 16)
+
+                    if isOnboarding && AppFeatureFlags.isReferralActive {
+                        Group {
+                            if inviteAccepted {
+                                Label("招待コードを適用しました!", systemImage: "checkmark.seal.fill")
+                                    .font(Typography.body)
+                                    .foregroundStyle(Palette.primaryDeep)
+                            } else {
+                                InviteCodeField(code: $inviteCode, isSubmitting: isSubmittingInvite) {
+                                    submitInvite()
+                                }
+                            }
+                            if let err = referralStore.lastError, !inviteAccepted {
+                                Text(err).font(Typography.caption).foregroundStyle(.red)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                    }
                 }
                 .padding(.vertical, 20)
             }
@@ -148,5 +172,17 @@ struct UserCatPickerView: View {
         .accessibilityLabel(locked ? "\(breed.displayName)(プレミアムで解放)" : breed.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("user-cat-\(breed.rawValue)")
+    }
+
+    private func submitInvite() {
+        isSubmittingInvite = true
+        referralStore.lastError = nil
+        Task {
+            // 招待コード入力には匿名サインインが必要(能動操作なので opt-in に合致)。
+            await friendsStore.ensureSignedIn()
+            let ok = await referralStore.submitCode(inviteCode)
+            isSubmittingInvite = false
+            if ok { inviteAccepted = true }
+        }
     }
 }
