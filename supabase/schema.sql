@@ -99,12 +99,25 @@ create table if not exists public.cheers (
 );
 create index if not exists cheers_to_user_idx on public.cheers (to_user, created_at desc);
 
+-- ============ referrals (友達紹介。referee 主キー = 1人1紹介者) ============
+create table if not exists public.referrals (
+  referrer_user_id uuid not null references auth.users(id) on delete cascade,
+  referee_user_id  uuid not null references auth.users(id) on delete cascade,
+  status           text not null default 'pending',  -- pending / confirmed
+  created_at       timestamptz not null default now(),
+  confirmed_at     timestamptz,
+  seen_by_referrer boolean not null default false,    -- 紹介者ポップ表示済みフラグ
+  primary key (referee_user_id),                       -- 1人1紹介者 (ユニーク)
+  check (referrer_user_id <> referee_user_id)          -- 自己紹介不可
+);
+create index if not exists referrals_referrer_idx on public.referrals (referrer_user_id, status);
+
 -- ============ 権限 (Data API ロールへ明示付与) ============
 -- 「Automatically expose new tables」が OFF でも動くよう明示 GRANT。
 -- 匿名認証ユーザーは authenticated ロール。行の保護は下の RLS が担う。
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on
-  public.profiles, public.friend_requests, public.friendships, public.cheers
+  public.profiles, public.friend_requests, public.friendships, public.cheers, public.referrals
   to authenticated;
 
 -- ============ RLS ============
@@ -112,6 +125,7 @@ alter table public.profiles enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.cheers enable row level security;
+alter table public.referrals enable row level security;
 
 -- profiles: 検索・友達表示のため全認証ユーザーが SELECT 可 (機微データは持たない)。
 --           書き込みは自分の行のみ。
@@ -178,3 +192,24 @@ create policy cheers_select on public.cheers
 drop policy if exists cheers_delete on public.cheers;
 create policy cheers_delete on public.cheers
   for delete to authenticated using (auth.uid() = from_user or auth.uid() = to_user);
+
+-- referrals:
+--  - insert: 自分が referee の行のみ作成可 (招待コードを入力した新規本人)。
+--  - select: 当事者 (referrer / referee) のみ。
+--  - update: referee は自分の行を confirm 可 / referrer は自分が紹介した行の
+--    seen_by_referrer を更新可。当事者以外は不可。
+--  - delete: 当事者のみ (アカウント削除導線で本人行を消すため)。
+drop policy if exists referrals_insert on public.referrals;
+create policy referrals_insert on public.referrals
+  for insert to authenticated with check (auth.uid() = referee_user_id);
+drop policy if exists referrals_select on public.referrals;
+create policy referrals_select on public.referrals
+  for select to authenticated using (auth.uid() = referrer_user_id or auth.uid() = referee_user_id);
+drop policy if exists referrals_update on public.referrals;
+create policy referrals_update on public.referrals
+  for update to authenticated
+  using (auth.uid() = referrer_user_id or auth.uid() = referee_user_id)
+  with check (auth.uid() = referrer_user_id or auth.uid() = referee_user_id);
+drop policy if exists referrals_delete on public.referrals;
+create policy referrals_delete on public.referrals
+  for delete to authenticated using (auth.uid() = referrer_user_id or auth.uid() = referee_user_id);
