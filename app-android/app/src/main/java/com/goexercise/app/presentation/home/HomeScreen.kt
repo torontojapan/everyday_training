@@ -47,12 +47,18 @@ fun HomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
+    val welcome by viewModel.pendingWelcome.collectAsStateWithLifecycle()
+    val referrerPops by viewModel.pendingReferrerPops.collectAsStateWithLifecycle()
     HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
     pendingMilestone?.let { milestone ->
         MilestoneCelebrationDialog(
             milestone = milestone,
             onDismiss = { viewModel.acknowledgeMilestone(milestone) },
         )
+    }
+    if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+        welcome?.let { com.goexercise.app.presentation.referral.ReferralCelebrationDialog(listOf(it)) { viewModel.consumeWelcome() } }
+        if (referrerPops.isNotEmpty()) com.goexercise.app.presentation.referral.ReferralCelebrationDialog(referrerPops) { viewModel.consumeReferrerPops() }
     }
 }
 
