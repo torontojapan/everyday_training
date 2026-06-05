@@ -4,6 +4,8 @@ import com.goexercise.app.domain.friends.CheerKind
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
+import com.goexercise.app.domain.friends.ReferralConfirmation
+import com.goexercise.app.domain.friends.ReferralSummary
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.SignOutScope
 import io.github.jan.supabase.auth.auth
@@ -167,6 +169,79 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("profiles").upsert(row) { onConflict = "user_id" }
     }
 
+    // ================= 友達紹介(リファラル)=================
+
+    override suspend fun submitInviteCode(code: String) {
+        val uid = ensureUid()
+        val target = code.uppercase()
+        val me = profileRow(uid)
+        if (me?.friendCode == target) throw FriendsError.CannotAddSelf
+        val referrer = profileRowByCode(target) ?: throw FriendsError.CodeNotFound
+        if (referrer.userId == uid) throw FriendsError.CannotAddSelf
+        val existing = client.from("referrals").select {
+            filter { eq("referee_user_id", uid) }; limit(1)
+        }.decodeList<ReferralRow>()
+        if (existing.isNotEmpty()) throw FriendsError.DuplicateRequest
+        client.from("referrals").insert(ReferralInsert(referrerUserId = referrer.userId, refereeUserId = uid))
+        val (a, b) = orderedPair(uid, referrer.userId)
+        client.from("friendships").upsert(FriendshipRow(userA = a, userB = b, status = "active")) { onConflict = "user_a,user_b" }
+    }
+
+    override suspend fun confirmReferralIfEligible(hasFirstRecord: Boolean): ReferralConfirmation? {
+        if (!hasFirstRecord) return null
+        val uid = ensureUid()
+        val row = client.from("referrals").select {
+            filter { eq("referee_user_id", uid) }; limit(1)
+        }.decodeList<ReferralRow>().firstOrNull() ?: return null
+        if (row.status != "pending") return null
+        val nowIso = java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC)
+            .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        client.from("referrals").update(ReferralConfirmUpdate(status = "confirmed", confirmedAt = nowIso)) {
+            filter { eq("referee_user_id", uid) }
+        }
+        val referrerName = profileRow(row.referrerUserId)?.displayName ?: "ともだち"
+        return ReferralConfirmation(id = uid, friendDisplayName = referrerName, role = ReferralConfirmation.Role.REFEREE)
+    }
+
+    override suspend fun unseenReferrerConfirmations(): List<ReferralConfirmation> {
+        val uid = client.auth.currentUserOrNull()?.id ?: return emptyList()
+        val rows = client.from("referrals").select {
+            filter { eq("referrer_user_id", uid); eq("status", "confirmed"); eq("seen_by_referrer", false) }
+        }.decodeList<ReferralRow>()
+        if (rows.isEmpty()) return emptyList()
+        val refereeIds = rows.map { it.refereeUserId }
+        val byId = client.from("profiles").select { filter { isIn("user_id", refereeIds) } }
+            .decodeList<ProfileRow>().associateBy { it.userId }
+        client.from("referrals").update(ReferralSeenUpdate(seenByReferrer = true)) {
+            filter { eq("referrer_user_id", uid); eq("status", "confirmed"); eq("seen_by_referrer", false) }
+        }
+        return rows.map { r ->
+            ReferralConfirmation(id = r.refereeUserId, friendDisplayName = byId[r.refereeUserId]?.displayName ?: "ともだち", role = ReferralConfirmation.Role.REFERRER)
+        }
+    }
+
+    override suspend fun referralSummary(): ReferralSummary {
+        val uid = client.auth.currentUserOrNull()?.id ?: return ReferralSummary.EMPTY
+        val now = java.time.Instant.now()
+        val asReferrer = client.from("referrals").select {
+            filter { eq("referrer_user_id", uid); eq("status", "confirmed") }
+        }.decodeList<ReferralRow>()
+        val stars = asReferrer.size
+        var bonus = asReferrer.count { com.goexercise.app.domain.friends.ReferralClock.isInMonth(it.confirmedAt, now) }
+        val asReferee = client.from("referrals").select {
+            filter { eq("referee_user_id", uid); eq("status", "confirmed") }; limit(1)
+        }.decodeList<ReferralRow>().firstOrNull()
+        if (asReferee != null && com.goexercise.app.domain.friends.ReferralClock.isInMonth(asReferee.confirmedAt, now)) bonus++
+        return ReferralSummary(starBadges = stars, freezeBonusThisMonth = bonus)
+    }
+
+    override suspend fun hasReferrer(): Boolean {
+        val uid = client.auth.currentUserOrNull()?.id ?: return false
+        return client.from("referrals").select {
+            filter { eq("referee_user_id", uid) }; limit(1)
+        }.decodeList<ReferralRow>().isNotEmpty()
+    }
+
     // ================= アカウント連携(#5 / Phase2)=================
     // iOS `SupabaseFriendsService` の連携層を移植。**Android は鏡像**: Google=native id_token /
     // Apple=web/PKCE(iOS は逆)。supabase-kt 3.6 の API は javap で実在確認済
@@ -314,6 +389,7 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
         client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
         client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } }
+        client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } }
         client.from("profiles").delete { filter { eq("user_id", uid) } }
         runCatching { client.auth.signOut(SignOutScope.GLOBAL) } // best-effort(token 失効は EF の役目)
         backup = AccountBackupStatus.Anonymous
