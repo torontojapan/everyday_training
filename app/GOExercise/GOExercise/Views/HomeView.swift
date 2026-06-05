@@ -183,7 +183,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState)
+            BigCatView(state: viewModel.catState, totalAchievedDays: viewModel.lifetimeStats.achievedDays)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -459,6 +459,7 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
+    let totalAchievedDays: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
@@ -469,6 +470,7 @@ struct BigCatView: View {
         let primary = state.assetName(breed: breed)
         let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
         ZStack {
+            MilestoneBackgroundView(totalAchievedDays: totalAchievedDays)
             // 背景の光輪 (装飾)。キャラ画像はこの円の外まで描かれて構わない。
             Circle()
                 .fill(LinearGradient(
