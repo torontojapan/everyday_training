@@ -6,7 +6,12 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(FriendsStore.self) private var friendsStore
+    @Environment(ReferralStore.self) private var referralStore
     @State private var showPremiumPaywall = false
+    @State private var laterInviteCode = ""
+    @State private var isSubmittingLater = false
+    @State private var laterAccepted = false
     @State private var isShowingWidgetGuide = false
     @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
     @State private var celebrationPrefs = CelebrationPreferences.shared
@@ -124,6 +129,39 @@ struct SettingsView: View {
                     Text("友達と共有する情報")
                 } footer: {
                     Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。")
+                }
+
+                if AppFeatureFlags.isReferralActive {
+                    Section("友達を招待") {
+                        // 共有(招待する)= friend_code + 文面を共有シートへ。
+                        if let code = friendsStore.profile?.friendCode {
+                            ShareLink(item: inviteMessage(code: code)) {
+                                Label("友達を招待する", systemImage: "square.and.arrow.up")
+                            }
+                            .accessibilityIdentifier("referral-invite-share")
+                        }
+                        // 星バッジ(累計紹介)。
+                        HStack {
+                            Label("紹介した友達", systemImage: "star.fill")
+                            Spacer()
+                            Text("\(referralStore.summary.starBadges) 人")
+                                .foregroundStyle(Palette.textSecondary)
+                        }
+                        // 後から入力(登録7日以内 & 紹介者未登録のときだけ)。
+                        if referralStore.canEnterCodeLater {
+                            if laterAccepted {
+                                Label("招待コードを適用しました!", systemImage: "checkmark.seal.fill")
+                                    .foregroundStyle(Palette.primaryDeep)
+                            } else {
+                                InviteCodeField(code: $laterInviteCode, isSubmitting: isSubmittingLater) {
+                                    submitLaterInvite()
+                                }
+                                if let err = referralStore.lastError {
+                                    Text(err).font(Typography.caption).foregroundStyle(.red)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -330,6 +368,24 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(dataActionMessage ?? "")
+        }
+    }
+
+    private func inviteMessage(code: String) -> String {
+        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → \(code)\nhttps://apps.apple.com/jp/app/id6774551663"
+    }
+
+    private func submitLaterInvite() {
+        isSubmittingLater = true
+        referralStore.lastError = nil
+        Task {
+            await friendsStore.ensureSignedIn()
+            let ok = await referralStore.submitCode(laterInviteCode)
+            isSubmittingLater = false
+            if ok { laterAccepted = true }
+            // 確定(confirmed)は新規の初運動記録が条件。ここでは pending を作るだけにし、
+            // 実際の確定は Home の syncMyFriendProfile フックが
+            // achievedDays>=1 を満たした時点で行う(幽霊インストール確定を防ぐ)。
         }
     }
 
