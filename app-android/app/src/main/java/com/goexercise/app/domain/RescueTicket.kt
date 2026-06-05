@@ -4,8 +4,17 @@ import java.time.LocalDate
 
 /** 連続記録フリーズ(保険チケット)の月次付与枠。iOS `RescueTicketAllowance` の移植。 */
 object RescueTicketAllowance {
-    /** GOプレミアムなら月4、無料なら月1。 */
-    fun current(isPremium: Boolean): Int = if (isPremium) 4 else 1
+    /** 月次フリーズ上限(全員共通)。base + 今月紹介ボーナスもこれを超えない。 */
+    const val MONTHLY_CAP = 5
+
+    /** 後方互換: 紹介ボーナス無しの従来 API。GOプレミアムなら月4、無料なら月1。 */
+    fun current(isPremium: Boolean): Int = current(isPremium, referralBonus = 0)
+
+    /** base + 今月紹介ボーナスを MONTHLY_CAP でクリップ。ボーナス負値は0に丸め。 */
+    fun current(isPremium: Boolean, referralBonus: Int): Int {
+        val base = if (isPremium) 4 else 1
+        return minOf(MONTHLY_CAP, base + maxOf(0, referralBonus))
+    }
 }
 
 /**
