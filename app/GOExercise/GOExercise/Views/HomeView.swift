@@ -135,6 +135,20 @@ struct HomeView: View {
                     }
                 )
             }
+            .sheet(isPresented: Binding(
+                get: { referralStore.pendingWelcome != nil },
+                set: { if !$0 { referralStore.consumeWelcome() } }
+            )) {
+                if let pop = referralStore.pendingWelcome {
+                    ReferralCelebrationSheet(confirmations: [pop])
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { !referralStore.pendingReferrerPops.isEmpty },
+                set: { if !$0 { referralStore.consumeReferrerPops() } }
+            )) {
+                ReferralCelebrationSheet(confirmations: referralStore.pendingReferrerPops)
+            }
         }
     }
 
@@ -447,6 +461,12 @@ struct HomeView: View {
         updated.monthlyAchievedDays = activity.monthlyAchievedDays
         updated.lastUpdated = Date()
         Task { await friendsStore.publishMyProfile(updated) }
+
+        // 友達紹介: 初運動記録(累計達成 >= 1)に到達したら自分の pending 紹介を確定する。
+        if AppFeatureFlags.isReferralActive {
+            let hasFirstRecord = viewModel.lifetimeStats.achievedDays >= 1
+            Task { await referralStore.confirmFirstRecordIfNeeded(hasFirstRecord: hasFirstRecord) }
+        }
     }
 }
 
