@@ -408,7 +408,7 @@ struct HomeView: View {
         let todayDone = viewModel.todayStatus.countsAsAchieved
         let weekly = viewModel.statuses.map { $0.status.countsAsAchieved }
         let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
-        let tier = viewModel.catDecoration.tier
+        let tier = CatDecoration(totalAchievedDays: viewModel.lifetimeStats.achievedDays).tier
         let breed = UserCatPreferences.shared.myCat
         // 今日の活動 (カテゴリ/種目名/詳細=opt-in) と月次集計を記録から組み立てる。
         let activity = FriendSharedActivity.build(
