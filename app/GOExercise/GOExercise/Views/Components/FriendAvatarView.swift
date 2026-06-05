@@ -5,17 +5,24 @@ struct FriendAvatarView: View {
     let friend: FriendProfile
     var size: CGFloat = 44
     var showsDecorationBorder: Bool = false
+    var showsMilestoneBackground: Bool = false
 
     private var breed: CatBreed { FriendAvatarResolver.resolve(for: friend) }
 
     private var resolvedAsset: String {
-        UIImage(named: breed.avatarAssetName) != nil
-            ? breed.avatarAssetName
-            : CatBreed.fallbackAvatarAssetName
+        let withItem = breed.avatarAssetName(totalAchievedDays: friend.totalAchievedDays)
+        if UIImage(named: withItem) != nil { return withItem }
+        if UIImage(named: breed.avatarAssetName) != nil { return breed.avatarAssetName }
+        return CatBreed.fallbackAvatarAssetName
     }
 
     var body: some View {
         ZStack {
+            if showsMilestoneBackground {
+                MilestoneBackgroundView(totalAchievedDays: friend.totalAchievedDays)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            }
             Circle()
                 .fill(breed.tintColor.opacity(0.30))
                 .frame(width: size, height: size)
