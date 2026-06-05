@@ -5,8 +5,10 @@ import SwiftUI
 /// 呼び出し時は普通のシートとして表示する。
 struct UserCatPickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(StoreKitManager.self) private var storeKit
     @State private var prefs = UserCatPreferences.shared
     @State private var selected: CatBreed
+    @State private var showPaywall = false
     let isOnboarding: Bool
 
     init(isOnboarding: Bool = false) {
@@ -59,6 +61,9 @@ struct UserCatPickerView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isOnboarding ? "はじめる" : "決定") {
+                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive) {
+                            selected = prefs.myCat
+                        }
                         prefs.myCat = selected
                         if isOnboarding {
                             Analytics.track(.onboardingCompleted)
@@ -70,6 +75,9 @@ struct UserCatPickerView: View {
                 }
             }
             .interactiveDismissDisabled(isOnboarding)   // onboarding は閉じれない
+            .sheet(isPresented: $showPaywall) {
+                PremiumPaywallSheet(store: storeKit, context: .general)
+            }
         }
     }
 
@@ -99,8 +107,9 @@ struct UserCatPickerView: View {
 
     private func cell(_ breed: CatBreed) -> some View {
         let isSelected = selected == breed
+        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive)
         return Button {
-            selected = breed
+            if locked { showPaywall = true } else { selected = breed }
         } label: {
             VStack(spacing: 4) {
                 ZStack {
@@ -113,6 +122,13 @@ struct UserCatPickerView: View {
                         .scaleEffect(1.10)
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
+                        .opacity(locked ? 0.45 : 1)
+                    if locked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 2)
+                    }
                 }
                 .overlay {
                     Circle()
@@ -129,7 +145,7 @@ struct UserCatPickerView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(breed.displayName)
+        .accessibilityLabel(locked ? "\(breed.displayName)(プレミアムで解放)" : breed.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("user-cat-\(breed.rawValue)")
     }
