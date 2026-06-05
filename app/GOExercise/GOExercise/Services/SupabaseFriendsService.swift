@@ -380,6 +380,8 @@ final class SupabaseFriendsService: FriendsService {
                 .or("user_a.eq.\(uid),user_b.eq.\(uid)").execute()
             try? await client.from("friend_requests").delete()
                 .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
+            try? await client.from("referrals").delete()
+                .or("referrer_user_id.eq.\(uid),referee_user_id.eq.\(uid)").execute()
         }
         try? await client.auth.signOut()
         myProfile = nil
@@ -458,6 +460,8 @@ final class SupabaseFriendsService: FriendsService {
             .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
         try await client.from("friendships").delete()
             .or("user_a.eq.\(uid),user_b.eq.\(uid)").execute()
+        try await client.from("referrals").delete()
+            .or("referrer_user_id.eq.\(uid),referee_user_id.eq.\(uid)").execute()
         try await client.from("profiles").delete()
             .eq("user_id", value: uid).execute()
         // refresh token 失効を試みる (best-effort)。supabase-swift は /logout 前にローカルセッションを
@@ -608,6 +612,98 @@ final class SupabaseFriendsService: FriendsService {
         try await client.from("cheers")
             .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue))
             .execute()
+    }
+
+    // MARK: - 友達紹介 (リファラル)
+
+    func submitInviteCode(_ code: String) async throws {
+        let client = try requireClient()
+        let uid = try await ensureUID()
+        let target = code.uppercased()
+        guard let me = myProfile, me.friendCode != target else { throw FriendsServiceError.cannotAddSelf }
+        // 紹介者(referrer)を friend_code から解決。
+        let rows: [ProfileRow] = try await client.from("profiles")
+            .select().eq("friend_code", value: target).limit(1).execute().value
+        guard let referrer = rows.first else { throw FriendsServiceError.codeNotFound }
+        if referrer.user_id.lowercased() == uid.uuidString.lowercased() { throw FriendsServiceError.cannotAddSelf }
+        // 1人1紹介者: 既に referee 行があれば不可。
+        let existing: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referee_user_id", value: uid.uuidString).limit(1).execute().value
+        if !existing.isEmpty { throw FriendsServiceError.duplicateRequest }
+        // pending 紹介を作成(referee = 自分。RLS で referee 本人のみ insert 可)。
+        try await client.from("referrals")
+            .insert(ReferralInsert(referrer_user_id: referrer.user_id, referee_user_id: uid.uuidString))
+            .execute()
+        // 自動友達化(承認フローをスキップ。upsert は冪等)。
+        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
+    }
+
+    func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {
+        guard hasFirstRecord else { return nil }
+        let client = try requireClient()
+        let uid = try await ensureUID()
+        let rows: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referee_user_id", value: uid.uuidString).limit(1).execute().value
+        guard let row = rows.first, row.status == "pending" else { return nil }
+        let nowISO = ISO8601DateFormatter().string(from: Date())
+        try await client.from("referrals")
+            .update(ReferralConfirmUpdate(status: "confirmed", confirmed_at: nowISO))
+            .eq("referee_user_id", value: uid.uuidString).execute()
+        let referrer: [ProfileRow] = try await client.from("profiles")
+            .select().eq("user_id", value: row.referrer_user_id).limit(1).execute().value
+        return ReferralConfirmation(id: uid.uuidString,
+                                    friendDisplayName: referrer.first?.display_name ?? "ともだち",
+                                    role: .referee)
+    }
+
+    func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] {
+        guard myProfile != nil, let session = try? await requireClient().auth.session else { return [] }
+        let client = try requireClient()
+        let uid = session.user.id.uuidString
+        let rows: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referrer_user_id", value: uid)
+            .eq("status", value: "confirmed").eq("seen_by_referrer", value: false)
+            .execute().value
+        guard !rows.isEmpty else { return [] }
+        let refereeIDs = rows.map { $0.referee_user_id }
+        let profs: [ProfileRow] = try await client.from("profiles")
+            .select().in("user_id", values: refereeIDs).execute().value
+        let byID = Dictionary(uniqueKeysWithValues: profs.map { ($0.user_id, $0) })
+        // 取得分を seen=true にする(再ポップ防止)。
+        try await client.from("referrals")
+            .update(ReferralSeenUpdate(seen_by_referrer: true))
+            .eq("referrer_user_id", value: uid)
+            .eq("status", value: "confirmed").eq("seen_by_referrer", value: false)
+            .execute()
+        return rows.map { r in
+            ReferralConfirmation(id: r.referee_user_id,
+                                 friendDisplayName: byID[r.referee_user_id]?.display_name ?? "ともだち",
+                                 role: .referrer)
+        }
+    }
+
+    func referralSummary() async throws -> ReferralSummary {
+        // 未サインインなら匿名アカウントを作らずに空を返す(孤児防止)。
+        guard myProfile != nil, let session = try? await requireClient().auth.session else { return .empty }
+        let client = try requireClient()
+        let uid = session.user.id.uuidString
+        let now = Date()
+        let asReferrer: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referrer_user_id", value: uid).eq("status", value: "confirmed").execute().value
+        let stars = asReferrer.count
+        var bonus = asReferrer.filter { ReferralClock.isInMonth($0.confirmed_at, of: now) }.count
+        let asReferee: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referee_user_id", value: uid).eq("status", value: "confirmed").limit(1).execute().value
+        if let r = asReferee.first, ReferralClock.isInMonth(r.confirmed_at, of: now) { bonus += 1 }
+        return ReferralSummary(starBadges: stars, freezeBonusThisMonth: bonus)
+    }
+
+    func hasReferrer() async throws -> Bool {
+        guard myProfile != nil, let session = try? await requireClient().auth.session else { return false }
+        let client = try requireClient()
+        let rows: [ReferralRow] = try await client.from("referrals")
+            .select().eq("referee_user_id", value: session.user.id.uuidString).limit(1).execute().value
+        return !rows.isEmpty
     }
 
     // MARK: - Helpers
@@ -773,4 +869,22 @@ private struct CheerWrite: Encodable {
     let from_user: String
     let to_user: String
     let kind: String
+}
+private struct ReferralRow: Decodable {
+    let referrer_user_id: String
+    let referee_user_id: String
+    var status: String = "pending"
+    var confirmed_at: String?
+    var seen_by_referrer: Bool = false
+}
+private struct ReferralInsert: Encodable {
+    let referrer_user_id: String
+    let referee_user_id: String
+}
+private struct ReferralConfirmUpdate: Encodable {
+    let status: String
+    let confirmed_at: String
+}
+private struct ReferralSeenUpdate: Encodable {
+    let seen_by_referrer: Bool
 }
