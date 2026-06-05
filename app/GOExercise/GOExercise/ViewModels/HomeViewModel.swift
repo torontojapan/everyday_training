@@ -38,8 +38,12 @@ final class HomeViewModel {
     /// GOプレミアム加入状況。フリーズ付与枚数 (月1 or 月4) の判定に使う。
     /// refresh() で View 側から最新値を渡してもらう。
     private var isPremium = false
+    /// 今月の紹介フリーズ加算。refresh() で View から渡される。
+    private var referralFreezeBonus = 0
 
-    private var rescueAllowance: Int { RescueTicketAllowance.current(isPremium: isPremium) }
+    private var rescueAllowance: Int {
+        RescueTicketAllowance.current(isPremium: isPremium, referralBonus: referralFreezeBonus)
+    }
 
     init(dateProvider: any DateProviding = SystemDateProvider(),
          calendar: Calendar = .mondayFirst,
@@ -55,8 +59,10 @@ final class HomeViewModel {
                   streakExtendedThisRun: Bool = false,
                   weightLoss: MilestoneDetector.WeightLossSnapshot? = nil,
                   isPremium: Bool = false,
+                  referralFreezeBonus: Int = 0,
                   anchorDate: Date? = nil) {
         self.isPremium = isPremium
+        self.referralFreezeBonus = referralFreezeBonus
         // 呼び出し側が `anchorDate` を指定すれば、内部 dateProvider ではなく
         // その瞬間を全集計の基準日として使う。日跨ぎ atomic 化のため
         // (Codex round5: 別ソース読みによる drift を排除)。

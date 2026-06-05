@@ -65,4 +65,46 @@ final class ReferralStoreTests: XCTestCase {
         XCTAssertEqual(s.starBadges, 2)
         XCTAssertEqual(s.freezeBonusThisMonth, 2)
     }
+
+    func test_store_submit_setsHasReferrer_andRefreshes() async throws {
+        let svc = makeMock()
+        try await svc.signIn(displayName: "新規", username: "newbie")
+        let store = ReferralStore(service: svc,
+                                  defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
+                                  isSignedIn: { true })
+        let ok = await store.submitCode("akira1")   // 小文字でも sanitize で大文字化
+        XCTAssertTrue(ok)
+        XCTAssertTrue(store.hasReferrer)
+    }
+
+    func test_store_submit_invalidCode_setsError() async throws {
+        let svc = makeMock()
+        try await svc.signIn(displayName: "新規", username: "newbie")
+        let store = ReferralStore(service: svc,
+                                  defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
+                                  isSignedIn: { true })
+        let ok = await store.submitCode("xx")        // 6文字未満
+        XCTAssertFalse(ok)
+        XCTAssertNotNil(store.lastError)
+    }
+
+    func test_store_confirmFirstRecord_setsWelcomePop() async throws {
+        let svc = makeMock()
+        try await svc.signIn(displayName: "新規", username: "newbie")
+        let store = ReferralStore(service: svc,
+                                  defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
+                                  isSignedIn: { true })
+        _ = await store.submitCode("AKIRA1")
+        await store.confirmFirstRecordIfNeeded(hasFirstRecord: true)
+        XCTAssertEqual(store.pendingWelcome?.role, .referee)
+    }
+
+    func test_store_notSignedIn_refreshIsNoop() async {
+        let svc = makeMock()
+        let store = ReferralStore(service: svc,
+                                  defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
+                                  isSignedIn: { false })
+        await store.refresh()
+        XCTAssertEqual(store.summary, .empty)
+    }
 }
