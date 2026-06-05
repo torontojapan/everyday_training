@@ -4,6 +4,8 @@ import com.goexercise.app.domain.friends.CheerKind
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendCode
+import com.goexercise.app.domain.friends.ReferralConfirmation
+import com.goexercise.app.domain.friends.ReferralSummary
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -60,6 +62,32 @@ data class CheerWrite(
     @SerialName("kind") val kind: String,
 )
 
+@Serializable
+data class ReferralRow(
+    @SerialName("referrer_user_id") val referrerUserId: String,
+    @SerialName("referee_user_id") val refereeUserId: String,
+    @SerialName("status") val status: String = "pending",
+    @SerialName("confirmed_at") val confirmedAt: String? = null,
+    @SerialName("seen_by_referrer") val seenByReferrer: Boolean = false,
+)
+
+@Serializable
+data class ReferralInsert(
+    @SerialName("referrer_user_id") val referrerUserId: String,
+    @SerialName("referee_user_id") val refereeUserId: String,
+)
+
+@Serializable
+data class ReferralConfirmUpdate(
+    @SerialName("status") val status: String,
+    @SerialName("confirmed_at") val confirmedAt: String,
+)
+
+@Serializable
+data class ReferralSeenUpdate(
+    @SerialName("seen_by_referrer") val seenByReferrer: Boolean,
+)
+
 internal fun ProfileRow.toProfile(): FriendProfile = FriendProfile(
     friendCode = friendCode,
     username = username,
@@ -105,6 +133,13 @@ interface FriendsService {
     suspend fun sendCheer(kind: CheerKind, toCode: String)
     suspend fun publishMyProfile(profile: FriendProfile)
 
+    // ---- 友達紹介(リファラル)。既定は安全側 no-op。実装は Supabase/Mock が override ----
+    suspend fun submitInviteCode(code: String) { throw FriendsError.NotSignedIn }
+    suspend fun confirmReferralIfEligible(hasFirstRecord: Boolean): ReferralConfirmation? = null
+    suspend fun unseenReferrerConfirmations(): List<ReferralConfirmation> = emptyList()
+    suspend fun referralSummary(): ReferralSummary = ReferralSummary.EMPTY
+    suspend fun hasReferrer(): Boolean = false
+
     // ---- アカウント連携(#5 / Phase2。既定は未サポート=providerUnavailable, iOS 既定実装と同型)----
     // **Android は iOS の鏡像**: Google=native id_token(iOS の Apple 相当)/ Apple=web/PKCE(iOS の Google 相当)。
     /** 永続アカウント連携の状態(匿名でないか)。 */
@@ -138,6 +173,13 @@ class MockFriendsService : FriendsService {
     private val incoming = mutableListOf<FriendRequest>()
     private var backup = AccountBackupStatus.Anonymous
 
+    // referee 視点: 自分が入力した紹介(あれば1件)。
+    private var myReferral: MockReferral? = null
+    // referrer 視点: 自分が紹介し confirmed になった件(seen フラグ付き)。
+    private val inbound = mutableListOf<MockInbound>()
+    private data class MockReferral(val referrerCode: String, var confirmed: Boolean, var confirmedAt: java.time.Instant?)
+    private data class MockInbound(val refereeName: String, val at: java.time.Instant, var seen: Boolean)
+
     override suspend fun myProfile(): FriendProfile? = me
 
     override suspend fun signIn(displayName: String, username: String) {
@@ -158,6 +200,8 @@ class MockFriendsService : FriendsService {
         friends.clear()
         incoming.clear()
         backup = AccountBackupStatus.Anonymous
+        myReferral = null
+        inbound.clear()
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> = friends.toList()
@@ -195,6 +239,52 @@ class MockFriendsService : FriendsService {
         me = profile
     }
 
+    override suspend fun submitInviteCode(code: String) {
+        val meNow = me ?: throw FriendsError.NotSignedIn
+        val upper = code.uppercase()
+        if (upper == meNow.friendCode) throw FriendsError.CannotAddSelf
+        if (myReferral != null) throw FriendsError.DuplicateRequest
+        val referrer = friends.firstOrNull { it.friendCode == upper }
+            ?: incoming.firstOrNull { it.fromProfile.friendCode == upper }?.fromProfile
+            ?: FriendProfile(friendCode = upper, username = "user_$upper", displayName = "紹介者", currentStreak = 1, totalAchievedDays = 1, todayAchieved = true)
+        myReferral = MockReferral(referrer.friendCode, confirmed = false, confirmedAt = null)
+        if (friends.none { it.friendCode == referrer.friendCode }) friends.add(referrer)
+        incoming.removeAll { it.fromProfile.friendCode == referrer.friendCode }
+    }
+
+    override suspend fun confirmReferralIfEligible(hasFirstRecord: Boolean): ReferralConfirmation? {
+        val r = myReferral ?: return null
+        if (!hasFirstRecord || r.confirmed) return null
+        r.confirmed = true; r.confirmedAt = java.time.Instant.now()
+        val name = friends.firstOrNull { it.friendCode == r.referrerCode }?.displayName ?: "ともだち"
+        return ReferralConfirmation(id = me?.friendCode ?: "me", friendDisplayName = name, role = ReferralConfirmation.Role.REFEREE)
+    }
+
+    override suspend fun unseenReferrerConfirmations(): List<ReferralConfirmation> {
+        val unseen = inbound.filter { !it.seen }
+        unseen.forEach { it.seen = true }
+        return unseen.mapIndexed { i, c -> ReferralConfirmation(id = "ref-$i", friendDisplayName = c.refereeName, role = ReferralConfirmation.Role.REFERRER) }
+    }
+
+    override suspend fun referralSummary(): ReferralSummary {
+        val now = java.time.Instant.now()
+        fun sameMonth(t: java.time.Instant): Boolean {
+            val a = t.atZone(java.time.ZoneOffset.UTC); val b = now.atZone(java.time.ZoneOffset.UTC)
+            return a.year == b.year && a.monthValue == b.monthValue
+        }
+        val stars = inbound.size
+        var bonus = inbound.count { sameMonth(it.at) }
+        myReferral?.let { if (it.confirmed && it.confirmedAt?.let(::sameMonth) == true) bonus++ }
+        return ReferralSummary(starBadges = stars, freezeBonusThisMonth = bonus)
+    }
+
+    override suspend fun hasReferrer(): Boolean = myReferral != null
+
+    /** テスト用: 紹介者として誰かを紹介し confirmed になった状態を注入する。 */
+    fun seedInboundConfirmation(refereeName: String, at: java.time.Instant = java.time.Instant.now(), seen: Boolean = false) {
+        inbound.add(MockInbound(refereeName, at, seen))
+    }
+
     // ---- アカウント連携シミュレーション(dev/screenshot 用。iOS Mock は providerUnavailable 既定だが、
     // Android は連携 UI/VM フローを実通信なしで通せるよう簡易シミュレートする)----
     override val backupStatus: AccountBackupStatus get() = backup
@@ -208,6 +298,8 @@ class MockFriendsService : FriendsService {
         friends.clear()
         incoming.clear()
         backup = AccountBackupStatus.Anonymous
+        myReferral = null
+        inbound.clear()
     }
 
     override suspend fun linkGoogleIdToken(idToken: String) {
