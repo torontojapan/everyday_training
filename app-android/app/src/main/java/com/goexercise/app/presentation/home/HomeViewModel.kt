@@ -44,8 +44,15 @@ class HomeViewModel @Inject constructor(
     private val weightRepo: WeightRepository,
     private val health: HealthRepository,
     private val friendsService: FriendsService,
+    private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val clock: Clock,
 ) : ViewModel() {
+
+    // 友達紹介ポップ(歓迎/被紹介者の初記録)を Home UI へ公開(Task 7 が消費)。
+    val pendingWelcome = referralStore.pendingWelcome
+    val pendingReferrerPops = referralStore.pendingReferrerPops
+    fun consumeWelcome() = referralStore.consumeWelcome()
+    fun consumeReferrerPops() = referralStore.consumeReferrerPops()
 
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。
@@ -138,6 +145,9 @@ class HomeViewModel @Inject constructor(
                         val current = friendsService.myProfile() ?: return@collect
                         val updated = MyFriendProfileBuilder.build(state, current)
                         if (updated != current) friendsService.publishMyProfile(updated) // 変化が無ければ書かない(iOS guard 相当)
+                        if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+                            referralStore.confirmFirstRecordIfNeeded(state.lifetimeStats.achievedDays >= 1)
+                        }
                         lastPublishedSig = sig // サインイン済みで評価できた時だけ de-dupe を進める
                     }
                 }

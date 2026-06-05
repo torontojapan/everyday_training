@@ -39,6 +39,7 @@ class RescueViewModel @Inject constructor(
     workoutRepository: WorkoutRepository,
     private val rescue: RescueTicketRepository,
     private val premium: PremiumRepository,
+    private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -52,7 +53,7 @@ class RescueViewModel @Inject constructor(
             premium.isPremiumActive,
         ) { records, rescued, month, isPremium ->
             val today = LocalDate.now(clock)
-            val allowance = RescueTicketAllowance.current(isPremium)
+            val allowance = RescueTicketAllowance.current(isPremium, referralStore.summary.value.freezeBonusThisMonth)
             val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
             RescueUiState(
                 month = month,
@@ -64,7 +65,7 @@ class RescueViewModel @Inject constructor(
 
     /** missed 日をフリーズで救済。枠切れ/対象外は no-op(repo が判定)。現在の付与枠で判定する。 */
     fun useTicket(date: LocalDate) {
-        val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
+        val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value, referralStore.summary.value.freezeBonusThisMonth)
         viewModelScope.launch { rescue.useTicket(date, allowance) }
     }
 
