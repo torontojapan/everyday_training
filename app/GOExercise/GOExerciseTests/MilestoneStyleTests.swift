@@ -33,3 +33,11 @@ final class MilestoneStyleTests: XCTestCase {
         XCTAssertEqual(MilestoneBackground(totalAchievedDays: 500).assetName, "bg_milestone_11")
     }
 }
+
+extension MilestoneStyleTests {
+    func test_avatarAssetName_withItems() {
+        XCTAssertEqual(CatBreed.orange.avatarAssetName(totalAchievedDays: 0), "cat_orange_waitingMorning")
+        XCTAssertEqual(CatBreed.orange.avatarAssetName(totalAchievedDays: 30), "cat_orange_waitingMorning_shaker")
+        XCTAssertEqual(CatBreed.black.avatarAssetName(totalAchievedDays: 120), "cat_black_waitingMorning_crown")
+    }
+}
