@@ -51,9 +51,15 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
-        # TelemetryDeck の App ID。空の間は計測を送信しない (ゼロ収集を維持)。
-        # ダッシュボードで取得した UUID をリリース前に設定する。
-        TelemetryDeckAppID: ""
+        # TelemetryDeck の App ID。値は Secrets.xcconfig の TELEMETRYDECK_APP_ID 由来
+        # (gitignore)。空の間は計測を送信しない (ゼロ収集を維持)。
+        # ※ ここで project.yml に宣言しておくことで `xcodegen generate` が Info.plist を
+        #   再生成しても本キーが落ちない (再発バグ対策。FriendsAppleLinkEnabled も同様)。
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
+        # 友達のアカウント連携 (Apple サインインでの機種変復旧) を有効にするか。
+        # これが無いと SupabaseConfig.appleLinkEnabled=false → Apple バックアップ/復元UIが
+        # 非表示。手動キーだと xcodegen 再生成で落ちるため project.yml で恒久宣言する。
+        FriendsAppleLinkEnabled: true
         # 友達バックエンド (Supabase)。値は Secrets.xcconfig 由来 (gitignore)。
         # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
         SupabaseHost: "$(SUPABASE_HOST)"
