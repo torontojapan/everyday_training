@@ -18,6 +18,12 @@ object FriendCode {
     /** 紛らわしい文字を除いたランダム 6 文字コード。実際の重複回避(UNIQUE リトライ)は repo 層。 */
     fun generate(random: Random = Random): String =
         (0 until LENGTH).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
+
+    /** 入力補正。[FriendCodeValidator.sanitize] への委譲(ReferralStore など呼び出し側の利便性)。 */
+    fun sanitize(raw: String): String = FriendCodeValidator.sanitize(raw)
+
+    /** コード妥当性。[FriendCodeValidator.isValid] への委譲。 */
+    fun isValid(code: String): Boolean = FriendCodeValidator.isValid(code)
 }
 
 /**
