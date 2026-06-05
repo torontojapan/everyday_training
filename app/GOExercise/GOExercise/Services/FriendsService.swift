@@ -23,6 +23,26 @@ protocol FriendsService: AnyObject {
 
     func sendCheer(_ kind: CheerKind, to friendCode: String) async throws
 
+    // MARK: - 友達紹介 (リファラル)
+
+    /// 招待コード(=紹介者の friend_code)を入力して自分を referee とする紹介行(pending)を
+    /// 作成し、双方を自動で友達にする。自己/二重紹介/コード不明は throw。
+    func submitInviteCode(_ code: String) async throws
+
+    /// 自分(referee)の pending 紹介を、初運動記録到達時に confirmed へ更新する。
+    /// 確定したら新規ポップ用の `ReferralConfirmation`(role=.referee)を返す。対象無し/既確定は nil。
+    func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation?
+
+    /// 自分(referrer)が紹介し confirmed かつ未表示(seen_by_referrer=false)の確定を取得し、
+    /// 取得分を seen=true にして返す(起動時ポーリング用、role=.referrer)。
+    func unseenReferrerConfirmations() async throws -> [ReferralConfirmation]
+
+    /// 星バッジ数(累計 confirmed 紹介)と今月のフリーズ加算を集計して返す。
+    func referralSummary() async throws -> ReferralSummary
+
+    /// 自分が referee の紹介行が既に存在するか(後から入力の可否判定に使う)。
+    func hasReferrer() async throws -> Bool
+
     /// デモ/モック実装で、サインイン状態を変えずに友達リスト (in-memory) を
     /// 再シードする。実バックエンドでは no-op。アプリ再起動で in-memory friends
     /// が消えるモックを補い、毎回 signIn (= friend code 再生成) を避けるため。
@@ -96,6 +116,13 @@ extension FriendsService {
     func anonymousSessionHasData() async -> Bool { false }
     // 既定 (連携を扱わないスタブ等): 削除導線は実装側で必須。未実装は安全側で throw。
     func deleteAccount() async throws { throw FriendsServiceError.notSignedIn }
+
+    // 紹介を扱わないスタブ用の安全側既定。実バックエンド/Mock は override する。
+    func submitInviteCode(_ code: String) async throws { throw FriendsServiceError.backendUnavailable }
+    func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? { nil }
+    func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] { [] }
+    func referralSummary() async throws -> ReferralSummary { .empty }
+    func hasReferrer() async throws -> Bool { false }
 }
 
 enum CheerKind: String, CaseIterable, Sendable {

@@ -12,6 +12,11 @@ final class MockFriendsService: FriendsService {
     private var requests: [String: FriendRequest] = [:]  // id → request
     private(set) var sentCheers: [(kind: CheerKind, code: String, at: Date)] = []
 
+    /// referee 視点: 自分が入力した紹介(あれば1件)。(referrerCode, confirmed)。
+    private var myReferral: (referrerCode: String, confirmed: Bool, confirmedAt: Date?)?
+    /// referrer 視点: 自分が紹介した confirmed 件(seen フラグ付き)。表示名/日時を保持。
+    private var inboundConfirmations: [(refereeName: String, at: Date, seen: Bool)] = []
+
     private var defaults: UserDefaults
     private var demoPool: [FriendProfile]
     private var now: () -> Date
@@ -85,6 +90,8 @@ final class MockFriendsService: FriendsService {
         friends.removeAll()
         requests.removeAll()
         sentCheers.removeAll()
+        myReferral = nil
+        inboundConfirmations.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
     }
 
@@ -94,6 +101,8 @@ final class MockFriendsService: FriendsService {
         friends.removeAll()
         requests.removeAll()
         sentCheers.removeAll()
+        myReferral = nil
+        inboundConfirmations.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
     }
 
@@ -154,6 +163,65 @@ final class MockFriendsService: FriendsService {
 
     func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {
         sentCheers.append((kind, friendCode, now()))
+    }
+
+    // MARK: - 友達紹介 (Mock)
+
+    func submitInviteCode(_ code: String) async throws {
+        guard let me = myProfile else { throw FriendsServiceError.notSignedIn }
+        let upper = code.uppercased()
+        if upper == me.friendCode { throw FriendsServiceError.cannotAddSelf }
+        if myReferral != nil { throw FriendsServiceError.duplicateRequest }
+        // 紹介者は「コードで引ける既知のプロフィール」なら誰でも可:
+        // demoPool(未友達) / friends(既友達) / requests(受信中の申請者)。
+        // signIn は demoPool 先頭(AKIRA1)を pending request に消費するため、
+        // requests からも解決できないと既知コードを取りこぼす。
+        guard let referrer = demoPool.first(where: { $0.friendCode == upper })
+                ?? friends[upper]
+                ?? requests[upper]?.fromProfile else { throw FriendsServiceError.codeNotFound }
+        myReferral = (referrer.friendCode, false, nil)
+        // 自動友達化(既に友達でなければ)。
+        if friends[referrer.friendCode] == nil {
+            var f = referrer; f.connectedSince = now()
+            friends[referrer.friendCode] = f
+            demoPool.removeAll { $0.friendCode == referrer.friendCode }
+            requests.removeValue(forKey: referrer.friendCode)   // 申請があれば自動友達化で解消
+        }
+    }
+
+    func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {
+        guard hasFirstRecord, var r = myReferral, !r.confirmed else { return nil }
+        r.confirmed = true; r.confirmedAt = now(); myReferral = r
+        let name = friends[r.referrerCode]?.displayName ?? "ともだち"
+        return ReferralConfirmation(id: myProfile?.friendCode ?? "me",
+                                    friendDisplayName: name, role: .referee)
+    }
+
+    func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] {
+        let unseen = inboundConfirmations.enumerated().filter { !$0.element.seen }
+        for (idx, _) in unseen { inboundConfirmations[idx].seen = true }
+        return unseen.map {
+            ReferralConfirmation(id: "ref-\($0.offset)", friendDisplayName: $0.element.refereeName, role: .referrer)
+        }
+    }
+
+    func referralSummary() async throws -> ReferralSummary {
+        let cal = Calendar.mondayFirst
+        let monthKey: (Date) -> String = {
+            let c = cal.dateComponents([.year, .month], from: $0); return "\(c.year ?? 0)-\(c.month ?? 0)"
+        }
+        let nowKey = monthKey(now())
+        let stars = inboundConfirmations.count
+        var bonus = inboundConfirmations.filter { monthKey($0.at) == nowKey }.count
+        if let r = myReferral, r.confirmed, let at = r.confirmedAt, monthKey(at) == nowKey { bonus += 1 }
+        return ReferralSummary(starBadges: stars, freezeBonusThisMonth: bonus)
+    }
+
+    func hasReferrer() async throws -> Bool { myReferral != nil }
+
+    /// テスト用: 紹介者として誰かを紹介し confirmed になった状態を注入する。
+    func _seedInboundConfirmation(refereeName: String, at: Date, seen: Bool = false) {
+        inboundConfirmations.append((refereeName, at, seen))
     }
 
     // MARK: - Helpers
