@@ -9,8 +9,12 @@ struct RescueTicketUseView: View {
     private let calendar = Calendar.mondayFirst
     @Environment(RescueTicketStore.self) private var store
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
 
-    private var allowance: Int { RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive) }
+    private var allowance: Int {
+        RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive,
+                                      referralBonus: referralStore.summary.freezeBonusThisMonth)
+    }
     private var hasTicketAvailable: Bool {
         store.hasTicketAvailable(today: Date(), allowance: allowance)
     }

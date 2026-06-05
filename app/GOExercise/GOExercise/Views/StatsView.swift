@@ -46,6 +46,7 @@ struct StatsView: View {
     private let cycleSettings = CycleTrackingSettings()
     @Environment(RescueTicketStore.self) private var rescueTicketStore
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
     @State private var showPremiumPaywall = false
 
     // `.sheet(item:)` で使うため Identifiable 化したラッパー。
@@ -215,7 +216,8 @@ struct StatsView: View {
     }
 
     private var rescueAllowance: Int {
-        RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive)
+        RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive,
+                                      referralBonus: referralStore.summary.freezeBonusThisMonth)
     }
 
     /// 連続記録フリーズの今月残り枚数 (a11y / subtitle / icon の出し分けに使う)。
