@@ -5,7 +5,6 @@ struct FriendAvatarView: View {
     let friend: FriendProfile
     var size: CGFloat = 44
     var showsDecorationBorder: Bool = false
-    var showsMilestoneBackground: Bool = false
 
     private var breed: CatBreed { FriendAvatarResolver.resolve(for: friend) }
 

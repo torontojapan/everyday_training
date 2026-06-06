@@ -211,7 +211,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState, totalAchievedDays: viewModel.lifetimeStats.achievedDays)
+            BigCatView(state: viewModel.catState)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -493,7 +493,6 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
-    let totalAchievedDays: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
