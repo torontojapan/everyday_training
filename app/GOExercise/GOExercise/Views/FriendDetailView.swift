@@ -91,10 +91,10 @@ struct FriendDetailView: View {
                     .foregroundStyle(Palette.primaryDeep)
             }
 
-            if friend.decoration != .none {
+            if friend.rank.rank > 0, let title = friend.rank.title {
                 HStack(spacing: 6) {
-                    Text(friend.decoration.emoji)
-                    Text(friend.decoration.displayName)
+                    Image(systemName: friend.rank.iconSymbol)
+                    Text(title)
                 }
                 .font(Typography.caption)
                 .padding(.horizontal, 12).padding(.vertical, 6)

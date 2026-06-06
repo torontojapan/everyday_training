@@ -10,7 +10,7 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     var todayAchieved: Bool
     var todayCategoryName: String?      // 例: "筋トレ"
     var todayExerciseNames: [String]    // 例: ["スクワット", "プランク"]
-    var decorationTier: Int             // 0..4 (None / Bandana / Headband / Medal / Crown)
+    var decorationTier: Int             // publish 値 = CatRank.rank (0..11)。表示は computed rank を使用。
     var lastUpdated: Date
 
     /// 7 要素 (月→日)。未達成日は false。`Codable` 互換のため optional。
@@ -40,15 +40,8 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
         return Array(padded.prefix(7))
     }
 
-    var decoration: CatDecoration {
-        switch decorationTier {
-        case 1: return .bandana
-        case 2: return .headband
-        case 3: return .medal
-        case 4: return .crown
-        default: return .none
-        }
-    }
+    /// 友達の称号 = 現在の連続から算出(バックエンド変更なし。spec F)。
+    var rank: CatRank { CatRank(currentStreak: currentStreak) }
 }
 
 /// 友達カードに opt-in で見せる種目の詳細。本人がプライバシー設定で
