@@ -19,6 +19,11 @@ struct HomeView: View {
     @State private var presentedMilestone: Milestone?
     @State private var pendingRankEvent: RankUpEvent?
     private let rankUpDetector = RankUpDetector()
+    @State private var isShowingRevive = false
+    @State private var isShowingFreezePaywall = false
+    @State private var reviveShownThisLaunch = false
+    @State private var reviveCelebration: CatRank?
+    private let reviveDismissStore = ReviveDismissStore()
     /// 猫タップで bounce する用。
     @State private var catBounce = false
     /// 起動時に吹き出しを pop-in させる用。
@@ -84,6 +89,16 @@ struct HomeView: View {
                     .transition(.opacity)
                     .zIndex(10)
                 }
+
+                if let rank = reviveCelebration {
+                    RankCelebrationOverlay(
+                        rank: rank,
+                        message: "連続復活!",
+                        onFinished: { reviveCelebration = nil }
+                    )
+                    .transition(.opacity)
+                    .zIndex(11)
+                }
             }
             .navigationBarHidden(true)
             .onAppear {
@@ -91,6 +106,7 @@ struct HomeView: View {
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
                 handleAutoPresentations()
                 evaluateRankCelebration()
+                maybePresentRevive()
                 evaluateCelebration()
                 syncMyFriendProfile()
             }
@@ -166,6 +182,28 @@ struct HomeView: View {
                 set: { if !$0 { referralStore.consumeReferrerPops() } }
             )) {
                 ReferralCelebrationSheet(confirmations: referralStore.pendingReferrerPops)
+            }
+            .sheet(isPresented: $isShowingRevive) {
+                let w = viewModel.reviveWindow
+                StreakRevivePopup(
+                    potentialStreak: viewModel.potentialReviveStreak,
+                    freezesNeeded: w?.freezesNeeded ?? 0,
+                    remaining: viewModel.reviveRemainingFreezes,
+                    hasEnough: w?.hasEnough ?? false,
+                    onUseFreeze: { handleReviveUse() },
+                    onSeePremium: {
+                        markReviveHandled()
+                        isShowingRevive = false
+                        isShowingFreezePaywall = true
+                    },
+                    onDismiss: {
+                        markReviveHandled()
+                        isShowingRevive = false
+                    }
+                )
+            }
+            .sheet(isPresented: $isShowingFreezePaywall) {
+                PremiumPaywallSheet(store: storeKit, context: .freeze)
             }
             .alert("⭐10達成!", isPresented: Binding(
                 get: { referralStore.pendingBreedUnlock },
@@ -418,6 +456,41 @@ struct HomeView: View {
         #endif
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
+        }
+    }
+
+    /// 復活ポップを条件付きで提示(1起動1回・未処理 break のみ)。
+    private func maybePresentRevive() {
+        guard !reviveShownThisLaunch else { return }
+        guard let window = viewModel.reviveWindow else { return }
+        let today = calendar.startOfDay(for: store.today)
+        let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+        guard let key = ReviveDismissStore.breakKey(missedDates: missed, calendar: calendar) else { return }
+        guard !reviveDismissStore.isHandled(key) else { return }
+        reviveShownThisLaunch = true
+        isShowingRevive = true
+    }
+
+    private func markReviveHandled() {
+        let today = calendar.startOfDay(for: store.today)
+        if let window = viewModel.reviveWindow {
+            let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+            if let key = ReviveDismissStore.breakKey(missedDates: missed, calendar: calendar) {
+                reviveDismissStore.markHandled(key)
+            }
+        }
+    }
+
+    private func handleReviveUse() {
+        markReviveHandled()
+        let restored = viewModel.applyRevive()
+        isShowingRevive = false
+        viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
+                          isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+        WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: RescueTicketStore.shared.rescuedDates(), calendar: calendar)
+        if let restored {
+            reviveCelebration = restored
+            CelebrationCenter.shared.fireLight()
         }
     }
 
