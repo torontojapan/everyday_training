@@ -81,7 +81,7 @@ enum RescueTicketAllowance {
     nonisolated static let monthlyCap = 5
 
     /// 後方互換: 紹介ボーナス無しの従来 API。
-    static func current(isPremium: Bool) -> Int {
+    nonisolated static func current(isPremium: Bool) -> Int {
         current(isPremium: isPremium, referralBonus: 0)
     }
 
