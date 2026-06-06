@@ -109,9 +109,9 @@ print("ALL PASS")
 
 - [ ] **Step 2: 実行して失敗を確認**
 
-Run: `cp /tmp/FreezeHarness.swift /tmp/main.swift; cd app/GOExercise/GOExercise/Services && swiftc StreakFreezeWindow.swift /tmp/main.swift -o /tmp/fz 2>&1 | head`
-注: `DailyStatus` が `AchievementEvaluator.swift` 定義。swiftc には `AchievementEvaluator.swift` も渡す必要があるが、それが Foundation のみかを Step 1 で確認済みの前提。`DailyStatus` だけ使うので、`AchievementEvaluator.swift` を一緒にコンパイル: `swiftc AchievementEvaluator.swift StreakFreezeWindow.swift /tmp/main.swift ...`。`AchievementEvaluator` が `WorkoutRecord`(SwiftData)に触れると native 不可 → その場合は **`DailyStatus` enum を `StreakFreezeWindow` から参照できる形で**(同 enum を使う)、ハーネス用に `DailyStatus` を含む最小ファイルだけ渡す。実装者はまず `grep "enum DailyStatus" -r` で定義場所と依存を確認し、`DailyStatus` を Foundation-only で切り出せるか判断。**`DailyStatus` は既に `String, Codable, CaseIterable, Sendable` で Foundation のみ**なので、`AchievementEvaluator.swift` 全体が SwiftData 依存なら `DailyStatus` を別ファイル化せず、ハーネスに `DailyStatus` の複製定義は作らず、`Decision.evaluate` の引数型を `DailyStatus` にしたうえで **`AchievementEvaluator.swift` から `DailyStatus` 部分のみを含む一時ファイル**を作って一緒にコンパイルする(複製は禁止のため、確認の結果 SwiftData 非依存ならそのまま渡す)。
+**確認済みの事実**: `DailyStatus` は **`app/GOExercise/GOExercise/Models/DailyStatus.swift` に独立定義**(`enum DailyStatus: String, Codable, CaseIterable, Sendable` ・`import Foundation` のみ)。`AchievementEvaluator.swift` は WorkoutRecord(SwiftData)に依存するため swiftc 単体不可だが、`Decision` 層は `DailyStatus` だけに依存するので **`DailyStatus.swift` + `StreakFreezeWindow.swift` + harness** で native 実行できる(複製不要)。
 
+Run: `cp /tmp/FreezeHarness.swift /tmp/main.swift; cd app/GOExercise/GOExercise && swiftc Models/DailyStatus.swift Services/StreakFreezeWindow.swift /tmp/main.swift -o /tmp/fz 2>&1 | head`
 Expected: 失敗(`StreakFreezeWindow` 未定義)。
 
 - [ ] **Step 3: `StreakFreezeWindow.swift` を実装**
@@ -173,8 +173,7 @@ enum StreakFreezeWindow {
 
 - [ ] **Step 4: swiftc で PASS**
 
-実装者は Step 2 の確認に従い、`DailyStatus` を含む最小コンパイル単位で:
-Run: `cp /tmp/FreezeHarness.swift /tmp/main.swift; cd app/GOExercise/GOExercise/Services && swiftc <DailyStatus を含むファイル群> StreakFreezeWindow.swift /tmp/main.swift -o /tmp/fz && /tmp/fz`
+Run: `cp /tmp/FreezeHarness.swift /tmp/main.swift; cd app/GOExercise/GOExercise && swiftc Models/DailyStatus.swift Services/StreakFreezeWindow.swift /tmp/main.swift -o /tmp/fz && /tmp/fz`
 Expected: `ALL PASS`
 
 - [ ] **Step 5: records 入口を追加(同ファイル末尾、`enum StreakFreezeWindow` 内)**
