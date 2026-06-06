@@ -7,7 +7,8 @@
 「達成の豪華さ」を**猫に乗せる装飾(シェイカー/王冠/頭上バッジ)を全廃**し、
 **①背景の進化(A) ②達成の瞬間演出(B) ③メタリックな称号(C)** の3軸で表現する。
 **細かいペースで演出が用意される**よう強度を3段に分け、さらに
-**④連続が途切れても4日以内はフリーズ(課金)で復活できる導線(D)** を足す。
+**④連続が途切れても4日以内はフリーズ(課金)で復活できる導線(D)** と
+**⑤運動記録の前後に出る全猫種シェイカー版フレーバー(E)** を足す。
 
 撤廃理由: アイテムアートは猫種ごとに手・頭の形が違い全11猫種で破綻する(共有スプライト不可・
 全描き直しは生成コスト/トンマナ統一リスク大)。豪華さを**形非依存**の背景/瞬間/テキストへ移す。
@@ -124,13 +125,32 @@ gold=`(1.00,0.80,0.42)`(既存 backdrop と一致) / platinum=`(0.88,0.90,0.96)`
 
 ---
 
+## E. シェイカー猫フレーバー(運動記録の前後)【新規アセット・達成段階と無関係】
+
+「ごほうび装飾」ではなく、運動の文脈で出る**フレーバー演出**。達成段階(CatRank)とは無関係に誰でも出る。
+
+- **アセット**: 全11猫種に `cat_<breed>_waitingMorning_shaker` を1枚ずつ(プロテインシェイカーを持つ待機ポーズ)。
+  既存 `cat_orange_waitingMorning_shaker` を**流用**し、他10猫種を **Codex 生成**。
+- **品質ガード(過去の失敗を繰り返さない)**: 各 state 単一画像の画風・線・塗りに合わせ、確立済みの
+  **flood-fill 透過パイプライン**で背景透過。**青色滲み・他猫種とのスタイル不一致**(以前 variant を一掃した原因)を
+  **3LLM トンマナ検証**で排除してからマージ。
+- **表示タイミング = 運動記録の前後**:
+  - **記録直後**: `RecordCompletionView` のヒーロー猫をシェイカー版に(「お疲れさま・補給!」)。
+  - **これから運動(前)**: ホームの**今日まだ未記録**の待機文脈でシェイカー版を出す(「補給して頑張ろう」)。
+  - フォールバック: 当該猫種のシェイカー画像が無ければ通常 `waitingMorning`(または orange shaker)。**画像欠落で破綻しない。**
+- **解決ロジック**: `CatBreed.shakerAssetName`(新規・純プロパティ)+ `UIImage(named:)` 存在チェック→フォールバック。
+- **テスト**: 全11猫種で asset 名が規約通り / 欠落時フォールバックが効く。
+
+---
+
 ## 撤去対象(掃除)
 
 | 対象 | 種別 | 備考 |
 |---|---|---|
 | `MilestoneItem`(MilestoneStyle.swift) | dead code | shaker/crown 接尾辞 |
-| `cat_orange_waitingMorning_shaker/_crown` | asset×2 | 既に未使用 |
-| `CatBreed.avatarAssetName(totalAchievedDays:)` | dead code | 唯一の MilestoneItem 消費元 |
+| `cat_orange_waitingMorning_crown` | asset×1 | 王冠マイルストーンアイテム廃止で削除 |
+| `cat_orange_waitingMorning_shaker` | **保持** | 削除せず E のシェイカーセットの種として流用 |
+| `CatBreed.avatarAssetName(totalAchievedDays:)` | dead code | 唯一の MilestoneItem 消費元(E は別解決パス `shakerAssetName`) |
 | `MilestoneBackgroundView` + `bg_milestone_01〜11` | view + asset×11 | チープな画像背景。コード背景に置換済 |
 | `MilestoneBackground`(assetName/tier) | model | tier ロジックは `CatRank` へ移植後に enum 廃止 |
 | `CatDecorationEmblem` + BigCatView overlay/decoration | view + 配線 | 頭上バッジ撤廃 |
@@ -163,4 +183,4 @@ gold=`(1.00,0.80,0.42)`(既存 backdrop と一致) / platinum=`(0.88,0.90,0.96)`
 
 ## 検証
 別ファイル `2026-06-06-decoration-verification-checklist.md` をこの設計に更新し、
-A(背景)/C(称号バッジ)/B(小節目)/D(復活ポップ)を 3LLM スクショ検証する。
+A(背景)/C(称号バッジ)/B(小節目)/D(復活ポップ)/E(シェイカー版・全猫種トンマナ) を 3LLM スクショ検証する。
