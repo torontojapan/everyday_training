@@ -61,6 +61,20 @@ enum CatDecoration: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// ホーム大猫の「頭上に浮かべる」段階エンブレムの SF Symbol。
+    /// 体に焼き込み済みのヘッドバンド/ジャケットと衝突しないよう頭上に浮かせる用
+    /// (Phase 7.1 で体の上への overlay は二重描画バグのため撤去済。本エンブレムは
+    ///  体に触れない頭上空間にのみ描く)。段階で star→flame→medal→crown と昇格。
+    var catEmblemSymbol: String {
+        switch self {
+        case .none: return ""
+        case .bandana: return "star.fill"
+        case .headband: return "flame.fill"
+        case .medal: return "medal.fill"
+        case .crown: return "crown.fill"
+        }
+    }
+
     /// Emoji equivalent for chips/badges where an SF Symbol would look
     /// off-brand (the cat decorations are colorful rather than glyph-like).
     var emoji: String {

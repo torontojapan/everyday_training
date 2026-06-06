@@ -9,8 +9,8 @@ struct FriendAvatarView: View {
     private var breed: CatBreed { FriendAvatarResolver.resolve(for: friend) }
 
     private var resolvedAsset: String {
-        let withItem = breed.avatarAssetName(totalAchievedDays: friend.totalAchievedDays)
-        if UIImage(named: withItem) != nil { return withItem }
+        // アバターアイテム画像(MilestoneItem: オレンジ専用 shaker/crown)は退役。
+        // 達成段階は decorationBorder リング(tier 色)で表現する。
         if UIImage(named: breed.avatarAssetName) != nil { return breed.avatarAssetName }
         return CatBreed.fallbackAvatarAssetName
     }
