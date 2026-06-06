@@ -115,10 +115,13 @@ struct MilestoneBackdrop: View {
         let period = 26.0
         let p = (t.truncatingRemainder(dividingBy: period)) / period
         let travel = size.width * 1.8
+        // rank10+(platinum/rainbow)の上位感は「色の濃さ」でなく「光の艶」で出す
+        // (3LLM A1: 上位が gold より地味に見える ↔ 上品さ維持の両立)。白寄りの
+        // 光沢帯を少し強める。
         return RoundedRectangle(cornerRadius: 240)
-            .fill(LinearGradient(colors: [.clear, bandColor.opacity(0.10), .clear],
+            .fill(LinearGradient(colors: [.clear, Color.white.opacity(0.10), bandColor.opacity(0.18), .clear],
                                  startPoint: .leading, endPoint: .trailing))
-            .frame(width: travel, height: size.height * 0.55)
+            .frame(width: travel, height: size.height * 0.6)
             .rotationEffect(.degrees(-20))
             .position(x: -travel * 0.4 + travel * p, y: size.height * 0.34)
             .blendMode(.plusLighter)

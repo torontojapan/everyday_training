@@ -184,12 +184,19 @@ struct HomeView: View {
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
 
     private var topStatusBar: some View {
-        HStack(spacing: 8) {
-            StreakBadgeView(streak: viewModel.streak.currentStreak) {
-                guard viewModel.streak.currentStreak > 0 else { return }
-                isShowingStreakShare = true
+        // 連続チップ + その直下に称号バッジを左寄せで重ねる。3つの幅広チップを
+        // 1行に並べると(連続/称号/状態)狭い端末で折り返すため、称号は連続の
+        // 真下に置いて「連続 + 称号」のまとまりとして見せる(spec C: 連続の隣)。
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                StreakBadgeView(streak: viewModel.streak.currentStreak) {
+                    guard viewModel.streak.currentStreak > 0 else { return }
+                    isShowingStreakShare = true
+                }
+                if CatRank(currentStreak: viewModel.streak.currentStreak).rank > 0 {
+                    RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
+                }
             }
-            RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
             Spacer()
             statusChip
         }

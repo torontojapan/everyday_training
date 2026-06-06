@@ -34,18 +34,33 @@ struct RankBadge: View {
                 .accessibilityHidden(true)
             Text(title)
                 .font(.system(compact ? .caption2 : .footnote, design: .rounded, weight: .heavy))
+                .lineLimit(1)
         }
+        .fixedSize(horizontal: true, vertical: false) // 称号は折り返さず常に1行カプセルに保つ
         .foregroundStyle(Color.black.opacity(0.78)) // メタル地に黒文字でコントラスト確保(WCAG)
         .padding(.horizontal, compact ? 8 : 11)
         .padding(.vertical, compact ? 4 : 6)
         .background {
             Capsule()
                 .fill(fill)
+                // 上半分の艶ハイライト(3LLM C1: flat/candy 指摘 → 金属の光沢を足す)。
                 .overlay(
-                    Capsule().strokeBorder(Color.white.opacity(0.55), lineWidth: 0.75) // 金属フチ
+                    Capsule()
+                        .fill(LinearGradient(
+                            colors: [.white.opacity(0.5), .white.opacity(0.05), .clear],
+                            startPoint: .top, endPoint: .center))
+                        .allowsHitTesting(false)
+                )
+                .overlay(
+                    Capsule().strokeBorder(Color.white.opacity(0.6), lineWidth: 0.75) // 内側の白い金属ハイライトフチ
+                )
+                // 外周の暗いヘアライン: 明るいメタル(platinum 等)が淡背景で
+                // 「ぼやけた pill」に見える指摘(3LLM C2)を解消し、輪郭を締める。
+                .overlay(
+                    Capsule().strokeBorder(Color.black.opacity(0.16), lineWidth: 0.5)
                 )
                 .overlay(shimmerOverlay) // 斜めハイライト
-                .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                .shadow(color: .black.opacity(0.2), radius: 1.5, y: 1)
         }
     }
 

@@ -20,7 +20,7 @@ struct FriendAvatarView: View {
             // 達成背景は画像カードを廃止(ホームの MilestoneBackdrop に一本化)。
             // 友達アバターは小さい文脈なので背景なし(猫種 tint の円のみ)に簡素化。
             Circle()
-                .fill(breed.tintColor.opacity(0.30))
+                .fill(breed.tintColor.opacity(0.22)) // メタルリングを主役にするため tint 背板を控えめに
                 .frame(width: size, height: size)
             Image(resolvedAsset)
                 .resizable()
@@ -31,12 +31,18 @@ struct FriendAvatarView: View {
         }
         .overlay {
             if showsDecorationBorder {
-                // 称号 (CatRank) があればメタル色リング、無ければ friendCode 由来の識別色リング。
-                // 同じ猫種が並んでも一目で区別でき、称号ランクとも両立する (トンマナ維持の細リング)。
+                // 称号 (CatRank) があればメタルのグラデで囲む外周リング、無ければ friendCode
+                // 由来の識別色リング。3LLM採点2巡(F1: リングが薄く backplate に見える)→
+                // アバターより一回り大きい外周リング(4pt)+ 細い暗フチで縁取り、メタルグラデ +
+                // 微シャドウで tier をはっきり見せる。rainbow は角度グラデ。
                 if friend.rank.rank > 0, let metal = friend.rank.metalKind {
                     Circle()
-                        .strokeBorder(metalRingColor(metal), lineWidth: 2)
-                        .frame(width: size, height: size)
+                        .stroke(metalRingStyle(metal), lineWidth: 5)
+                        .overlay(
+                            Circle().stroke(Color.black.opacity(0.22), lineWidth: 0.5)
+                        )
+                        .frame(width: size + 6, height: size + 6) // 外周リング(アバターの外側)
+                        .shadow(color: metalRingColor(metal).opacity(0.6), radius: 2)
                 } else {
                     Circle()
                         .strokeBorder(Self.identityRingColor(for: friend.friendCode), lineWidth: 1.5)
@@ -67,5 +73,13 @@ struct FriendAvatarView: View {
 
     private func metalRingColor(_ kind: MetalKind) -> Color {
         MetalStyle.isRainbow(kind) ? Color(red: 1.0, green: 0.80, blue: 0.42) : MetalStyle.baseColor(kind)
+    }
+
+    /// リングの塗りスタイル。rainbow は角度グラデ、それ以外はメタルの明暗グラデで
+    /// 立体的なメタルリングにする(F1: tier をはっきり判別させる)。
+    private func metalRingStyle(_ kind: MetalKind) -> AnyShapeStyle {
+        MetalStyle.isRainbow(kind)
+            ? AnyShapeStyle(AngularGradient(colors: MetalStyle.rainbowColors, center: .center))
+            : AnyShapeStyle(MetalStyle.fillGradient(kind))
     }
 }
