@@ -89,6 +89,13 @@ final class ReferralStore {
         } catch { lastError = error.localizedDescription }
     }
 
+    /// 現アカウント(friendCode)の summary に基づく猫種解放判定。summary が別アカウント由来
+    /// (切替/復元直後で未 refresh)なら false=口座跨ぎの stale entitlement を防ぐ(Codex round5)。
+    func isBreedUnlocked(forAccount friendCode: String?) -> Bool {
+        guard let friendCode, friendCode == summaryAccountCode else { return false }
+        return ReferralReward.isBreedUnlocked(starBadges: summary.starBadges)
+    }
+
     /// 招待コードを送信(オンボ/設定)。成功で hasReferrer を立て再集計する。
     @discardableResult
     func submitCode(_ raw: String) async -> Bool {
