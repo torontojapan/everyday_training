@@ -25,20 +25,22 @@ final class StreakFreezeWindowTests: XCTestCase {
         XCTAssertTrue(zero.revivable); XCTAssertFalse(zero.hasEnough)
     }
     func test_records_entry_yesterdayMissed_priorStreak() {
+        // offsets 4..12 = 今週 Tue/Mon + 先週。Wed(3)/Thu(2)/Fri(1) 空白 → Wed/Thu が週前半
+        // rest 枠で埋まり、**金曜が真の missed**。前の連続(Tue 以前)があるので復活可能。
         let today = saturday()
-        let records = (2...9).map { rec($0, from: today) }
+        let records = (4...12).map { rec($0, from: today) }
         let r = StreakFreezeWindow.evaluate(records: records, today: today, rescuedDates: [], remainingFreezes: 1)
         XCTAssertTrue(r.revivable)
-        XCTAssertEqual(r.freezesNeeded, 1)
+        XCTAssertEqual(r.freezesNeeded, 1, "rest の Wed/Thu は不要、金曜の1枚のみ")
         let dates = StreakFreezeWindow.missedDates(forOffsets: r.missedOffsets, today: today)
         XCTAssertEqual(dates.first, cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: today)))
     }
     func test_records_entry_rescuedYesterday_notRevivable() {
         let today = saturday()
-        let records = (2...9).map { rec($0, from: today) }
+        let records = (4...12).map { rec($0, from: today) }
         let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: today))!
         let r = StreakFreezeWindow.evaluate(records: records, today: today, rescuedDates: [yesterday], remainingFreezes: 1)
-        XCTAssertFalse(r.revivable, "昨日 rescue 済み=achieved → 切れてない")
+        XCTAssertFalse(r.revivable, "金曜(=唯一の missed)を rescue 済み=achieved → 切れてない")
     }
 }
 

@@ -126,8 +126,8 @@ final class HomeViewModel {
         if window.revivable {
             let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
             let hypothetical = reviveRescued.union(missed.map { calendar.startOfDay(for: $0) })
-            potentialReviveStreak = StreakCalculator.currentStreak(
-                records: records, today: today, rescuedDates: hypothetical, calendar: calendar)
+            potentialReviveStreak = restoredStreakLength(
+                records: records, hypothetical: hypothetical, today: today, missed: missed)
         } else {
             potentialReviveStreak = 0
         }
@@ -198,5 +198,32 @@ final class HomeViewModel {
         }
         guard applied == missed.count else { return nil }
         return CatRank(currentStreak: potentialReviveStreak)
+    }
+
+    /// 復活で「守られる連続日数」。`StreakCalculator.currentStreak` は今日を起点にすると
+    /// 今日が todayPending の場合 0 を返す(=未達成の今朝は連続0扱い)ため使えない。
+    /// 代わりに **最新 missed 日(橋渡し後に過去日として achieved 扱いになる)** を起点に
+    /// 後方へ achieved/rescued を数える(rest は連続を切らず加算もしない)。`today` は実際の
+    /// 今日を渡し、起点を過去日にすることで rescuedDates が効くようにする。
+    private func restoredStreakLength(records: [WorkoutRecord], hypothetical: Set<Date>, today: Date, missed: [Date]) -> Int {
+        guard let start = missed.map({ calendar.startOfDay(for: $0) }).max() else { return 0 }
+        var count = 0
+        var cursor = start
+        while true {
+            let restDays = RestDayResolver.restDaySet(for: cursor, records: records, today: today, calendar: calendar)
+            let status = AchievementEvaluator.dailyStatus(
+                for: cursor, records: records, restDays: restDays,
+                rescuedDates: hypothetical, today: today, calendar: calendar)
+            switch status {
+            case .achieved, .todayAchieved:
+                count += 1
+            case .rest:
+                break // skip — 連続は切らないが加算もしない
+            default:
+                return count // .missed / .todayPending / .future で停止
+            }
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { return count }
+            cursor = prev
+        }
     }
 }
