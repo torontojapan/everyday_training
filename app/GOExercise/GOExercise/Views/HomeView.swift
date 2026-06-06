@@ -527,8 +527,9 @@ struct BigCatView: View {
         }
         .overlay(alignment: .top) {
             // 達成段階エンブレムを頭上に浮かせる(猫の体/顔には描かない=焼き込み装飾と非干渉)。
+            // 顔/手に被らないよう十分上へ(3LLMスクショ検証: 顔被り指摘を反映)。
             CatDecorationEmblem(decoration: decoration)
-                .offset(y: -4)
+                .offset(y: -18)
         }
         .scaleEffect(reduceMotion ? 1 : (breathing ? 1.03 : 1))
         .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))

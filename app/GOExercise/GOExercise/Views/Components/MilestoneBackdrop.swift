@@ -20,8 +20,8 @@ struct MilestoneBackdrop: View {
                 // 2. 達成グラデ(ゴールド)を richness で重ねる。tier0 は opacity0=不可視。
                 LinearGradient(
                     colors: [
-                        gold.opacity(0.10 * style.richness),
-                        gold.opacity(0.42 * style.richness)
+                        gold.opacity(0.07 * style.richness),
+                        gold.opacity(0.30 * style.richness)   // 3LLM: 最上位の黄色を抑えて上品に
                     ],
                     startPoint: .top, endPoint: .bottom
                 )

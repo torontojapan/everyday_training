@@ -19,7 +19,8 @@ struct MilestoneBackdropStyle: Equatable {
         self.tier = t
         let maxTier = Double(MilestoneBackground.thresholds.count) // 11
         self.richness = min(1, Double(t) / maxTier)
-        self.glowOpacity = richness * 0.55
+        // 3LLM検証: 365/500 の黄色が眩しすぎる指摘を反映し控えめに。
+        self.glowOpacity = richness * 0.42
         self.sparkleCount = t == 0 ? 0 : min(4 + t * 2, 24)
         self.animated = t >= 10
     }
