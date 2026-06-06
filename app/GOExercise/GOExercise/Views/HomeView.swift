@@ -171,11 +171,12 @@ struct HomeView: View {
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
 
     private var topStatusBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             StreakBadgeView(streak: viewModel.streak.currentStreak) {
                 guard viewModel.streak.currentStreak > 0 else { return }
                 isShowingStreakShare = true
             }
+            RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
             Spacer()
             statusChip
         }
