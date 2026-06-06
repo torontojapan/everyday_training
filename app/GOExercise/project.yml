@@ -95,7 +95,6 @@ targets:
         excludes: ["Info.plist"]
       - path: GOExercise/Models/CatState.swift
       - path: GOExercise/Models/CatBreed.swift
-      - path: GOExercise/Models/MilestoneStyle.swift
       - path: GOExercise/Models/WidgetSnapshot.swift
       - path: GOExercise/Models/WorkoutRecord.swift
       - path: GOExercise/Models/ExerciseItem.swift

@@ -64,13 +64,6 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         "cat_\(rawValue)_waitingMorning"
     }
 
-    /// 達成日数に応じたアイテム付きアバター asset 名。アイテムは単一ポーズ
-    /// (waitingMorning)のアバターにのみ焼き込む(ホームの大猫には付けない=案A)。
-    func avatarAssetName(totalAchievedDays days: Int) -> String {
-        let suffix = MilestoneItem(totalAchievedDays: days).assetSuffix
-        return "cat_\(rawValue)_waitingMorning\(suffix)"
-    }
-
     /// 該当アセットが見つからない場合のフォールバック用 asset 名。
     /// Phase 6.7 で 70 画像中いくつか生成漏れがあった場合、orange の
     /// 同 state を代わりに表示することで「画像が出ない」のを防ぐ。
