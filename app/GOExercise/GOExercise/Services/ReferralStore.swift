@@ -48,13 +48,21 @@ final class ReferralStore {
 
     /// 起動時/サインイン後に状態を取り込む。未サインインなら何もしない(孤児防止)。
     func refresh() async {
-        guard isSignedIn() else { return }
+        guard isSignedIn() else {
+            // 未サインイン(サインアウト/切替/削除後)は前アカウントの星を持ち越さない。
+            // これを残すと別アカウントで猫解放/星表示が誤って効く(Codex指摘)。
+            summary = .empty
+            hasReferrer = false
+            return
+        }
         do {
             summary = try await service.referralSummary()
             hasReferrer = try await service.hasReferrer()
+            // ⭐10 到達を検知したらお祝い待ちにする。celebrated フラグは「実際にポップを
+            // 出して閉じた時(consumeBreedUnlock)」に立てる。ここで立てると、アプリ killed
+            // などでポップ未表示のまま二度と出なくなる(Codex指摘)。
             if ReferralReward.isBreedUnlocked(starBadges: summary.starBadges),
                !defaults.bool(forKey: Self.breedUnlockCelebratedKey) {
-                defaults.set(true, forKey: Self.breedUnlockCelebratedKey)
                 pendingBreedUnlock = true
             }
         } catch { lastError = error.localizedDescription }
@@ -104,5 +112,9 @@ final class ReferralStore {
 
     func consumeWelcome() { pendingWelcome = nil }
     func consumeReferrerPops() { pendingReferrerPops = [] }
-    func consumeBreedUnlock() { pendingBreedUnlock = false }
+    func consumeBreedUnlock() {
+        // ユーザーがポップを見て閉じた時点で初めて「祝った」フラグを永続化する。
+        defaults.set(true, forKey: Self.breedUnlockCelebratedKey)
+        pendingBreedUnlock = false
+    }
 }

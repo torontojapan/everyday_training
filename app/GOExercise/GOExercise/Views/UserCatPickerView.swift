@@ -17,7 +17,11 @@ struct UserCatPickerView: View {
     let isOnboarding: Bool
 
     private var referralUnlocked: Bool {
-        ReferralReward.isBreedUnlocked(starBadges: referralStore.summary.starBadges)
+        // サインイン中のアカウントの星のみで判定する。サインアウト/切替後に
+        // 前アカウントの星が在庫として残っても、別アカウントで有料猫を解放させない
+        // (Codex指摘: 口座跨ぎの stale entitlement)。
+        friendsStore.profile != nil
+            && ReferralReward.isBreedUnlocked(starBadges: referralStore.summary.starBadges)
     }
 
     init(isOnboarding: Bool = false) {
