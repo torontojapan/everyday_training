@@ -37,9 +37,10 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            // 友達/SNS にアプリを共有する導線を最上位に固定。
-            // ユーザーが「アプリを薦めたい」と思った瞬間に迷わない場所。
+            // ① プレミアム & 特典
             Section {
+                // 友達/SNS にアプリを共有する導線。
+                // ユーザーが「アプリを薦めたい」と思った瞬間に迷わない場所。
                 ShareLink(
                     item: AppSharingConfig.shareURL,
                     subject: Text(AppSharingConfig.shareSubject),
@@ -49,9 +50,7 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("settings-share-app")
-            }
 
-            Section {
                 if storeKit.isPremiumActive {
                     Label {
                         Text("GOプレミアム 加入中")
@@ -75,20 +74,47 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("premium-upsell-row")
                 }
+
+                PerkGuideSection()
+
+                if AppFeatureFlags.isReferralActive {
+                    // 共有(招待する)= friend_code + 文面を共有シートへ。
+                    if let code = friendsStore.profile?.friendCode {
+                        ShareLink(item: inviteMessage(code: code)) {
+                            Label("友達を招待する", systemImage: "square.and.arrow.up")
+                        }
+                        .accessibilityIdentifier("referral-invite-share")
+                    }
+                    // 星バッジ(累計紹介)。
+                    HStack {
+                        Label("紹介した友達", systemImage: "star.fill")
+                        Spacer()
+                        Text("\(referralStore.summary.starBadges) 人")
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                    // 後から入力(登録7日以内 & 紹介者未登録のときだけ)。
+                    if referralStore.canEnterCodeLater {
+                        if laterAccepted {
+                            Label("招待コードを適用しました!", systemImage: "checkmark.seal.fill")
+                                .foregroundStyle(Palette.primaryDeep)
+                        } else {
+                            InviteCodeField(code: $laterInviteCode, isSubmitting: isSubmittingLater) {
+                                submitLaterInvite()
+                            }
+                            if let err = referralStore.lastError {
+                                Text(err).font(Typography.caption).foregroundStyle(.red)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("プレミアム & 特典")
             } footer: {
                 Text("体重タブの全機能・連続記録フリーズ月4回などを解放します。")
             }
 
-            Section("通知") {
-                NavigationLink {
-                    NotificationSettingsView()
-                } label: {
-                    Label("通知設定", systemImage: "bell.badge.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-            }
-
-            Section("外観") {
+            // ② カスタマイズ
+            Section {
                 NavigationLink {
                     ThemeSettingsView()
                 } label: {
@@ -109,63 +135,6 @@ struct SettingsView: View {
                     }
                 }
                 .accessibilityIdentifier("user-cat-link")
-            }
-
-            // 友達と共有する情報の設定は友達機能が有効なときだけ出す (v1 では非表示)。
-            if AppFeatureFlags.friendsEnabled {
-                Section {
-                    Toggle(isOn: Binding(
-                        get: { sharingPrefs.includeExerciseDetail },
-                        set: { sharingPrefs.includeExerciseDetail = $0 }
-                    )) {
-                        Label("回数・時間・セット数も共有", systemImage: "person.2.badge.gearshape.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("sharing-detail-toggle")
-                    Label("体重・体調は共有されません", systemImage: "lock.fill")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.success)
-                } header: {
-                    Text("友達と共有する情報")
-                } footer: {
-                    Text("OFF (デフォルト): 種目名のみ共有。ON: 回数・時間・セット数も友達の詳細画面に表示されます。")
-                }
-
-                if AppFeatureFlags.isReferralActive {
-                    Section("友達を招待") {
-                        // 共有(招待する)= friend_code + 文面を共有シートへ。
-                        if let code = friendsStore.profile?.friendCode {
-                            ShareLink(item: inviteMessage(code: code)) {
-                                Label("友達を招待する", systemImage: "square.and.arrow.up")
-                            }
-                            .accessibilityIdentifier("referral-invite-share")
-                        }
-                        // 星バッジ(累計紹介)。
-                        HStack {
-                            Label("紹介した友達", systemImage: "star.fill")
-                            Spacer()
-                            Text("\(referralStore.summary.starBadges) 人")
-                                .foregroundStyle(Palette.textSecondary)
-                        }
-                        // 後から入力(登録7日以内 & 紹介者未登録のときだけ)。
-                        if referralStore.canEnterCodeLater {
-                            if laterAccepted {
-                                Label("招待コードを適用しました!", systemImage: "checkmark.seal.fill")
-                                    .foregroundStyle(Palette.primaryDeep)
-                            } else {
-                                InviteCodeField(code: $laterInviteCode, isSubmitting: isSubmittingLater) {
-                                    submitLaterInvite()
-                                }
-                                if let err = referralStore.lastError {
-                                    Text(err).font(Typography.caption).foregroundStyle(.red)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Section {
                 Toggle(isOn: Binding(
                     get: { celebrationPrefs.hapticEnabled },
                     set: { celebrationPrefs.hapticEnabled = $0 }
@@ -175,34 +144,15 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("haptic-toggle")
             } header: {
-                Text("演出 (振動)")
+                Text("カスタマイズ")
             } footer: {
                 Text("振動は CoreHaptics 対応機種でのみ動作します。")
             }
 
+            // ③ 記録 & 共有
             Section {
                 Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
                     .accessibilityIdentifier("cycle-tracking-toggle")
-            } header: {
-                Text("体調・周期")
-            } footer: {
-                Text("ONにすると、運動記録画面に「今日は生理日」スイッチが出現し、履歴カレンダーに ★ マーク (生理日) で表示されます。")
-            }
-
-            // 保険チケットは履歴画面 (StatsView) に移動 (ユーザー要望)。
-            // 「振り返り」の文脈で運用する方が自然なため。
-            Section("ホーム画面ウィジェット") {
-                widgetPromotionRow
-                Button {
-                    isShowingWidgetGuide = true
-                } label: {
-                    Label("追加方法を見る", systemImage: "info.circle.fill")
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .accessibilityIdentifier("widget-guide-button")
-            }
-
-            Section {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 8) {
                         bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
@@ -216,31 +166,45 @@ struct SettingsView: View {
                         .font(Typography.body)
                         .foregroundStyle(Palette.textPrimary)
                 }
-            } header: {
-                Text("自動休養日")
-            }
-
-            Section {
-                Button {
-                    openSupportForm()
-                } label: {
-                    Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
-                        .foregroundStyle(Palette.textPrimary)
+                // 友達と共有する情報の設定は友達機能が有効なときだけ出す (v1 では非表示)。
+                if AppFeatureFlags.friendsEnabled {
+                    Toggle(isOn: Binding(
+                        get: { sharingPrefs.includeExerciseDetail },
+                        set: { sharingPrefs.includeExerciseDetail = $0 }
+                    )) {
+                        Label("回数・時間・セット数も共有", systemImage: "person.2.badge.gearshape.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("sharing-detail-toggle")
+                    Label("体重・体調は共有されません", systemImage: "lock.fill")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.success)
                 }
-                .accessibilityIdentifier("feedback-button")
-                Button {
-                    openSupportForm()
-                } label: {
-                    Label("不具合を報告する", systemImage: "ladybug.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("bug-report-button")
             } header: {
-                Text("フィードバック")
+                Text("記録 & 共有")
             } footer: {
-                Text("お問い合わせフォーム（ブラウザ）が開きます。種類を選んで送信できます。")
+                Text("体調・周期を ON にすると、運動記録画面に「今日は生理日」スイッチが出現し、履歴カレンダーに ★ マーク (生理日) で表示されます。共有を ON にすると、回数・時間・セット数も友達の詳細画面に表示されます (体重・体調は共有されません)。")
             }
 
+            // ④ 通知 & ウィジェット
+            Section("通知 & ウィジェット") {
+                NavigationLink {
+                    NotificationSettingsView()
+                } label: {
+                    Label("通知設定", systemImage: "bell.badge.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                widgetPromotionRow
+                Button {
+                    isShowingWidgetGuide = true
+                } label: {
+                    Label("追加方法を見る", systemImage: "info.circle.fill")
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .accessibilityIdentifier("widget-guide-button")
+            }
+
+            // ⑤ データ & プライバシー
             Section {
                 Button {
                     exportData()
@@ -256,13 +220,6 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
                 .accessibilityIdentifier("data-delete-button")
-            } header: {
-                Text("データ管理")
-            } footer: {
-                Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
-            }
-
-            Section {
                 Toggle(isOn: $analyticsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("利用状況の分析を共有")
@@ -274,36 +231,55 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("analytics-opt-out-toggle")
             } header: {
-                Text("プライバシー")
+                Text("データ & プライバシー")
+            } footer: {
+                Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
             }
 
-            Section("アプリ情報") {
-                LabeledContent("アプリ", value: "GO エクササイズ")
-                LabeledContent("バージョン", value: appVersion)
-                Button {
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        openURL(url)
+            // ⑥ 情報・サポート(折りたたみ既定閉)
+            Section {
+                DisclosureGroup("情報・サポート") {
+                    Button {
+                        openSupportForm()
+                    } label: {
+                        Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
+                            .foregroundStyle(Palette.textPrimary)
                     }
-                } label: {
-                    Label("サブスクリプションを管理", systemImage: "creditcard.fill")
-                        .foregroundStyle(Palette.textPrimary)
+                    .accessibilityIdentifier("feedback-button")
+                    Button {
+                        openSupportForm()
+                    } label: {
+                        Label("不具合を報告する", systemImage: "ladybug.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("bug-report-button")
+                    LabeledContent("アプリ", value: "GO エクササイズ")
+                    LabeledContent("バージョン", value: appVersion)
+                    Button {
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label("サブスクリプションを管理", systemImage: "creditcard.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("manage-subscription-link")
+                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
+                        Label("プライバシーポリシー", systemImage: "hand.raised.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("privacy-policy-link")
+                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/terms")!) {
+                        Label("利用規約", systemImage: "doc.text.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("terms-link")
+                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/support")!) {
+                        Label("サポート", systemImage: "questionmark.circle.fill")
+                            .foregroundStyle(Palette.textPrimary)
+                    }
+                    .accessibilityIdentifier("support-link")
                 }
-                .accessibilityIdentifier("manage-subscription-link")
-                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
-                    Label("プライバシーポリシー", systemImage: "hand.raised.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("privacy-policy-link")
-                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/terms")!) {
-                    Label("利用規約", systemImage: "doc.text.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("terms-link")
-                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/support")!) {
-                    Label("サポート", systemImage: "questionmark.circle.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                .accessibilityIdentifier("support-link")
             }
         }
         .scrollContentBackground(.hidden)
