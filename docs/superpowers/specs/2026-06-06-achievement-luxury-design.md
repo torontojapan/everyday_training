@@ -8,7 +8,8 @@
 **①背景の進化(A) ②達成の瞬間演出(B) ③メタリックな称号(C)** の3軸で表現する。
 **細かいペースで演出が用意される**よう強度を3段に分け、さらに
 **④連続が途切れても4日以内はフリーズ(課金)で復活できる導線(D)** と
-**⑤運動記録の前後に出る全猫種シェイカー版フレーバー(E)** を足す。
+**⑤運動記録の前後に出る全猫種シェイカー版フレーバー(E)**、
+**⑥現在の称号を友達にも共有・表示(F)** を足す。
 
 撤廃理由: アイテムアートは猫種ごとに手・頭の形が違い全11猫種で破綻する(共有スプライト不可・
 全描き直しは生成コスト/トンマナ統一リスク大)。豪華さを**形非依存**の背景/瞬間/テキストへ移す。
@@ -143,6 +144,20 @@ gold=`(1.00,0.80,0.42)`(既存 backdrop と一致) / platinum=`(0.88,0.90,0.96)`
 
 ---
 
+## F. 称号の友達共有・表示
+
+**バックエンド変更不要。** `FriendProfile.currentStreak` は**既に同期済み**(友達カードの連続表示に使用中)。
+称号は連続ベースの純関数なので、友達の称号も**オンデバイスで計算**できる。
+
+- 友達の称号 = `CatRank(currentStreak: friend.currentStreak)`。`FriendProfile.rank: CatRank` を computed で追加。
+- **表示**: 友達カード/一覧/パーク(`FriendsParkView` / `FriendAvatarView` 周辺)に `RankBadge`(C と同一コンポーネント)を出す。
+- **旧 `decorationTier`(0..4)退役**: 表示は `CatRank` に切替(`FriendProfile.decoration` を `rank` へ置換)。
+  pre-release(実ユーザーゼロ)のため payload 互換の心配は小さいが、`decorationTier` フィールド自体は当面温存し
+  **publish 値は `CatRank.rank` を書き込む**(将来の解析/後方互換の保険)。
+- **テスト**: `friend.currentStreak` 境界 → 正しい称号/メタリック。`decoration`→`rank` 置換で既存 `FriendsStoreTests` を更新。
+
+---
+
 ## 撤去対象(掃除)
 
 | 対象 | 種別 | 備考 |
@@ -157,7 +172,7 @@ gold=`(1.00,0.80,0.42)`(既存 backdrop と一致) / platinum=`(0.88,0.90,0.96)`
 | `CatDecoration`(enum) | model | → `CatRank` に統合。`FriendProfile.decoration` / 関連テストを `CatRank` へ移行 |
 | `MilestoneStyleTests` | test | MilestoneItem 部分を削除、`CatRank` テストへ |
 
-`FriendProfile` は friend の称号表示に `CatRank` を使う(将来 友達一覧に称号を出す土台)。
+`FriendProfile` の称号表示は **F** で `CatRank` 化する(currentStreak 流用・バックエンド変更なし)。
 
 ---
 
@@ -180,6 +195,7 @@ gold=`(1.00,0.80,0.42)`(既存 backdrop と一致) / platinum=`(0.88,0.90,0.96)`
 - weightLoss 節目の改変 — 既存のまま。
 - フリーズ消耗型IAPの復活 — しない(月次枠＋プレミアム導線のみ)。
 - 称号名の最終確定 — 案B(ねこ仕立て)採用済。微調整は実装中に可。
+- 称号の友達共有 — **F で実装する(スコープ内)**。新規バックエンド/スキーマ追加は不要(currentStreak 流用)。
 
 ## 検証
 別ファイル `2026-06-06-decoration-verification-checklist.md` をこの設計に更新し、
