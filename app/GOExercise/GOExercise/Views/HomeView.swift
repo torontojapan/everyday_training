@@ -31,7 +31,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                backgroundGradient.ignoresSafeArea()
+                // 達成日数で段階的に豪華になる全面背景(旧 backgroundGradient + 猫裏の画像カードを置換)。
+                MilestoneBackdrop(totalAchievedDays: viewModel.lifetimeStats.achievedDays)
+                    .ignoresSafeArea()
 
                 // 背景に時刻に応じたパーティクル。常時ふわふわ漂う。
                 // 達成済みなら紙吹雪も追加して祝祭感を出す。
@@ -502,7 +504,7 @@ struct BigCatView: View {
         let primary = state.assetName(breed: breed)
         let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
         ZStack {
-            MilestoneBackgroundView(totalAchievedDays: totalAchievedDays)
+            // 達成背景は画面全体の MilestoneBackdrop に移行(猫裏の四角い画像カードは廃止)。
             // 背景の光輪 (装飾)。キャラ画像はこの円の外まで描かれて構わない。
             Circle()
                 .fill(LinearGradient(

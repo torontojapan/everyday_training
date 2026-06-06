@@ -18,11 +18,8 @@ struct FriendAvatarView: View {
 
     var body: some View {
         ZStack {
-            if showsMilestoneBackground {
-                MilestoneBackgroundView(totalAchievedDays: friend.totalAchievedDays)
-                    .frame(width: size, height: size)
-                    .clipShape(Circle())
-            }
+            // 達成背景は画像カードを廃止(ホームの MilestoneBackdrop に一本化)。
+            // 友達アバターは小さい文脈なので背景なし(猫種 tint の円のみ)に簡素化。
             Circle()
                 .fill(breed.tintColor.opacity(0.30))
                 .frame(width: size, height: size)
