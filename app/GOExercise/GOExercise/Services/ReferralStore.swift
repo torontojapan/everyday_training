@@ -14,7 +14,11 @@ final class ReferralStore {
     /// 未サインインのとき紹介ポーリングで匿名アカウントを作らせないためのガード。
     private let isSignedIn: () -> Bool
     static let firstLaunchKey = "referral.firstLaunchAt.v1"
-    private static let breedUnlockCelebratedKey = "referral.breedUnlockCelebrated.v1"
+    /// お祝い済みフラグはアカウント(friend_code)ごとに分ける。device 全体で1つだと
+    /// 別アカウントが10到達してもお祝いが出ない(Codex round2 指摘)。
+    private func breedUnlockCelebratedKey() -> String {
+        "referral.breedUnlockCelebrated.v1.\(service.myProfile?.friendCode ?? "none")"
+    }
 
     var summary: ReferralSummary = .empty
     var pendingBreedUnlock = false
@@ -49,22 +53,21 @@ final class ReferralStore {
     /// 起動時/サインイン後に状態を取り込む。未サインインなら何もしない(孤児防止)。
     func refresh() async {
         guard isSignedIn() else {
-            // 未サインイン(サインアウト/切替/削除後)は前アカウントの星を持ち越さない。
-            // これを残すと別アカウントで猫解放/星表示が誤って効く(Codex指摘)。
+            // 未サインイン(サインアウト/切替/削除後)は前アカウントの状態を持ち越さない。
+            // pendingBreedUnlock も落とし、次のユーザーに stale なお祝いを出さない(Codex round2)。
             summary = .empty
             hasReferrer = false
+            pendingBreedUnlock = false
             return
         }
         do {
             summary = try await service.referralSummary()
             hasReferrer = try await service.hasReferrer()
-            // ⭐10 到達を検知したらお祝い待ちにする。celebrated フラグは「実際にポップを
-            // 出して閉じた時(consumeBreedUnlock)」に立てる。ここで立てると、アプリ killed
-            // などでポップ未表示のまま二度と出なくなる(Codex指摘)。
-            if ReferralReward.isBreedUnlocked(starBadges: summary.starBadges),
-               !defaults.bool(forKey: Self.breedUnlockCelebratedKey) {
-                pendingBreedUnlock = true
-            }
+            // ⭐10 到達なら(現アカウントで未お祝いのとき)お祝い待ちにする。毎回 deterministic に
+            // 上書きするので、星<10 やアカウント切替で前の true が残らない(Codex round2)。
+            // celebrated フラグは consumeBreedUnlock(ポップ閉)で立てる(kill時の取りこぼし防止)。
+            pendingBreedUnlock = ReferralReward.isBreedUnlocked(starBadges: summary.starBadges)
+                && !defaults.bool(forKey: breedUnlockCelebratedKey())
         } catch { lastError = error.localizedDescription }
     }
 
@@ -113,8 +116,8 @@ final class ReferralStore {
     func consumeWelcome() { pendingWelcome = nil }
     func consumeReferrerPops() { pendingReferrerPops = [] }
     func consumeBreedUnlock() {
-        // ユーザーがポップを見て閉じた時点で初めて「祝った」フラグを永続化する。
-        defaults.set(true, forKey: Self.breedUnlockCelebratedKey)
+        // ユーザーがポップを見て閉じた時点で初めて、現アカウントの「祝った」フラグを永続化する。
+        defaults.set(true, forKey: breedUnlockCelebratedKey())
         pendingBreedUnlock = false
     }
 }
