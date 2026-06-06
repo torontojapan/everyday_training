@@ -329,7 +329,13 @@ struct SettingsView: View {
             WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
         }
         .sheet(isPresented: $isShowingUserCatPicker) {
+            // sheet は親の .environment(_:) を取りこぼすことがある (SwiftUI の癖)。
+            // UserCatPickerView は storeKit / friendsStore / referralStore を環境から
+            // 読むため、ここで明示的に渡し直す (オンボの fullScreenCover と同じ対処)。
             UserCatPickerView()
+                .environment(storeKit)
+                .environment(friendsStore)
+                .environment(referralStore)
         }
         .sheet(isPresented: $showPremiumPaywall) {
             PremiumPaywallSheet(store: storeKit, context: .general)

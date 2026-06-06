@@ -58,7 +58,16 @@ struct GOExerciseApp: App {
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
+                    // fullScreenCover の中身は親の .environment(_:) を取りこぼすこと
+                    // がある (SwiftUI の既知の癖)。UserCatPickerView は storeKit
+                    // (猫種ロック判定) と friendsStore/referralStore (招待コード入力) を
+                    // 環境から読むため、cover 上で明示的に注入し直す。
                     UserCatPickerView(isOnboarding: true)
+                        .environment(themeStore)
+                        .environment(friendsStore)
+                        .environment(storeKit)
+                        .environment(rescueTicketStore)
+                        .environment(referralStore)
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
