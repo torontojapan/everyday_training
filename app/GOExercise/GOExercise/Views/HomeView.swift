@@ -462,6 +462,9 @@ struct HomeView: View {
     /// 復活ポップを条件付きで提示(1起動1回・未処理 break のみ)。
     private func maybePresentRevive() {
         guard !reviveShownThisLaunch else { return }
+        // 大節目シート提示中は二重 .sheet を避ける(evaluateRankCelebration と同じガード)。
+        // ここで reviveShownThisLaunch を立てる前に return することで、次回 onAppear で再評価される。
+        guard presentedMilestone == nil else { return }
         guard let window = viewModel.reviveWindow else { return }
         let today = calendar.startOfDay(for: store.today)
         let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
