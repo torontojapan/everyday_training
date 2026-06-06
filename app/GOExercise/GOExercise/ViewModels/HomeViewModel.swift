@@ -32,6 +32,10 @@ final class HomeViewModel {
     /// - 累計達成日 >= 3 (= 習慣を持っていた経験あり)
     /// 朝起きて未記録でも、昨日達成済みなら通常 UI のまま。
     var isComebackToday: Bool = false
+    /// 復活ウィンドウ(nil=対象外)。HomeView がポップ提示判定に使う。
+    var reviveWindow: StreakFreezeWindow.Result?
+    /// 復活したら到達する連続日数(ポップのコピー「連続◯日」に使用)。
+    var potentialReviveStreak: Int = 0
     private let usageTracker = LifetimeUsageTracker()
     private let rescueTicketStore: RescueTicketStore
     private let milestoneDetector: MilestoneDetector
@@ -112,6 +116,21 @@ final class HomeViewModel {
         isComebackToday = yesterdayStatus(records: records, today: today) == .missed
             && !todayStatus.countsAsAchieved
             && lifetimeStats.achievedDays >= 3
+        // 復活ウィンドウ(4日グレース)。残枠は月次 allowance から算出。
+        let reviveRemaining = rescueTicketStore.remainingTickets(today: today, allowance: rescueAllowance)
+        let reviveRescued = rescueTicketStore.rescuedDates()
+        let window = StreakFreezeWindow.evaluate(
+            records: records, today: today, rescuedDates: reviveRescued,
+            remainingFreezes: reviveRemaining, calendar: calendar)
+        reviveWindow = window.revivable ? window : nil
+        if window.revivable {
+            let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+            let hypothetical = reviveRescued.union(missed.map { calendar.startOfDay(for: $0) })
+            potentialReviveStreak = StreakCalculator.currentStreak(
+                records: records, today: today, rescuedDates: hypothetical, calendar: calendar)
+        } else {
+            potentialReviveStreak = 0
+        }
     }
 
     /// 昨日の DailyStatus (rest day **+ rescue ticket** 自動補完を込みで評価)。
@@ -159,5 +178,25 @@ final class HomeViewModel {
     /// 判断が一致するようにする (Codex round2 priority 1)。
     private func yesterdayAchieved(records: [WorkoutRecord], today: Date) -> Bool {
         yesterdayStatus(records: records, today: today).countsAsAchieved
+    }
+
+    var reviveRemainingFreezes: Int {
+        let today = calendar.startOfDay(for: dateProvider.currentDate())
+        return rescueTicketStore.remainingTickets(today: today, allowance: rescueAllowance)
+    }
+
+    /// 復活ウィンドウの missed 日すべてにフリーズを適用し、連続を復活させる。
+    /// - Returns: 復活後の `CatRank`(復活演出用)。適用不可(枠不足/window無)なら nil。
+    @discardableResult
+    func applyRevive() -> CatRank? {
+        guard let window = reviveWindow, window.hasEnough else { return nil }
+        let today = calendar.startOfDay(for: dateProvider.currentDate())
+        let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+        var applied = 0
+        for day in missed {
+            if rescueTicketStore.useTicket(on: day, allowance: rescueAllowance) { applied += 1 }
+        }
+        guard applied == missed.count else { return nil }
+        return CatRank(currentStreak: potentialReviveStreak)
     }
 }
