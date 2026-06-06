@@ -74,13 +74,17 @@ final class ReferralStore {
             pendingBreedUnlock = false
         }
         do {
-            summary = try await service.referralSummary()
-            hasReferrer = try await service.hasReferrer()
+            // 全フェッチ成功後にまとめて publish する。部分代入だと summary だけ更新され
+            // summaryAccountCode と乖離し、口座跨ぎの stale entitlement を生む(Codex round4)。
+            let fetchedSummary = try await service.referralSummary()
+            let fetchedHasReferrer = try await service.hasReferrer()
+            summary = fetchedSummary
+            hasReferrer = fetchedHasReferrer
             summaryAccountCode = account
             // ⭐10 到達なら(現アカウントで未お祝いのとき)お祝い待ちにする。毎回 deterministic に
             // 上書きするので、星<10 やアカウント切替で前の true が残らない(Codex round2)。
             // celebrated フラグは consumeBreedUnlock(ポップ閉)で立てる(kill時の取りこぼし防止)。
-            pendingBreedUnlock = ReferralReward.isBreedUnlocked(starBadges: summary.starBadges)
+            pendingBreedUnlock = ReferralReward.isBreedUnlocked(starBadges: fetchedSummary.starBadges)
                 && !defaults.bool(forKey: breedUnlockCelebratedKey())
         } catch { lastError = error.localizedDescription }
     }
