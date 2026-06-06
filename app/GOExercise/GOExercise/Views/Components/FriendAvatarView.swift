@@ -31,11 +31,11 @@ struct FriendAvatarView: View {
         }
         .overlay {
             if showsDecorationBorder {
-                // 装飾 (tier) があればその色、無ければ friendCode 由来の識別色リング。
-                // 同じ猫種が並んでも一目で区別でき、装飾ランクとも両立する (トンマナ維持の細リング)。
-                if friend.decorationTier > 0 {
+                // 称号 (CatRank) があればメタル色リング、無ければ friendCode 由来の識別色リング。
+                // 同じ猫種が並んでも一目で区別でき、称号ランクとも両立する (トンマナ維持の細リング)。
+                if friend.rank.rank > 0, let metal = friend.rank.metalKind {
                     Circle()
-                        .strokeBorder(decorationBorderColor, lineWidth: 2)
+                        .strokeBorder(metalRingColor(metal), lineWidth: 2)
                         .frame(width: size, height: size)
                 } else {
                     Circle()
@@ -65,13 +65,7 @@ struct FriendAvatarView: View {
             .opacity(0.55)
     }
 
-    private var decorationBorderColor: Color {
-        switch friend.decorationTier {
-        case 1: return Palette.primary
-        case 2: return Palette.settingsAccent
-        case 3: return Color(red: 0.90, green: 0.60, blue: 0.20)
-        case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
-        default: return .clear
-        }
+    private func metalRingColor(_ kind: MetalKind) -> Color {
+        MetalStyle.isRainbow(kind) ? Color(red: 1.0, green: 0.80, blue: 0.42) : MetalStyle.baseColor(kind)
     }
 }

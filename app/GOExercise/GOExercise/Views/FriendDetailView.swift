@@ -91,15 +91,8 @@ struct FriendDetailView: View {
                     .foregroundStyle(Palette.primaryDeep)
             }
 
-            if friend.rank.rank > 0, let title = friend.rank.title {
-                HStack(spacing: 6) {
-                    Image(systemName: friend.rank.iconSymbol)
-                    Text(title)
-                }
-                .font(Typography.caption)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(tierColor.opacity(0.18), in: Capsule())
-                .foregroundStyle(tierColor)
+            if friend.rank.rank > 0 {
+                RankBadge(rank: friend.rank)
             }
 
             Text(lastUpdatedText)
