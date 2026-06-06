@@ -51,6 +51,9 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         weeklyMini
                         topStatusBar
+                        if AppFeatureFlags.isReferralActive, let code = friendsStore.profile?.friendCode {
+                            ReferralStarsRow(count: referralStore.summary.starBadges, friendCode: code)
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
