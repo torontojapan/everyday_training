@@ -31,7 +31,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // 達成日数で段階的に豪華になる全面背景(旧 backgroundGradient + 猫裏の画像カードを置換)。
+                // 現在の連続日数で段階的に豪華になる全面背景(旧 累計達成日数ベースを置換)。
                 MilestoneBackdrop(streak: viewModel.streak.currentStreak)
                     .ignoresSafeArea()
 
@@ -211,8 +211,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState,
-                       decoration: CatDecoration(totalAchievedDays: viewModel.lifetimeStats.achievedDays))
+            BigCatView(state: viewModel.catState)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -494,7 +493,6 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
-    var decoration: CatDecoration = .none
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
@@ -524,12 +522,6 @@ struct BigCatView: View {
                 Text(state.emoji)
                     .font(.system(size: 120))
             }
-        }
-        .overlay(alignment: .top) {
-            // 達成段階エンブレムを頭上に浮かせる(猫の体/顔には描かない=焼き込み装飾と非干渉)。
-            // 顔/手に被らないよう十分上へ(3LLMスクショ検証: 顔被り指摘を反映)。
-            CatDecorationEmblem(decoration: decoration)
-                .offset(y: -18)
         }
         .scaleEffect(reduceMotion ? 1 : (breathing ? 1.03 : 1))
         .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))

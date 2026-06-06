@@ -53,15 +53,6 @@ struct RecordCompletionView: View {
         )
     }
 
-    /// 累計達成日数 (LifetimeStatsCalculator と同一ロジック: 達成記録のある一意の日数)。
-    /// RecordCompletionView は HomeViewModel を持たないため store.records から直接算出する。
-    private var lifetimeAchievedDays: Int {
-        Set(
-            store.records
-                .filter { AchievementEvaluator.isAchieved(record: $0) }
-                .map { Calendar.mondayFirst.startOfDay(for: $0.date) }
-        ).count
-    }
 
     var body: some View {
         ZStack {
@@ -70,8 +61,7 @@ struct RecordCompletionView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // 1. ヒーロー: ホームと同じ大きい祝福猫。達成のごほうび感を最大化。
-                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating,
-                               decoration: CatDecoration(totalAchievedDays: lifetimeAchievedDays))
+                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating)
                         .frame(width: 210, height: 210)
                         .scaleEffect(contentVisible ? 1 : 0.85)
                         .opacity(contentVisible ? 1 : 0)
