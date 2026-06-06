@@ -17,6 +17,8 @@ struct HomeView: View {
     @State private var selectedDayEntry: DailyStatusEntry?
     @State private var isShowingStreakShare = false
     @State private var presentedMilestone: Milestone?
+    @State private var pendingRankEvent: RankUpEvent?
+    private let rankUpDetector = RankUpDetector()
     /// 猫タップで bounce する用。
     @State private var catBounce = false
     /// 起動時に吹き出しを pop-in させる用。
@@ -72,12 +74,23 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 10)
                 }
+
+                if let event = pendingRankEvent {
+                    RankCelebrationOverlay(
+                        rank: rankForEvent(event),
+                        message: messageForEvent(event),
+                        onFinished: { pendingRankEvent = nil }
+                    )
+                    .transition(.opacity)
+                    .zIndex(10)
+                }
             }
             .navigationBarHidden(true)
             .onAppear {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
                 handleAutoPresentations()
+                evaluateRankCelebration()
                 evaluateCelebration()
                 syncMyFriendProfile()
             }
@@ -398,6 +411,34 @@ struct HomeView: View {
         #endif
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
+        }
+    }
+
+    private func rankForEvent(_ event: RankUpEvent) -> CatRank {
+        switch event {
+        case .rankUp(let to): return CatRank(currentStreak: CatRank.thresholds[max(0, to - 1)])
+        case .weekly(let streak): return CatRank(currentStreak: streak)
+        }
+    }
+
+    private func messageForEvent(_ event: RankUpEvent) -> String {
+        switch event {
+        case .rankUp: return "称号アップ!"
+        case .weekly(let streak): return "\(streak)日連続!"
+        }
+    }
+
+    /// 起動/記録後に小節目を評価。detector の状態はここで必ず消化し(再発火防止)、
+    /// 大節目シート提示中は overlay を抑止する(二重演出防止)。
+    private func evaluateRankCelebration() {
+        let events = rankUpDetector.evaluate(currentStreak: viewModel.streak.currentStreak)
+        guard presentedMilestone == nil else { return } // 大節目優先(状態は消化済み)
+        if let up = events.first(where: { if case .rankUp = $0 { return true } else { return false } }) {
+            withAnimation { pendingRankEvent = up }
+            CelebrationCenter.shared.fireLight()
+        } else if let wk = events.first {
+            withAnimation { pendingRankEvent = wk }
+            CelebrationCenter.shared.fireLight()
         }
     }
 
