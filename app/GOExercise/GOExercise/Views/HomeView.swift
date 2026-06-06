@@ -32,7 +32,7 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 // 達成日数で段階的に豪華になる全面背景(旧 backgroundGradient + 猫裏の画像カードを置換)。
-                MilestoneBackdrop(totalAchievedDays: viewModel.lifetimeStats.achievedDays)
+                MilestoneBackdrop(streak: viewModel.streak.currentStreak)
                     .ignoresSafeArea()
 
                 // 背景に時刻に応じたパーティクル。常時ふわふわ漂う。
