@@ -101,6 +101,7 @@ struct PremiumPaywallSheet: View {
             benefitRow("target", "目標 / BMI / 達成リング / 進捗バー")
             benefitRow("snowflake", "連続記録フリーズ 月4回 (無料は月1回)")
             benefitRow("sparkles", "減量ご褒美マイルストーン (-3 / -5 / -10 kg)")
+            benefitRow("cat.fill", "全11種の猫から好きな子を選べる")
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
