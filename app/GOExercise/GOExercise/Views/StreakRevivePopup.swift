@@ -35,18 +35,24 @@ struct StreakRevivePopup: View {
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.40, green: 0.70, blue: 0.95)) // フリーズ=氷のテーマに合わせた寒色
             } else {
                 Button(action: onSeePremium) {
-                    Text("GOプレミアムでフリーズを増やす")
+                    Text("プレミアムを見てみる") // 3LLM採点: コミット感を下げた穏やかな文言(節度)
                         .font(.system(.headline, design: .rounded, weight: .bold))
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.40, green: 0.70, blue: 0.95))
             }
-            Button("今回はしない", action: onDismiss)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 8)
+            // 「やめる」も正当な選択として読めるよう、淡すぎない色+十分なタップ域にする。
+            Button(action: onDismiss) {
+                Text("今回はしない")
+                    .font(.system(.subheadline, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+            }
+            .padding(.bottom, 6)
         }
         .padding(.horizontal, 24)
         .presentationDetents([.height(360)])
