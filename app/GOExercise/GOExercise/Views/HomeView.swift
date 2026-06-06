@@ -152,6 +152,14 @@ struct HomeView: View {
             )) {
                 ReferralCelebrationSheet(confirmations: referralStore.pendingReferrerPops)
             }
+            .alert("⭐10達成!", isPresented: Binding(
+                get: { referralStore.pendingBreedUnlock },
+                set: { if !$0 { referralStore.consumeBreedUnlock() } }
+            )) {
+                Button("やったね!", role: .cancel) { referralStore.consumeBreedUnlock() }
+            } message: {
+                Text("友達を10人紹介しました!設定や猫選びの画面から、好きな猫が無料で選べるようになりました。")
+            }
         }
     }
 

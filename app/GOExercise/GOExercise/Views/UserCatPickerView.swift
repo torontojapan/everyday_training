@@ -16,6 +16,10 @@ struct UserCatPickerView: View {
     @State private var inviteAccepted = false
     let isOnboarding: Bool
 
+    private var referralUnlocked: Bool {
+        ReferralReward.isBreedUnlocked(starBadges: referralStore.summary.starBadges)
+    }
+
     init(isOnboarding: Bool = false) {
         self.isOnboarding = isOnboarding
         _selected = State(initialValue: UserCatPreferences.shared.myCat)
@@ -85,7 +89,7 @@ struct UserCatPickerView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isOnboarding ? "はじめる" : "決定") {
-                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive) {
+                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
                             selected = prefs.myCat
                         }
                         prefs.myCat = selected
@@ -131,7 +135,7 @@ struct UserCatPickerView: View {
 
     private func cell(_ breed: CatBreed) -> some View {
         let isSelected = selected == breed
-        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive)
+        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
         return Button {
             if locked { showPaywall = true } else { selected = breed }
         } label: {

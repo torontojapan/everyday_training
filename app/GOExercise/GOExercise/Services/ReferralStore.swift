@@ -14,8 +14,10 @@ final class ReferralStore {
     /// 未サインインのとき紹介ポーリングで匿名アカウントを作らせないためのガード。
     private let isSignedIn: () -> Bool
     static let firstLaunchKey = "referral.firstLaunchAt.v1"
+    private static let breedUnlockCelebratedKey = "referral.breedUnlockCelebrated.v1"
 
     var summary: ReferralSummary = .empty
+    var pendingBreedUnlock = false
     var hasReferrer = false
     var pendingWelcome: ReferralConfirmation?
     var pendingReferrerPops: [ReferralConfirmation] = []
@@ -50,6 +52,11 @@ final class ReferralStore {
         do {
             summary = try await service.referralSummary()
             hasReferrer = try await service.hasReferrer()
+            if ReferralReward.isBreedUnlocked(starBadges: summary.starBadges),
+               !defaults.bool(forKey: Self.breedUnlockCelebratedKey) {
+                defaults.set(true, forKey: Self.breedUnlockCelebratedKey)
+                pendingBreedUnlock = true
+            }
         } catch { lastError = error.localizedDescription }
     }
 
@@ -97,4 +104,5 @@ final class ReferralStore {
 
     func consumeWelcome() { pendingWelcome = nil }
     func consumeReferrerPops() { pendingReferrerPops = [] }
+    func consumeBreedUnlock() { pendingBreedUnlock = false }
 }
