@@ -23,6 +23,9 @@ final class ReferralStore {
     var summary: ReferralSummary = .empty
     var pendingBreedUnlock = false
     var hasReferrer = false
+    /// 現在の `summary` がどのアカウント(friend_code)由来かを記録し、口座跨ぎの
+    /// stale entitlement を防ぐ(Codex round3)。
+    private var summaryAccountCode: String?
     var pendingWelcome: ReferralConfirmation?
     var pendingReferrerPops: [ReferralConfirmation] = []
     var lastError: String?
@@ -58,11 +61,22 @@ final class ReferralStore {
             summary = .empty
             hasReferrer = false
             pendingBreedUnlock = false
+            summaryAccountCode = nil
             return
+        }
+        let account = service.myProfile?.friendCode
+        // アカウント切替直後は、現アカウントと異なる古い summary をフェッチ前に空へ。
+        // こうすると referralSummary()/hasReferrer() が throw しても前アカウントの星(=有料猫解放)
+        // が残らない(Codex round3)。同一アカウントの一時失敗では空にせず既存値を保つ(無駄な flicker回避)。
+        if account != summaryAccountCode {
+            summary = .empty
+            hasReferrer = false
+            pendingBreedUnlock = false
         }
         do {
             summary = try await service.referralSummary()
             hasReferrer = try await service.hasReferrer()
+            summaryAccountCode = account
             // ⭐10 到達なら(現アカウントで未お祝いのとき)お祝い待ちにする。毎回 deterministic に
             // 上書きするので、星<10 やアカウント切替で前の true が残らない(Codex round2)。
             // celebrated フラグは consumeBreedUnlock(ポップ閉)で立てる(kill時の取りこぼし防止)。
