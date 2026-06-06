@@ -41,3 +41,25 @@ final class StreakFreezeWindowTests: XCTestCase {
         XCTAssertFalse(r.revivable, "昨日 rescue 済み=achieved → 切れてない")
     }
 }
+
+final class ReviveDismissStoreTests: XCTestCase {
+    private let cal: Calendar = .mondayFirst
+    func test_markAndQuery() {
+        let d = UserDefaults(suiteName: "revive-dismiss-\(UUID())")!
+        let store = ReviveDismissStore(defaults: d)
+        let dates = [cal.date(byAdding: .day, value: -1, to: Date())!, cal.date(byAdding: .day, value: -2, to: Date())!]
+        let key = ReviveDismissStore.breakKey(missedDates: dates)!
+        XCTAssertFalse(store.isHandled(key))
+        store.markHandled(key)
+        XCTAssertTrue(store.isHandled(key))
+        store.markHandled(key) // idempotent
+        XCTAssertEqual(store.handled().filter { $0 == key }.count, 1)
+    }
+    func test_breakKey_usesOldestDate_stable() {
+        let base = cal.startOfDay(for: Date())
+        let a = cal.date(byAdding: .day, value: -1, to: base)!
+        let b = cal.date(byAdding: .day, value: -3, to: base)!
+        XCTAssertEqual(ReviveDismissStore.breakKey(missedDates: [a, b]), ReviveDismissStore.breakKey(missedDates: [b, a]))
+        XCTAssertEqual(ReviveDismissStore.breakKey(missedDates: [a, b]), String(Int(b.timeIntervalSince1970)))
+    }
+}
