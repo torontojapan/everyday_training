@@ -456,18 +456,17 @@ final class FriendProfileCodableTests: XCTestCase {
         XCTAssertEqual(profile.weeklyAchievementsOrEmpty.count, 7)
     }
 
-    func testDecorationMapping() {
-        let tiers: [(Int, CatDecoration)] = [
-            (0, .none), (1, .bandana), (2, .headband), (3, .medal), (4, .crown), (99, .none)
-        ]
-        for (tier, expected) in tiers {
+    func testRankFromCurrentStreak() {
+        // 称号は currentStreak から CatRank で算出される(spec F・バックエンド変更なし)。
+        let cases: [(Int, Int)] = [(0, 0), (7, 1), (30, 3), (100, 6), (365, 10), (500, 11)]
+        for (streak, expectedRank) in cases {
             let p = FriendProfile(
                 id: "T", friendCode: "T", username: "u", displayName: "d",
-                currentStreak: 0, totalAchievedDays: 0, todayAchieved: false,
-                todayCategoryName: nil, todayExerciseNames: [], decorationTier: tier,
+                currentStreak: streak, totalAchievedDays: streak, todayAchieved: false,
+                todayCategoryName: nil, todayExerciseNames: [], decorationTier: expectedRank,
                 lastUpdated: Date(), weeklyAchievements: nil, connectedSince: nil
             )
-            XCTAssertEqual(p.decoration, expected, "tier \(tier) should map to \(expected)")
+            XCTAssertEqual(p.rank.rank, expectedRank, "streak \(streak) -> rank \(expectedRank)")
         }
     }
 }
