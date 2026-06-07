@@ -192,7 +192,8 @@ struct HomeView: View {
                     hasEnough: w?.hasEnough ?? false,
                     onUseFreeze: { handleReviveUse() },
                     onSeePremium: {
-                        markReviveHandled()
+                        // ペイウォールを見るだけでは break を handled にしない。
+                        // プレミアム購入後に同じ break をまだ復活できるようにする(Codex/Gemini監査)。
                         isShowingRevive = false
                         isShowingFreezePaywall = true
                     },
@@ -485,9 +486,13 @@ struct HomeView: View {
     }
 
     private func handleReviveUse() {
-        markReviveHandled()
+        // フリーズ適用を先に試し、**全 missed 日の復活に成功した時だけ** handled 化する。
+        // 途中失敗(枠切れ/月境界等)で break を消化してしまい復活も損も両取りになるのを防ぐ(Codex/Gemini監査)。
         let restored = viewModel.applyRevive()
         isShowingRevive = false
+        if restored != nil {
+            markReviveHandled()
+        }
         viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
                           isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
         WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: RescueTicketStore.shared.rescuedDates(), calendar: calendar)
