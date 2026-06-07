@@ -46,9 +46,30 @@ class StreakFreezeWindowTest {
     }
 
     @Test
-    fun fourMissed_achievedBeyondLookback_notRevivable() {
+    fun fourMissedThenAchieved_atLookbackBoundary_revivable() {
+        // offset 1..4 が Missed、offset5(= lookback+1)に達成アンカー → ちょうど猶予枠内で復活可能。
         val r = decide(
             listOf(
+                DailyStatus.Missed,
+                DailyStatus.Missed,
+                DailyStatus.Missed,
+                DailyStatus.Missed,
+                DailyStatus.Achieved,
+            ),
+            remaining = 4,
+            lookback = 4,
+        )
+        assertTrue(r.revivable)
+        assertEquals(4, r.freezesNeeded)
+        assertEquals(listOf(1, 2, 3, 4), r.missedOffsets)
+    }
+
+    @Test
+    fun fiveMissedThenAchieved_tooOld_notRevivable() {
+        // offset5 の Missed が lookback(4)を超える → 猶予枠超過で復活不可。
+        val r = decide(
+            listOf(
+                DailyStatus.Missed,
                 DailyStatus.Missed,
                 DailyStatus.Missed,
                 DailyStatus.Missed,

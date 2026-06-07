@@ -131,7 +131,14 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            uiState.map { it.streak.currentStreak }.distinctUntilChanged().collect { streak ->
+            // ⚠️ uiState の initialValue=HomeUiState() は streak 0(weekStatuses 空)の合成初期値。
+            //    これを評価すると RankUpStore の lastRank/lastWeeklyMultiple を 0 にリセットしてしまい、
+            //    実 streak 到来時に過去イベントが再発火する。reduce 済みの実状態(weekStatuses 7 要素)を待つ。
+            uiState
+                .filter { it.weekStatuses.isNotEmpty() }
+                .map { it.streak.currentStreak }
+                .distinctUntilChanged()
+                .collect { streak ->
                 val events = rankUpDetector.evaluate(streak)
                 // 大節目シート提示中は出さない(二重抑止)。表示中の小節目があればそれを優先し上書きしない。
                 if (pendingMilestone.value == null && _pendingRankEvent.value == null) {
@@ -165,8 +172,28 @@ class HomeViewModel @Inject constructor(
         val w = StreakFreezeWindow.evaluate(records, today, rescued, remaining)
         if (!w.revivable) return@combine null
         val potential = restoredStreakLength(records, rescued, w.missedOffsets, today)
-        ReviveState(result = w, potentialStreak = potential, remaining = remaining)
+        // hasEnough は「各 Missed 日の所属月の枠」を月境界跨ぎでも正しく見るため、月ごとに累積適用を
+        // シミュレートして判定する(useTicket は Missed 日の月の枠を強制するため、today 月の remaining
+        // 比較では月境界で誤判定する)。remaining は表示用に today 月の値を保持する。
+        val missedDates = StreakFreezeWindow.missedDatesForOffsets(w.missedOffsets, today)
+        val hasEnough = canReviveAll(missedDates, rescued, allowance)
+        ReviveState(result = w.copy(hasEnough = hasEnough), potentialStreak = potential, remaining = remaining)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * 各 Missed 日に対し、その日が属する月の枠でフリーズが使えるかを **累積的に** 検証する。
+     * 同一月に複数の Missed があってもチケット消費を sim に積みながら判定するため、
+     * 月境界(例: 月初に去年の月末を救済)でも today 月の remaining では拾えない不足を正しく検知する。
+     * iOS `RescueTicketStore` の月次集計ミラー。
+     */
+    private fun canReviveAll(missed: List<LocalDate>, rescued: Set<LocalDate>, allowance: Int): Boolean {
+        val sim = rescued.toMutableSet()
+        for (d in missed) {
+            if (!RescueTicketLogic.hasAvailable(sim, d, allowance)) return false
+            sim.add(d)
+        }
+        return true
+    }
 
     /**
      * 復活を適用する。Missed 各日にフリーズを消費し、その途切れを handled に積む(再ポップ防止)。
@@ -178,8 +205,17 @@ class HomeViewModel @Inject constructor(
             val today = LocalDate.now(clock)
             val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
             val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
-            ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }
-            missedDates.forEach { date -> rescueTickets.useTicket(date, allowance) }
+            // ⚠️ 先に markHandled してはいけない: useTicket が一部でも失敗すると streak 未復元のまま
+            //    ポップが恒久的に消える。全 Missed 日のチケット使用を**先に**試み、全成功した時だけ handled に積む
+            //    (iOS `applyRevive` の `guard applied == missed.count` ミラー)。
+            var applied = 0
+            for (date in missedDates) {
+                if (rescueTickets.useTicket(date, allowance)) applied += 1
+            }
+            if (applied == missedDates.size) {
+                ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }
+            }
+            // 全成功しなかった場合は handled に積まない(ユーザーが再試行できる)。
         }
     }
 

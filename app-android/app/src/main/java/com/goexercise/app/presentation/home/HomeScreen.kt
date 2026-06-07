@@ -62,7 +62,8 @@ fun HomeRoute(
     Box(modifier = Modifier.fillMaxSize()) {
         HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
         // 機能B: 小節目の軽量トースト(HomeContent の上に重ねる。自動消滅で操作は遮らない)。
-        pendingRankEvent?.let { event ->
+        // 大節目ダイアログ提示中(pendingMilestone != null)は二重演出を避けて出さない(VM の guard と二重化)。
+        if (pendingMilestone == null) pendingRankEvent?.let { event ->
             val (rank, message) = rankCelebrationDisplay(event)
             RankCelebrationOverlay(
                 rank = rank,

@@ -5,9 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,9 +54,12 @@ fun RankCelebrationOverlay(
         onFinished()
     }
 
+    // 画面全体を覆わず、上部に幅いっぱい・高さは中身ぶんだけの帯として配置する
+    // (fillMaxSize だと下部の「記録する」等のタップを奪う恐れがある。pointer modifier も付けない)。
     Box(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .wrapContentHeight()
             .padding(top = 24.dp),
         contentAlignment = Alignment.TopCenter,
     ) {

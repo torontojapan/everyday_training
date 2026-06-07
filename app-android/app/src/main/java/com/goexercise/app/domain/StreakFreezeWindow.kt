@@ -25,15 +25,17 @@ object StreakFreezeWindow {
     )
 
     /**
-     * 純判定層。statuses[0]=昨日, [1]=一昨日… の順。
-     * lookback と statuses.size の小さい方まで遡って走査する。
+     * 純判定層。statuses[0]=offset1(昨日), [1]=offset2(一昨日)… の順。
+     * statuses は offset 1..(lookback+1) を想定(アンカー検出用に 1 件余分に渡す)。
+     * offset = index+1 として走査する。
      *
-     * - Achieved / TodayAchieved → 過去の達成を発見し、走査を打ち切る(foundPrior=true)。
+     * - Achieved / TodayAchieved → 過去の達成(アンカー)を発見し打ち切る(foundPrior=true)。
      * - Rest → スキップ(フリーズ不要、連続も切れない)。
-     * - Missed → 復活対象として offset(index+1)を収集。
+     * - Missed → offset <= lookback なら復活対象として収集。それを超えていれば猶予枠超過で
+     *   tooOld=true として打ち切る(lookback ちょうどの途切れは復活可能、それより古いと不可)。
      * - その他(Future / TodayPending)→ 走査打ち切り。
      *
-     * revivable = 過去の達成あり && Missed が 1 件以上。
+     * revivable = アンカーあり && !tooOld && Missed が 1 件以上。
      */
     object Decision {
         fun evaluate(
@@ -43,30 +45,37 @@ object StreakFreezeWindow {
         ): Result {
             val missedOffsets = mutableListOf<Int>()
             var foundPrior = false
+            var tooOld = false
 
-            val limit = minOf(lookback, statuses.size)
-            var i = 0
-            while (i < limit) {
-                when (statuses[i]) {
-                    DailyStatus.Achieved, DailyStatus.TodayAchieved -> {
-                        foundPrior = true
-                        break
-                    }
-                    DailyStatus.Rest -> {
-                        // skip — フリーズ不要、連続も切れない
-                    }
-                    DailyStatus.Missed -> {
-                        missedOffsets.add(i + 1)
-                    }
-                    else -> {
-                        // Future / TodayPending → 打ち切り
-                        break
+            run {
+                statuses.forEachIndexed { idx, status ->
+                    val offset = idx + 1
+                    when (status) {
+                        DailyStatus.Achieved, DailyStatus.TodayAchieved -> {
+                            foundPrior = true
+                            return@run
+                        }
+                        DailyStatus.Rest -> {
+                            // skip — フリーズ不要、連続も切れない
+                        }
+                        DailyStatus.Missed -> {
+                            if (offset <= lookback) {
+                                missedOffsets.add(offset)
+                            } else {
+                                // 猶予枠を超える途切れ → 復活不可
+                                tooOld = true
+                                return@run
+                            }
+                        }
+                        else -> {
+                            // Future / TodayPending → 打ち切り
+                            return@run
+                        }
                     }
                 }
-                i += 1
             }
 
-            val revivable = foundPrior && missedOffsets.isNotEmpty()
+            val revivable = foundPrior && !tooOld && missedOffsets.isNotEmpty()
             if (!revivable) {
                 return Result(
                     revivable = false,
@@ -87,7 +96,8 @@ object StreakFreezeWindow {
     }
 
     /**
-     * 記録から状態列(offset 1..lookback)を組み立てて判定を委譲する。
+     * 記録から状態列(offset 1..(lookback+1))を組み立てて判定を委譲する。
+     * アンカー(直前の達成日)を見つけられるよう lookback より 1 件余分に遡る。
      */
     fun evaluate(
         records: List<WorkoutRecord>,
@@ -96,7 +106,7 @@ object StreakFreezeWindow {
         remainingFreezes: Int,
         lookback: Int = 4,
     ): Result {
-        val statuses = (1..lookback).map { offset ->
+        val statuses = (1..(lookback + 1)).map { offset ->
             val date = today.minusDays(offset.toLong())
             val restDays = RestDayResolver.restDaySet(date, records, today)
             AchievementEvaluator.dailyStatus(
