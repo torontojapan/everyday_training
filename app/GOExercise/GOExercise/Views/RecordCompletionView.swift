@@ -123,7 +123,8 @@ struct RecordCompletionView: View {
             }
 
             if showsConfetti && !reduceMotion {
-                CelebrationOverlay(level: celebrationLevel)
+                // 記録完了画面は紙吹雪(上部に散らかる小アイコン)を出さず、光彩のみ。
+                CelebrationOverlay(level: celebrationLevel, showsConfetti: false)
                     .transition(.opacity)
             }
         }
