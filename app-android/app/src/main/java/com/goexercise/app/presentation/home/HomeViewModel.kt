@@ -200,6 +200,8 @@ class HomeViewModel @Inject constructor(
     fun applyRevive() {
         viewModelScope.launch {
             val state = reviveState.value ?: return@launch
+            // 防御: 枠不足なら消費しない(UI 側でも分岐しているが iOS `applyRevive` の guard と対称に)。
+            if (!state.result.hasEnough) return@launch
             val today = LocalDate.now(clock)
             val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
             val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
