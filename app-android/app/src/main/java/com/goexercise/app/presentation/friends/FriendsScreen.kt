@@ -58,6 +58,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.data.friends.FriendsLinkProvider
+import com.goexercise.app.domain.rank
 import com.goexercise.app.domain.friends.CheerKind
 import com.goexercise.app.domain.friends.FriendCodeValidator
 import com.goexercise.app.domain.friends.FriendProfile
@@ -799,11 +800,13 @@ private fun FriendCard(
                 friend.myCatBreed?.let { breed ->
                     com.goexercise.app.ui.components.CatAvatar(breed = breed, size = 56.dp)
                 } ?: Avatar(palette, 56.dp)
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(friend.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
                     if (friend.username.isNotBlank()) {
                         Text("@${friend.username}", fontSize = 12.sp, color = palette.textSecondary)
                     }
+                    // 連続ベースの称号メタルチップ(rank>0 のみ自動描画, iOS RankBadge 相当)。
+                    com.goexercise.app.ui.components.CatRankChip(rank = friend.rank, compact = true)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("🔥 ${friend.currentStreak}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)

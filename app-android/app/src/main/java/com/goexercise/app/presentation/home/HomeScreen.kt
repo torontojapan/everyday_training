@@ -179,8 +179,29 @@ private fun StatsRow(state: HomeUiState) {
         StatPill(label = "連続", value = "${state.streak.currentStreak}日", modifier = Modifier.weight(1f))
         StatPill(label = "累計達成", value = "${state.lifetimeStats.achievedDays}日", modifier = Modifier.weight(1f))
         StatPill(label = "今週", value = "${state.weeklySummary.totalMinutes}分", modifier = Modifier.weight(1f))
-        val decoText = if (state.catDecoration == com.goexercise.app.domain.CatDecoration.None) "—" else state.catDecoration.emoji
-        StatPill(label = "ランク", value = decoText, modifier = Modifier.weight(1f))
+        RankPill(streak = state.streak.currentStreak, modifier = Modifier.weight(1f))
+    }
+}
+
+/** 称号(連続ベースのメタルチップ)を表示する StatPill。rank0 は「—」で見栄えを保つ。 */
+@Composable
+private fun RankPill(streak: Int, modifier: Modifier = Modifier) {
+    val palette = LocalAppPalette.current
+    val rank = com.goexercise.app.domain.CatRank.of(streak)
+    Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (rank.rank > 0) {
+                com.goexercise.app.ui.components.CatRankChip(rank = rank, compact = true)
+            } else {
+                Text(text = "—", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+            }
+            Text(text = "称号", color = palette.textSecondary, fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
     }
 }
 
