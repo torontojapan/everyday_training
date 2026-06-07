@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -798,7 +799,16 @@ private fun FriendCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // 友達が猫種を共有していれば実猫アバター、未共有(旧クライアント等)は emoji フォールバック。
                 friend.myCatBreed?.let { breed ->
-                    com.goexercise.app.ui.components.CatAvatar(breed = breed, size = 56.dp)
+                    // 連続記録ベースの CatRank をアバター外周のメタルリングで可視化(F機能, iOS 相当)。
+                    val ring = friend.rank.metalKind?.let { com.goexercise.app.ui.components.metalColor(it) }
+                    Box(
+                        modifier = if (ring != null)
+                            Modifier.size(56.dp).border(3.dp, ring, CircleShape).padding(2.dp)
+                        else Modifier.size(56.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        com.goexercise.app.ui.components.CatAvatar(breed = breed, size = if (ring != null) 52.dp else 56.dp)
+                    }
                 } ?: Avatar(palette, 56.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(friend.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
