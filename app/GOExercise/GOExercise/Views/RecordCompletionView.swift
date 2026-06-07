@@ -14,7 +14,6 @@ struct RecordCompletionView: View {
     @State private var contentVisible = false
     @State private var streakPulse = false
     @State private var showsConfetti = true
-    @State private var fireBurst = false
     @State private var ribbonText = ""
     @State private var ribbonAppear = false
     private let hapticFeedback = HapticFeedbackController()
@@ -127,10 +126,6 @@ struct RecordCompletionView: View {
                 CelebrationOverlay(level: celebrationLevel)
                     .transition(.opacity)
             }
-
-            if streakExtendedThisRun && !reduceMotion {
-                fireOverlay
-            }
         }
         .navigationTitle("記録完了")
         .navigationBarTitleDisplayMode(.inline)
@@ -146,9 +141,6 @@ struct RecordCompletionView: View {
             }
             withAnimation(Motion.animation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true), reduceMotion: reduceMotion)) {
                 streakPulse = true
-            }
-            withAnimation(Motion.animation(Motion.bouncy.repeatCount(3, autoreverses: true), reduceMotion: reduceMotion)) {
-                fireBurst = true
             }
         }
         // 遅延処理は `.task` に置き、画面離脱で自動キャンセルする。これにより
@@ -183,23 +175,6 @@ struct RecordCompletionView: View {
 
     private func triggerHaptic() {
         CelebrationCenter.shared.fire(celebrationLevel)
-    }
-
-    private var fireOverlay: some View {
-        ZStack {
-            ForEach(0..<10, id: \.self) { index in
-                Text("🔥")
-                    .font(.system(size: index.isMultiple(of: 2) ? 28 : 22))
-                    .offset(
-                        x: fireBurst ? CGFloat((index % 5) - 2) * 42 : 0,
-                        y: fireBurst ? CGFloat(index / 5 == 0 ? -1 : 1) * 120 : 20
-                    )
-                    .opacity(fireBurst ? 0.1 : 0.9)
-                    .scaleEffect(fireBurst ? 1.25 : 0.7)
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     /// 連続日数を大きな数字でヒーロー化したカード。完了画面の感情的ピーク。
