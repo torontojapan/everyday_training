@@ -17,7 +17,12 @@ final class StreakFreezeWindowTests: XCTestCase {
     func test_pure_decision_boundaries() {
         let r4 = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.missed,.missed,.achieved], remainingFreezes: 4, lookback: 4)
         XCTAssertTrue(r4.revivable); XCTAssertEqual(r4.freezesNeeded, 3)
-        let r5 = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.missed,.missed,.missed,.achieved], remainingFreezes: 5, lookback: 4)
+        // 丁度 lookback(4)日欠け + offset5 が achieved = 4日グレース内の break → 復活可(4枚必要)。
+        let r4exact = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.missed,.missed,.missed,.achieved], remainingFreezes: 5, lookback: 4)
+        XCTAssertTrue(r4exact.revivable); XCTAssertEqual(r4exact.freezesNeeded, 4)
+        XCTAssertEqual(r4exact.missedOffsets, [1,2,3,4])
+        // 5日欠け(offset5 も missed)= グレース超過 → 復活不可。
+        let r5 = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.missed,.missed,.missed,.missed,.achieved], remainingFreezes: 5, lookback: 4)
         XCTAssertFalse(r5.revivable)
         let rest = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.rest,.achieved], remainingFreezes: 1, lookback: 4)
         XCTAssertTrue(rest.revivable); XCTAssertEqual(rest.freezesNeeded, 1)

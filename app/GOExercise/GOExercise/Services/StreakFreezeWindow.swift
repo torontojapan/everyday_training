@@ -17,27 +17,33 @@ enum StreakFreezeWindow {
 
     enum Decision {
         /// statuses[0]=昨日, [1]=一昨日… の順(古い方向)。
+        /// 直近 `lookback` 日ぶんの missed を集めつつ、**その手前(最大 lookback+1 日目)に連続の頭**
+        /// (achieved/rest 経由)があるかで復活可否を決める。lookback 丁度(例: 4日)の連続欠けでも、
+        /// 1つ先(offset lookback+1)の achieved を anchor に拾えるよう statuses は lookback+1 件渡す。
         static func evaluate(statuses: [DailyStatus], remainingFreezes: Int, lookback: Int) -> Result {
             var missedOffsets: [Int] = []
             var foundPrior = false
-            var i = 0
-            while i < lookback && i < statuses.count {
-                switch statuses[i] {
+            var tooOld = false // missed が lookback を超えて続く = 4日グレース外で復活不可
+            loop: for (idx, status) in statuses.enumerated() {
+                let offset = idx + 1
+                switch status {
                 case .achieved, .todayAchieved:
-                    foundPrior = true
+                    foundPrior = true // 連続の頭に到達
+                    break loop
                 case .rest:
-                    break // freeze 不要、連続も切らない → 次へ
+                    continue // freeze 不要、連続も切らない → 次へ
                 case .missed:
-                    missedOffsets.append(i + 1) // offset 1=昨日
+                    if offset <= lookback {
+                        missedOffsets.append(offset) // offset 1=昨日
+                    } else {
+                        tooOld = true // lookback+1 日目以降も missed = グレース超過
+                        break loop
+                    }
                 default:
-                    // .future/.todayPending は後方走査では現れない想定。安全側で停止。
-                    i = lookback
-                    continue
+                    break loop // .future/.todayPending は後方走査では現れない想定。安全側で停止。
                 }
-                if foundPrior { break }
-                i += 1
             }
-            let revivable = foundPrior && !missedOffsets.isEmpty
+            let revivable = foundPrior && !tooOld && !missedOffsets.isEmpty
             let need = missedOffsets.count
             return Result(
                 revivable: revivable,
@@ -49,6 +55,7 @@ enum StreakFreezeWindow {
     }
 
     /// records から status 列(昨日→過去)を作り `Decision` に委譲する本番入口。
+    /// anchor 検出のため lookback+1 日ぶん作る(missed 収集は Decision 側で lookback に制限)。
     static func evaluate(
         records: [WorkoutRecord],
         today: Date,
@@ -59,7 +66,7 @@ enum StreakFreezeWindow {
     ) -> Result {
         let todayStart = calendar.startOfDay(for: today)
         var statuses: [DailyStatus] = []
-        for offset in 1...lookback {
+        for offset in 1...(lookback + 1) {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { break }
             let restDays = RestDayResolver.restDaySet(for: day, records: records, today: todayStart, calendar: calendar)
             let s = AchievementEvaluator.dailyStatus(
