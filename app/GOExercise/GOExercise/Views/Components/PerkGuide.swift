@@ -14,8 +14,8 @@ enum PerkGuide {
                       detail: "無料は月1 / プレミアムは月4。友達紹介で +1(上限5)。招待された人はウェルカム +1。"),
         PerkGuideItem(icon: "star.fill", title: "友達紹介",
                       detail: "1人紹介ごとに⭐とフリーズ。⭐10個で好きな猫が無料で選べるようになります。"),
-        PerkGuideItem(icon: "sparkles", title: "達成装飾",
-                      detail: "累計日数で背景が進化。30日でシェイカー、100日で王冠が付きます。"),
+        PerkGuideItem(icon: "rosette", title: "称号 & 背景の進化",
+                      detail: "連続記録を続けると猫の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
         PerkGuideItem(icon: "cat.fill", title: "猫種",
                       detail: "無料はオレンジ。プレミアム、または⭐10で全11種から選べます。"),
         PerkGuideItem(icon: "flame.fill", title: "連続記録の節目",
@@ -49,5 +49,80 @@ struct PerkGuideSection: View {
                 .foregroundStyle(Palette.textPrimary)
         }
         .accessibilityIdentifier("perk-guide-disclosure")
+    }
+}
+
+/// 設定の「称号一覧」表示。連続記録で進化する全11段の称号を一覧し、
+/// 現在地と次の目標を示して「あと少しで上の称号」という前進動機を作る。
+/// アニメーションは持たせず(静的メタルドット)、開いても軽い。
+struct CatRankGuideView: View {
+    let currentStreak: Int
+
+    private var currentRank: Int { CatRank(currentStreak: currentStreak).rank }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            targetHint
+                .padding(.bottom, 10)
+
+            ForEach(Array(CatRank.thresholds.enumerated()), id: \.offset) { idx, threshold in
+                let rank = idx + 1
+                let entry = CatRank(currentStreak: threshold)
+                let isCurrent = rank == currentRank
+                let achieved = currentStreak >= threshold
+
+                HStack(spacing: 10) {
+                    metalDot(entry.metalKind ?? .bronze)
+                    Text(entry.title ?? "")
+                        .font(.system(.subheadline, design: .rounded, weight: isCurrent ? .heavy : .semibold))
+                        .foregroundStyle(achieved || isCurrent ? Palette.textPrimary : Palette.textSecondary)
+                    if isCurrent {
+                        Text("いま")
+                            .font(.system(.caption2, design: .rounded, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(Palette.primary))
+                    }
+                    Spacer(minLength: 8)
+                    Text("\(threshold)日")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(achieved ? Palette.primaryDeep : Palette.textSecondary)
+                }
+                .padding(.vertical, 5)
+                .opacity(achieved || isCurrent ? 1 : 0.8)
+            }
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// 次の目標(あとN日)を示すヒント。最高位なら賞賛。
+    @ViewBuilder private var targetHint: some View {
+        if currentRank >= CatRank.thresholds.count {
+            Label("最高位「ぬしネコ」を達成！", systemImage: "crown.fill")
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .foregroundStyle(Palette.primaryDeep)
+        } else {
+            let nextThreshold = CatRank.thresholds[currentRank]
+            let nextTitle = CatRank(currentStreak: nextThreshold).title ?? ""
+            let remaining = max(0, nextThreshold - currentStreak)
+            Text("連続記録を続けると称号が進化。次は「\(nextTitle)」まで あと\(remaining)日！")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(Palette.primaryDeep)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func metalDot(_ kind: MetalKind) -> some View {
+        Circle()
+            .fill(
+                MetalStyle.isRainbow(kind)
+                    ? AnyShapeStyle(AngularGradient(colors: MetalStyle.rainbowColors, center: .center))
+                    : AnyShapeStyle(MetalStyle.fillGradient(kind))
+            )
+            .frame(width: 15, height: 15)
+            .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 1, y: 0.5)
     }
 }

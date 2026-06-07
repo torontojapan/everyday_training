@@ -77,6 +77,15 @@ struct SettingsView: View {
 
                 PerkGuideSection()
 
+                // 称号一覧(連続で進化)。目標が見えると続けたくなる導線。既定は閉。
+                DisclosureGroup {
+                    CatRankGuideView(currentStreak: SharedSnapshotStore().read().currentStreak)
+                } label: {
+                    Label("称号一覧（連続で進化）", systemImage: "rosette")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("rank-guide-disclosure")
+
                 if AppFeatureFlags.isReferralActive {
                     // 共有(招待する)= friend_code + 文面を共有シートへ。
                     if let code = friendsStore.profile?.friendCode {
@@ -145,8 +154,6 @@ struct SettingsView: View {
                 .accessibilityIdentifier("haptic-toggle")
             } header: {
                 Text("カスタマイズ")
-            } footer: {
-                Text("振動は CoreHaptics 対応機種でのみ動作します。")
             }
 
             // ③ 記録 & 共有
@@ -183,7 +190,7 @@ struct SettingsView: View {
             } header: {
                 Text("記録 & 共有")
             } footer: {
-                Text("体調・周期を ON にすると、運動記録画面に「今日は生理日」スイッチが出現し、履歴カレンダーに ★ マーク (生理日) で表示されます。共有を ON にすると、回数・時間・セット数も友達の詳細画面に表示されます (体重・体調は共有されません)。")
+                Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に ★ で表示されます。")
             }
 
             // ④ 通知 & ウィジェット
@@ -194,11 +201,10 @@ struct SettingsView: View {
                     Label("通知設定", systemImage: "bell.badge.fill")
                         .foregroundStyle(Palette.textPrimary)
                 }
-                widgetPromotionRow
                 Button {
                     isShowingWidgetGuide = true
                 } label: {
-                    Label("追加方法を見る", systemImage: "info.circle.fill")
+                    Label("ウィジェットの追加方法を見る", systemImage: "rectangle.stack.badge.plus")
                         .foregroundStyle(Palette.primaryDeep)
                 }
                 .accessibilityIdentifier("widget-guide-button")
@@ -422,18 +428,6 @@ struct SettingsView: View {
                 .foregroundStyle(Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    private var widgetPromotionRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("ウィジェットでもっと続けやすく", systemImage: "rectangle.stack.badge.plus")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.textPrimary)
-            Text("ホーム画面に置くと、今日の残り時間 / 週間達成率 / 猫からのひとことが一目で見えます。")
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-        }
-        .padding(.vertical, 4)
     }
 
     private var appVersion: String {
