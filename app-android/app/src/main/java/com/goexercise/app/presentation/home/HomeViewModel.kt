@@ -12,17 +12,15 @@ import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.rescue.ReviveDismissStore
 import com.goexercise.app.data.settings.HealthRepository
 import com.goexercise.app.data.settings.SettingsRepository
-import com.goexercise.app.domain.AchievementEvaluator
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.ChartPeriod
-import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.Milestone
 import com.goexercise.app.domain.MilestoneDetector
 import com.goexercise.app.domain.RankUpDetector
 import com.goexercise.app.domain.RankUpEvent
 import com.goexercise.app.domain.RescueTicketAllowance
 import com.goexercise.app.domain.RescueTicketLogic
-import com.goexercise.app.domain.RestDayResolver
+import com.goexercise.app.domain.RestoredStreakCalculator
 import com.goexercise.app.domain.StreakFreezeWindow
 import com.goexercise.app.domain.WeightAnalytics
 import com.goexercise.app.domain.WorkoutRecord
@@ -236,39 +234,15 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * iOS `restoredStreakLength` ミラー: Missed を rescued 扱いにした上で、最新の Missed 日から後方へ
-     * Achieved/TodayAchieved を数え(Rest はスキップ、それ以外で打ち切り)、復元後の連続日数を求める。
-     * today は実 today を使う(Missed は過去日として扱われる)。
+     * 復活で守られる連続日数。純ロジックは [RestoredStreakCalculator] に隔離(JVM ユニットテスト可能)。
+     * iOS `HomeViewModel.restoredStreakLength` ミラー。
      */
     private fun restoredStreakLength(
         records: List<WorkoutRecord>,
         rescued: Set<LocalDate>,
         missedOffsets: List<Int>,
         today: LocalDate,
-    ): Int {
-        val missedDates = StreakFreezeWindow.missedDatesForOffsets(missedOffsets, today)
-        val effectiveRescued = rescued + missedDates
-        val start = missedDates.maxOrNull() ?: return 0
-        var count = 0
-        var date = start
-        while (true) {
-            val restDays = RestDayResolver.restDaySet(date, records, today)
-            val status = AchievementEvaluator.dailyStatus(
-                date = date,
-                records = records,
-                restDays = restDays,
-                rescuedDates = effectiveRescued,
-                today = today,
-            )
-            when (status) {
-                DailyStatus.Achieved, DailyStatus.TodayAchieved -> count += 1
-                DailyStatus.Rest -> { /* skip — 連続は切れない、カウントもしない */ }
-                else -> break
-            }
-            date = date.minusDays(1)
-        }
-        return count
-    }
+    ): Int = RestoredStreakCalculator.restoredStreakLength(records, rescued, missedOffsets, today)
 
     // uiState 初期化後に実行する 2 つめの init(init は宣言順に走るため、uiState を参照する処理は
     // 必ず uiState 宣言の後に置く。先に置くと未初期化 null 参照でクラッシュする)。
