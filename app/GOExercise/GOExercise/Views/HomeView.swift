@@ -270,7 +270,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState)
+            BigCatView(state: viewModel.catState, useShaker: !viewModel.todayStatus.countsAsAchieved)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -618,6 +618,7 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
+    var useShaker: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
@@ -625,8 +626,11 @@ struct BigCatView: View {
 
     var body: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = state.assetName(breed: breed)
-        let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
+        let resolved: String = useShaker
+            ? breed.resolvedShakerAssetName { UIImage(named: $0) != nil }
+            : (UIImage(named: state.assetName(breed: breed)) != nil
+               ? state.assetName(breed: breed)
+               : CatBreed.fallbackAssetName(for: state))
         ZStack {
             // 達成背景は画面全体の MilestoneBackdrop に移行(猫裏の四角い画像カードは廃止)。
             // 背景の光輪 (装飾)。キャラ画像はこの円の外まで描かれて構わない。

@@ -61,7 +61,7 @@ struct RecordCompletionView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // 1. ヒーロー: ホームと同じ大きい祝福猫。達成のごほうび感を最大化。
-                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating)
+                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating, useShaker: true)
                         .frame(width: 210, height: 210)
                         .scaleEffect(contentVisible ? 1 : 0.85)
                         .opacity(contentVisible ? 1 : 0)
