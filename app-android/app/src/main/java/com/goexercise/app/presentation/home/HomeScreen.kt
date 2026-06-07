@@ -89,30 +89,34 @@ fun HomeContent(
     onShareClick: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(palette.background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        CatTheater(state)
-        WeekStrip(state.weekStatuses)
-        StatsRow(state)
-        Button(
-            onClick = onRecordClick,
-            modifier = Modifier.fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 連続ランク駆動の進化背景(最背面)。背景は backdrop が描くので Column 側の
+        // .background(palette.background) は外す(付けると backdrop を覆って見えなくなる)。
+        com.goexercise.app.ui.components.MilestoneBackdrop(streak = state.streak.currentStreak)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("記録する")
-        }
-        // 連続記録がある時だけシェア導線を出す(マイルストーン画像)。
-        if (state.streak.currentStreak > 0) {
-            TextButton(
-                onClick = onShareClick,
+            CatTheater(state)
+            WeekStrip(state.weekStatuses)
+            StatsRow(state)
+            Button(
+                onClick = onRecordClick,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
+                Text("記録する")
+            }
+            // 連続記録がある時だけシェア導線を出す(マイルストーン画像)。
+            if (state.streak.currentStreak > 0) {
+                TextButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
+                }
             }
         }
     }
