@@ -4,24 +4,40 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.WeightRepository
 import com.goexercise.app.data.WorkoutRepository
+import com.goexercise.app.data.billing.PremiumRepository
 import com.goexercise.app.data.friends.FriendsService
 import com.goexercise.app.data.milestone.MilestoneRepository
+import com.goexercise.app.data.rankup.SharedPrefsRankUpStore
 import com.goexercise.app.data.rescue.RescueTicketRepository
+import com.goexercise.app.data.rescue.ReviveDismissStore
 import com.goexercise.app.data.settings.HealthRepository
 import com.goexercise.app.data.settings.SettingsRepository
+import com.goexercise.app.domain.AchievementEvaluator
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.ChartPeriod
+import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.Milestone
 import com.goexercise.app.domain.MilestoneDetector
+import com.goexercise.app.domain.RankUpDetector
+import com.goexercise.app.domain.RankUpEvent
+import com.goexercise.app.domain.RescueTicketAllowance
+import com.goexercise.app.domain.RescueTicketLogic
+import com.goexercise.app.domain.RestDayResolver
+import com.goexercise.app.domain.StreakFreezeWindow
 import com.goexercise.app.domain.WeightAnalytics
+import com.goexercise.app.domain.WorkoutRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -37,15 +53,20 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    repository: WorkoutRepository,
-    rescueTickets: RescueTicketRepository,
+    private val repository: WorkoutRepository,
+    private val rescueTickets: RescueTicketRepository,
     private val settings: SettingsRepository,
     private val milestones: MilestoneRepository,
     private val weightRepo: WeightRepository,
     private val health: HealthRepository,
     private val friendsService: FriendsService,
+    private val premium: PremiumRepository,
+    rankUpStore: SharedPrefsRankUpStore,
+    private val reviveDismissStore: ReviveDismissStore,
     private val clock: Clock,
 ) : ViewModel() {
+
+    private val rankUpDetector = RankUpDetector(rankUpStore)
 
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。
@@ -100,6 +121,117 @@ class HomeViewModel @Inject constructor(
 
     fun acknowledgeMilestone(milestone: Milestone) {
         viewModelScope.launch { milestones.acknowledge(milestone) }
+    }
+
+    // ── 機能B: 小節目(称号アップ / 週間連続)の軽量演出 ───────────────────────────────
+    // RankUpDetector を streak の変化で評価し、未消化イベントを 1 件保持する。pendingMilestone(大節目)
+    // が表示中の時は出さない(二重抑止)。pendingMilestone は上で宣言済みなので .value を安全に読める。
+    private val _pendingRankEvent = MutableStateFlow<RankUpEvent?>(null)
+    val pendingRankEvent: StateFlow<RankUpEvent?> = _pendingRankEvent.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            uiState.map { it.streak.currentStreak }.distinctUntilChanged().collect { streak ->
+                val events = rankUpDetector.evaluate(streak)
+                // 大節目シート提示中は出さない(二重抑止)。表示中の小節目があればそれを優先し上書きしない。
+                if (pendingMilestone.value == null && _pendingRankEvent.value == null) {
+                    (events.firstOrNull { it is RankUpEvent.RankUp } ?: events.firstOrNull())
+                        ?.let { _pendingRankEvent.value = it }
+                }
+            }
+        }
+    }
+
+    fun clearRankEvent() {
+        _pendingRankEvent.value = null
+    }
+
+    // ── 機能D: 連続記録フリーズ復活ポップ ────────────────────────────────────────────
+    /** 復活可能ウィンドウ + 表示用の復元後 streak。revivable でなければ null。 */
+    data class ReviveState(
+        val result: StreakFreezeWindow.Result,
+        val potentialStreak: Int,
+        val remaining: Int,
+    )
+
+    val reviveState: StateFlow<ReviveState?> = combine(
+        repository.observeRecords(),
+        rescueTickets.rescuedDates,
+        premium.isPremiumActive,
+    ) { records, rescued, isPremium ->
+        val today = LocalDate.now(clock)
+        val allowance = RescueTicketAllowance.current(isPremium)
+        val remaining = RescueTicketLogic.remaining(rescued, today, allowance)
+        val w = StreakFreezeWindow.evaluate(records, today, rescued, remaining)
+        if (!w.revivable) return@combine null
+        val potential = restoredStreakLength(records, rescued, w.missedOffsets, today)
+        ReviveState(result = w, potentialStreak = potential, remaining = remaining)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * 復活を適用する。Missed 各日にフリーズを消費し、その途切れを handled に積む(再ポップ防止)。
+     * rescuedDates Flow が更新されると reviveState が再計算され null に落ちる。
+     */
+    fun applyRevive() {
+        viewModelScope.launch {
+            val state = reviveState.value ?: return@launch
+            val today = LocalDate.now(clock)
+            val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
+            val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
+            ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }
+            missedDates.forEach { date -> rescueTickets.useTicket(date, allowance) }
+        }
+    }
+
+    /** 「今回はしない」: この途切れを handled に積み再ポップを止める(救済は行わない)。 */
+    fun dismissRevive() {
+        val state = reviveState.value ?: return
+        val today = LocalDate.now(clock)
+        val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
+        ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }
+    }
+
+    /** この途切れが既に対応済みか(HomeRoute が launch ごとの提示判定に使う)。 */
+    fun reviveBreakHandled(state: ReviveState): Boolean {
+        val today = LocalDate.now(clock)
+        val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
+        val key = ReviveDismissStore.breakKey(missedDates) ?: return true
+        return reviveDismissStore.isHandled(key)
+    }
+
+    /**
+     * iOS `restoredStreakLength` ミラー: Missed を rescued 扱いにした上で、最新の Missed 日から後方へ
+     * Achieved/TodayAchieved を数え(Rest はスキップ、それ以外で打ち切り)、復元後の連続日数を求める。
+     * today は実 today を使う(Missed は過去日として扱われる)。
+     */
+    private fun restoredStreakLength(
+        records: List<WorkoutRecord>,
+        rescued: Set<LocalDate>,
+        missedOffsets: List<Int>,
+        today: LocalDate,
+    ): Int {
+        val missedDates = StreakFreezeWindow.missedDatesForOffsets(missedOffsets, today)
+        val effectiveRescued = rescued + missedDates
+        val start = missedDates.maxOrNull() ?: return 0
+        var count = 0
+        var date = start
+        while (true) {
+            val restDays = RestDayResolver.restDaySet(date, records, today)
+            val status = AchievementEvaluator.dailyStatus(
+                date = date,
+                records = records,
+                restDays = restDays,
+                rescuedDates = effectiveRescued,
+                today = today,
+            )
+            when (status) {
+                DailyStatus.Achieved, DailyStatus.TodayAchieved -> count += 1
+                DailyStatus.Rest -> { /* skip — 連続は切れない、カウントもしない */ }
+                else -> break
+            }
+            date = date.minusDays(1)
+        }
+        return count
     }
 
     // uiState 初期化後に実行する 2 つめの init(init は宣言順に走るため、uiState を参照する処理は

@@ -21,6 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.DailyStatusEntry
 import com.goexercise.app.domain.Milestone
+import com.goexercise.app.domain.RankUpEvent
+import com.goexercise.app.ui.components.RankCelebrationOverlay
+import com.goexercise.app.ui.components.StreakRevivePopup
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.GOExerciseTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -43,17 +51,71 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 fun HomeRoute(
     onRecordClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onOpenFreezePaywall: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
-    HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
+    val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
+    val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
+        // 機能B: 小節目の軽量トースト(HomeContent の上に重ねる。自動消滅で操作は遮らない)。
+        pendingRankEvent?.let { event ->
+            val (rank, message) = rankCelebrationDisplay(event)
+            RankCelebrationOverlay(
+                rank = rank,
+                message = message,
+                onFinished = { viewModel.clearRankEvent() },
+            )
+        }
+    }
+
     pendingMilestone?.let { milestone ->
         MilestoneCelebrationDialog(
             milestone = milestone,
             onDismiss = { viewModel.acknowledgeMilestone(milestone) },
         )
     }
+
+    // 機能D: 復活ポップ。**launch ごとに 1 度だけ**、復活可能 かつ この途切れが未対応の時に出す。
+    var reviveShownThisLaunch by rememberSaveable { mutableStateOf(false) }
+    var reviveDismissedLocal by remember { mutableStateOf(false) }
+    reviveState?.let { rs ->
+        val handled = viewModel.reviveBreakHandled(rs)
+        if (!handled && !reviveShownThisLaunch && !reviveDismissedLocal) {
+            StreakRevivePopup(
+                potentialStreak = rs.potentialStreak,
+                freezesNeeded = rs.result.freezesNeeded,
+                remaining = rs.remaining,
+                hasEnough = rs.result.hasEnough,
+                onUseFreeze = {
+                    reviveShownThisLaunch = true
+                    viewModel.applyRevive()
+                },
+                onSeePremium = {
+                    reviveShownThisLaunch = true
+                    onOpenFreezePaywall()
+                },
+                onDismiss = {
+                    reviveShownThisLaunch = true
+                    reviveDismissedLocal = true
+                    viewModel.dismissRevive()
+                },
+            )
+        }
+    }
+}
+
+/** RankUpEvent → 表示用の (称号ランク, メッセージ)。RankUp は到達した称号の閾値 streak でランクを作る。 */
+private fun rankCelebrationDisplay(event: RankUpEvent): Pair<CatRank, String> = when (event) {
+    is RankUpEvent.RankUp -> {
+        // rank=to の閾値 streak からランクを再構成(thresholds は公開済み・1-indexed の to)。
+        val thresholdStreak = CatRank.thresholds.getOrNull(event.to - 1) ?: 0
+        CatRank.of(thresholdStreak) to "称号アップ!"
+    }
+    is RankUpEvent.Weekly -> CatRank.of(event.streak) to "${event.streak}日連続!"
 }
 
 /** 達成お祝いダイアログ(emoji + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */

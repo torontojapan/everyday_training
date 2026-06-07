@@ -97,6 +97,7 @@ fun AppNavHost(
                         AppRoute.Home -> HomeRoute(
                             onRecordClick = { navController.navigate(AppRoute.Record.path) },
                             onShareClick = { navController.navigate(AppRoute.StreakShare.path) },
+                            onOpenFreezePaywall = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.Freeze.name}") },
                         )
                         AppRoute.StreakShare -> StreakShareRoute(
                             onBack = { navController.popBackStack() },
