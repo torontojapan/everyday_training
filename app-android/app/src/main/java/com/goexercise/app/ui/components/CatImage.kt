@@ -40,9 +40,12 @@ fun CatImage(
     state: CatState,
     modifier: Modifier = Modifier,
     contentDescription: String? = state.displayName,
+    useShaker: Boolean = false,
 ) {
     val context = LocalContext.current
-    val resId = remember(breed, state) { resolveCatDrawable(context, breed, state) }
+    val resId = remember(breed, state, useShaker) {
+        if (useShaker) resolveShakerDrawable(context, breed) else resolveCatDrawable(context, breed, state)
+    }
     if (resId != 0) {
         Image(
             painter = painterResource(resId),
@@ -92,6 +95,18 @@ private fun resolveCatDrawable(context: Context, breed: CatBreed, state: CatStat
     // 万一の欠損に備え android のデフォルト(ic_menu系は使わず)→ 0 は painterResource で例外になるため
     // ここに来ることは無い想定(orange 7 state は必ず同梱)。
     return drawableId(context, "cat_orange_waitingmorning") ?: 0
+}
+
+/**
+ * シェイカー(補給)版の解決。iOS の 3 段フォールバック相当:
+ * breed.shakerAssetName → breed.avatarAssetName → orange のシェイカー → (通常の resolveCatDrawable へ委譲)。
+ */
+@DrawableRes
+private fun resolveShakerDrawable(context: Context, breed: CatBreed): Int {
+    drawableId(context, breed.shakerAssetName)?.let { return it }
+    drawableId(context, breed.avatarAssetName)?.let { return it }
+    drawableId(context, "cat_orange_waitingmorning_shaker")?.let { return it }
+    return resolveCatDrawable(context, breed, CatState.WaitingMorning)
 }
 
 private fun drawableId(context: Context, name: String): Int? =

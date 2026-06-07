@@ -24,6 +24,9 @@ enum class CatBreed(val rawValue: String, val displayName: String, val tintArgb:
     /** 一覧/プロフィール用の単一アバター(waitingMorning を中性ポーズとして使う)。 */
     val avatarAssetName: String get() = "cat_${rawValue}_waitingmorning"
 
+    /** プロテインシェイカーを持つ待機ポーズの asset 名(運動記録の前後フレーバー)。*/
+    val shakerAssetName: String get() = "cat_${rawValue}_waitingmorning_shaker"
+
     companion object {
         val Default = Orange
 

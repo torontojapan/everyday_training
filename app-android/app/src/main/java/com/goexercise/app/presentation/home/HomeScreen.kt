@@ -127,6 +127,8 @@ private fun CatTheater(state: HomeUiState) {
             breed = state.catBreed,
             state = state.catState,
             modifier = Modifier.size(96.dp),
+            // 今日まだ未記録なら補給(シェイカー)版で「これからやろう」を演出。iOS: !todayStatus.countsAsAchieved。
+            useShaker = !state.todayStatus.countsAsAchieved,
         )
         Surface(
             color = palette.surface,
