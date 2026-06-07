@@ -102,11 +102,19 @@ struct HomeView: View {
             .onAppear {
                 store.fetchRecords()
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
-                handleAutoPresentations()
-                evaluateRankCelebration()
+                // 達成演出(節目シート/称号トースト/紙吹雪)は「運動を記録した後」だけに出す。
+                // アプリ起動・タブ切替などの onAppear では出さない(記録完了→ホーム復帰時に
+                // `fireRecordCelebrations()` で発火する)。復活ポップは演出ではなく救済導線
+                // なので従来どおり起動時に評価する。
                 maybePresentRevive()
-                evaluateCelebration()
                 syncMyFriendProfile()
+            }
+            .onChange(of: completedRecord) { oldValue, newValue in
+                // 記録完了画面から**ホームへ戻った**ときだけ達成演出を出す。
+                // 「もう一種目する」(completedRecord=nil と同時に isShowingEntry=true で
+                // 記録へ戻る)では出さない。
+                guard oldValue != nil, newValue == nil, !isShowingEntry else { return }
+                fireRecordCelebrations()
             }
             // signIn (App.task) は onAppear と並行で走るため、初回は profile が
             // まだ nil で sync が空振りすることがある。profile が現れた / 変わった
@@ -459,6 +467,14 @@ struct HomeView: View {
             currentKg: weightStore.latestNonFuture?.weightKilograms,
             isLossGoal: prefs.isLossGoal()
         )
+    }
+
+    /// 記録完了 → ホーム復帰時にまとめて発火する達成演出。
+    /// 節目シート → 称号トースト → 紙吹雪 の順(節目シート提示中は称号トーストを抑止)。
+    private func fireRecordCelebrations() {
+        handleAutoPresentations()
+        evaluateRankCelebration()
+        evaluateCelebration()
     }
 
     private func handleAutoPresentations() {

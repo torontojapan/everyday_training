@@ -20,6 +20,9 @@ enum DemoScenario: String {
     case rank500 = "rank-500"
     /// 直近で連続が途切れた「4日グレース内」=復活ポップ(D)が出る状態。
     case revive = "revive"
+    /// 節目の前夜: 昨日まで29日連続・今日は未記録。**今日運動を記録すると30日達成の
+    /// 節目演出が出る**(=達成演出が「記録後」に出ることの実機検証用)。
+    case milestoneEve = "milestone-eve"
     /// 1 ヶ月使い込んだ状態を全機能のせて再現する demo シナリオ。
     /// - 30 日連続ワークアウト (種目バリエーション)
     /// - 30 日分の体重記録 (緩やかな減量曲線 + 朝晩の二重記録で同日複数記録機能を可視化)
@@ -73,6 +76,12 @@ enum DemoDataSeeder {
             seedConsecutive(days: 500, context: context, todayStart: todayStart, calendar: calendar)
         case .revive:
             seedReviveWindow(context: context, todayStart: todayStart, calendar: calendar)
+        case .milestoneEve:
+            // 昨日まで29日連続(今日は未記録)。今日記録すると streak=30 で節目演出。
+            for offset in 1...29 {
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+                insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
+            }
         case .monthly:
             seedLongStreak(context: context, todayStart: todayStart, calendar: calendar)
             // 周期オーバーレイがチャート全期間に渡って描けるよう、
