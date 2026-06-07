@@ -60,9 +60,7 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         weeklyMini
                         topStatusBar
-                        if AppFeatureFlags.isReferralActive, let code = friendsStore.profile?.friendCode {
-                            ReferralStarsRow(count: referralStore.summary.starBadges, friendCode: code)
-                        }
+                        referralStarsFullRow
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -223,21 +221,36 @@ struct HomeView: View {
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
 
     private var topStatusBar: some View {
-        // 連続チップ + その直下に称号バッジを左寄せで重ねる。3つの幅広チップを
-        // 1行に並べると(連続/称号/状態)狭い端末で折り返すため、称号は連続の
-        // 真下に置いて「連続 + 称号」のまとまりとして見せる(spec C: 連続の隣)。
+        // 左 = 連続チップ。右 = 称号(上)+ 状態(下)を右詰めで2段。
+        // fillHeight で連続チップを「右列(称号+状態)と同じ高さ」に揃える。
+        // ただし HStack を fixedSize(vertical) で自然高さに固定しないと、
+        // maxHeight:.infinity が親の余白を全部食って連続チップが過剰に縦長になる。
+        // 紹介スターは下段 `referralStarsFullRow` へ。
         HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
-                StreakBadgeView(streak: viewModel.streak.currentStreak) {
-                    guard viewModel.streak.currentStreak > 0 else { return }
-                    isShowingStreakShare = true
-                }
+            StreakBadgeView(streak: viewModel.streak.currentStreak, fillHeight: true) {
+                guard viewModel.streak.currentStreak > 0 else { return }
+                isShowingStreakShare = true
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 6) {
                 if CatRank(currentStreak: viewModel.streak.currentStreak).rank > 0 {
                     RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
                 }
+                statusChip
             }
-            Spacer()
-            statusChip
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// 3 行目。**紹介スターを全幅 1 行**に置く(称号と分離したので最大10星が
+    /// 折り返さず一直線に並ぶ)。星は友達を紹介して 1 個以上付いて初めて表示する
+    /// (0 星のゴースト星は出さない)。未サインインでも描画しない。
+    @ViewBuilder
+    private var referralStarsFullRow: some View {
+        if AppFeatureFlags.isReferralActive,
+           referralStore.summary.starBadges > 0,
+           let code = friendsStore.profile?.friendCode {
+            ReferralStarsRow(count: referralStore.summary.starBadges, friendCode: code)
         }
     }
 

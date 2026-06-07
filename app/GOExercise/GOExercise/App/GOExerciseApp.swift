@@ -119,6 +119,11 @@ struct GOExerciseApp: App {
                             await friendsStore.ensureDemoFriendsSeeded()
                         }
                     }
+                    // スクショ/QA 用: 紹介スター数を直接注入(レイアウト確認、特に最大10星)。
+                    if let idx = args.firstIndex(of: "--mock-referral-stars"),
+                       idx + 1 < args.count, let n = Int(args[idx + 1]) {
+                        referralStore.summary = ReferralSummary(starBadges: n, freezeBonusThisMonth: 0)
+                    }
                     #endif
                 }
                 .onOpenURL { url in

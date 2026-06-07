@@ -16,15 +16,17 @@ struct ReferralStarsRow: View {
 
     var body: some View {
         ShareLink(item: inviteText) {
-            HStack(spacing: 6) {
+            // 星(上)とキャプション(下)を縦積み。横に並べるとキャプションが
+            // 横幅を奪い最大10星が折り返すため、星は単独行で全幅を使う。
+            VStack(alignment: .leading, spacing: 3) {
                 content
                 if case let .progress(filled, total) = ReferralStarsDisplay.style(count: count), filled < total {
                     Text("あと\(total - filled)人で猫が解放")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(Palette.textSecondary)
                 }
-                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

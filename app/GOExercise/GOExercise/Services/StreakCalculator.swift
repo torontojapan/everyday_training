@@ -31,7 +31,11 @@ enum StreakCalculator {
             switch status {
             case .achieved, .todayAchieved:
                 streak += 1
-            case .rest:
+            case .rest, .todayPending:
+                // rest = 連続を切らずスキップ。
+                // todayPending = 今日まだ未記録 → 連続を切らずスキップし「昨日までの連続」を数える。
+                // (今日記録すれば .todayAchieved になり今日分も加算される。フリーズ復活直後も
+                //  昨日までの連続が即表示されるようにするための基準。todayPending は今日のみ発生。)
                 break  // skip — does not count, but does not break the streak
             default:
                 return streak
