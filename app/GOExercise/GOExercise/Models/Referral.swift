@@ -30,13 +30,14 @@ enum ReferralClock {
         return f.date(from: iso)
     }
     static func monthKey(_ date: Date, calendar: Calendar) -> String {
-        var utcCal = calendar
-        utcCal.timeZone = TimeZone(identifier: "UTC")!
-        let c = utcCal.dateComponents([.year, .month], from: date)
+        // フリーズ allowance の月判定(Calendar.mondayFirst = 端末ローカル/JST)と一致させる。
+        // UTC で割ると月境界の最大 9h でローカル月とずれ、今月ボーナスが隣月の allowance に
+        // 効いてしまう(GPT-5.5 監査: bonus月=UTC vs allowance月=local の不一致)。
+        let c = calendar.dateComponents([.year, .month], from: date)
         return "\(c.year ?? 0)-\(c.month ?? 0)"
     }
     /// `iso`(timestamptz 文字列)が `now` と同じ暦月か。nil/解析不能は false。
-    /// 月判定は UTC で行う。
+    /// 月判定は allowance と同じローカル暦(calendar)で行う。
     static func isInMonth(_ iso: String?, of now: Date, calendar: Calendar = .mondayFirst) -> Bool {
         guard let iso, let d = parseTimestamp(iso) else { return false }
         return monthKey(d, calendar: calendar) == monthKey(now, calendar: calendar)

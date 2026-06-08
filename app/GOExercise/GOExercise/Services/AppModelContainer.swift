@@ -27,6 +27,12 @@ enum AppModelContainer {
     /// 共有ストアでコンテナを生成する。App Group が使えない / 生成に失敗した
     /// 場合はローカル (デフォルト) ストアにフォールバックしてクラッシュを避ける。
     static func make() -> ModelContainer {
+        // ⚠️ footgun 注意(GPT-5.5/Claude 監査): WorkoutRecord/WeightEntry/MenstrualEntry は
+        //   @Attribute(.unique) を使う。CloudKit バックストアは .unique を禁止するため、
+        //   cloudKitDatabase は **.none 固定**(下の両 ModelConfiguration とも .none)。
+        //   将来 CloudKit 同期を入れる場合は先に .unique を除去すること。安易に .automatic に
+        //   変えると init が throw → ローカル分断フォールバック(Widget と別ストア)になる。
+        //   (entitlements の icloud-* は現状未使用。除去は provisioning 影響があるためローンチ後に。)
         let schema = Schema([WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
 
         if let url = sharedStoreURL {

@@ -21,6 +21,9 @@ struct HomeView: View {
     private let rankUpDetector = RankUpDetector()
     @State private var isShowingRevive = false
     @State private var isShowingFreezePaywall = false
+    /// revive シートを閉じた「後」に freeze ペイウォールを出すための予約フラグ。
+    /// 同一 runloop で2シートを切り替えると SwiftUI が2枚目の提示を取りこぼす(GPT-5.5: handoff race)。
+    @State private var pendingFreezePaywall = false
     @State private var reviveShownThisLaunch = false
     @State private var reviveCelebration: CatRank?
     private let reviveDismissStore = ReviveDismissStore()
@@ -101,7 +104,7 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 store.fetchRecords()
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                 // 達成演出(節目シート/称号トースト/紙吹雪)は「運動を記録した後」だけに出す。
                 // アプリ起動・タブ切替などの onAppear では出さない(記録完了→ホーム復帰時に
                 // `fireRecordCelebrations()` で発火する)。復活ポップは演出ではなく救済導線
@@ -123,11 +126,11 @@ struct HomeView: View {
                 syncMyFriendProfile()
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                 syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                     // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
                     // onAppear/onChange のみで、記録後すぐは stale だった)。
                     syncMyFriendProfile()
@@ -174,6 +177,10 @@ struct HomeView: View {
                         viewModel.acknowledgeMilestone(milestone)
                     }
                 )
+                // スワイプで閉じてもボタン同様に acknowledge する。これが無いと
+                // 未確認のまま残り、次の記録ごとに同じ節目シートが再発する(GPT-5.5/Claude 監査)。
+                // acknowledge は冪等(Set への記録)なので二重呼びでも安全。
+                .onDisappear { viewModel.acknowledgeMilestone(milestone) }
             }
             .sheet(isPresented: Binding(
                 get: { referralStore.pendingWelcome != nil },
@@ -189,7 +196,13 @@ struct HomeView: View {
             )) {
                 ReferralCelebrationSheet(confirmations: referralStore.pendingReferrerPops)
             }
-            .sheet(isPresented: $isShowingRevive) {
+            .sheet(isPresented: $isShowingRevive, onDismiss: {
+                // revive シートが完全に閉じてからペイウォールを出す(2シート同時切替の取りこぼし回避)。
+                if pendingFreezePaywall {
+                    pendingFreezePaywall = false
+                    isShowingFreezePaywall = true
+                }
+            }) {
                 let w = viewModel.reviveWindow
                 StreakRevivePopup(
                     potentialStreak: viewModel.potentialReviveStreak,
@@ -200,16 +213,32 @@ struct HomeView: View {
                     onSeePremium: {
                         // ペイウォールを見るだけでは break を handled にしない。
                         // プレミアム購入後に同じ break をまだ復活できるようにする(Codex/Gemini監査)。
+                        // 提示は revive の onDismiss 後に予約(同一 runloop の二重 sheet を避ける)。
+                        pendingFreezePaywall = true
                         isShowingRevive = false
-                        isShowingFreezePaywall = true
                     },
                     onDismiss: {
                         markReviveHandled()
                         isShowingRevive = false
                     }
                 )
+                // スワイプ dismiss だと break が未処理のまま残り次回起動で再提示される(GPT-5.5 P1)。
+                // 復活は「使う/プレミアム/今回はしない」の明示ボタンで分岐するため、ジェスチャ dismiss を
+                // 封じてボタン経由に強制する(handled 化は成功時のみ等の条件付きなので onDismiss 一括化は不可)。
+                .interactiveDismissDisabled()
             }
-            .sheet(isPresented: $isShowingFreezePaywall) {
+            .sheet(isPresented: $isShowingFreezePaywall, onDismiss: {
+                // フリーズ目的でペイウォールへ来て購入完了した場合、同じ break の復活ポップへ戻す
+                // (GPT-5.5 P1: 購入後に復活導線へ戻れない)。プレミアムで allowance が増えるため
+                // viewModel を再計算し、reviveShownThisLaunch を解除して再提示判定する。
+                if storeKit.isPremiumActive {
+                    viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
+                                      isPremium: storeKit.isPremiumActive,
+                                      referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+                    reviveShownThisLaunch = false
+                    maybePresentRevive()
+                }
+            }) {
                 PremiumPaywallSheet(store: storeKit, context: .freeze)
             }
             .alert("⭐10達成!", isPresented: Binding(
@@ -523,7 +552,7 @@ struct HomeView: View {
             markReviveHandled()
         }
         viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
-                          isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                          isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
         WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: RescueTicketStore.shared.rescuedDates(), calendar: calendar)
         if let restored {
             reviveCelebration = restored
@@ -589,6 +618,14 @@ struct HomeView: View {
     private func syncMyFriendProfile() {
         // 友達機能が無効 (v1) の間は同期不要。本番で friends profile を作らない。
         guard AppFeatureFlags.friendsEnabled else { return }
+        // 友達紹介の確定は profile 差分の有無に依存させない(GPT-5.5 監査: 既に初記録済みで
+        // profile も最新のユーザーが後から招待コードを入力すると、下の「差分なし」early-return で
+        // confirm に到達せず星/フリーズが付かなかった)。confirmFirstRecordIfNeeded は内部で
+        // isSignedIn/hasReferrer を見るので profile 不在でも安全。
+        if AppFeatureFlags.isReferralActive {
+            let hasFirstRecord = viewModel.lifetimeStats.achievedDays >= 1
+            Task { await referralStore.confirmFirstRecordIfNeeded(hasFirstRecord: hasFirstRecord) }
+        }
         guard let current = friendsStore.profile else { return }
         let streak = viewModel.streak.currentStreak
         let achieved = viewModel.lifetimeStats.achievedDays
@@ -633,12 +670,6 @@ struct HomeView: View {
         updated.monthlyAchievedDays = activity.monthlyAchievedDays
         updated.lastUpdated = Date()
         Task { await friendsStore.publishMyProfile(updated) }
-
-        // 友達紹介: 初運動記録(累計達成 >= 1)に到達したら自分の pending 紹介を確定する。
-        if AppFeatureFlags.isReferralActive {
-            let hasFirstRecord = viewModel.lifetimeStats.achievedDays >= 1
-            Task { await referralStore.confirmFirstRecordIfNeeded(hasFirstRecord: hasFirstRecord) }
-        }
     }
 }
 

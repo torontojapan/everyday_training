@@ -28,13 +28,16 @@ struct QuickRecordIntent: AppIntent {
         let calendar = Calendar.mondayFirst
         let today = calendar.startOfDay(for: now)
 
-        // 同じ日にすでに「クイック記録」がある場合は重複登録しない。
-        let descriptor = FetchDescriptor<WorkoutRecord>()
-        if let all = try? context.fetch(descriptor),
-           all.contains(where: {
-               calendar.isDate($0.date, inSameDayAs: today)
-               && $0.exercisesData.isEmpty == false
-           }) {
+        // 同じ日にすでに記録がある場合は重複登録しない。
+        // Widget 拡張はメモリ上限が厳しいため、全件フェッチ(O(n))を避け **当日範囲**に限定する
+        // (GPT-5.5/Claude 監査: 長期ユーザーで全 WorkoutRecord を読むと jetsam リスク)。
+        // exercisesData(Data)の空判定は SQL 述語に載せず、当日の少数行を取得後にメモリで判定。
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        let todayDescriptor = FetchDescriptor<WorkoutRecord>(
+            predicate: #Predicate { $0.date >= today && $0.date < dayEnd }
+        )
+        if let todays = try? context.fetch(todayDescriptor),
+           todays.contains(where: { $0.exercisesData.isEmpty == false }) {
             // 既に記録ありの日。store は触らないが、snapshot が古い (前日のまま等) と
             // ウィジェットが「未達成」表示のままになり得るので達成表示に揃える。
             Self.markSnapshotAchieved(now: now, calendar: calendar)

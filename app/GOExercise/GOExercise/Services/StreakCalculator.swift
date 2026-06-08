@@ -90,8 +90,8 @@ enum StreakCalculator {
                 running += 1
                 longest = max(longest, running)
                 lastAchievedDate = cursor
-            case .rest:
-                break  // skip — running is preserved
+            case .rest, .todayPending:
+                break  // skip — running is preserved(todayPending は currentStreak と同じく連続を切らない)
             default:
                 running = 0
             }

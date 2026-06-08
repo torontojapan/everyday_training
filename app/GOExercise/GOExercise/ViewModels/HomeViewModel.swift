@@ -49,6 +49,15 @@ final class HomeViewModel {
         RescueTicketAllowance.current(isPremium: isPremium, referralBonus: referralFreezeBonus)
     }
 
+    /// 対象日の「その月」の allowance。紹介フリーズ加算は今月分の集計なので、月初の4日グレースで
+    /// 前月の missed 日を復活するときは加算を載せない(GPT-5.5 監査: 復活ポップ経路でも現在月ボーナスを
+    /// 前月へ流用できた件。RescueTicketUseView.allowance(for:) と対称)。
+    private func allowance(for date: Date) -> Int {
+        let inCurrentMonth = calendar.isDate(date, equalTo: dateProvider.currentDate(), toGranularity: .month)
+        let bonus = inCurrentMonth ? referralFreezeBonus : 0
+        return RescueTicketAllowance.current(isPremium: isPremium, referralBonus: bonus)
+    }
+
     init(dateProvider: any DateProviding = SystemDateProvider(),
          calendar: Calendar = .mondayFirst,
          rescueTicketStore: RescueTicketStore = .shared,
@@ -126,7 +135,7 @@ final class HomeViewModel {
             let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
             // hasEnough は「各 missed 日をその日の月の allowance で順に消費できるか」を厳密判定する。
             // remainingTickets(today) は今日の月だけを見るため、月境界の missed 日で過大/過小評価する(Codex/Gemini監査)。
-            let monthAwareEnough = canReviveAll(missed: missed, rescued: reviveRescued, allowance: rescueAllowance)
+            let monthAwareEnough = canReviveAll(missed: missed, rescued: reviveRescued)
             reviveWindow = StreakFreezeWindow.Result(
                 revivable: true, missedOffsets: window.missedOffsets,
                 freezesNeeded: window.freezesNeeded, hasEnough: monthAwareEnough)
@@ -200,7 +209,7 @@ final class HomeViewModel {
         let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
         var applied = 0
         for day in missed {
-            if rescueTicketStore.useTicket(on: day, allowance: rescueAllowance) { applied += 1 }
+            if rescueTicketStore.useTicket(on: day, allowance: allowance(for: day)) { applied += 1 }
         }
         guard applied == missed.count else { return nil }
         return CatRank(currentStreak: potentialReviveStreak)
@@ -209,13 +218,14 @@ final class HomeViewModel {
     /// missed 日すべてを **各日の月の allowance** で順に(累積で)消費できるか。
     /// `useTicket(on:)` が missed 日の月で課金するため、今日の月だけの remainingTickets では
     /// 月境界で誤判定する。実際の消費をシミュレートして hasEnough を厳密化する(Codex/Gemini監査)。
-    private func canReviveAll(missed: [Date], rescued: Set<Date>, allowance: Int) -> Bool {
+    private func canReviveAll(missed: [Date], rescued: Set<Date>) -> Bool {
         var sim = rescued
         for raw in missed {
             let day = calendar.startOfDay(for: raw)
             if sim.contains(day) { return false } // 既に救済済み(通常あり得ない)
             let usedInMonth = sim.filter { calendar.isDate($0, equalTo: day, toGranularity: .month) }.count
-            if usedInMonth >= allowance { return false }
+            // 各 missed 日は「その日の月」の allowance で課金する(applyRevive の useTicket と対称)。
+            if usedInMonth >= allowance(for: day) { return false }
             sim.insert(day)
         }
         return true

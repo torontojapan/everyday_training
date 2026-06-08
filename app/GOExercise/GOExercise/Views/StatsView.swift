@@ -217,7 +217,7 @@ struct StatsView: View {
 
     private var rescueAllowance: Int {
         RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive,
-                                      referralBonus: referralStore.summary.freezeBonusThisMonth)
+                                      referralBonus: referralStore.currentAccountFreezeBonus)
     }
 
     /// 連続記録フリーズの今月残り枚数 (a11y / subtitle / icon の出し分けに使う)。

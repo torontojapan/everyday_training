@@ -29,10 +29,17 @@ final class ReferralLogicTests: XCTestCase {
         XCTAssertNil(ReferralClock.parseTimestamp("not-a-date"))
     }
     func test_clock_isInMonth() {
-        let cal = Calendar(identifier: .gregorian)
+        // 月判定はフリーズ allowance と同じ **ローカル暦**(端末=JST)で行う(GPT-5.5 監査:
+        // 旧実装は UTC 固定で、allowance(local) と月境界でずれた)。決定的にするため TZ を固定。
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Tokyo")!
         let now = DateComponents(calendar: cal, year: 2026, month: 6, day: 20).date!
+        // 2026-06-01 00:00Z = 06-01 09:00 JST → 6月(同月)
         XCTAssertTrue(ReferralClock.isInMonth("2026-06-01T00:00:00+00:00", of: now, calendar: cal))
-        XCTAssertFalse(ReferralClock.isInMonth("2026-05-31T23:00:00+00:00", of: now, calendar: cal))
+        // 2026-05-31 23:00Z = 06-01 08:00 JST → ローカルでは 6月(同月)。UTC固定の旧仕様では別月だった。
+        XCTAssertTrue(ReferralClock.isInMonth("2026-05-31T23:00:00+00:00", of: now, calendar: cal))
+        // 2026-05-31 10:00Z = 05-31 19:00 JST → 5月(別月)
+        XCTAssertFalse(ReferralClock.isInMonth("2026-05-31T10:00:00+00:00", of: now, calendar: cal))
         XCTAssertFalse(ReferralClock.isInMonth(nil, of: now, calendar: cal))
     }
 

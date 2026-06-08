@@ -630,12 +630,17 @@ final class SupabaseFriendsService: FriendsService {
         let existing: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: uid.uuidString).limit(1).execute().value
         if !existing.isEmpty { throw FriendsServiceError.duplicateRequest }
+        // 自動友達化を **先に** 行う(承認フロースキップ・upsert は冪等)。
+        // referral insert を先にすると、直後の friendship upsert が一過性に失敗したとき、
+        // 再試行が上の duplicate-referee guard(referrals に行あり)で弾かれ friendship が永久に
+        // 作られない=「報酬はあるが友達でない」状態が残る(GPT-5.5/Claude 監査)。順序を逆にすれば
+        // referral insert 失敗時の再試行でも friendship は冪等に再作成され、最悪でも
+        // 「友達だが紹介報酬なし」(安全側)に収束する。
+        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
         // pending 紹介を作成(referee = 自分。RLS で referee 本人のみ insert 可)。
         try await client.from("referrals")
             .insert(ReferralInsert(referrer_user_id: referrer.user_id, referee_user_id: uid.uuidString))
             .execute()
-        // 自動友達化(承認フローをスキップ。upsert は冪等)。
-        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
     }
 
     func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {
@@ -669,11 +674,14 @@ final class SupabaseFriendsService: FriendsService {
         let profs: [ProfileRow] = try await client.from("profiles")
             .select().in("user_id", values: refereeIDs).execute().value
         let byID = Dictionary(uniqueKeysWithValues: profs.map { ($0.user_id, $0) })
-        // 取得分を seen=true にする(再ポップ防止)。
+        // 取得分**だけ**を seen=true にする(再ポップ防止)。select と update の間に新たな
+        // confirmed が来ても、返していない行を seen にして祝祭を取りこぼさないよう referee_user_id で
+        // 限定する(Claude 監査: select/update レース)。
         try await client.from("referrals")
             .update(ReferralSeenUpdate(seen_by_referrer: true))
             .eq("referrer_user_id", value: uid)
             .eq("status", value: "confirmed").eq("seen_by_referrer", value: false)
+            .in("referee_user_id", values: refereeIDs)
             .execute()
         return rows.map { r in
             ReferralConfirmation(id: r.referee_user_id,

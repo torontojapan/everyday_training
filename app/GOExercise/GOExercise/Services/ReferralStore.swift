@@ -96,6 +96,14 @@ final class ReferralStore {
         return ReferralReward.isBreedUnlocked(starBadges: summary.starBadges)
     }
 
+    /// 今月のフリーズ加算。summary が現在サインイン中のアカウント由来のときだけ返す。
+    /// breed unlock と同じ口座ガード(GPT-5.5 監査): サインアウト/アカウント切替の直後で
+    /// まだ refresh() が走っていない間も、前アカウントの加算が allowance に残らないようにする。
+    var currentAccountFreezeBonus: Int {
+        guard let code = summaryAccountCode, code == service.myProfile?.friendCode else { return 0 }
+        return summary.freezeBonusThisMonth
+    }
+
     /// 招待コードを送信(オンボ/設定)。成功で hasReferrer を立て再集計する。
     @discardableResult
     func submitCode(_ raw: String) async -> Bool {

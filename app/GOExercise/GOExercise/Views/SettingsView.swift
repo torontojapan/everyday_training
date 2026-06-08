@@ -236,6 +236,10 @@ struct SettingsView: View {
                     }
                 }
                 .accessibilityIdentifier("analytics-opt-out-toggle")
+                .onChange(of: analyticsEnabled) { _, newValue in
+                    // OFF で SDK 実体を即 Noop に戻す(セッション中の残留送信を止める)。ON で再有効化。
+                    Analytics.setEnabled(newValue)
+                }
             } header: {
                 Text("データ & プライバシー")
             } footer: {

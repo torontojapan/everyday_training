@@ -46,14 +46,16 @@ final class StreakCalculatorTests: XCTestCase {
     }
 
     func testPendingTodayWithMissedYesterdayIsZero() {
-        // 昨日(5/19)も未記録なら連続は途切れている → 0。
-        // (todayPending スキップが「過去の missed」まで無視しないことの確認)
+        // todayPending スキップが「本当に途切れた過去 missed」まで無視しないことの確認。
+        // 注意: 自動休養は週2日まで付与される(RestDayResolver limit=2)。記録が直近にあると
+        // 昨日付近の欠けは休養枠で橋渡しされ連続が残る。本当に途切れたケースを作るため、
+        // 記録を 5/10 のみにして以降を週2日の休養枠を超える長い欠けにする → 昨日(5/19)は missed。
         let today = date(day: 20)
-        let records = [record(day: 17)] // 5/18, 5/19 が missed(週内3欠け扱い)
+        let records = [record(day: 10)]
 
         let streak = StreakCalculator.currentStreak(records: records, today: today, calendar: calendar)
 
-        XCTAssertEqual(streak, 0, "昨日が途切れていれば今日スキップしても0")
+        XCTAssertEqual(streak, 0, "昨日が(休養枠を超えて)途切れていれば今日スキップしても0")
     }
 
     func testStreakStateTracksLongestStreakAndLastAchievedDate() {
