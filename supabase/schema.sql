@@ -213,3 +213,37 @@ create policy referrals_update on public.referrals
 drop policy if exists referrals_delete on public.referrals;
 create policy referrals_delete on public.referrals
   for delete to authenticated using (auth.uid() = referrer_user_id or auth.uid() = referee_user_id);
+
+-- referrals 列ガード (GPT-5.5 監査 P0): RLS は行単位で OLD を見られないため、
+-- confirm の昇格を trigger で制限する。
+--  - 当事者ID列 (referrer/referee) は誰も書き換え不可。
+--  - referrer は seen_by_referrer のみ変更可 = status/confirmed_at を触れない
+--    (被紹介者の初記録なしに自分で status='confirmed' にして星/今月フリーズ/⭐10猫解放を
+--     捏造するのを防ぐ)。confirm (status/confirmed_at) は被紹介者のみ。
+create or replace function public.referrals_guard_update() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.referrer_user_id is distinct from old.referrer_user_id
+     or new.referee_user_id is distinct from old.referee_user_id then
+    raise exception 'referrals: cannot change parties';
+  end if;
+  -- confirmed_at は確定時に一度だけ書ける(write-once)。後から月を跨いで書き換えて
+  -- 今月フリーズボーナス(referee 自身の +1)を毎月再ミントするのを防ぐ(GPT-5.5 監査)。
+  if old.confirmed_at is not null and new.confirmed_at is distinct from old.confirmed_at then
+    raise exception 'referrals: confirmed_at is write-once';
+  end if;
+  -- status は pending -> confirmed の一方向のみ。confirmed から戻して再確定させない。
+  if old.status = 'confirmed' and new.status is distinct from old.status then
+    raise exception 'referrals: status cannot change once confirmed';
+  end if;
+  if auth.uid() = old.referrer_user_id and auth.uid() <> old.referee_user_id then
+    if new.status is distinct from old.status
+       or new.confirmed_at is distinct from old.confirmed_at then
+      raise exception 'referrals: referrer may only update seen_by_referrer';
+    end if;
+  end if;
+  return new;
+end$$;
+drop trigger if exists referrals_guard on public.referrals;
+create trigger referrals_guard before update on public.referrals
+  for each row execute function public.referrals_guard_update();
