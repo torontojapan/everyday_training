@@ -5,11 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.goexercise.app.analytics.Analytics
 import com.goexercise.app.analytics.AnalyticsEvent
 import com.goexercise.app.data.DataManagementRepository
+import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.data.billing.PremiumRepository
+import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.NotificationPrefsRepository
 import com.goexercise.app.data.settings.ReminderPrefs
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,9 +20,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
+import java.time.LocalDate
 import javax.inject.Inject
 
 /** 設定の VM。テーマ/猫/プレミアム + データ管理(エクスポート/全削除)。ルートの App() と共有。 */
@@ -30,8 +35,19 @@ class SettingsViewModel @Inject constructor(
     private val dataManagement: DataManagementRepository,
     private val notificationPrefs: NotificationPrefsRepository,
     private val reminderScheduler: ReminderScheduler,
+    workoutRepository: WorkoutRepository,
+    rescueTickets: RescueTicketRepository,
     private val clock: Clock,
 ) : ViewModel() {
+
+    /** 現在の連続記録(称号一覧の現在地「いま」/次目標「あとN日」表示用)。
+     *  記録 + 保険救済日から StreakCalculator で算出。Home と同一の寛容判定。 */
+    val currentStreak: StateFlow<Int> = combine(
+        workoutRepository.observeRecords(),
+        rescueTickets.rescuedDates,
+    ) { records, rescued ->
+        StreakCalculator.currentStreak(records, LocalDate.now(clock), rescued)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val theme: StateFlow<AppTheme> = repository.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppTheme.Peach)

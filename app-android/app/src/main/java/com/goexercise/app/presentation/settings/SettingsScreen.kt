@@ -59,6 +59,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
+    val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -98,6 +99,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
         analyticsEnabled = analyticsEnabled,
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
+        currentStreak = currentStreak,
     )
 }
 
@@ -118,6 +120,7 @@ fun SettingsContent(
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
     analyticsEnabled: Boolean = true,
     onToggleAnalytics: (Boolean) -> Unit = {},
+    currentStreak: Int = 0,
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -136,7 +139,7 @@ fun SettingsContent(
         CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
 
         Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
-        CatRankLadderSection(palette)
+        CatRankLadderSection(palette, currentStreak)
 
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
         ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
@@ -201,21 +204,39 @@ private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (Cat
 }
 
 /**
- * 称号一覧（連続記録で進化する全11段）。iOS `CatRankGuideView` の静的版。
- * 各段: メタルドット + 称号名 + 到達に必要な連続日数。目標を一覧して前進動機を作る。
- * 現在地ハイライト/「あとN日」は streak が要るため将来の拡張（VM への streak 配線）とする。
+ * 称号一覧（連続記録で進化する全11段）。iOS `CatRankGuideView` の移植。
+ * 先頭に次目標ヒント（最高位なら賞賛）、各段はメタルドット + 称号名 + 到達日数。
+ * 現在の称号に「いま」バッジ、到達済みは強調。目標を可視化して前進動機を作る。
  */
 @Composable
-private fun CatRankLadderSection(palette: AppTheme) {
+private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
+    val currentRank = CatRank.of(currentStreak).rank
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "連続記録を続けると猫の称号が進化します（全11段）。",
-                color = palette.textSecondary,
-                fontSize = 12.sp,
-            )
-            CatRank.thresholds.forEach { threshold ->
+            // 次の目標（最高位なら賞賛）
+            if (currentRank >= CatRank.thresholds.size) {
+                Text(
+                    "最高位「ぬしネコ」を達成！",
+                    color = palette.primaryDeep,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+            } else {
+                val nextThreshold = CatRank.thresholds[currentRank]
+                val nextTitle = CatRank.of(nextThreshold).title ?: ""
+                val remaining = (nextThreshold - currentStreak).coerceAtLeast(0)
+                Text(
+                    "連続記録を続けると称号が進化。次は「$nextTitle」まで あと${remaining}日！",
+                    color = palette.primaryDeep,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                )
+            }
+            CatRank.thresholds.forEachIndexed { idx, threshold ->
+                val rank = idx + 1
                 val entry = CatRank.of(threshold)
+                val isCurrent = rank == currentRank
+                val achieved = currentStreak >= threshold
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,15 +252,27 @@ private fun CatRankLadderSection(palette: AppTheme) {
                     )
                     Text(
                         entry.title ?: "",
-                        color = palette.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
+                        color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
+                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(start = 10.dp),
                     )
+                    if (isCurrent) {
+                        Text(
+                            "いま",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .background(palette.primary, RoundedCornerShape(50))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
                     Box(Modifier.weight(1f))
                     Text(
                         "${threshold}日",
-                        color = palette.primaryDeep,
+                        color = if (achieved) palette.primaryDeep else palette.textSecondary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                     )
