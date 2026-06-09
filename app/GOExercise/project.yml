@@ -58,6 +58,10 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
+        # 輸出コンプライアンス: 本アプリは標準の HTTPS(TLS)のみで独自/非標準の暗号は使わない
+        # = 適用除外。false を宣言して TestFlight/提出ごとの暗号コンプラ質問を省く
+        # (project.yml で宣言し xcodegen 再生成でも落ちないようにする)。
+        ITSAppUsesNonExemptEncryption: false
         # TelemetryDeck の App ID。値は Secrets.xcconfig の TELEMETRYDECK_APP_ID 由来
         # (gitignore)。空の間は計測を送信しない (ゼロ収集を維持)。
         # ※ ここで project.yml に宣言しておくことで `xcodegen generate` が Info.plist を
