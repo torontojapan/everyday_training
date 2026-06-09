@@ -109,6 +109,12 @@ fun AppNavHost(
                         AppRoute.Settings -> SettingsRoute(
                             onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.General.name}") },
                         )
+                        // 通知設定の deep link(goexercise://notification-settings, iOS は専用 View)。
+                        // Android は通知設定(リマインダー)を Settings 内 ReminderSection に持つため、
+                        // 専用画面を作らず Settings に着地させる(従来のプレースホルダ行き止まりを解消)。
+                        AppRoute.NotificationSettings -> SettingsRoute(
+                            onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.General.name}") },
+                        )
                         AppRoute.History -> HistoryRoute(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
                         )
