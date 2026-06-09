@@ -46,6 +46,7 @@ struct StatsView: View {
     private let cycleSettings = CycleTrackingSettings()
     @Environment(RescueTicketStore.self) private var rescueTicketStore
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
     @State private var showPremiumPaywall = false
 
     // `.sheet(item:)` で使うため Identifiable 化したラッパー。
@@ -215,7 +216,8 @@ struct StatsView: View {
     }
 
     private var rescueAllowance: Int {
-        RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive)
+        RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive,
+                                      referralBonus: referralStore.currentAccountFreezeBonus)
     }
 
     /// 連続記録フリーズの今月残り枚数 (a11y / subtitle / icon の出し分けに使う)。
@@ -391,7 +393,7 @@ struct StatsView: View {
             guard viewModel.weeklySummary.hasExerciseData else { return }
             // 「先月のハイライト」と同じ項目・カードで今週を表示する。
             presentedHighlight = HighlightPresentation(
-                review: MonthlyReviewBuilder.weekly(records: store.records, weekContaining: day, calendar: calendar),
+                review: MonthlyReviewBuilder.weekly(records: store.records, weekContaining: day, today: day, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar),
                 title: "今週のハイライト",
                 badge: "WEEKLY HIGHLIGHT",
                 streakLabel: "今週の最長連続",
@@ -431,7 +433,7 @@ struct StatsView: View {
             viewModel.refresh(records: store.records, anchorDate: day)
             // 「先月のハイライト」と同じ項目・カードで累計を表示する。
             presentedHighlight = HighlightPresentation(
-                review: MonthlyReviewBuilder.lifetime(records: store.records, today: day, calendar: calendar),
+                review: MonthlyReviewBuilder.lifetime(records: store.records, today: day, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar),
                 title: "これまでのハイライト",
                 badge: "ALL-TIME HIGHLIGHT",
                 streakLabel: "最長連続",
@@ -478,7 +480,7 @@ struct StatsView: View {
         return Button {
             let today = store.today
             let previousMonth = calendar.date(byAdding: .month, value: -1, to: today) ?? today
-            let review = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, calendar: calendar)
+            let review = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, today: today, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar)
             presentedReview = PresentedReview(review: review)
         } label: {
             HStack(spacing: 12) {

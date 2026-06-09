@@ -75,6 +75,21 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
     static var fallbackAvatarAssetName: String {
         "cat_orange_waitingMorning"
     }
+
+    /// プロテインシェイカーを持つ待機ポーズの asset 名。例: cat_black_waitingMorning_shaker。
+    /// 達成段階と無関係に「運動記録の前後」で出すフレーバー(spec E)。
+    var shakerAssetName: String {
+        "cat_\(rawValue)_waitingMorning_shaker"
+    }
+
+    /// shaker 画像の解決。存在チェック `exists` を注入してフォールバックする(テスト可能)。
+    /// 1) 当該猫種の shaker → 2) 当該猫種の通常 waitingMorning → 3) orange shaker。
+    /// 画像欠落でも必ず何か返るので破綻しない。
+    func resolvedShakerAssetName(exists: (String) -> Bool) -> String {
+        if exists(shakerAssetName) { return shakerAssetName }
+        if exists(avatarAssetName) { return avatarAssetName }
+        return "cat_orange_waitingMorning_shaker"
+    }
 }
 
 /// ユーザー自身が選んだ猫種を覚えておくシンプルなストア。

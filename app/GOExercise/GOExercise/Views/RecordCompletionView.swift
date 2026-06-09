@@ -14,7 +14,6 @@ struct RecordCompletionView: View {
     @State private var contentVisible = false
     @State private var streakPulse = false
     @State private var showsConfetti = true
-    @State private var fireBurst = false
     @State private var ribbonText = ""
     @State private var ribbonAppear = false
     private let hapticFeedback = HapticFeedbackController()
@@ -53,6 +52,7 @@ struct RecordCompletionView: View {
         )
     }
 
+
     var body: some View {
         ZStack {
             Palette.background.ignoresSafeArea()
@@ -60,7 +60,7 @@ struct RecordCompletionView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // 1. ヒーロー: ホームと同じ大きい祝福猫。達成のごほうび感を最大化。
-                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating)
+                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating, useShaker: true)
                         .frame(width: 210, height: 210)
                         .scaleEffect(contentVisible ? 1 : 0.85)
                         .opacity(contentVisible ? 1 : 0)
@@ -123,12 +123,9 @@ struct RecordCompletionView: View {
             }
 
             if showsConfetti && !reduceMotion {
-                CelebrationOverlay(level: celebrationLevel)
+                // 記録完了画面は紙吹雪(上部に散らかる小アイコン)を出さず、光彩のみ。
+                CelebrationOverlay(level: celebrationLevel, showsConfetti: false)
                     .transition(.opacity)
-            }
-
-            if streakExtendedThisRun && !reduceMotion {
-                fireOverlay
             }
         }
         .navigationTitle("記録完了")
@@ -145,9 +142,6 @@ struct RecordCompletionView: View {
             }
             withAnimation(Motion.animation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true), reduceMotion: reduceMotion)) {
                 streakPulse = true
-            }
-            withAnimation(Motion.animation(Motion.bouncy.repeatCount(3, autoreverses: true), reduceMotion: reduceMotion)) {
-                fireBurst = true
             }
         }
         // 遅延処理は `.task` に置き、画面離脱で自動キャンセルする。これにより
@@ -182,23 +176,6 @@ struct RecordCompletionView: View {
 
     private func triggerHaptic() {
         CelebrationCenter.shared.fire(celebrationLevel)
-    }
-
-    private var fireOverlay: some View {
-        ZStack {
-            ForEach(0..<10, id: \.self) { index in
-                Text("🔥")
-                    .font(.system(size: index.isMultiple(of: 2) ? 28 : 22))
-                    .offset(
-                        x: fireBurst ? CGFloat((index % 5) - 2) * 42 : 0,
-                        y: fireBurst ? CGFloat(index / 5 == 0 ? -1 : 1) * 120 : 20
-                    )
-                    .opacity(fireBurst ? 0.1 : 0.9)
-                    .scaleEffect(fireBurst ? 1.25 : 0.7)
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     /// 連続日数を大きな数字でヒーロー化したカード。完了画面の感情的ピーク。

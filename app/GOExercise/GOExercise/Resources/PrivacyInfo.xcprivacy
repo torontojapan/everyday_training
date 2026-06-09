@@ -7,9 +7,51 @@
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
-	<!-- データ収集なし (TelemetryDeck は App ID 未設定で送信ゼロ、記録は端末内のみ)。 -->
+	<!-- 友達機能 (Supabase) を有効化 (v1.1)。共有プロフィール (表示名/ユーザー名/
+	     友達コード/連続記録/今日のカテゴリ・種目名/装飾) と匿名ユーザーID を収集。
+	     いずれも App 機能のためで、トラッキングには使用しない。運動・体重・体調の
+	     記録内容そのものは端末内のみで送信しない。 -->
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<!-- 運動実績の集計値 (連続記録・累計達成日・今日の達成有無・週/月の運動時間・
+			     達成日数) を友達と共有するため Fitness として申告。 -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeFitness</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Required Reason API: UserDefaults をアプリ自身/App Group 内でのみ使用 (CA92.1)。 -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>

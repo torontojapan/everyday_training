@@ -64,6 +64,9 @@ enum CelebrationLevel: Sendable {
 /// Place inside a ZStack with `.celebrate(level:)` modifier on the parent.
 struct CelebrationOverlay: View {
     let level: CelebrationLevel
+    /// 紙吹雪(星/ひし形/三角などの小アイコン)を出すか。記録完了画面では
+    /// 上部にアイコンが散らかって見えるため false を渡して光彩のみにする。
+    var showsConfetti: Bool = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var bloomScale: CGFloat = 0.3
     @State private var bloomOpacity: Double = 0
@@ -100,8 +103,10 @@ struct CelebrationOverlay: View {
                     .allowsHitTesting(false)
                 }
 
-                ConfettiView(intensity: level.confettiIntensity)
-                    .allowsHitTesting(false)
+                if showsConfetti {
+                    ConfettiView(intensity: level.confettiIntensity)
+                        .allowsHitTesting(false)
+                }
             }
         }
         .accessibilityHidden(true)

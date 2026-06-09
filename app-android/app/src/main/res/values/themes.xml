@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose が UI を描くため、プラットフォーム標準テーマを土台にして
+         material-components 依存を持ち込まない。色は Compose 側 (ui/theme) で管理。 -->
+    <style name="Theme.GOExercise" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

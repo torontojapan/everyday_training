@@ -36,10 +36,10 @@ struct FriendDetailView: View {
                         .accessibilityIdentifier("friend-detail-close")
                 }
             }
-            .confirmationDialog(
+            // 中央表示の標準アラート (popover の矢印/配置崩れを避ける。iPhone/iPad 共通で安定)。
+            .alert(
                 "\(friend.displayName) を友達から外しますか？",
-                isPresented: $pendingRemoval,
-                titleVisibility: .visible
+                isPresented: $pendingRemoval
             ) {
                 Button("友達を解除", role: .destructive) {
                     Task {
@@ -91,15 +91,8 @@ struct FriendDetailView: View {
                     .foregroundStyle(Palette.primaryDeep)
             }
 
-            if friend.decoration != .none {
-                HStack(spacing: 6) {
-                    Text(friend.decoration.emoji)
-                    Text(friend.decoration.displayName)
-                }
-                .font(Typography.caption)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(tierColor.opacity(0.18), in: Capsule())
-                .foregroundStyle(tierColor)
+            if friend.rank.rank > 0 {
+                RankBadge(rank: friend.rank)
             }
 
             Text(lastUpdatedText)
@@ -368,14 +361,12 @@ struct FriendDetailView: View {
 
     // MARK: - Helpers
 
+    /// 累計達成日タイルのアクセント色。称号 (CatRank) のメタル系統に揃える
+    /// (旧 decorationTier 0..4 スイッチは rank が 0..11 になり 5 以上が灰色落ち
+    ///  していたため、rank.metalKind 由来に統一)。
     private var tierColor: Color {
-        switch friend.decorationTier {
-        case 1: return Palette.primary
-        case 2: return Palette.settingsAccent
-        case 3: return Color(red: 0.90, green: 0.60, blue: 0.20)
-        case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
-        default: return Palette.textSecondary
-        }
+        guard let metal = friend.rank.metalKind else { return Palette.textSecondary }
+        return MetalStyle.isRainbow(metal) ? Color(red: 1.0, green: 0.80, blue: 0.42) : MetalStyle.baseColor(metal)
     }
 
     private var lastUpdatedText: String {

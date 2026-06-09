@@ -2,6 +2,8 @@ import SwiftUI
 
 struct StreakBadgeView: View {
     let streak: Int
+    /// true のとき縦に伸びて隣の列(称号+状態の2行)と高さを揃える。
+    var fillHeight: Bool = false
     var onTap: (() -> Void)? = nil
 
     var body: some View {
@@ -25,6 +27,7 @@ struct StreakBadgeView: View {
             .foregroundStyle(Palette.textPrimary)
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
+            .frame(maxHeight: fillHeight ? .infinity : nil)
             .background(Palette.secondary.opacity(0.8), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(PressableScaleButtonStyle())

@@ -10,8 +10,10 @@ settings:
     CODE_SIGN_STYLE: Automatic
     # リリースのバージョン/ビルド番号を一元管理 (app+widget が継承)。
     # TestFlight 再アップロードのたびに CURRENT_PROJECT_VERSION を +1 する。
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # 1.0(1)却下 / 1.0(2) / 1.0(3)=承認済み(友達+UUID修正)。
+    # 1.1 = v1.2機能群(達成装飾A〜F/紹介スター/設定リデザイン/polish)の初の機能更新。build は通し番号で 4。
+    MARKETING_VERSION: "1.1"
+    CURRENT_PROJECT_VERSION: "4"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
@@ -29,10 +31,15 @@ targets:
     platform: iOS
     sources:
       - path: GOExercise
-        excludes: ["Resources/Info.plist"]
+        # Products.storekit も除外: sources のパス走査が .storekit を自動で resource 分類して
+        # IPA に同梱してしまうため(GPT-5.5/Claude 監査)。Debug の StoreKit テストは scheme の
+        # run.storeKitConfiguration 参照だけで効く。Info.plist は info: で別管理。
+        excludes: ["Resources/Info.plist", "Resources/Products.storekit"]
     resources:
       - path: GOExercise/Resources/Assets.xcassets
-      - path: GOExercise/Resources/Products.storekit
+      # Products.storekit は **resources に含めない**(本番IPAに内部メタデータを同梱しない。
+      # GPT-5.5/Claude 監査)。Debug 実行時の StoreKit テストは下の scheme の
+      # run.storeKitConfiguration 参照だけで効く(Release/Archive は実 App Store に接続)。
     info:
       path: GOExercise/Resources/Info.plist
       properties:
@@ -51,13 +58,26 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
         NSSupportsLiveActivities: true
-        # TelemetryDeck の App ID。空の間は計測を送信しない (ゼロ収集を維持)。
-        # ダッシュボードで取得した UUID をリリース前に設定する。
-        TelemetryDeckAppID: ""
+        # 輸出コンプライアンス: 本アプリは標準の HTTPS(TLS)のみで独自/非標準の暗号は使わない
+        # = 適用除外。false を宣言して TestFlight/提出ごとの暗号コンプラ質問を省く
+        # (project.yml で宣言し xcodegen 再生成でも落ちないようにする)。
+        ITSAppUsesNonExemptEncryption: false
+        # TelemetryDeck の App ID。値は Secrets.xcconfig の TELEMETRYDECK_APP_ID 由来
+        # (gitignore)。空の間は計測を送信しない (ゼロ収集を維持)。
+        # ※ ここで project.yml に宣言しておくことで `xcodegen generate` が Info.plist を
+        #   再生成しても本キーが落ちない (再発バグ対策。FriendsAppleLinkEnabled も同様)。
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
+        # 友達のアカウント連携 (Apple サインインでの機種変復旧) を有効にするか。
+        # これが無いと SupabaseConfig.appleLinkEnabled=false → Apple バックアップ/復元UIが
+        # 非表示。手動キーだと xcodegen 再生成で落ちるため project.yml で恒久宣言する。
+        FriendsAppleLinkEnabled: true
         # 友達バックエンド (Supabase)。値は Secrets.xcconfig 由来 (gitignore)。
         # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
         SupabaseHost: "$(SUPABASE_HOST)"
         SupabaseAnonKey: "$(SUPABASE_ANON_KEY)"
+        # CAPTCHA (Cloudflare Turnstile)。空の間は CAPTCHA 無効 (匿名サインインは
+        # captchaToken なし = 従来挙動)。値を入れると Turnstile チャレンジを実行。
+        TurnstileSiteKey: "$(TURNSTILE_SITE_KEY)"
         CFBundleURLTypes:
           - CFBundleURLName: com.goexercise.app
             CFBundleURLSchemes:

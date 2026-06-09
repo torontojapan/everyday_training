@@ -76,8 +76,20 @@ final class RescueTicketStore {
 
 @MainActor
 enum RescueTicketAllowance {
-    /// 月次のフリーズ付与枚数。GOプレミアムなら 4、無料なら 1。
-    static func current(isPremium: Bool) -> Int {
-        isPremium ? 4 : 1
+    /// 月次フリーズ上限(全員共通)。base(無料1/プレミアム4)に今月の紹介ボーナスを
+    /// 加えても、ここを超えない。
+    nonisolated static let monthlyCap = 5
+
+    /// 後方互換: 紹介ボーナス無しの従来 API。
+    nonisolated static func current(isPremium: Bool) -> Int {
+        current(isPremium: isPremium, referralBonus: 0)
+    }
+
+    /// base + 今月の紹介ボーナスを `monthlyCap` でクリップした月次付与枚数。
+    /// base = 無料1 / プレミアム4(現行不変)。ボーナスは負値を 0 に丸める。
+    /// nonisolated: 純粋な算術なのでネイティブ実行/任意スレッドから呼べる。
+    nonisolated static func current(isPremium: Bool, referralBonus: Int) -> Int {
+        let base = isPremium ? 4 : 1
+        return min(monthlyCap, base + max(0, referralBonus))
     }
 }

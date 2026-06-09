@@ -12,6 +12,11 @@ final class MockFriendsService: FriendsService {
     private var requests: [String: FriendRequest] = [:]  // id → request
     private(set) var sentCheers: [(kind: CheerKind, code: String, at: Date)] = []
 
+    /// referee 視点: 自分が入力した紹介(あれば1件)。(referrerCode, confirmed)。
+    private var myReferral: (referrerCode: String, confirmed: Bool, confirmedAt: Date?)?
+    /// referrer 視点: 自分が紹介した confirmed 件(seen フラグ付き)。表示名/日時を保持。
+    private var inboundConfirmations: [(refereeName: String, at: Date, seen: Bool)] = []
+
     private var defaults: UserDefaults
     private var demoPool: [FriendProfile]
     private var now: () -> Date
@@ -85,6 +90,19 @@ final class MockFriendsService: FriendsService {
         friends.removeAll()
         requests.removeAll()
         sentCheers.removeAll()
+        myReferral = nil
+        inboundConfirmations.removeAll()
+        defaults.removeObject(forKey: Self.profileKey)
+    }
+
+    /// アカウント削除 (審査 5.1.1(v))。モックは in-memory 状態を全消去する (実 BE のデータ消去相当)。
+    func deleteAccount() async throws {
+        myProfile = nil
+        friends.removeAll()
+        requests.removeAll()
+        sentCheers.removeAll()
+        myReferral = nil
+        inboundConfirmations.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
     }
 
@@ -147,6 +165,65 @@ final class MockFriendsService: FriendsService {
         sentCheers.append((kind, friendCode, now()))
     }
 
+    // MARK: - 友達紹介 (Mock)
+
+    func submitInviteCode(_ code: String) async throws {
+        guard let me = myProfile else { throw FriendsServiceError.notSignedIn }
+        let upper = code.uppercased()
+        if upper == me.friendCode { throw FriendsServiceError.cannotAddSelf }
+        if myReferral != nil { throw FriendsServiceError.duplicateRequest }
+        // 紹介者は「コードで引ける既知のプロフィール」なら誰でも可:
+        // demoPool(未友達) / friends(既友達) / requests(受信中の申請者)。
+        // signIn は demoPool 先頭(AKIRA1)を pending request に消費するため、
+        // requests からも解決できないと既知コードを取りこぼす。
+        guard let referrer = demoPool.first(where: { $0.friendCode == upper })
+                ?? friends[upper]
+                ?? requests[upper]?.fromProfile else { throw FriendsServiceError.codeNotFound }
+        myReferral = (referrer.friendCode, false, nil)
+        // 自動友達化(既に友達でなければ)。
+        if friends[referrer.friendCode] == nil {
+            var f = referrer; f.connectedSince = now()
+            friends[referrer.friendCode] = f
+            demoPool.removeAll { $0.friendCode == referrer.friendCode }
+            requests.removeValue(forKey: referrer.friendCode)   // 申請があれば自動友達化で解消
+        }
+    }
+
+    func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {
+        guard hasFirstRecord, var r = myReferral, !r.confirmed else { return nil }
+        r.confirmed = true; r.confirmedAt = now(); myReferral = r
+        let name = friends[r.referrerCode]?.displayName ?? "ともだち"
+        return ReferralConfirmation(id: myProfile?.friendCode ?? "me",
+                                    friendDisplayName: name, role: .referee)
+    }
+
+    func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] {
+        let unseen = inboundConfirmations.enumerated().filter { !$0.element.seen }
+        for (idx, _) in unseen { inboundConfirmations[idx].seen = true }
+        return unseen.map {
+            ReferralConfirmation(id: "ref-\($0.offset)", friendDisplayName: $0.element.refereeName, role: .referrer)
+        }
+    }
+
+    func referralSummary() async throws -> ReferralSummary {
+        let cal = Calendar.mondayFirst
+        let monthKey: (Date) -> String = {
+            let c = cal.dateComponents([.year, .month], from: $0); return "\(c.year ?? 0)-\(c.month ?? 0)"
+        }
+        let nowKey = monthKey(now())
+        let stars = inboundConfirmations.count
+        var bonus = inboundConfirmations.filter { monthKey($0.at) == nowKey }.count
+        if let r = myReferral, r.confirmed, let at = r.confirmedAt, monthKey(at) == nowKey { bonus += 1 }
+        return ReferralSummary(starBadges: stars, freezeBonusThisMonth: bonus)
+    }
+
+    func hasReferrer() async throws -> Bool { myReferral != nil }
+
+    /// テスト用: 紹介者として誰かを紹介し confirmed になった状態を注入する。
+    func _seedInboundConfirmation(refereeName: String, at: Date, seen: Bool = false) {
+        inboundConfirmations.append((refereeName, at, seen))
+    }
+
     // MARK: - Helpers
 
     private struct StoredProfile: Codable {
@@ -164,10 +241,10 @@ final class MockFriendsService: FriendsService {
         return [
             FriendProfile(id: "AKIRA1", friendCode: "AKIRA1",
                           username: "akira_t", displayName: "あきら",
-                          currentStreak: 42, totalAchievedDays: 168,
+                          currentStreak: 3, totalAchievedDays: 168,
                           todayAchieved: true, todayCategoryName: "筋トレ",
                           todayExerciseNames: ["スクワット", "腕立て伏せ", "プランク"],
-                          decorationTier: 2,
+                          decorationTier: 0,
                           lastUpdated: now.addingTimeInterval(-4 * minute),
                           weeklyAchievements: [true, true, false, true, true, true, true],
                           connectedSince: nil,
@@ -182,7 +259,7 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .silvertabby),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
-                          currentStreak: 12, totalAchievedDays: 35,
+                          currentStreak: 9, totalAchievedDays: 35,
                           todayAchieved: true, todayCategoryName: "ヨガ",
                           todayExerciseNames: ["太陽礼拝"],
                           decorationTier: 1,
@@ -196,10 +273,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .calico),   // 詳細共有 OFF の友達
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
-                          currentStreak: 7, totalAchievedDays: 21,
+                          currentStreak: 16, totalAchievedDays: 21,
                           todayAchieved: false, todayCategoryName: nil,
                           todayExerciseNames: [],
-                          decorationTier: 1,
+                          decorationTier: 2,
                           lastUpdated: now.addingTimeInterval(-9 * 60 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, false],
                           connectedSince: nil,
@@ -210,7 +287,7 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .tuxedo),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
-                          currentStreak: 100, totalAchievedDays: 312,
+                          currentStreak: 35, totalAchievedDays: 312,
                           todayAchieved: true, todayCategoryName: "有酸素",
                           todayExerciseNames: ["ジョギング"],
                           decorationTier: 3,
@@ -229,10 +306,10 @@ final class MockFriendsService: FriendsService {
             // 友達タブの並び替え・ソート・カテゴリ別表示などが豊富に見えるようにする。
             FriendProfile(id: "RIKUTO", friendCode: "RIKUTO",
                           username: "rikuto_g", displayName: "りくと",
-                          currentStreak: 58, totalAchievedDays: 201,
+                          currentStreak: 60, totalAchievedDays: 201,
                           todayAchieved: true, todayCategoryName: "筋トレ",
                           todayExerciseNames: ["デッドリフト", "ベンチプレス"],
-                          decorationTier: 2,
+                          decorationTier: 4,
                           lastUpdated: now.addingTimeInterval(-12 * minute),
                           weeklyAchievements: [true, true, true, true, true, false, true],
                           connectedSince: nil,
@@ -246,10 +323,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .browntabby),
             FriendProfile(id: "SAKURA", friendCode: "SAKURA",
                           username: "sakura_y", displayName: "さくら",
-                          currentStreak: 3, totalAchievedDays: 58,
+                          currentStreak: 90, totalAchievedDays: 58,
                           todayAchieved: false, todayCategoryName: nil,
                           todayExerciseNames: [],
-                          decorationTier: 1,
+                          decorationTier: 5,
                           lastUpdated: now.addingTimeInterval(-3 * 60 * minute),
                           weeklyAchievements: [true, false, false, true, true, true, false],
                           connectedSince: nil,
@@ -260,10 +337,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .white),
             FriendProfile(id: "DAICHI", friendCode: "DAICHI",
                           username: "daichi_p", displayName: "だいち",
-                          currentStreak: 21, totalAchievedDays: 102,
+                          currentStreak: 120, totalAchievedDays: 102,
                           todayAchieved: true, todayCategoryName: "ストレッチ",
                           todayExerciseNames: ["前屈ストレッチ", "肩回し"],
-                          decorationTier: 2,
+                          decorationTier: 6,
                           lastUpdated: now.addingTimeInterval(-30 * minute),
                           weeklyAchievements: [true, true, true, false, true, true, true],
                           connectedSince: nil,
@@ -277,10 +354,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .gray),
             FriendProfile(id: "MIKAKO", friendCode: "MIKAKO",
                           username: "mikako", displayName: "みかこ",
-                          currentStreak: 75, totalAchievedDays: 240,
+                          currentStreak: 180, totalAchievedDays: 240,
                           todayAchieved: true, todayCategoryName: "ヨガ",
                           todayExerciseNames: ["太陽礼拝", "戦士のポーズ"],
-                          decorationTier: 3,
+                          decorationTier: 7,
                           lastUpdated: now.addingTimeInterval(-7 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, true],
                           connectedSince: nil,
@@ -291,10 +368,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .siamese),
             FriendProfile(id: "TAKUYA", friendCode: "TAKUYA",
                           username: "takuya_b", displayName: "たくや",
-                          currentStreak: 0, totalAchievedDays: 14,
+                          currentStreak: 250, totalAchievedDays: 14,
                           todayAchieved: false, todayCategoryName: nil,
                           todayExerciseNames: [],
-                          decorationTier: 1,
+                          decorationTier: 8,
                           lastUpdated: now.addingTimeInterval(-30 * 60 * minute),
                           weeklyAchievements: [false, false, true, false, false, false, false],
                           connectedSince: nil,
@@ -305,10 +382,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .black),
             FriendProfile(id: "EMIRIN", friendCode: "EMIRIN",
                           username: "emi_run", displayName: "えみ",
-                          currentStreak: 33, totalAchievedDays: 130,
+                          currentStreak: 320, totalAchievedDays: 130,
                           todayAchieved: true, todayCategoryName: "有酸素",
                           todayExerciseNames: ["サイクリング"],
-                          decorationTier: 2,
+                          decorationTier: 9,
                           lastUpdated: now.addingTimeInterval(-50 * minute),
                           weeklyAchievements: [true, true, false, true, true, true, true],
                           connectedSince: nil,
@@ -321,10 +398,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .scottish),
             FriendProfile(id: "KENJI1", friendCode: "KENJI1",
                           username: "kenji_z", displayName: "けんじ",
-                          currentStreak: 200, totalAchievedDays: 410,
+                          currentStreak: 400, totalAchievedDays: 410,
                           todayAchieved: true, todayCategoryName: "筋トレ",
                           todayExerciseNames: ["懸垂", "ディップス", "スクワット"],
-                          decorationTier: 3,
+                          decorationTier: 10,
                           lastUpdated: now.addingTimeInterval(-1 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, true],
                           connectedSince: nil,
@@ -341,10 +418,10 @@ final class MockFriendsService: FriendsService {
             // friend code でこれらを検索・申請するとデモで友達追加フローを試せる。
             FriendProfile(id: "NANAMI", friendCode: "NANAMI",
                           username: "nanami_k", displayName: "ななみ",
-                          currentStreak: 15, totalAchievedDays: 70,
+                          currentStreak: 480, totalAchievedDays: 70,
                           todayAchieved: false, todayCategoryName: nil,
                           todayExerciseNames: [],
-                          decorationTier: 1,
+                          decorationTier: 11,
                           lastUpdated: now.addingTimeInterval(-120 * minute),
                           weeklyAchievements: [true, true, false, true, false, true, true],
                           connectedSince: nil,
@@ -355,10 +432,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .calico),
             FriendProfile(id: "SOTA22", friendCode: "SOTA22",
                           username: "sota", displayName: "そうた",
-                          currentStreak: 5, totalAchievedDays: 40,
+                          currentStreak: 530, totalAchievedDays: 40,
                           todayAchieved: true, todayCategoryName: "有酸素",
                           todayExerciseNames: ["ランニング"],
-                          decorationTier: 1,
+                          decorationTier: 11,
                           lastUpdated: now.addingTimeInterval(-15 * minute),
                           weeklyAchievements: [false, true, true, true, false, true, true],
                           connectedSince: nil,
@@ -369,10 +446,10 @@ final class MockFriendsService: FriendsService {
                           myCatBreed: .browntabby),
             FriendProfile(id: "YUZUKI", friendCode: "YUZUKI",
                           username: "yuzu", displayName: "ゆずき",
-                          currentStreak: 48, totalAchievedDays: 160,
+                          currentStreak: 55, totalAchievedDays: 160,
                           todayAchieved: true, todayCategoryName: "ヨガ",
                           todayExerciseNames: ["太陽礼拝"],
-                          decorationTier: 2,
+                          decorationTier: 4,
                           lastUpdated: now.addingTimeInterval(-8 * minute),
                           weeklyAchievements: [true, true, true, true, true, false, true],
                           connectedSince: nil,

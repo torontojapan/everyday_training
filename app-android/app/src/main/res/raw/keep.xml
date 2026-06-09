@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  リソース shrinker から守る対象。猫 77 画像(cat_<breed>_<state>)は resources.getIdentifier で
+  動的解決するため、コードからの直接参照が無く shrinkResources に未使用と誤判定される。tools:keep で保持する。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/cat_*" />

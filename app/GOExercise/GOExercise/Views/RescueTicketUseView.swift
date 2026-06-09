@@ -9,8 +9,17 @@ struct RescueTicketUseView: View {
     private let calendar = Calendar.mondayFirst
     @Environment(RescueTicketStore.self) private var store
     @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
 
-    private var allowance: Int { RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive) }
+    /// 対象日の「その月」の allowance。紹介フリーズ加算は今月分の集計なので、
+    /// 月初の4日グレースで前月日へ適用するときは加算を載せない(GPT-5.5 監査: 月境界の
+    /// 加算流用を防ぐ)。currentAccountFreezeBonus でアカウント境界もガード済み。
+    private func allowance(for date: Date) -> Int {
+        let inCurrentMonth = calendar.isDate(date, equalTo: Date(), toGranularity: .month)
+        let bonus = inCurrentMonth ? referralStore.currentAccountFreezeBonus : 0
+        return RescueTicketAllowance.current(isPremium: storeKit.isPremiumActive, referralBonus: bonus)
+    }
+    private var allowance: Int { allowance(for: Date()) }   // 概要カード = 今月基準
     private var hasTicketAvailable: Bool {
         store.hasTicketAvailable(today: Date(), allowance: allowance)
     }
@@ -52,21 +61,21 @@ struct RescueTicketUseView: View {
                 workoutStore = WorkoutStore(context: modelContext)
             }
         }
-        .confirmationDialog(
+        .alert(
             confirmTitle,
             isPresented: Binding(get: { pendingDate != nil },
                                   set: { if !$0 { pendingDate = nil } }),
-            titleVisibility: .visible,
             presenting: pendingDate
         ) { date in
             Button("適用する") {
                 apply(date: date)
             }
+            .keyboardShortcut(.defaultAction)   // 太字の標準アクションにして可読性を上げる (薄いtint色対策)
             Button("キャンセル", role: .cancel) {
                 pendingDate = nil
             }
         } message: { date in
-            let afterUse = max(0, store.remainingTickets(today: date, allowance: allowance) - 1)
+            let afterUse = max(0, store.remainingTickets(today: date, allowance: allowance(for: date)) - 1)
             Text("\(format(date)) にフリーズを1回使うと、今月の残りは \(afterUse) 回になります。連続記録が途切れずに済みます。")
         }
         .alert(item: $resultMessage) { message in
@@ -209,7 +218,7 @@ struct RescueTicketUseView: View {
             // Codex 指摘: 旧コードは今日基準の hasTicketAvailable で gate していたが、
             // useTicket は **適用対象の日 (date)** の月を見るので、月境界で食い違いが
             // 出る (例: 1 日朝に前月末日へ適用)。store と同じ判定軸 (date) で確認する。
-            guard self.store.hasTicketAvailable(today: date, allowance: allowance) else {
+            guard self.store.hasTicketAvailable(today: date, allowance: allowance(for: date)) else {
                 resultMessage = ResultMessage(title: "対象月のチケットを使い切っています",
                                               text: "別の日に適用するか、翌月の補充をお待ちください。")
                 return
@@ -225,7 +234,7 @@ struct RescueTicketUseView: View {
     }
 
     private func apply(date: Date) {
-        let success = store.useTicket(on: date, allowance: allowance)
+        let success = store.useTicket(on: date, allowance: allowance(for: date))
         pendingDate = nil
         if success {
             resultMessage = ResultMessage(title: "適用しました ✅", text: "\(format(date)) に保険チケットを使いました。連続記録が守られます。")

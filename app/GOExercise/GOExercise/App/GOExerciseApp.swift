@@ -7,7 +7,15 @@ struct GOExerciseApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var themeStore = ThemeStore.shared
-    @State private var friendsStore = FriendsStore(service: GOExerciseApp.makeFriendsService())
+    /// friendsStore と referralStore で **同一** の FriendsService インスタンスを共有する。
+    /// makeFriendsService() は呼ぶたびに新インスタンスを返すため、別々に作ると
+    /// サインイン状態やデータが食い違う。ここで 1 度だけ生成して両者に渡す。
+    private static let sharedFriendsService: any FriendsService = GOExerciseApp.makeFriendsService()
+    @State private var friendsStore = FriendsStore(service: GOExerciseApp.sharedFriendsService)
+    @State private var referralStore = ReferralStore(
+        service: GOExerciseApp.sharedFriendsService,
+        isSignedIn: { GOExerciseApp.sharedFriendsService.myProfile != nil }
+    )
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
     @State private var userCatPrefs = UserCatPreferences.shared
@@ -22,18 +30,20 @@ struct GOExerciseApp: App {
     private let sharedModelContainer = AppModelContainer.make()
 
     /// 友達バックエンドの選択。
-    /// - Release: Supabase が設定済み (Secrets.xcconfig) なら **Supabase** (中立BE・Apple↔Android)。
-    ///   未設定なら Mock にフォールバック (friends は v1 非表示中なので実害なし。設定後に実接続)。
+    /// - Release: 常に **Supabase** (中立BE・Apple↔Android)。Secrets.xcconfig 未設定の場合は
+    ///   Mock へ無言フォールバックせず、使用時に `backendUnavailable` を投げてエラーバナーで
+    ///   表面化させる (設定漏れを本番でローカル Mock 動作に化けさせない = Codexレビュー反映)。
+    ///   → v1.1 アーカイブ前に Secrets.xcconfig の SUPABASE_HOST/ANON_KEY を必ず設定すること。
     /// - DEBUG: 既定は `MockFriendsService` (デモ/スクショ/UI テスト用)。
-    ///   `--supabase-friends` で Supabase、`--cloudkit-friends` で旧 CloudKit (参考実装)。
+    ///   `--supabase-friends` で実 Supabase に接続して手動確認できる。
     static func makeFriendsService() -> any FriendsService {
         #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        if args.contains("--supabase-friends") { return SupabaseFriendsService() }
-        if args.contains("--cloudkit-friends") { return CloudKitFriendsService() }
+        if ProcessInfo.processInfo.arguments.contains("--supabase-friends") {
+            return SupabaseFriendsService()
+        }
         return MockFriendsService()
         #else
-        return SupabaseConfig.isConfigured ? SupabaseFriendsService() : MockFriendsService()
+        return SupabaseFriendsService()
         #endif
     }
 
@@ -44,10 +54,20 @@ struct GOExerciseApp: App {
                 .environment(friendsStore)
                 .environment(storeKit)
                 .environment(rescueTicketStore)
+                .environment(referralStore)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
+                    // fullScreenCover の中身は親の .environment(_:) を取りこぼすこと
+                    // がある (SwiftUI の既知の癖)。UserCatPickerView は storeKit
+                    // (猫種ロック判定) と friendsStore/referralStore (招待コード入力) を
+                    // 環境から読むため、cover 上で明示的に注入し直す。
                     UserCatPickerView(isOnboarding: true)
+                        .environment(themeStore)
+                        .environment(friendsStore)
+                        .environment(storeKit)
+                        .environment(rescueTicketStore)
+                        .environment(referralStore)
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
@@ -70,6 +90,13 @@ struct GOExerciseApp: App {
                     // StoreKit: 起動時に商品ロード + entitlement 評価。
                     await storeKit.loadProducts()
 
+                    // 友達紹介: サインイン済みなら起動時に「紹介者ポップ」を取り込む。
+                    // 未サインインは ReferralStore 側で no-op(匿名アカウントを作らない)。
+                    if AppFeatureFlags.isReferralActive {
+                        await referralStore.refresh()
+                        await referralStore.pollReferrerPops()
+                    }
+
                     // 以下の mock 系起動引数は UI テスト / スクショ専用。Release では
                     // コンパイル除外し、本番で偽の友達データ生成やサインアウトが
                     // 起きないようにする (QA チェックリスト A: debug 引数は Release で無効)。
@@ -91,6 +118,11 @@ struct GOExerciseApp: App {
                             // 再生成され profile も streak 0 にリセットされていた (3 LLM 監査 C2)。
                             await friendsStore.ensureDemoFriendsSeeded()
                         }
+                    }
+                    // スクショ/QA 用: 紹介スター数を直接注入(レイアウト確認、特に最大10星)。
+                    if let idx = args.firstIndex(of: "--mock-referral-stars"),
+                       idx + 1 < args.count, let n = Int(args[idx + 1]) {
+                        referralStore.summary = ReferralSummary(starBadges: n, freezeBonusThisMonth: 0)
                     }
                     #endif
                 }

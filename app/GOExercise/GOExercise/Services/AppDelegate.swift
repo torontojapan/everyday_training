@@ -40,7 +40,9 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     ) {
         let routeKey = response.notification.request.content.userInfo["route"] as? String
         Task { @MainActor in
-            let route = routeKey.flatMap(AppRoute.init(rawValue:)) ?? .record
+            // route キー欠落時の既定はホーム。`.record` だと通知タップで全画面が
+            // 文脈のない記録入力に置き換わる(Claude 監査)。自前通知は常に route=home を付与する。
+            let route = routeKey.flatMap(AppRoute.init(rawValue:)) ?? .home
             DeepLinkRouter.shared.pendingRoute = route
         }
         completionHandler()

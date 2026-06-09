@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+/app/build/
+
+# リリース署名(本番鍵 + パスワードは絶対にコミットしない)
+/keystore/
+*.jks
+*.keystore
+keystore.properties
+.kotlin/

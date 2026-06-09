@@ -11,6 +11,18 @@ enum DemoScenario: String {
     case monthBoundary = "month-boundary"
     case empty
     case edgeMinute = "edge-minute"
+    // --- 達成リデザイン A〜F の実機/sim検証用(DEBUG・各ランク/復活を即出し)---
+    /// 連続7日(rank1 みならいネコ・bronze)。
+    case rank7 = "rank-7"
+    /// 連続100日(rank6 つわものネコ・gold)。
+    case rank100 = "rank-100"
+    /// 連続500日(rank11 ぬしネコ・rainbow)。
+    case rank500 = "rank-500"
+    /// 直近で連続が途切れた「4日グレース内」=復活ポップ(D)が出る状態。
+    case revive = "revive"
+    /// 節目の前夜: 昨日まで29日連続・今日は未記録。**今日運動を記録すると30日達成の
+    /// 節目演出が出る**(=達成演出が「記録後」に出ることの実機検証用)。
+    case milestoneEve = "milestone-eve"
     /// 1 ヶ月使い込んだ状態を全機能のせて再現する demo シナリオ。
     /// - 30 日連続ワークアウト (種目バリエーション)
     /// - 30 日分の体重記録 (緩やかな減量曲線 + 朝晩の二重記録で同日複数記録機能を可視化)
@@ -56,6 +68,20 @@ enum DemoDataSeeder {
             break
         case .edgeMinute:
             seedEdgeMinute(context: context, todayStart: todayStart, calendar: calendar)
+        case .rank7:
+            seedConsecutive(days: 7, context: context, todayStart: todayStart, calendar: calendar)
+        case .rank100:
+            seedConsecutive(days: 100, context: context, todayStart: todayStart, calendar: calendar)
+        case .rank500:
+            seedConsecutive(days: 500, context: context, todayStart: todayStart, calendar: calendar)
+        case .revive:
+            seedReviveWindow(context: context, todayStart: todayStart, calendar: calendar)
+        case .milestoneEve:
+            // 昨日まで29日連続(今日は未記録)。今日記録すると streak=30 で節目演出。
+            for offset in 1...29 {
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+                insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
+            }
         case .monthly:
             seedLongStreak(context: context, todayStart: todayStart, calendar: calendar)
             // 周期オーバーレイがチャート全期間に渡って描けるよう、
@@ -153,6 +179,26 @@ enum DemoDataSeeder {
 
     private static func seedLongStreak(context: ModelContext, todayStart: Date, calendar: Calendar) {
         for offset in 0..<30 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+            insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
+        }
+    }
+
+    /// 今日を含む直近 `days` 日を連続達成にする(連続日数 = days)。
+    /// 達成リデザイン検証用: rank の背景(A)・称号(C)・初回起動時の昇格トースト(B)を確認できる。
+    private static func seedConsecutive(days: Int, context: ModelContext, todayStart: Date, calendar: Calendar) {
+        for offset in 0..<days {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
+            insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
+        }
+    }
+
+    /// 「直近で連続が途切れた(4日グレース内)」状態を作る。復活ポップ(D)検証用。
+    /// 直近4日(今日含む)を空け、その手前は十分長い連続にする。rest 自動補完(週2)を
+    /// 超える非達成日が現在週に生じるよう、今日が週後半なら yesterday が missed になる。
+    /// (週前半に当たって popup が出ない場合は別途 `--force-revive` で確認可)
+    private static func seedReviveWindow(context: ModelContext, todayStart: Date, calendar: Calendar) {
+        for offset in 4..<44 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
             insertRecord(context: context, date: day, templateIndex: offset, calendar: calendar)
         }

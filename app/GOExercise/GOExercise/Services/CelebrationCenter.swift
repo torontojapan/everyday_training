@@ -16,4 +16,10 @@ final class CelebrationCenter {
     func fire(_ level: CelebrationLevel) {
         haptic.play(level)
     }
+
+    /// 小節目(minor)用。シート無しの軽量演出。ハプティクスのみ鳴らし、
+    /// 視覚演出(さざ波/称号トースト)は呼び出し側の RankCelebrationOverlay が担う。
+    func fireLight() {
+        fire(.subtle)
+    }
 }

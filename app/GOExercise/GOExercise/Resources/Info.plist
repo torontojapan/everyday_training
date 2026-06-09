@@ -31,6 +31,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FriendsAppleLinkEnabled</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。</string>
 	<key>NSSupportsLiveActivities</key>
@@ -40,7 +44,9 @@
 	<key>SupabaseHost</key>
 	<string>$(SUPABASE_HOST)</string>
 	<key>TelemetryDeckAppID</key>
-	<string></string>
+	<string>$(TELEMETRYDECK_APP_ID)</string>
+	<key>TurnstileSiteKey</key>
+	<string>$(TURNSTILE_SITE_KEY)</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

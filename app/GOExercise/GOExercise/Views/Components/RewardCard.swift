@@ -1,34 +1,16 @@
 import SwiftUI
 
-/// Combines the rescue ticket status and the cat decoration tier into a single
-/// visually richer card that replaces two text-heavy rows.
+/// 保険チケットの状態を表示するカード。
+/// (旧: CatDecoration チップとセットだったが、cat progression は
+///  キャラアートに bake-in されたため装飾チップを退役し、
+///  チケット情報のみのシンプルな reward card として再整備。)
 struct RewardCard: View {
-    let decoration: CatDecoration
     let ticketAvailable: Bool
     var onUseTicket: (() -> Void)? = nil
     var showUseTicketButton: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                decorationBadge
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("ごほうび")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                    Text("装飾: \(decoration.displayName)")
-                        .font(Typography.headline)
-                        .foregroundStyle(Palette.textPrimary)
-                    Text(decoration.unlockHint)
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-            }
-
-            Divider().opacity(0.5)
-
             HStack(spacing: 12) {
                 ticketIcon
                 VStack(alignment: .leading, spacing: 4) {
@@ -59,7 +41,7 @@ struct RewardCard: View {
         .padding(16)
         .background(
             LinearGradient(
-                colors: [Palette.surface, decoration.accentColor.opacity(0.12)],
+                colors: [Palette.surface, Palette.primary.opacity(0.06)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
@@ -67,23 +49,8 @@ struct RewardCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(decoration.accentColor.opacity(0.25), lineWidth: 1)
+                .strokeBorder(Palette.primary.opacity(0.15), lineWidth: 1)
         )
-    }
-
-    private var decorationBadge: some View {
-        ZStack {
-            Circle()
-                .fill(decoration.accentColor.opacity(0.25))
-                .frame(width: 56, height: 56)
-            if decoration.symbolName.isEmpty {
-                Text("🐱").font(.system(size: 26))
-            } else {
-                Image(systemName: decoration.symbolName)
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(decoration.accentColor)
-            }
-        }
     }
 
     private var ticketIcon: some View {

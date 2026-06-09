@@ -32,3 +32,6 @@ logs/
 
 # Supabase 等の秘匿設定 (anon key 等)。テンプレは Secrets.example.xcconfig
 Secrets.xcconfig
+
+# Supabase CLI ローカル一時ファイル(linked-project等)
+supabase/.temp/

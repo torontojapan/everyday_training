@@ -5,9 +5,23 @@ import SwiftUI
 /// 呼び出し時は普通のシートとして表示する。
 struct UserCatPickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(StoreKitManager.self) private var storeKit
+    @Environment(ReferralStore.self) private var referralStore
+    @Environment(FriendsStore.self) private var friendsStore
     @State private var prefs = UserCatPreferences.shared
     @State private var selected: CatBreed
+    @State private var showPaywall = false
+    @State private var inviteCode = ""
+    @State private var isSubmittingInvite = false
+    @State private var inviteAccepted = false
     let isOnboarding: Bool
+
+    private var referralUnlocked: Bool {
+        // 現サインインアカウントの friend_code と summary の由来アカウントが一致する場合のみ解放。
+        // 切替/復元直後(未 refresh)に前アカウントの星で有料猫を解放させない
+        // (Codex指摘: 口座跨ぎの stale entitlement)。
+        referralStore.isBreedUnlocked(forAccount: friendsStore.profile?.friendCode)
+    }
 
     init(isOnboarding: Bool = false) {
         self.isOnboarding = isOnboarding
@@ -45,6 +59,25 @@ struct UserCatPickerView: View {
                         }
                     }
                     .padding(.horizontal, 16)
+
+                    if isOnboarding && AppFeatureFlags.isReferralActive {
+                        Group {
+                            if inviteAccepted {
+                                Label("招待コードを適用しました!", systemImage: "checkmark.seal.fill")
+                                    .font(Typography.body)
+                                    .foregroundStyle(Palette.primaryDeep)
+                            } else {
+                                InviteCodeField(code: $inviteCode, isSubmitting: isSubmittingInvite) {
+                                    submitInvite()
+                                }
+                            }
+                            if let err = referralStore.lastError, !inviteAccepted {
+                                Text(err).font(Typography.caption).foregroundStyle(.red)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                    }
                 }
                 .padding(.vertical, 20)
             }
@@ -59,6 +92,9 @@ struct UserCatPickerView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isOnboarding ? "はじめる" : "決定") {
+                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
+                            selected = prefs.myCat
+                        }
                         prefs.myCat = selected
                         if isOnboarding {
                             Analytics.track(.onboardingCompleted)
@@ -70,6 +106,9 @@ struct UserCatPickerView: View {
                 }
             }
             .interactiveDismissDisabled(isOnboarding)   // onboarding は閉じれない
+            .sheet(isPresented: $showPaywall) {
+                PremiumPaywallSheet(store: storeKit, context: .general)
+            }
         }
     }
 
@@ -99,8 +138,9 @@ struct UserCatPickerView: View {
 
     private func cell(_ breed: CatBreed) -> some View {
         let isSelected = selected == breed
+        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
         return Button {
-            selected = breed
+            if locked { showPaywall = true } else { selected = breed }
         } label: {
             VStack(spacing: 4) {
                 ZStack {
@@ -113,6 +153,13 @@ struct UserCatPickerView: View {
                         .scaleEffect(1.10)
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
+                        .opacity(locked ? 0.45 : 1)
+                    if locked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 2)
+                    }
                 }
                 .overlay {
                     Circle()
@@ -129,8 +176,20 @@ struct UserCatPickerView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(breed.displayName)
+        .accessibilityLabel(locked ? "\(breed.displayName)(プレミアムで解放)" : breed.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("user-cat-\(breed.rawValue)")
+    }
+
+    private func submitInvite() {
+        isSubmittingInvite = true
+        referralStore.lastError = nil
+        Task {
+            // 招待コード入力には匿名サインインが必要(能動操作なので opt-in に合致)。
+            await friendsStore.ensureSignedIn()
+            let ok = await referralStore.submitCode(inviteCode)
+            isSubmittingInvite = false
+            if ok { inviteAccepted = true }
+        }
     }
 }

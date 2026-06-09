@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- iOS はハードコード文字列だが Android は最初から strings.xml に集約する (計画書 §2)。 -->
+    <string name="app_name">GO エクササイズ</string>
+</resources>
