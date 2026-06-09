@@ -9,6 +9,7 @@ import com.goexercise.app.data.friends.FriendsService
 import com.goexercise.app.data.milestone.MilestoneRepository
 import com.goexercise.app.data.rankup.SharedPrefsRankUpStore
 import com.goexercise.app.data.rescue.RescueTicketRepository
+import com.goexercise.app.data.review.SharedPrefsReviewPromptStore
 import com.goexercise.app.data.rescue.ReviveDismissStore
 import com.goexercise.app.data.settings.HealthRepository
 import com.goexercise.app.data.settings.SettingsRepository
@@ -21,6 +22,8 @@ import com.goexercise.app.domain.RankUpEvent
 import com.goexercise.app.domain.RescueTicketAllowance
 import com.goexercise.app.domain.RescueTicketLogic
 import com.goexercise.app.domain.RestoredStreakCalculator
+import com.goexercise.app.domain.ReviewRequestController
+import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.domain.StreakFreezeWindow
 import com.goexercise.app.domain.WeightAnalytics
 import com.goexercise.app.domain.WorkoutRecord
@@ -60,11 +63,13 @@ class HomeViewModel @Inject constructor(
     private val friendsService: FriendsService,
     private val premium: PremiumRepository,
     rankUpStore: SharedPrefsRankUpStore,
+    reviewStore: SharedPrefsReviewPromptStore,
     private val reviveDismissStore: ReviveDismissStore,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val rankUpDetector = RankUpDetector(rankUpStore)
+    private val reviewController = ReviewRequestController(reviewStore)
 
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。
@@ -127,6 +132,12 @@ class HomeViewModel @Inject constructor(
     private val _pendingRankEvent = MutableStateFlow<RankUpEvent?>(null)
     val pendingRankEvent: StateFlow<RankUpEvent?> = _pendingRankEvent.asStateFlow()
 
+    // レビュー依頼: 連続記録の節目(7/30/100)で控えめに Play In-App Review を出す。
+    // 判定/dedup/90日スロットルは reviewController が担い、UI 層がこのフラグを消費して
+    // 実ダイアログを起動する(iOS RecordCompletionView の requestReview 相当)。
+    private val _pendingReviewRequest = MutableStateFlow(false)
+    val pendingReviewRequest: StateFlow<Boolean> = _pendingReviewRequest.asStateFlow()
+
     init {
         viewModelScope.launch {
             // ⚠️ uiState の initialValue=HomeUiState() は streak 0(weekStatuses 空)の合成初期値。
@@ -147,8 +158,44 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // ── レビュー依頼: 記録完了(今日の記録が新規追加された瞬間)に発火 ─────────────────────
+    // iOS RecordCompletionView の requestReview と同じく「記録後のみ」。records(+rescued)を観測し、
+    // 今日の記録件数が増えた=記録完了のときだけ、連続記録が節目なら Play In-App Review を出す。
+    // revive は rescuedDates のみ変化(records 不変)なので発火しない。records と rescued を同一の
+    // combine スナップショットから読むため streak 計算も整合する。判定/dedup/90日スロットルは
+    // reviewController が担保。初期購読(prev==null)では発火しない。
+    init {
+        viewModelScope.launch {
+            var knownRecordIds: Set<String>? = null
+            combine(repository.observeRecords(), rescueTickets.rescuedDates) { records, rescued ->
+                records to rescued
+            }.collect { (records, rescued) ->
+                val today = LocalDate.now(clock)
+                val prevIds = knownRecordIds
+                if (prevIds != null) {
+                    // 前回スナップショットに無かった「今日の」記録が現れた = 記録完了。
+                    // ID 差分なので日跨ぎ(today が変わっても)/多重記録でも確実に検知でき、
+                    // revive(rescuedDates のみ変化・records 不変)では新 ID が出ず発火しない。
+                    val newTodayRecord = records.any { it.date == today && it.id !in prevIds }
+                    if (newTodayRecord) {
+                        val streak = StreakCalculator.currentStreak(records, today, rescued)
+                        if (reviewController.shouldRequestReview(streak, today)) {
+                            reviewController.markRequested(streak, today)
+                            _pendingReviewRequest.value = true
+                        }
+                    }
+                }
+                knownRecordIds = records.mapTo(HashSet()) { it.id }
+            }
+        }
+    }
+
     fun clearRankEvent() {
         _pendingRankEvent.value = null
+    }
+
+    fun clearReviewRequest() {
+        _pendingReviewRequest.value = false
     }
 
     // ── 機能D: 連続記録フリーズ復活ポップ ────────────────────────────────────────────

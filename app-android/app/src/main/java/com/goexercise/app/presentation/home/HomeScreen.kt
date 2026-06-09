@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import com.goexercise.app.presentation.review.findActivity
+import com.goexercise.app.presentation.review.launchInAppReview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +61,16 @@ fun HomeRoute(
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
     val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
     val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
+
+    // レビュー依頼: VM が節目到達を検知したら Play In-App Review を起動(表示可否は Google 判断)。
+    val reviewRequested by viewModel.pendingReviewRequest.collectAsStateWithLifecycle()
+    val reviewContext = LocalContext.current
+    LaunchedEffect(reviewRequested) {
+        if (reviewRequested) {
+            reviewContext.findActivity()?.let { launchInAppReview(it) }
+            viewModel.clearReviewRequest()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)

@@ -160,6 +160,9 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.androidx.browser)
 
+    // Play In-App Review(レビュー依頼。iOS の requestReview 相当。表示可否は Google が判断)。
+    implementation("com.google.android.play:review:2.0.1")
+
     // ホーム画面ウィジェット(Jetpack Glance)。連続日数+猫を表示。
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
