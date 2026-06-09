@@ -45,7 +45,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.ui.components.CatAvatar
+import com.goexercise.app.ui.components.metalColor
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 
@@ -133,6 +135,9 @@ fun SettingsContent(
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
         CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
 
+        Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
+        CatRankLadderSection(palette)
+
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
         ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
 
@@ -189,6 +194,55 @@ private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (Cat
                         }
                     }
                     repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 称号一覧（連続記録で進化する全11段）。iOS `CatRankGuideView` の静的版。
+ * 各段: メタルドット + 称号名 + 到達に必要な連続日数。目標を一覧して前進動機を作る。
+ * 現在地ハイライト/「あとN日」は streak が要るため将来の拡張（VM への streak 配線）とする。
+ */
+@Composable
+private fun CatRankLadderSection(palette: AppTheme) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "連続記録を続けると猫の称号が進化します（全11段）。",
+                color = palette.textSecondary,
+                fontSize = 12.sp,
+            )
+            CatRank.thresholds.forEach { threshold ->
+                val entry = CatRank.of(threshold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(entry.metalKind?.let { metalColor(it) } ?: palette.textSecondary)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.55f), CircleShape),
+                    )
+                    Text(
+                        entry.title ?: "",
+                        color = palette.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                    Box(Modifier.weight(1f))
+                    Text(
+                        "${threshold}日",
+                        color = palette.primaryDeep,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
                 }
             }
         }
