@@ -81,6 +81,7 @@ class FriendsViewModel @Inject constructor(
     private val service: FriendsService,
     private val authCoordinator: AccountAuthCoordinator,
     private val settings: com.goexercise.app.data.settings.SettingsRepository,
+    private val referralStore: com.goexercise.app.data.referral.ReferralStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FriendsUiState())
@@ -110,7 +111,14 @@ class FriendsViewModel @Inject constructor(
     /** identity(サインイン中の uid)の世代。切替/復元/サインアウト/削除で進め、進行中の旧 load を無効化する
      *  (iOS identityGeneration。旧アカウントの友達/申請を新プロフィール上へ書かないため)。 */
     private var identityGeneration = 0
-    private fun bumpIdentity() { identityGeneration++ }
+    private fun bumpIdentity() {
+        identityGeneration++
+        // identity が変わったら紹介状態も取り直す。前アカウントの星/今月フリーズ/未消化ポップが
+        // 新アカウントの文脈で漏れる口座スコープ漏れを防ぐ(iOS の friendCode 変化 → refresh に対応)。
+        // まず同期で即リセットして stale を出さず、続けて新アカウントの値を非同期で取得する。
+        referralStore.resetForIdentityChange()
+        viewModelScope.launch { runCatching { referralStore.refresh() } }
+    }
 
     /** サインイン済みのときだけ最新化(未サインインは welcome のまま、クラウドへ書き込まない)。 */
     fun refreshIfSignedIn() {

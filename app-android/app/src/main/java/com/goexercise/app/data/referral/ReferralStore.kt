@@ -41,6 +41,12 @@ class ReferralStore @Inject constructor(
     val pendingWelcome: StateFlow<ReferralConfirmation?> = _pendingWelcome.asStateFlow()
     private val _pendingReferrerPops = MutableStateFlow<List<ReferralConfirmation>>(emptyList())
     val pendingReferrerPops: StateFlow<List<ReferralConfirmation>> = _pendingReferrerPops.asStateFlow()
+    /** 現在の summary がどのアカウント(friend_code)由来かを記録し、口座跨ぎの stale を防ぐ
+     *  (iOS summaryAccountCode 相当)。 */
+    private val _summaryAccountCode = MutableStateFlow<String?>(null)
+    /** 非同期 refresh の世代。identity 変更(reset)で進め、フェッチ中に identity が
+     *  変わった場合に前アカウントの結果を commit しないための stale ガード(Codex R1)。 */
+    @Volatile private var identityGeneration = 0
     private val _firstLaunchAt = MutableStateFlow<Instant?>(null)
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
@@ -64,11 +70,52 @@ class ReferralStore @Inject constructor(
 
     private suspend fun isSignedIn(): Boolean = service.myProfile() != null
 
+    /**
+     * アカウント切替/サインアウト/削除で identity が変わった瞬間に**同期で**全状態を捨てる。
+     * これが無いと、前アカウントの星/今月フリーズ/未消化ポップが新アカウントの文脈で
+     * 一瞬(refresh 完了まで)使われ、口座スコープ漏れになる(iOS の口座ガードに対応)。
+     * 呼び出しは FriendsViewModel.bumpIdentity(切替/復元/サインアウト/削除の中央点)。
+     */
+    fun resetForIdentityChange() {
+        identityGeneration++ // 進行中の refresh が前アカウント値を commit するのを無効化(Codex R1)。
+        _summary.value = ReferralSummary.EMPTY
+        _hasReferrer.value = false
+        _pendingWelcome.value = null
+        _pendingReferrerPops.value = emptyList()
+        _summaryAccountCode.value = null
+    }
+
     suspend fun refresh() {
-        if (!isSignedIn()) return
+        // 世代は**最初の suspend より前**に取得する。myProfile() 自体が suspend で、その中断中に
+        // identity が変わると古い friendCode が返り得るため、直後にも再チェックして破棄する(Codex R2)。
+        val gen = identityGeneration
+        val account = service.myProfile()?.friendCode
+        if (gen != identityGeneration) return // myProfile 中に reset された → 古い結果で何もしない
+        if (account == null) {
+            // 未サインイン(サインアウト/切替/削除後)は前アカウントの状態を持ち越さない。
+            // 未消化ポップも捨て、次のユーザーに前アカウント宛の祝祭を出さない(監査 P2)。
+            resetForIdentityChange()
+            return
+        }
+        val previousCode = _summaryAccountCode.value
+        // **実際に別アカウントへ切り替わった時だけ**クリアする。previousCode==null は初回 refresh で
+        // あり「切替」ではない(その場合 summary は既に EMPTY)。null を切替扱いすると、直前に
+        // submitCode/confirm/poll がセットした hasReferrer/ポップを誤って消す(Codex R1 #2)。
+        if (previousCode != null && previousCode != account) {
+            _summary.value = ReferralSummary.EMPTY
+            _hasReferrer.value = false
+            _pendingWelcome.value = null
+            _pendingReferrerPops.value = emptyList()
+        }
         try {
-            _summary.value = service.referralSummary()
-            _hasReferrer.value = service.hasReferrer()
+            val summary = service.referralSummary()
+            val hasReferrer = service.hasReferrer()
+            // フェッチ中に identity が変わった(reset された)なら結果を破棄し、前アカウントの値を
+            // 新アカウント文脈へ commit しない(stale commit 防止, Codex R1 #1)。
+            if (gen != identityGeneration) return
+            _summary.value = summary
+            _hasReferrer.value = hasReferrer
+            _summaryAccountCode.value = account
         } catch (e: Exception) { _lastError.value = e.message }
     }
 

@@ -51,9 +51,13 @@ class RescueViewModel @Inject constructor(
             rescue.rescuedDates,
             selectedMonth,
             premium.isPremiumActive,
-        ) { records, rescued, month, isPremium ->
+            // 紹介サマリも入力に含める。これが無いと、アカウント切替で summary がリセットされても
+            // 他の入力が変わるまで uiState が再計算されず、前アカウントの allowance/remaining を
+            // 表示し続ける(Codex R1 #3)。
+            referralStore.summary,
+        ) { records, rescued, month, isPremium, summary ->
             val today = LocalDate.now(clock)
-            val allowance = RescueTicketAllowance.current(isPremium, referralStore.summary.value.freezeBonusThisMonth)
+            val allowance = RescueTicketAllowance.current(isPremium, summary.freezeBonusThisMonth)
             val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
             RescueUiState(
                 month = month,

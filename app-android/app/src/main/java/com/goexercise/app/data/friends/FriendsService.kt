@@ -269,7 +269,8 @@ class MockFriendsService : FriendsService {
     override suspend fun referralSummary(): ReferralSummary {
         val now = java.time.Instant.now()
         fun sameMonth(t: java.time.Instant): Boolean {
-            val a = t.atZone(java.time.ZoneOffset.UTC); val b = now.atZone(java.time.ZoneOffset.UTC)
+            // ローカル暦で判定(allowance の月境界と一致。ReferralClock と同じ理由)。
+            val a = t.atZone(java.time.ZoneId.systemDefault()); val b = now.atZone(java.time.ZoneId.systemDefault())
             return a.year == b.year && a.monthValue == b.monthValue
         }
         val stars = inbound.size

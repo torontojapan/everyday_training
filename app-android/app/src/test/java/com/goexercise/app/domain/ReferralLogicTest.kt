@@ -32,11 +32,32 @@ class ReferralLogicTest {
         assertNotNull(ReferralClock.parseTimestamp("2026-06-05T12:00:00.123456+00:00"))
         assertNull(ReferralClock.parseTimestamp("nope"))
     }
-    @Test fun clock_isInMonth_utc() {
-        val now = java.time.OffsetDateTime.parse("2026-06-20T00:00:00+00:00").toInstant()
-        assertTrue(ReferralClock.isInMonth("2026-06-01T00:00:00+00:00", now))
-        assertFalse(ReferralClock.isInMonth("2026-05-31T23:00:00+00:00", now))
+    @Test fun clock_isInMonth_usesLocalCalendar() {
+        // 月判定は**ローカル暦**(allowance の月境界 RescueTicketLogic と一致)。マシン TZ に
+        // 依存しないよう、判定対象もローカルゾーンで構築して決定的に検証する。
+        val zone = java.time.ZoneId.systemDefault()
+        val fmt = java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
+        fun iso(d: java.time.ZonedDateTime) = d.format(fmt)
+        val now = java.time.LocalDate.of(2026, 6, 20).atStartOfDay(zone).toInstant()
+        // ローカルで6月頭 → 今月
+        assertTrue(ReferralClock.isInMonth(iso(java.time.LocalDate.of(2026, 6, 1).atStartOfDay(zone)), now))
+        // ローカルで5月末 → 先月
+        assertFalse(ReferralClock.isInMonth(iso(java.time.LocalDate.of(2026, 5, 31).atTime(23, 0).atZone(zone)), now))
         assertFalse(ReferralClock.isInMonth(null, now))
+    }
+
+    @Test fun clock_isInMonth_jstBoundary_countsLocalMonth() {
+        // 月境界 UTC-local 型の回帰: JST(UTC+9)で 6/30 23:00 JST(= 6/30 14:00 UTC)は
+        // **ローカルでは6月**。UTC で割ると同じく6月だが、7/1 早朝 JST(= 6/30 夜 UTC)を
+        // ローカル7月として扱えることを、ローカルゾーン構築で決定的に確認する。
+        val zone = java.time.ZoneId.systemDefault()
+        val fmt = java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
+        fun iso(d: java.time.ZonedDateTime) = d.format(fmt)
+        val julyNow = java.time.LocalDate.of(2026, 7, 2).atStartOfDay(zone).toInstant()
+        // ローカル 7/1 0:30 は7月(allowance も7月扱い)→ 今月ボーナス
+        assertTrue(ReferralClock.isInMonth(iso(java.time.LocalDate.of(2026, 7, 1).atTime(0, 30).atZone(zone)), julyNow))
+        // ローカル 6/30 23:30 は6月 → 7月の now とは別月
+        assertFalse(ReferralClock.isInMonth(iso(java.time.LocalDate.of(2026, 6, 30).atTime(23, 30).atZone(zone)), julyNow))
     }
     @Test fun entryPolicy_allowsWithinGrace_whenNoReferrer() {
         val start = java.time.Instant.ofEpochSecond(1_000_000)
