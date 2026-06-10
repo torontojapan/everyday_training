@@ -199,9 +199,18 @@ create policy cheers_delete on public.cheers
 --  - update: referee は自分の行を confirm 可 / referrer は自分が紹介した行の
 --    seen_by_referrer を更新可。当事者以外は不可。
 --  - delete: 当事者のみ (アカウント削除導線で本人行を消すため)。
+-- insert は必ず pending で始める (status/confirmed_at/seen を被紹介者が初手で捏造させない)。
+-- referrals_guard は BEFORE UPDATE のみなので、INSERT 時に status='confirmed'+偽 confirmed_at を
+-- 直接書かれると trigger を素通りして報酬 (被紹介者の今月フリーズ / 任意 referrer への星) を
+-- 捏造できてしまう (GPT-5.5/Claude 監査 P0)。確定は必ず UPDATE 経路 (trigger 配下) を通す。
 drop policy if exists referrals_insert on public.referrals;
 create policy referrals_insert on public.referrals
-  for insert to authenticated with check (auth.uid() = referee_user_id);
+  for insert to authenticated with check (
+    auth.uid() = referee_user_id
+    and status = 'pending'
+    and confirmed_at is null
+    and seen_by_referrer = false
+  );
 drop policy if exists referrals_select on public.referrals;
 create policy referrals_select on public.referrals
   for select to authenticated using (auth.uid() = referrer_user_id or auth.uid() = referee_user_id);
