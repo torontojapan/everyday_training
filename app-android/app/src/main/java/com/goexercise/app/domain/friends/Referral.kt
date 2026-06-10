@@ -63,7 +63,9 @@ object ReferralEntryPolicy {
         graceDays: Int = GRACE_DAYS,
     ): Boolean {
         if (hasExistingReferral || firstLaunchAt == null) return false
-        val days = (now.epochSecond - firstLaunchAt.epochSecond) / 86400
-        return days in 0..graceDays.toLong()
+        // 経過を秒で厳密比較する。/86400 の切り捨ては実質8日まで許可してしまい、文言「登録7日以内」と
+        // ズレる(監査)。ちょうど 7×24h までを「7日以内」とする(iOS ReferralEntryPolicy と対称)。
+        val elapsedSeconds = now.epochSecond - firstLaunchAt.epochSecond
+        return elapsedSeconds in 0..(graceDays.toLong() * 86_400L)
     }
 }

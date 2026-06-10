@@ -67,6 +67,19 @@ class ReferralLogicTest {
         val start = java.time.Instant.ofEpochSecond(1_000_000)
         assertFalse(ReferralEntryPolicy.canEnterCodeLater(start, start.plusSeconds(8*86400), hasExistingReferral = false))
     }
+    @Test fun entryPolicy_boundaryExactly7Days_allowed() {
+        val start = java.time.Instant.ofEpochSecond(1_000_000)
+        assertTrue(ReferralEntryPolicy.canEnterCodeLater(start, start.plusSeconds(7*86400), hasExistingReferral = false))
+    }
+    @Test fun entryPolicy_justOver7Days_blocked() {
+        val start = java.time.Instant.ofEpochSecond(1_000_000)
+        assertFalse(ReferralEntryPolicy.canEnterCodeLater(start, start.plusSeconds(7*86400 + 1), hasExistingReferral = false))
+    }
+    @Test fun entryPolicy_oldTruncationWindow_nowBlocked() {
+        // 旧実装で許可されていた 7.5 日(切り捨てで days=7)は新実装では不可。
+        val start = java.time.Instant.ofEpochSecond(1_000_000)
+        assertFalse(ReferralEntryPolicy.canEnterCodeLater(start, start.plusSeconds((7.5 * 86400).toLong()), hasExistingReferral = false))
+    }
     @Test fun entryPolicy_blocksWhenAlreadyReferred() {
         val start = java.time.Instant.ofEpochSecond(1_000_000)
         assertFalse(ReferralEntryPolicy.canEnterCodeLater(start, start.plusSeconds(86400), hasExistingReferral = true))
