@@ -13,7 +13,6 @@ struct RecordCompletionView: View {
 
     @State private var contentVisible = false
     @State private var streakPulse = false
-    @State private var showsConfetti = true
     @State private var ribbonText = ""
     @State private var ribbonAppear = false
     private let hapticFeedback = HapticFeedbackController()
@@ -55,7 +54,18 @@ struct RecordCompletionView: View {
 
     var body: some View {
         ZStack {
-            Palette.background.ignoresSafeArea()
+            // 記録完了画面は「明るい暖色背景」を最初から最後まで維持する。
+            // (旧: CelebrationOverlay の光彩が 2.4 秒後にフェードアウトして背景が
+            //  ワントーン暗くなる揺れがあった → ユーザー指摘で廃止し、静的グローで固定。)
+            // テーマ整合のため Palette.primary をベースにした柔らかい放射グロー。明るさは
+            // 中心の opacity で調整可能。
+            RadialGradient(
+                colors: [Palette.primary.opacity(0.30), Palette.background],
+                center: .center,
+                startRadius: 0,
+                endRadius: 560
+            )
+            .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -122,11 +132,6 @@ struct RecordCompletionView: View {
                 .padding(20)
             }
 
-            if showsConfetti && !reduceMotion {
-                // 記録完了画面は紙吹雪(上部に散らかる小アイコン)を出さず、光彩のみ。
-                CelebrationOverlay(level: celebrationLevel, showsConfetti: false)
-                    .transition(.opacity)
-            }
         }
         .navigationTitle("記録完了")
         .navigationBarTitleDisplayMode(.inline)
@@ -151,10 +156,7 @@ struct RecordCompletionView: View {
             do {
                 try await Task.sleep(for: .seconds(2.6))
             } catch {
-                return  // 離脱でキャンセル → 演出もレビュー依頼も出さない
-            }
-            withAnimation(.easeOut(duration: 0.3)) {
-                showsConfetti = false
+                return  // 離脱でキャンセル → レビュー依頼も出さない
             }
             requestReviewIfMilestoneReached()
         }

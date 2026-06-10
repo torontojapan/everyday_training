@@ -58,9 +58,13 @@ final class ReferralStore {
         guard isSignedIn() else {
             // 未サインイン(サインアウト/切替/削除後)は前アカウントの状態を持ち越さない。
             // pendingBreedUnlock も落とし、次のユーザーに stale なお祝いを出さない(Codex round2)。
+            // 紹介ポップ(ウェルカム/紹介者)も identity が消えた時点で破棄する。これが無いと
+            // アカウント A のポップ待ちを抱えたまま B に切替/削除した先で A 宛の祝祭が出る(監査 P2)。
             summary = .empty
             hasReferrer = false
             pendingBreedUnlock = false
+            pendingWelcome = nil
+            pendingReferrerPops = []
             summaryAccountCode = nil
             return
         }
@@ -72,6 +76,9 @@ final class ReferralStore {
             summary = .empty
             hasReferrer = false
             pendingBreedUnlock = false
+            // 別アカウントへ移ったら前アカウント宛の未消化ポップも捨てる(監査 P2)。
+            pendingWelcome = nil
+            pendingReferrerPops = []
         }
         do {
             // 全フェッチ成功後にまとめて publish する。部分代入だと summary だけ更新され
@@ -81,6 +88,13 @@ final class ReferralStore {
             summary = fetchedSummary
             hasReferrer = fetchedHasReferrer
             summaryAccountCode = account
+            #if DEBUG
+            // スクショ/QA の星注入は sticky。profile 変化で走る refresh() が mock の実集計(0星)で
+            // 上書きするのを防ぐ(Codex R3)。bonus は実集計を尊重し星数だけ固定する。
+            if let n = debugStarOverride {
+                summary = ReferralSummary(starBadges: n, freezeBonusThisMonth: fetchedSummary.freezeBonusThisMonth)
+            }
+            #endif
             // ⭐10 到達なら(現アカウントで未お祝いのとき)お祝い待ちにする。毎回 deterministic に
             // 上書きするので、星<10 やアカウント切替で前の true が残らない(Codex round2)。
             // celebrated フラグは consumeBreedUnlock(ポップ閉)で立てる(kill時の取りこぼし防止)。
@@ -94,6 +108,14 @@ final class ReferralStore {
     func isBreedUnlocked(forAccount friendCode: String?) -> Bool {
         guard let friendCode, friendCode == summaryAccountCode else { return false }
         return ReferralReward.isBreedUnlocked(starBadges: summary.starBadges)
+    }
+
+    /// 現在サインイン中アカウント由来のときだけ返す星バッジ数(口座跨ぎ stale 防止)。
+    /// 直読み(summary.starBadges)は切替/復元直後に前アカウントの星を新アカウントの
+    /// friend_code 文脈で描いてしまう。表示は必ずこの口座ガード経由にする(監査 P2)。
+    var currentAccountStarBadges: Int {
+        guard let code = summaryAccountCode, code == service.myProfile?.friendCode else { return 0 }
+        return summary.starBadges
     }
 
     /// 今月のフリーズ加算。summary が現在サインイン中のアカウント由来のときだけ返す。
@@ -145,6 +167,19 @@ final class ReferralStore {
             }
         } catch { lastError = error.localizedDescription }
     }
+
+    #if DEBUG
+    /// スクショ/QA 用の星注入値(sticky)。設定中は refresh() の実集計より優先する。
+    @ObservationIgnored private var debugStarOverride: Int?
+    /// スクショ/QA 用: 星数を**現在アカウント文脈**で直接注入する。表示は口座ガード経由
+    /// (currentAccountStarBadges)になったため、summary だけでなく summaryAccountCode も
+    /// 現プロフィールに合わせないと 0 表示になる(Codex R2)。Release では存在しない。
+    func debugInjectStars(_ n: Int) {
+        debugStarOverride = n
+        summary = ReferralSummary(starBadges: n, freezeBonusThisMonth: 0)
+        summaryAccountCode = service.myProfile?.friendCode
+    }
+    #endif
 
     func consumeWelcome() { pendingWelcome = nil }
     func consumeReferrerPops() { pendingReferrerPops = [] }

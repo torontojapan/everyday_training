@@ -40,6 +40,34 @@ final class WidgetSnapshotFactoryTests: XCTestCase {
         XCTAssertEqual(snapshot.message, "今日も達成！")
     }
 
+    // 回帰(監査 P1): タイムラインの entry 日付が生成日と異なる(翌朝)とき、
+    // 当日達成/締切を投影し直して「達成済み」固着を解く。
+    func testProjectedSameDayReturnsSelf() {
+        let now = date(2026, 5, 24, 10, 0)
+        let snapshot = WidgetSnapshot.make(
+            generatedAt: now, todayAchieved: true, isRestDay: false,
+            currentStreak: 12, weeklyAchieved: 5, weeklyTotal: 7,
+            catState: .celebrating, message: "今日も達成！", calendar: calendar)
+        let same = snapshot.projected(to: date(2026, 5, 24, 22, 0), calendar: calendar)
+        XCTAssertEqual(same, snapshot, "同日 entry は無加工で返す")
+    }
+
+    func testProjectedNextDayClearsAchievedAndRecomputesDeadline() {
+        let now = date(2026, 5, 24, 21, 0)
+        let snapshot = WidgetSnapshot.make(
+            generatedAt: now, todayAchieved: true, isRestDay: true,
+            currentStreak: 12, weeklyAchieved: 5, weeklyTotal: 7,
+            catState: .celebrating, message: "今日も達成！", calendar: calendar)
+        // 翌日 8:00 の entry: 未記録扱いへ投影。
+        let next = snapshot.projected(to: date(2026, 5, 25, 8, 0), calendar: calendar)
+        XCTAssertFalse(next.todayAchieved, "翌日はまだ未記録")
+        XCTAssertFalse(next.isRestDay)
+        XCTAssertEqual(next.currentStreak, 12, "連続は『昨日まで』基準なので保持")
+        XCTAssertEqual(next.generatedAt, now, "生成時刻は保持(次回 app 更新で上書き)")
+        XCTAssertEqual(next.nightDeadlineHoursLeft, 15, "23:59 - 8:00 → 15h")
+        XCTAssertEqual(next.catState, CatState.waitingMorning.rawValue, "朝は待機表情")
+    }
+
     func testNightDeadlineHoursLeftAtTenAMIs13() {
         let now = date(2026, 5, 24, 10, 0)
         let snapshot = WidgetSnapshot.make(

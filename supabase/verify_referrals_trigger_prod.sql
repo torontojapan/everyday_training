@@ -42,3 +42,13 @@ select 'check_policies' as check, polname, polcmd
 from pg_policy where polrelid = 'public.referrals'::regclass
 order by polname;
 -- → referrals_insert / referrals_select / referrals_update / referrals_delete の4本期待。
+
+-- 5) referrals_insert の WITH CHECK が status='pending' 強制を含むか
+--    (2026-06-10 監査 P0: INSERT 経路の confirmed 捏造ガード)。
+select 'check_insert_guard' as check,
+       polname,
+       pg_get_expr(polwithcheck, polrelid) as with_check
+from pg_policy
+where polrelid = 'public.referrals'::regclass and polname = 'referrals_insert';
+-- → with_check に status = 'pending' / confirmed_at IS NULL / seen_by_referrer = false が
+--    含まれること。auth.uid() = referee_user_id だけなら旧版(未適用)= 要再適用。

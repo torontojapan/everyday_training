@@ -53,11 +53,23 @@ final class SupabaseFriendsService: FriendsService {
 
     private func ensureUID() async throws -> UUID {
         guard let client else { throw FriendsServiceError.backendUnavailable }
-        if let existing = try? await client.auth.session { return existing.user.id }
-        // 新規匿名サインイン時のみ CAPTCHA トークンを取得 (無効なら nil = 従来挙動)。
-        let captchaToken = try await captchaProvider.obtainTokenIfNeeded()
-        let session = try await client.auth.signInAnonymously(captchaToken: captchaToken)
-        return session.user.id
+        // セッション読取は「無セッション」と「一時障害」を厳密に区別する (監査 P1)。
+        // 旧実装の `try?` は両者を潰し、リフレッシュトークンの一時失効/通信失敗でも
+        // フォールスルーして **新規匿名サインイン** してしまう。友達/星/連携済みの既存
+        // アイデンティティが新しい匿名 uid で上書きされ、friends 空表示や friend_code
+        // UNIQUE 衝突を招く。新規匿名作成は sessionMissing(=確実に無セッション)のみに限定する。
+        do {
+            let existing = try await client.auth.session
+            return existing.user.id
+        } catch AuthError.sessionMissing {
+            // 新規匿名サインイン時のみ CAPTCHA トークンを取得 (無効なら nil = 従来挙動)。
+            let captchaToken = try await captchaProvider.obtainTokenIfNeeded()
+            let session = try await client.auth.signInAnonymously(captchaToken: captchaToken)
+            return session.user.id
+        } catch {
+            // 一時障害は新規作成せず失敗として伝播 (既存アイデンティティを温存)。
+            throw FriendsServiceError.backendUnavailable
+        }
     }
 
     private func requireClient() throws -> SupabaseClient {
@@ -661,8 +673,21 @@ final class SupabaseFriendsService: FriendsService {
                                     role: .referee)
     }
 
+    /// サインイン中のセッションを返す。未サインイン(sessionMissing)は nil、
+    /// 一時障害(トークン更新失敗/通信失敗)は throw する。これにより紹介系の集計が
+    /// 一時障害時に「空(=サインアウト相当)」を**成功として**返して ReferralStore の
+    /// 既存値を上書きしてしまう事故を防ぐ(監査 P2。ensureUID と同じ方針)。
+    private func signedInSessionOrNil() async throws -> Session? {
+        guard let client else { return nil }
+        do {
+            return try await client.auth.session
+        } catch AuthError.sessionMissing {
+            return nil
+        }
+    }
+
     func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] {
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return [] }
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return [] }
         let client = try requireClient()
         let uid = session.user.id.uuidString
         let rows: [ReferralRow] = try await client.from("referrals")
@@ -691,8 +716,9 @@ final class SupabaseFriendsService: FriendsService {
     }
 
     func referralSummary() async throws -> ReferralSummary {
-        // 未サインインなら匿名アカウントを作らずに空を返す(孤児防止)。
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return .empty }
+        // 未サインインなら匿名アカウントを作らずに空を返す(孤児防止)。一時障害は throw して
+        // ReferralStore の既存 summary を温存する(空で上書きしない、監査 P2)。
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return .empty }
         let client = try requireClient()
         let uid = session.user.id.uuidString
         let now = Date()
@@ -707,7 +733,7 @@ final class SupabaseFriendsService: FriendsService {
     }
 
     func hasReferrer() async throws -> Bool {
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return false }
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return false }
         let client = try requireClient()
         let rows: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: session.user.id.uuidString).limit(1).execute().value

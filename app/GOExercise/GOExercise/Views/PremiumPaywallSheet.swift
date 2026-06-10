@@ -85,7 +85,9 @@ struct PremiumPaywallSheet: View {
             Text(context.headline)
                 .font(.title2.weight(.heavy))
                 .multilineTextAlignment(.center)
-            Text("14日間無料。いつでも解約できます。")
+            Text(store.isEligibleForIntroOffer
+                 ? "14日間無料。いつでも解約できます。"
+                 : "いつでも解約できます。")
                 .font(.subheadline)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -199,7 +201,9 @@ struct PremiumPaywallSheet: View {
             HStack {
                 if isPurchasing { ProgressView().tint(.white) }
                 Text(isPurchasing ? "処理中..."
-                     : productLoaded ? "14日間無料で始める" : "商品情報読込中...")
+                     : !productLoaded ? "商品情報読込中..."
+                     : store.isEligibleForIntroOffer ? "14日間無料で始める"
+                     : "プレミアムを始める")
                     .font(.headline.weight(.heavy))
                     .foregroundStyle(.white)
             }
@@ -233,11 +237,17 @@ struct PremiumPaywallSheet: View {
             Text("サブスクリプションについて")
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(Palette.textPrimary)
-            Text("・14日間の無料体験後、選択したプランで自動更新されます")
+            if store.isEligibleForIntroOffer {
+                Text("・14日間の無料体験後、選択したプランで自動更新されます")
+            } else {
+                Text("・選択したプランで自動更新されます")
+            }
             Text("・自動更新: 期間終了 24 時間前までに解約しない限り自動で更新されます")
             Text("・解約方法: 設定 > Apple ID > サブスクリプション からいつでも解約できます")
             Text("・料金は App Store アカウントに請求されます")
-            Text("・無料体験中に解約すれば課金されません")
+            if store.isEligibleForIntroOffer {
+                Text("・無料体験中に解約すれば課金されません")
+            }
         }
         .font(.caption2)
         .foregroundStyle(Palette.textSecondary)

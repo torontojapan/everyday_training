@@ -55,7 +55,12 @@ enum StreakFreezeWindow {
     }
 
     /// records から status 列(昨日→過去)を作り `Decision` に委譲する本番入口。
-    /// anchor 検出のため lookback+1 日ぶん作る(missed 収集は Decision 側で lookback に制限)。
+    ///
+    /// rest 日は lookback 枠を消費しない(連続を切らない)ため、anchor(連続の頭=achieved)に
+    /// 到達するまで rest を読み飛ばして走査を**動的に延長**する。固定 lookback+1 件だと、
+    /// missed と anchor の間に自動休養(週2日)が挟まったとき anchor が窓の外へ押し出され、
+    /// foundPrior=false → 復活可能なのにポップが出ない不具合になる(監査 P1)。
+    /// 打ち切り条件: anchor 到達 / lookback 超の missed 到達 / 安全上限(lookback + 1週間)。
     static func evaluate(
         records: [WorkoutRecord],
         today: Date,
@@ -66,13 +71,26 @@ enum StreakFreezeWindow {
     ) -> Result {
         let todayStart = calendar.startOfDay(for: today)
         var statuses: [DailyStatus] = []
-        for offset in 1...(lookback + 1) {
+        // 自動休養は最大週2日。grace(lookback)+ 連続した休養の最大幅を吸収できる安全上限。
+        let hardCap = lookback + 7
+        scan: for offset in 1...hardCap {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { break }
             let restDays = RestDayResolver.restDaySet(for: day, records: records, today: todayStart, calendar: calendar)
             let s = AchievementEvaluator.dailyStatus(
                 for: day, records: records, restDays: restDays,
                 rescuedDates: rescuedDates, today: todayStart, calendar: calendar)
             statuses.append(s)
+            switch s {
+            case .achieved, .todayAchieved:
+                break scan                       // anchor 到達 → これ以上不要
+            case .rest:
+                continue                          // 休養は枠を消費せず連続も切らない → 延長
+            case .missed:
+                if offset > lookback { break scan }  // グレース超 → 復活不可確定、打ち切り
+                continue
+            default:
+                break scan                        // .future/.todayPending は後方に現れない想定、安全側で停止
+            }
         }
         return Decision.evaluate(statuses: statuses, remainingFreezes: remainingFreezes, lookback: lookback)
     }

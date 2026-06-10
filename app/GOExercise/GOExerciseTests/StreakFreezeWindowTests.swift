@@ -14,6 +14,11 @@ final class StreakFreezeWindowTests: XCTestCase {
         for _ in 0...7 { if cal.component(.weekday, from: d) == 7 { return d }; d = cal.date(byAdding: .day, value: 1, to: d)! }
         return d
     }
+    private func wednesday() -> Date {
+        var d = cal.startOfDay(for: Date())
+        for _ in 0...7 { if cal.component(.weekday, from: d) == 4 { return d }; d = cal.date(byAdding: .day, value: 1, to: d)! }
+        return d
+    }
     func test_pure_decision_boundaries() {
         let r4 = StreakFreezeWindow.Decision.evaluate(statuses: [.missed,.missed,.missed,.achieved], remainingFreezes: 4, lookback: 4)
         XCTAssertTrue(r4.revivable); XCTAssertEqual(r4.freezesNeeded, 3)
@@ -46,6 +51,31 @@ final class StreakFreezeWindowTests: XCTestCase {
         let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: today))!
         let r = StreakFreezeWindow.evaluate(records: records, today: today, rescuedDates: [yesterday], remainingFreezes: 1)
         XCTAssertFalse(r.revivable, "金曜(=唯一の missed)を rescue 済み=achieved → 切れてない")
+    }
+
+    // 回帰(監査 P1): missed と連続の頭(achieved)の間に自動休養が挟まり、anchor が
+    // 旧 lookback+1(=5)窓の外(offset 6)へ押し出されるケース。旧実装は固定5件しか
+    // status を作らず anchor を見失い revivable=false にしていた。動的延長で復活可能を検出する。
+    func test_pure_decision_restBeyondLookback_findsAnchor() {
+        // [rest,rest,missed,rest,rest,achieved] = anchor が offset6。missed は offset3(grace内)。
+        let r = StreakFreezeWindow.Decision.evaluate(
+            statuses: [.rest, .rest, .missed, .rest, .rest, .achieved],
+            remainingFreezes: 1, lookback: 4)
+        XCTAssertTrue(r.revivable, "rest は lookback 枠を消費しない。offset6 の achieved を anchor に拾う")
+        XCTAssertEqual(r.freezesNeeded, 1)
+        XCTAssertEqual(r.missedOffsets, [3])
+    }
+
+    func test_records_entry_restBridgesToAnchorBeyondWindow() {
+        // today=水。先週 Mon–Thu 達成(daysAgo 6,7,8,9)。Fri/Sat/Sun と今週 Mon/Tue は空白で
+        // 自動休養が橋渡しし、真の missed は1日だけ。anchor(木)は offset6 にある。
+        let today = wednesday()
+        let records = [6, 7, 8, 9].map { rec($0, from: today) }
+        let r = StreakFreezeWindow.evaluate(records: records, today: today, rescuedDates: [], remainingFreezes: 1)
+        XCTAssertTrue(r.revivable, "rest が anchor を5件窓の外へ押し出しても復活可能を検出する")
+        XCTAssertFalse(r.missedOffsets.isEmpty)
+        XCTAssertEqual(r.freezesNeeded, r.missedOffsets.count)
+        XCTAssertTrue(r.missedOffsets.allSatisfy { $0 <= 4 }, "missed は4日グレース内")
     }
 }
 

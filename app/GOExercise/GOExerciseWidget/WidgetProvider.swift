@@ -16,7 +16,8 @@ struct WidgetProvider: TimelineProvider {
         let now = Date()
         let snapshot = store.read()
         let entries = WidgetTimelineDates.entryDates(from: now, calendar: calendar).map { date in
-            WidgetEntry(date: date, snapshot: snapshot)
+            // 日付が変わった entry は当日状態(達成/締切)を投影し直す(翌朝の固着回避)。
+            WidgetEntry(date: date, snapshot: snapshot.projected(to: date, calendar: calendar))
         }
         completion(Timeline(entries: entries, policy: .atEnd))
     }

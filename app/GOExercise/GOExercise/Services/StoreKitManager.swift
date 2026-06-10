@@ -19,6 +19,10 @@ final class StoreKitManager {
     private(set) var products: [String: Product] = [:]
     /// GOプレミアム (月額 or 年額) が現在有効か (entitlement listener が更新)。
     private(set) var isPremiumActive: Bool = false
+    /// 無料トライアル(イントロオファー)対象か。Apple ID × サブスクグループにつき一度きりのため、
+    /// トライアル消化済み/再購読ユーザーには「14日間無料」を出さず即課金になる誤表示を防ぐ
+    /// (審査 2.3.1/3.1.2 のミスリーディング価格リスク。監査 P1)。商品ロード後に再評価。
+    private(set) var isEligibleForIntroOffer: Bool = false
     /// 直近の購入エラー (UI で軽く出す用)。
     var lastError: String?
 
@@ -68,6 +72,10 @@ final class StoreKitManager {
     /// 商品取得が失敗しても entitlement (= 既存購読の有効性) は別 API から
     /// 取れるので必ず呼ぶ。これによりオフライン購読ユーザーの誤ロックを回避。
     func loadProducts() async {
+        // entitlement(既存購読の有効性)は商品フェッチ不要のローカル API。先に評価して
+        // おくと、コールド起動でネットワークが遅いときも、ホームの allowance / 復活ポップが
+        // 「無料枠」で先に確定して有料ユーザーをペイウォールへ送る誤判定を避けられる(監査 P2)。
+        await refreshEntitlements()
         do {
             let fetched = try await Product.products(for: ProductID.all)
             products = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
@@ -75,8 +83,32 @@ final class StoreKitManager {
         } catch {
             lastError = "商品情報の取得に失敗しました: \(error.localizedDescription)"
         }
-        // 成否によらず entitlement は再評価する
+        // 商品フェッチ後にトライアル対象を確定(商品が要る)。entitlement も最終確認。
         await refreshEntitlements()
+        await refreshIntroEligibility()
+    }
+
+    /// 無料トライアル対象かを再評価する。プレミアム商品のいずれかに introductoryOffer があり、
+    /// かつ Apple ID がそのグループで未消化(`isEligibleForIntroOffer`)なら true。
+    /// 商品未ロード時は false(誤って無料表示を出さない安全側)。
+    private func refreshIntroEligibility() async {
+        for id in ProductID.all {
+            guard let sub = products[id]?.subscription, sub.introductoryOffer != nil else { continue }
+            if await sub.isEligibleForIntroOffer {
+                isEligibleForIntroOffer = true
+                return
+            }
+        }
+        isEligibleForIntroOffer = false
+    }
+
+    /// 購読状態を一括で取り直す(entitlement + トライアル対象)。前面復帰時に使う。
+    /// entitlement だけ更新するとトライアル消化後にプレミアム失効しても
+    /// `isEligibleForIntroOffer` が true のまま残り、「14日間無料」を出して即課金させてしまう
+    /// (Codex R1)。両者を必ずセットで更新する。
+    func refreshPurchaseState() async {
+        await refreshEntitlements()
+        await refreshIntroEligibility()
     }
 
     /// 現在の entitlements を読み直して subscription 状態を再計算する。
@@ -140,8 +172,9 @@ final class StoreKitManager {
         } catch {
             lastError = "復元に失敗しました: \(error.localizedDescription)"
         }
-        // sync 成否によらず entitlement を再評価
-        await refreshEntitlements()
+        // sync 成否によらず購読状態(entitlement + トライアル対象)を再評価。
+        // 復元でトライアル消化済みが判明したのに intro 対象が残ると「14日間無料」誤表示(Codex R2)。
+        await refreshPurchaseState()
     }
 
     // MARK: - Transaction handling
@@ -155,8 +188,9 @@ final class StoreKitManager {
         await txn.finish()
         if txn.productType == .autoRenewable {
             // subscription は update イベントで再送される (最新の expirationDate を
-            // 運ぶ) ので毎回 entitlement を再評価する。
-            await refreshEntitlements()
+            // 運ぶ) ので毎回 entitlement を再評価する。返金/失効/購入でトライアル対象も
+            // 変わるため intro 対象もまとめて取り直す(Codex R2)。
+            await refreshPurchaseState()
         }
         trackPurchaseCompleteOnce(txn)
     }

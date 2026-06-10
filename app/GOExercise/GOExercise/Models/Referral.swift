@@ -53,7 +53,9 @@ enum ReferralEntryPolicy {
                                   hasExistingReferral: Bool,
                                   graceDays: Int = graceDays) -> Bool {
         guard !hasExistingReferral, let start = firstLaunchAt else { return false }
-        let days = Int(now.timeIntervalSince(start) / 86400)
-        return days >= 0 && days <= graceDays
+        // 経過を秒で厳密比較する。`Int(interval/86400) <= 7` は切り捨てで実質8日まで許可してしまい、
+        // 文言「登録7日以内」とズレる(監査)。ちょうど 7×24h までを「7日以内」とする。
+        let elapsed = now.timeIntervalSince(start)
+        return elapsed >= 0 && elapsed <= Double(graceDays) * 86_400
     }
 }

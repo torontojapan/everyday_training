@@ -24,8 +24,18 @@ final class RescueTicketStore {
     init(defaults: UserDefaults = .standard, calendar: Calendar = .mondayFirst) {
         self.defaults = defaults
         self.calendar = calendar
-        let raw = (defaults.array(forKey: Self.usedDatesKey) as? [Double]) ?? []
-        self.usedDates = Set(raw.map { Date(timeIntervalSince1970: $0) })
+        // 救済日は `yyyy-MM-dd` 文字列で永続化し、読み込み時に**現在のカレンダー**の startOfDay へ
+        // 再構成する。旧実装は epoch 秒(使用時タイムゾーンの startOfDay)で保存しており、端末の
+        // タイムゾーンが変わると保存値が新ゾーンの startOfDay と一致せず、救済済みの日が一斉に
+        // 未達成へ戻る/月の課金がズレる(監査 F5)。文字列なら暦日の同一性が TZ 非依存で保たれる。
+        if let dayStrings = defaults.array(forKey: Self.usedDatesKey) as? [String] {
+            self.usedDates = Set(dayStrings.compactMap { Self.date(fromDayKey: $0, calendar: calendar) })
+        } else {
+            // 旧 epoch 秒形式 → 現在カレンダーの startOfDay に正規化(次行で y-m-d へ移行保存)。
+            let raw = (defaults.array(forKey: Self.usedDatesKey) as? [Double]) ?? []
+            self.usedDates = Set(raw.map { calendar.startOfDay(for: Date(timeIntervalSince1970: $0)) })
+            if !raw.isEmpty { defaults.set(usedDates.map { Self.dayKey(for: $0, calendar: calendar) }, forKey: Self.usedDatesKey) }
+        }
         // 旧「購入チケット残数」キーの掃除。¥1,000 消耗型は廃止済みで、本アプリは
         // 未リリース (購入者ゼロ) のため移行は不要。dev/test 残骸のみ除去する。
         defaults.removeObject(forKey: "rescue.purchasedRemaining.v1")
@@ -57,7 +67,7 @@ final class RescueTicketStore {
         guard hasTicketAvailable(today: dayStart, allowance: allowance) else { return false }
         // 同日二重 useTicket は no-op で false を返す (Set.insert が冪等)。
         guard usedDates.insert(dayStart).inserted else { return false }
-        defaults.set(usedDates.map(\.timeIntervalSince1970), forKey: Self.usedDatesKey)
+        defaults.set(usedDates.map { Self.dayKey(for: $0, calendar: calendar) }, forKey: Self.usedDatesKey)
         return true
     }
 
@@ -71,6 +81,21 @@ final class RescueTicketStore {
     private func monthKey(for date: Date) -> String {
         let comps = calendar.dateComponents([.year, .month], from: date)
         return "\(comps.year ?? 0)-\(comps.month ?? 0)"
+    }
+
+    /// 永続化キー: `yyyy-MM-dd`(暦日の同一性を TZ 非依存で保つ)。
+    private static func dayKey(for date: Date, calendar: Calendar) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// `yyyy-MM-dd` を現在カレンダーの startOfDay へ復元。不正形式は nil。
+    private static func date(fromDayKey key: String, calendar: Calendar) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        var c = DateComponents()
+        c.year = parts[0]; c.month = parts[1]; c.day = parts[2]
+        return calendar.date(from: c).map { calendar.startOfDay(for: $0) }
     }
 }
 
