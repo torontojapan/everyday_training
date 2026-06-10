@@ -72,7 +72,10 @@ final class ReferralStoreTests: XCTestCase {
         let store = ReferralStore(service: svc,
                                   defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
                                   isSignedIn: { true })
-        let ok = await store.submitCode("akira1")   // 小文字でも sanitize で大文字化
+        // SAKURA は friend-code 許可英字のみ(I/O/0/1 を含まない)= sanitize で変化しない。
+        // 旧 "akira1" は I と 1 が許可外で sanitize すると "AKRA"(4字)になり validator で弾かれ、
+        // store 経路(submitCode は validate する)では永遠に false になっていた = テストの誤り。
+        let ok = await store.submitCode("sakura")   // 小文字でも sanitize で大文字化
         XCTAssertTrue(ok)
         XCTAssertTrue(store.hasReferrer)
     }
@@ -94,7 +97,9 @@ final class ReferralStoreTests: XCTestCase {
         let store = ReferralStore(service: svc,
                                   defaults: UserDefaults(suiteName: "rs.\(UUID().uuidString)")!,
                                   isSignedIn: { true })
-        _ = await store.submitCode("AKIRA1")
+        // SAKURA = 許可英字のみの有効コード(旧 "AKIRA1" は validator で弾かれ hasReferrer が立たず
+        // confirmFirstRecord が no-op になっていた)。
+        _ = await store.submitCode("SAKURA")
         await store.confirmFirstRecordIfNeeded(hasFirstRecord: true)
         XCTAssertEqual(store.pendingWelcome?.role, .referee)
     }

@@ -64,13 +64,6 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         "cat_\(rawValue)_waitingMorning"
     }
 
-    /// 達成日数に応じたアイテム付きアバター asset 名。アイテムは単一ポーズ
-    /// (waitingMorning)のアバターにのみ焼き込む(ホームの大猫には付けない=案A)。
-    func avatarAssetName(totalAchievedDays days: Int) -> String {
-        let suffix = MilestoneItem(totalAchievedDays: days).assetSuffix
-        return "cat_\(rawValue)_waitingMorning\(suffix)"
-    }
-
     /// 該当アセットが見つからない場合のフォールバック用 asset 名。
     /// Phase 6.7 で 70 画像中いくつか生成漏れがあった場合、orange の
     /// 同 state を代わりに表示することで「画像が出ない」のを防ぐ。
@@ -81,6 +74,21 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
 
     static var fallbackAvatarAssetName: String {
         "cat_orange_waitingMorning"
+    }
+
+    /// プロテインシェイカーを持つ待機ポーズの asset 名。例: cat_black_waitingMorning_shaker。
+    /// 達成段階と無関係に「運動記録の前後」で出すフレーバー(spec E)。
+    var shakerAssetName: String {
+        "cat_\(rawValue)_waitingMorning_shaker"
+    }
+
+    /// shaker 画像の解決。存在チェック `exists` を注入してフォールバックする(テスト可能)。
+    /// 1) 当該猫種の shaker → 2) 当該猫種の通常 waitingMorning → 3) orange shaker。
+    /// 画像欠落でも必ず何か返るので破綻しない。
+    func resolvedShakerAssetName(exists: (String) -> Bool) -> String {
+        if exists(shakerAssetName) { return shakerAssetName }
+        if exists(avatarAssetName) { return avatarAssetName }
+        return "cat_orange_waitingMorning_shaker"
     }
 }
 

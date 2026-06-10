@@ -21,10 +21,16 @@ struct ReferralCelebrationSheet: View {
                     .font(.system(size: 56, weight: .bold))
                     .foregroundStyle(Palette.primaryDeep)
             }
-            Text(isWelcome ? "友達とつながりました!" : "紹介した友達が参加しました!")
+            Text(isWelcome ? "友達とつながりました!" : "友達が参加しました!")
                 .font(Typography.title)
                 .foregroundStyle(Palette.textPrimary)
                 .multilineTextAlignment(.center)
+                // タイトル幅に収まらず「…」省略されるのを防ぐ。2行まで折返し+わずかに縮小し、
+                // 端末幅や Dynamic Type の拡大でも全文表示する。
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 20)
 
             VStack(spacing: 6) {
                 if isWelcome {

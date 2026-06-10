@@ -2,6 +2,7 @@ package com.goexercise.app.presentation
 
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatDecoration
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.DailyStatusEntry
 import com.goexercise.app.domain.ExerciseTrendSummary
@@ -71,7 +72,9 @@ class MyFriendProfileBuilderTest {
         assertEquals(30, p.weeklyTotalMinutes) // 1800s / 60
         assertEquals(240, p.monthlyTotalMinutes)
         assertEquals(12, p.monthlyAchievedDays)
-        assertEquals(CatDecoration.of(23).tier, p.decorationTier)
+        // iOS パリティ: decorationTier は CatRank.rank(連続記録ベース)を publish する。
+        // currentStreak=5 は最初の閾値 7 未満なので rank=0(旧 CatDecoration.of(23).tier ではない)。
+        assertEquals(CatRank.of(5).rank, p.decorationTier)
         // weekly_achievements は countsAsAchieved(rest/todayAchieved 含む)= iOS と同一
         assertEquals(
             listOf(true, true, false, true, false, false, false),
@@ -90,5 +93,20 @@ class MyFriendProfileBuilderTest {
         // streak が変わるとシグネチャが変わる
         val changed = s.copy(streak = s.streak.copy(currentStreak = 6))
         assertNotEquals(base, MyFriendProfileBuilder.statsSignature(changed))
+    }
+
+    @Test
+    fun `decorationTier publishes streak-based CatRank, not lifetime CatDecoration`() {
+        // currentStreak=7 はランク閾値(最初の閾値 7)を跨ぐので rank=1。
+        // 旧実装は生涯達成 23 日由来の CatDecoration.of(23).tier を publish していた(divergence の原因)。
+        val s = state().copy(streak = state().streak.copy(currentStreak = 7))
+        val p = MyFriendProfileBuilder.build(s, identity)
+        assertEquals(CatRank.of(7).rank, p.decorationTier)
+        assertEquals(1, p.decorationTier)
+        // 連続が閾値を跨ぐとシグネチャも変わる(再 publish が走る)。
+        assertNotEquals(
+            MyFriendProfileBuilder.statsSignature(state().copy(streak = state().streak.copy(currentStreak = 6))),
+            MyFriendProfileBuilder.statsSignature(s),
+        )
     }
 }

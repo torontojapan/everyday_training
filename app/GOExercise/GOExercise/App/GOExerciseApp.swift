@@ -58,7 +58,16 @@ struct GOExerciseApp: App {
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
+                    // fullScreenCover の中身は親の .environment(_:) を取りこぼすこと
+                    // がある (SwiftUI の既知の癖)。UserCatPickerView は storeKit
+                    // (猫種ロック判定) と friendsStore/referralStore (招待コード入力) を
+                    // 環境から読むため、cover 上で明示的に注入し直す。
                     UserCatPickerView(isOnboarding: true)
+                        .environment(themeStore)
+                        .environment(friendsStore)
+                        .environment(storeKit)
+                        .environment(rescueTicketStore)
+                        .environment(referralStore)
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
@@ -110,6 +119,12 @@ struct GOExerciseApp: App {
                             await friendsStore.ensureDemoFriendsSeeded()
                         }
                     }
+                    // スクショ/QA 用: 紹介スター数を直接注入(レイアウト確認、特に最大10星)。
+                    if let idx = args.firstIndex(of: "--mock-referral-stars"),
+                       idx + 1 < args.count, let n = Int(args[idx + 1]) {
+                        // 口座ガード(currentAccountStarBadges)を通すため account code も合わせる。
+                        referralStore.debugInjectStars(n)
+                    }
                     #endif
                 }
                 .onOpenURL { url in
@@ -123,6 +138,15 @@ struct GOExerciseApp: App {
                     guard let newRoute else { return }
                     routeState.override = newRoute
                     router.pendingRoute = nil
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    // 前面復帰時に購読状態(entitlement + トライアル対象)を取り直す。自主解約での
+                    // 期限切れは Transaction.updates を発火させないため、これが無いと有効期限後も
+                    // アプリが数日間プレミアム表示のまま固着する(iOS は長時間サスペンド)(監査 P2)。
+                    // entitlement だけでなくトライアル対象も更新しないと、失効後に「14日間無料」が
+                    // 残って即課金になる(Codex R1)。
+                    guard newPhase == .active else { return }
+                    Task { await storeKit.refreshPurchaseState() }
                 }
         }
         // Widget / QuickRecordIntent と同じ App Group 共有ストアを使う。

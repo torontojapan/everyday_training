@@ -10,6 +10,7 @@ struct HomeView: View {
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(ReferralStore.self) private var referralStore
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
     @State private var completedRecord: WorkoutRecord?
@@ -17,6 +18,16 @@ struct HomeView: View {
     @State private var selectedDayEntry: DailyStatusEntry?
     @State private var isShowingStreakShare = false
     @State private var presentedMilestone: Milestone?
+    @State private var pendingRankEvent: RankUpEvent?
+    private let rankUpDetector = RankUpDetector()
+    @State private var isShowingRevive = false
+    @State private var isShowingFreezePaywall = false
+    /// revive シートを閉じた「後」に freeze ペイウォールを出すための予約フラグ。
+    /// 同一 runloop で2シートを切り替えると SwiftUI が2枚目の提示を取りこぼす(GPT-5.5: handoff race)。
+    @State private var pendingFreezePaywall = false
+    @State private var reviveShownThisLaunch = false
+    @State private var reviveCelebration: CatRank?
+    private let reviveDismissStore = ReviveDismissStore()
     /// 猫タップで bounce する用。
     @State private var catBounce = false
     /// 起動時に吹き出しを pop-in させる用。
@@ -31,7 +42,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                backgroundGradient.ignoresSafeArea()
+                // 現在の連続日数で段階的に豪華になる全面背景(旧 累計達成日数ベースを置換)。
+                MilestoneBackdrop(streak: viewModel.streak.currentStreak)
+                    .ignoresSafeArea()
 
                 // 背景に時刻に応じたパーティクル。常時ふわふわ漂う。
                 // 達成済みなら紙吹雪も追加して祝祭感を出す。
@@ -51,6 +64,7 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         weeklyMini
                         topStatusBar
+                        referralStarsFullRow
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
@@ -67,27 +81,62 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 10)
                 }
+
+                if let event = pendingRankEvent {
+                    RankCelebrationOverlay(
+                        rank: rankForEvent(event),
+                        message: messageForEvent(event),
+                        onFinished: { pendingRankEvent = nil }
+                    )
+                    .transition(.opacity)
+                    .zIndex(10)
+                }
+
+                if let rank = reviveCelebration {
+                    RankCelebrationOverlay(
+                        rank: rank,
+                        message: "連続復活!",
+                        onFinished: { reviveCelebration = nil }
+                    )
+                    .transition(.opacity)
+                    .zIndex(11)
+                }
             }
             .navigationBarHidden(true)
             .onAppear {
-                store.fetchRecords()
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
-                handleAutoPresentations()
-                evaluateCelebration()
-                syncMyFriendProfile()
+                refreshHomeState()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                // 前面復帰時の再計算。これが無いと、ウィジェットの QuickRecord で記録した後や、
+                // バックグラウンドで日付が変わった翌朝に、ホームが昨日の「達成済み」チップや
+                // 古い CTA を出したまま固まる(タブ切替で onAppear が走るまで直らない)。
+                // WeightView は既に scenePhase を監視しており、ホームに同等が欠けていた(監査 P1)。
+                guard newPhase == .active else { return }
+                refreshHomeState()
+            }
+            .onChange(of: completedRecord) { oldValue, newValue in
+                // 記録完了画面から**ホームへ戻った**ときだけ達成演出を出す。
+                // 「もう一種目する」(completedRecord=nil と同時に isShowingEntry=true で
+                // 記録へ戻る)では出さない。
+                guard oldValue != nil, newValue == nil, !isShowingEntry else { return }
+                fireRecordCelebrations()
             }
             // signIn (App.task) は onAppear と並行で走るため、初回は profile が
             // まだ nil で sync が空振りすることがある。profile が現れた / 変わった
             // タイミングで再同期して友達タブの自分の実績を最新化する (3 LLM 監査 B-Critical)。
             .onChange(of: friendsStore.profile?.friendCode) { _, _ in
                 syncMyFriendProfile()
+                // アカウント切替/復元/サインアウトで friend_code が変わったら紹介状態も取り直す。
+                // これが無いと星/今月フリーズ/⭐10猫解放が前アカウントの値のまま、または
+                // 新アカウントの正当な解放が次回起動まで反映されない(口座スコープ漏れ、監査 P2)。
+                Task { await referralStore.refresh() }
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                 syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.summary.freezeBonusThisMonth)
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                     // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
                     // onAppear/onChange のみで、記録後すぐは stale だった)。
                     syncMyFriendProfile()
@@ -134,6 +183,10 @@ struct HomeView: View {
                         viewModel.acknowledgeMilestone(milestone)
                     }
                 )
+                // スワイプで閉じてもボタン同様に acknowledge する。これが無いと
+                // 未確認のまま残り、次の記録ごとに同じ節目シートが再発する(GPT-5.5/Claude 監査)。
+                // acknowledge は冪等(Set への記録)なので二重呼びでも安全。
+                .onDisappear { viewModel.acknowledgeMilestone(milestone) }
             }
             .sheet(isPresented: Binding(
                 get: { referralStore.pendingWelcome != nil },
@@ -149,6 +202,59 @@ struct HomeView: View {
             )) {
                 ReferralCelebrationSheet(confirmations: referralStore.pendingReferrerPops)
             }
+            .sheet(isPresented: $isShowingRevive, onDismiss: {
+                // revive シートが完全に閉じてからペイウォールを出す(2シート同時切替の取りこぼし回避)。
+                if pendingFreezePaywall {
+                    pendingFreezePaywall = false
+                    isShowingFreezePaywall = true
+                }
+            }) {
+                let w = viewModel.reviveWindow
+                StreakRevivePopup(
+                    potentialStreak: viewModel.potentialReviveStreak,
+                    freezesNeeded: w?.freezesNeeded ?? 0,
+                    remaining: viewModel.reviveRemainingFreezes,
+                    hasEnough: w?.hasEnough ?? false,
+                    onUseFreeze: { handleReviveUse() },
+                    onSeePremium: {
+                        // ペイウォールを見るだけでは break を handled にしない。
+                        // プレミアム購入後に同じ break をまだ復活できるようにする(Codex/Gemini監査)。
+                        // 提示は revive の onDismiss 後に予約(同一 runloop の二重 sheet を避ける)。
+                        pendingFreezePaywall = true
+                        isShowingRevive = false
+                    },
+                    onDismiss: {
+                        markReviveHandled()
+                        isShowingRevive = false
+                    }
+                )
+                // スワイプ dismiss だと break が未処理のまま残り次回起動で再提示される(GPT-5.5 P1)。
+                // 復活は「使う/プレミアム/今回はしない」の明示ボタンで分岐するため、ジェスチャ dismiss を
+                // 封じてボタン経由に強制する(handled 化は成功時のみ等の条件付きなので onDismiss 一括化は不可)。
+                .interactiveDismissDisabled()
+            }
+            .sheet(isPresented: $isShowingFreezePaywall, onDismiss: {
+                // フリーズ目的でペイウォールへ来て購入完了した場合、同じ break の復活ポップへ戻す
+                // (GPT-5.5 P1: 購入後に復活導線へ戻れない)。プレミアムで allowance が増えるため
+                // viewModel を再計算し、reviveShownThisLaunch を解除して再提示判定する。
+                if storeKit.isPremiumActive {
+                    viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
+                                      isPremium: storeKit.isPremiumActive,
+                                      referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+                    reviveShownThisLaunch = false
+                    maybePresentRevive()
+                }
+            }) {
+                PremiumPaywallSheet(store: storeKit, context: .freeze)
+            }
+            .alert("⭐10達成!", isPresented: Binding(
+                get: { referralStore.pendingBreedUnlock },
+                set: { if !$0 { referralStore.consumeBreedUnlock() } }
+            )) {
+                Button("やったね!", role: .cancel) { referralStore.consumeBreedUnlock() }
+            } message: {
+                Text("友達を10人紹介しました!設定や猫選びの画面から、好きな猫が無料で選べるようになりました。")
+            }
         }
     }
 
@@ -158,13 +264,36 @@ struct HomeView: View {
     /// 「数字 + 状態」の両方を 1 列で軽く伝える方針。
 
     private var topStatusBar: some View {
-        HStack {
-            StreakBadgeView(streak: viewModel.streak.currentStreak) {
+        // 左 = 連続チップ。右 = 称号(上)+ 状態(下)を右詰めで2段。
+        // fillHeight で連続チップを「右列(称号+状態)と同じ高さ」に揃える。
+        // ただし HStack を fixedSize(vertical) で自然高さに固定しないと、
+        // maxHeight:.infinity が親の余白を全部食って連続チップが過剰に縦長になる。
+        // 紹介スターは下段 `referralStarsFullRow` へ。
+        HStack(alignment: .top, spacing: 8) {
+            StreakBadgeView(streak: viewModel.streak.currentStreak, fillHeight: true) {
                 guard viewModel.streak.currentStreak > 0 else { return }
                 isShowingStreakShare = true
             }
             Spacer()
-            statusChip
+            VStack(alignment: .trailing, spacing: 6) {
+                if CatRank(currentStreak: viewModel.streak.currentStreak).rank > 0 {
+                    RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
+                }
+                statusChip
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// 3 行目。**紹介スターを全幅 1 行**に置く(称号と分離したので最大10星が
+    /// 折り返さず一直線に並ぶ)。星は友達を紹介して 1 個以上付いて初めて表示する
+    /// (0 星のゴースト星は出さない)。未サインインでも描画しない。
+    @ViewBuilder
+    private var referralStarsFullRow: some View {
+        if AppFeatureFlags.isReferralActive,
+           referralStore.currentAccountStarBadges > 0,
+           let code = friendsStore.profile?.friendCode {
+            ReferralStarsRow(count: referralStore.currentAccountStarBadges, friendCode: code)
         }
     }
 
@@ -198,7 +327,7 @@ struct HomeView: View {
     private var catTheater: some View {
         VStack(spacing: 12) {
             Spacer(minLength: 4)
-            BigCatView(state: viewModel.catState, totalAchievedDays: viewModel.lifetimeStats.achievedDays)
+            BigCatView(state: viewModel.catState, useShaker: !viewModel.todayStatus.countsAsAchieved)
                 .frame(width: 280, height: 280)
                 // タップで bounce + haptic。触れて遊べるキャラ感。
                 .scaleEffect(catBounce ? 1.08 : 1.0)
@@ -375,6 +504,14 @@ struct HomeView: View {
         )
     }
 
+    /// 記録完了 → ホーム復帰時にまとめて発火する達成演出。
+    /// 節目シート → 称号トースト → 紙吹雪 の順(節目シート提示中は称号トーストを抑止)。
+    private func fireRecordCelebrations() {
+        handleAutoPresentations()
+        evaluateRankCelebration()
+        evaluateCelebration()
+    }
+
     private func handleAutoPresentations() {
         // --skip-milestones は UI テスト / スクショ専用。Release では本番の
         // 節目祝祭を必ず出す (debug 引数は Release で無効: QA チェックリスト A)。
@@ -384,6 +521,83 @@ struct HomeView: View {
         #endif
         if !skipAuto, presentedMilestone == nil, let milestone = viewModel.pendingMilestone {
             presentedMilestone = milestone
+        }
+    }
+
+    /// 復活ポップを条件付きで提示(1起動1回・未処理 break のみ)。
+    /// onAppear と前面復帰(scenePhase=.active)で共有するホーム状態の再計算。
+    /// 達成演出(節目/称号/紙吹雪)は記録完了→ホーム復帰時のみに限定する設計なので
+    /// ここでは出さない。復活ポップは演出ではなく救済導線であり、二重ガード
+    /// (reviveShownThisLaunch + 永続 isHandled)があるため呼んでも安全。
+    private func refreshHomeState() {
+        store.fetchRecords()
+        viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+        maybePresentRevive()
+        syncMyFriendProfile()
+    }
+
+    private func maybePresentRevive() {
+        guard !reviveShownThisLaunch else { return }
+        // 大節目シート提示中は二重 .sheet を避ける(evaluateRankCelebration と同じガード)。
+        // ここで reviveShownThisLaunch を立てる前に return することで、次回 onAppear で再評価される。
+        guard presentedMilestone == nil else { return }
+        guard viewModel.reviveWindow != nil else { return }
+        // break 識別は refresh 時点の missed 日から導出した安定キーを使う(offset+今の today の
+        // 再計算だと日跨ぎで別キーになる, 監査 F2)。
+        guard let key = viewModel.reviveBreakKey else { return }
+        guard !reviveDismissStore.isHandled(key) else { return }
+        reviveShownThisLaunch = true
+        isShowingRevive = true
+    }
+
+    private func markReviveHandled() {
+        if let key = viewModel.reviveBreakKey {
+            reviveDismissStore.markHandled(key)
+        }
+    }
+
+    private func handleReviveUse() {
+        // フリーズ適用を先に試し、**全 missed 日の復活に成功した時だけ** handled 化する。
+        // 途中失敗(枠切れ/月境界等)で break を消化してしまい復活も損も両取りになるのを防ぐ(Codex/Gemini監査)。
+        let restored = viewModel.applyRevive()
+        isShowingRevive = false
+        if restored != nil {
+            markReviveHandled()
+        }
+        viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(),
+                          isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+        WidgetSnapshotPublisher.publish(from: store, today: Date(), rescuedDates: RescueTicketStore.shared.rescuedDates(), calendar: calendar)
+        if let restored {
+            reviveCelebration = restored
+            CelebrationCenter.shared.fireLight()
+        }
+    }
+
+    private func rankForEvent(_ event: RankUpEvent) -> CatRank {
+        switch event {
+        case .rankUp(let to): return CatRank(currentStreak: CatRank.thresholds[max(0, to - 1)])
+        case .weekly(let streak): return CatRank(currentStreak: streak)
+        }
+    }
+
+    private func messageForEvent(_ event: RankUpEvent) -> String {
+        switch event {
+        case .rankUp: return "称号アップ!"
+        case .weekly(let streak): return "\(streak)日連続!"
+        }
+    }
+
+    /// 起動/記録後に小節目を評価。detector の状態はここで必ず消化し(再発火防止)、
+    /// 大節目シート提示中は overlay を抑止する(二重演出防止)。
+    private func evaluateRankCelebration() {
+        let events = rankUpDetector.evaluate(currentStreak: viewModel.streak.currentStreak)
+        guard presentedMilestone == nil else { return } // 大節目優先(状態は消化済み)
+        if let up = events.first(where: { if case .rankUp = $0 { return true } else { return false } }) {
+            withAnimation { pendingRankEvent = up }
+            CelebrationCenter.shared.fireLight()
+        } else if let wk = events.first {
+            withAnimation { pendingRankEvent = wk }
+            CelebrationCenter.shared.fireLight()
         }
     }
 
@@ -417,13 +631,21 @@ struct HomeView: View {
     private func syncMyFriendProfile() {
         // 友達機能が無効 (v1) の間は同期不要。本番で friends profile を作らない。
         guard AppFeatureFlags.friendsEnabled else { return }
+        // 友達紹介の確定は profile 差分の有無に依存させない(GPT-5.5 監査: 既に初記録済みで
+        // profile も最新のユーザーが後から招待コードを入力すると、下の「差分なし」early-return で
+        // confirm に到達せず星/フリーズが付かなかった)。confirmFirstRecordIfNeeded は内部で
+        // isSignedIn/hasReferrer を見るので profile 不在でも安全。
+        if AppFeatureFlags.isReferralActive {
+            let hasFirstRecord = viewModel.lifetimeStats.achievedDays >= 1
+            Task { await referralStore.confirmFirstRecordIfNeeded(hasFirstRecord: hasFirstRecord) }
+        }
         guard let current = friendsStore.profile else { return }
         let streak = viewModel.streak.currentStreak
         let achieved = viewModel.lifetimeStats.achievedDays
         let todayDone = viewModel.todayStatus.countsAsAchieved
         let weekly = viewModel.statuses.map { $0.status.countsAsAchieved }
         let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
-        let tier = CatDecoration(totalAchievedDays: viewModel.lifetimeStats.achievedDays).tier
+        let tier = CatRank(currentStreak: streak).rank
         let breed = UserCatPreferences.shared.myCat
         // 今日の活動 (カテゴリ/種目名/詳細=opt-in) と月次集計を記録から組み立てる。
         let activity = FriendSharedActivity.build(
@@ -461,12 +683,6 @@ struct HomeView: View {
         updated.monthlyAchievedDays = activity.monthlyAchievedDays
         updated.lastUpdated = Date()
         Task { await friendsStore.publishMyProfile(updated) }
-
-        // 友達紹介: 初運動記録(累計達成 >= 1)に到達したら自分の pending 紹介を確定する。
-        if AppFeatureFlags.isReferralActive {
-            let hasFirstRecord = viewModel.lifetimeStats.achievedDays >= 1
-            Task { await referralStore.confirmFirstRecordIfNeeded(hasFirstRecord: hasFirstRecord) }
-        }
     }
 }
 
@@ -480,7 +696,7 @@ struct HomeView: View {
 ///   合成して有機的な動きに。reduceMotion 設定時は全停止。
 struct BigCatView: View {
     let state: CatState
-    let totalAchievedDays: Int
+    var useShaker: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
     @State private var floating = false
@@ -488,10 +704,13 @@ struct BigCatView: View {
 
     var body: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = state.assetName(breed: breed)
-        let resolved = UIImage(named: primary) != nil ? primary : CatBreed.fallbackAssetName(for: state)
+        let resolved: String = useShaker
+            ? breed.resolvedShakerAssetName { UIImage(named: $0) != nil }
+            : (UIImage(named: state.assetName(breed: breed)) != nil
+               ? state.assetName(breed: breed)
+               : CatBreed.fallbackAssetName(for: state))
         ZStack {
-            MilestoneBackgroundView(totalAchievedDays: totalAchievedDays)
+            // 達成背景は画面全体の MilestoneBackdrop に移行(猫裏の四角い画像カードは廃止)。
             // 背景の光輪 (装飾)。キャラ画像はこの円の外まで描かれて構わない。
             Circle()
                 .fill(LinearGradient(

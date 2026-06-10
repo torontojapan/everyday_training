@@ -52,6 +52,16 @@ begin
         select 1 from public.friend_requests r
         where r.from_user = u.id or r.to_user = u.id
       )
+      -- 紹介(referrer/referee いずれか)に関与していない。
+      -- referrals は auth.users へ on delete cascade 済みなので、紹介者を孤児として
+      -- 消すと被紹介者の confirmed 行まで連鎖削除され、被紹介者のウェルカム・フリーズや
+      -- 紹介者の星が静かに失われる。通常フローでは submitInviteCode が friendship も張るため
+      -- 上の friendships ガードで保護されるが、friendship が一過性に失敗/解消された場合に
+      -- referral だけ残る経路を塞ぐ (監査 P2)。
+      and not exists (
+        select 1 from public.referrals rf
+        where rf.referrer_user_id = u.id or rf.referee_user_id = u.id
+      )
   )
   delete from auth.users u
   using orphans o

@@ -1,5 +1,6 @@
 package com.goexercise.app.presentation.home
 
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.friends.FriendProfile
 
 /**
@@ -19,7 +20,10 @@ object MyFriendProfileBuilder {
             totalAchievedDays = state.lifetimeStats.achievedDays,
             todayAchieved = state.todayStatus.countsAsAchieved,
             todayCategoryName = todayCategory,
-            decorationTier = state.catDecoration.tier,
+            // iOS パリティ: 旧 CatDecoration.tier(生涯達成ベース 0..4)ではなく、連続記録ベースの
+            // CatRank.rank(0..11)を publish する。クロスプラットフォーム BE で同一ユーザーが
+            // プラットフォーム間で異なる値を書き分けるのを防ぐ。友達表示は FriendProfile.rank を別途使うので影響なし。
+            decorationTier = CatRank.of(state.streak.currentStreak).rank,
             weeklyAchievements = state.weekStatuses.map { it.status.countsAsAchieved },
             weeklyTotalMinutes = state.weeklySummary.totalMinutes,
             monthlyTotalMinutes = state.monthlyTotalMinutes,
@@ -41,7 +45,9 @@ object MyFriendProfileBuilder {
         state.monthlyTotalMinutes,
         state.monthlyAchievedDays,
         state.todaySummary.categoryCounts.maxByOrNull { it.value }?.key?.displayName,
-        state.catDecoration.tier,
+        // publish される decorationTier(= CatRank.rank, 連続記録ベース 0..11)に合わせる。
+        // currentStreak は既に含まれるが、publish 値を直接署名に反映して再 publish 判定を正しく保つ。
+        CatRank.of(state.streak.currentStreak).rank,
         state.catBreed,
     )
 }

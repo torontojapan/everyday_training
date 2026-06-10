@@ -1042,6 +1042,12 @@ struct FriendsView: View {
                         Text("@\(friend.username)")
                             .font(Typography.caption)
                             .foregroundStyle(Palette.textSecondary)
+                        // F1: リスト行に称号テキスト(compact)も出す。グリッド(パーク)は
+                        // セルが狭いのでメタルリングのまま、ここで称号名を補う。
+                        if friend.rank.rank > 0 {
+                            RankBadge(rank: friend.rank, compact: true)
+                                .padding(.top, 2)
+                        }
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {

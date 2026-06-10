@@ -53,11 +53,23 @@ final class SupabaseFriendsService: FriendsService {
 
     private func ensureUID() async throws -> UUID {
         guard let client else { throw FriendsServiceError.backendUnavailable }
-        if let existing = try? await client.auth.session { return existing.user.id }
-        // 新規匿名サインイン時のみ CAPTCHA トークンを取得 (無効なら nil = 従来挙動)。
-        let captchaToken = try await captchaProvider.obtainTokenIfNeeded()
-        let session = try await client.auth.signInAnonymously(captchaToken: captchaToken)
-        return session.user.id
+        // セッション読取は「無セッション」と「一時障害」を厳密に区別する (監査 P1)。
+        // 旧実装の `try?` は両者を潰し、リフレッシュトークンの一時失効/通信失敗でも
+        // フォールスルーして **新規匿名サインイン** してしまう。友達/星/連携済みの既存
+        // アイデンティティが新しい匿名 uid で上書きされ、friends 空表示や friend_code
+        // UNIQUE 衝突を招く。新規匿名作成は sessionMissing(=確実に無セッション)のみに限定する。
+        do {
+            let existing = try await client.auth.session
+            return existing.user.id
+        } catch AuthError.sessionMissing {
+            // 新規匿名サインイン時のみ CAPTCHA トークンを取得 (無効なら nil = 従来挙動)。
+            let captchaToken = try await captchaProvider.obtainTokenIfNeeded()
+            let session = try await client.auth.signInAnonymously(captchaToken: captchaToken)
+            return session.user.id
+        } catch {
+            // 一時障害は新規作成せず失敗として伝播 (既存アイデンティティを温存)。
+            throw FriendsServiceError.backendUnavailable
+        }
     }
 
     private func requireClient() throws -> SupabaseClient {
@@ -630,12 +642,17 @@ final class SupabaseFriendsService: FriendsService {
         let existing: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: uid.uuidString).limit(1).execute().value
         if !existing.isEmpty { throw FriendsServiceError.duplicateRequest }
+        // 自動友達化を **先に** 行う(承認フロースキップ・upsert は冪等)。
+        // referral insert を先にすると、直後の friendship upsert が一過性に失敗したとき、
+        // 再試行が上の duplicate-referee guard(referrals に行あり)で弾かれ friendship が永久に
+        // 作られない=「報酬はあるが友達でない」状態が残る(GPT-5.5/Claude 監査)。順序を逆にすれば
+        // referral insert 失敗時の再試行でも friendship は冪等に再作成され、最悪でも
+        // 「友達だが紹介報酬なし」(安全側)に収束する。
+        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
         // pending 紹介を作成(referee = 自分。RLS で referee 本人のみ insert 可)。
         try await client.from("referrals")
             .insert(ReferralInsert(referrer_user_id: referrer.user_id, referee_user_id: uid.uuidString))
             .execute()
-        // 自動友達化(承認フローをスキップ。upsert は冪等)。
-        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
     }
 
     func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {
@@ -656,8 +673,21 @@ final class SupabaseFriendsService: FriendsService {
                                     role: .referee)
     }
 
+    /// サインイン中のセッションを返す。未サインイン(sessionMissing)は nil、
+    /// 一時障害(トークン更新失敗/通信失敗)は throw する。これにより紹介系の集計が
+    /// 一時障害時に「空(=サインアウト相当)」を**成功として**返して ReferralStore の
+    /// 既存値を上書きしてしまう事故を防ぐ(監査 P2。ensureUID と同じ方針)。
+    private func signedInSessionOrNil() async throws -> Session? {
+        guard let client else { return nil }
+        do {
+            return try await client.auth.session
+        } catch AuthError.sessionMissing {
+            return nil
+        }
+    }
+
     func unseenReferrerConfirmations() async throws -> [ReferralConfirmation] {
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return [] }
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return [] }
         let client = try requireClient()
         let uid = session.user.id.uuidString
         let rows: [ReferralRow] = try await client.from("referrals")
@@ -669,11 +699,14 @@ final class SupabaseFriendsService: FriendsService {
         let profs: [ProfileRow] = try await client.from("profiles")
             .select().in("user_id", values: refereeIDs).execute().value
         let byID = Dictionary(uniqueKeysWithValues: profs.map { ($0.user_id, $0) })
-        // 取得分を seen=true にする(再ポップ防止)。
+        // 取得分**だけ**を seen=true にする(再ポップ防止)。select と update の間に新たな
+        // confirmed が来ても、返していない行を seen にして祝祭を取りこぼさないよう referee_user_id で
+        // 限定する(Claude 監査: select/update レース)。
         try await client.from("referrals")
             .update(ReferralSeenUpdate(seen_by_referrer: true))
             .eq("referrer_user_id", value: uid)
             .eq("status", value: "confirmed").eq("seen_by_referrer", value: false)
+            .in("referee_user_id", values: refereeIDs)
             .execute()
         return rows.map { r in
             ReferralConfirmation(id: r.referee_user_id,
@@ -683,8 +716,9 @@ final class SupabaseFriendsService: FriendsService {
     }
 
     func referralSummary() async throws -> ReferralSummary {
-        // 未サインインなら匿名アカウントを作らずに空を返す(孤児防止)。
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return .empty }
+        // 未サインインなら匿名アカウントを作らずに空を返す(孤児防止)。一時障害は throw して
+        // ReferralStore の既存 summary を温存する(空で上書きしない、監査 P2)。
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return .empty }
         let client = try requireClient()
         let uid = session.user.id.uuidString
         let now = Date()
@@ -699,7 +733,7 @@ final class SupabaseFriendsService: FriendsService {
     }
 
     func hasReferrer() async throws -> Bool {
-        guard myProfile != nil, let session = try? await requireClient().auth.session else { return false }
+        guard myProfile != nil, let session = try await signedInSessionOrNil() else { return false }
         let client = try requireClient()
         let rows: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: session.user.id.uuidString).limit(1).execute().value

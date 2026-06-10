@@ -16,6 +16,13 @@ struct UserCatPickerView: View {
     @State private var inviteAccepted = false
     let isOnboarding: Bool
 
+    private var referralUnlocked: Bool {
+        // 現サインインアカウントの friend_code と summary の由来アカウントが一致する場合のみ解放。
+        // 切替/復元直後(未 refresh)に前アカウントの星で有料猫を解放させない
+        // (Codex指摘: 口座跨ぎの stale entitlement)。
+        referralStore.isBreedUnlocked(forAccount: friendsStore.profile?.friendCode)
+    }
+
     init(isOnboarding: Bool = false) {
         self.isOnboarding = isOnboarding
         _selected = State(initialValue: UserCatPreferences.shared.myCat)
@@ -85,7 +92,7 @@ struct UserCatPickerView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isOnboarding ? "はじめる" : "決定") {
-                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive) {
+                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
                             selected = prefs.myCat
                         }
                         prefs.myCat = selected
@@ -131,7 +138,7 @@ struct UserCatPickerView: View {
 
     private func cell(_ breed: CatBreed) -> some View {
         let isSelected = selected == breed
-        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive)
+        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
         return Button {
             if locked { showPaywall = true } else { selected = breed }
         } label: {

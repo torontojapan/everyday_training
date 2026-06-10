@@ -30,7 +30,10 @@ object StreakCalculator {
 
             when (status) {
                 DailyStatus.Achieved, DailyStatus.TodayAchieved -> streak += 1
-                DailyStatus.Rest -> Unit // skip — カウントしないが連続も切れない
+                // Rest = カウントしないが連続も切れない。
+                // TodayPending = 今日まだ未記録 → 連続を切らずスキップし「昨日までの連続」を数える
+                // (今日記録すれば TodayAchieved になり加算される。iOS StreakCalculator と同一挙動)。
+                DailyStatus.Rest, DailyStatus.TodayPending -> Unit // skip
                 else -> return streak
             }
 
@@ -67,7 +70,9 @@ object StreakCalculator {
                     longest = maxOf(longest, running)
                     lastAchievedDate = cursor
                 }
-                DailyStatus.Rest -> Unit // running 保持
+                // Rest と TodayPending は running を保持して連続を切らない
+                // (今日未記録でも昨日までの連続を維持。iOS streakState と同一挙動)。
+                DailyStatus.Rest, DailyStatus.TodayPending -> Unit
                 else -> running = 0
             }
 

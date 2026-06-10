@@ -13,8 +13,6 @@ struct RecordCompletionView: View {
 
     @State private var contentVisible = false
     @State private var streakPulse = false
-    @State private var showsConfetti = true
-    @State private var fireBurst = false
     @State private var ribbonText = ""
     @State private var ribbonAppear = false
     private let hapticFeedback = HapticFeedbackController()
@@ -53,24 +51,26 @@ struct RecordCompletionView: View {
         )
     }
 
-    /// 累計達成日数 (LifetimeStatsCalculator と同一ロジック: 達成記録のある一意の日数)。
-    /// RecordCompletionView は HomeViewModel を持たないため store.records から直接算出する。
-    private var lifetimeAchievedDays: Int {
-        Set(
-            store.records
-                .filter { AchievementEvaluator.isAchieved(record: $0) }
-                .map { Calendar.mondayFirst.startOfDay(for: $0.date) }
-        ).count
-    }
 
     var body: some View {
         ZStack {
-            Palette.background.ignoresSafeArea()
+            // 記録完了画面は「明るい暖色背景」を最初から最後まで維持する。
+            // (旧: CelebrationOverlay の光彩が 2.4 秒後にフェードアウトして背景が
+            //  ワントーン暗くなる揺れがあった → ユーザー指摘で廃止し、静的グローで固定。)
+            // テーマ整合のため Palette.primary をベースにした柔らかい放射グロー。明るさは
+            // 中心の opacity で調整可能。
+            RadialGradient(
+                colors: [Palette.primary.opacity(0.30), Palette.background],
+                center: .center,
+                startRadius: 0,
+                endRadius: 560
+            )
+            .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
                     // 1. ヒーロー: ホームと同じ大きい祝福猫。達成のごほうび感を最大化。
-                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating, totalAchievedDays: lifetimeAchievedDays)
+                    BigCatView(state: streakExtendedThisRun ? .streakExtended : .celebrating, useShaker: true)
                         .frame(width: 210, height: 210)
                         .scaleEffect(contentVisible ? 1 : 0.85)
                         .opacity(contentVisible ? 1 : 0)
@@ -132,14 +132,6 @@ struct RecordCompletionView: View {
                 .padding(20)
             }
 
-            if showsConfetti && !reduceMotion {
-                CelebrationOverlay(level: celebrationLevel)
-                    .transition(.opacity)
-            }
-
-            if streakExtendedThisRun && !reduceMotion {
-                fireOverlay
-            }
         }
         .navigationTitle("記録完了")
         .navigationBarTitleDisplayMode(.inline)
@@ -156,9 +148,6 @@ struct RecordCompletionView: View {
             withAnimation(Motion.animation(.spring(response: 0.35, dampingFraction: 0.45).repeatCount(2, autoreverses: true), reduceMotion: reduceMotion)) {
                 streakPulse = true
             }
-            withAnimation(Motion.animation(Motion.bouncy.repeatCount(3, autoreverses: true), reduceMotion: reduceMotion)) {
-                fireBurst = true
-            }
         }
         // 遅延処理は `.task` に置き、画面離脱で自動キャンセルする。これにより
         // 「もう一種目」やホーム遷移で素早く離脱したとき、別画面で confetti 消去や
@@ -167,10 +156,7 @@ struct RecordCompletionView: View {
             do {
                 try await Task.sleep(for: .seconds(2.6))
             } catch {
-                return  // 離脱でキャンセル → 演出もレビュー依頼も出さない
-            }
-            withAnimation(.easeOut(duration: 0.3)) {
-                showsConfetti = false
+                return  // 離脱でキャンセル → レビュー依頼も出さない
             }
             requestReviewIfMilestoneReached()
         }
@@ -192,23 +178,6 @@ struct RecordCompletionView: View {
 
     private func triggerHaptic() {
         CelebrationCenter.shared.fire(celebrationLevel)
-    }
-
-    private var fireOverlay: some View {
-        ZStack {
-            ForEach(0..<10, id: \.self) { index in
-                Text("🔥")
-                    .font(.system(size: index.isMultiple(of: 2) ? 28 : 22))
-                    .offset(
-                        x: fireBurst ? CGFloat((index % 5) - 2) * 42 : 0,
-                        y: fireBurst ? CGFloat(index / 5 == 0 ? -1 : 1) * 120 : 20
-                    )
-                    .opacity(fireBurst ? 0.1 : 0.9)
-                    .scaleEffect(fireBurst ? 1.25 : 0.7)
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     /// 連続日数を大きな数字でヒーロー化したカード。完了画面の感情的ピーク。

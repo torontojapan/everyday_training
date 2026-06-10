@@ -20,20 +20,31 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import com.goexercise.app.presentation.review.findActivity
+import com.goexercise.app.presentation.review.launchInAppReview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.DailyStatusEntry
 import com.goexercise.app.domain.Milestone
+import com.goexercise.app.domain.RankUpEvent
+import com.goexercise.app.ui.components.RankCelebrationOverlay
+import com.goexercise.app.ui.components.StreakRevivePopup
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.GOExerciseTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -43,13 +54,40 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 fun HomeRoute(
     onRecordClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onOpenFreezePaywall: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
     val welcome by viewModel.pendingWelcome.collectAsStateWithLifecycle()
     val referrerPops by viewModel.pendingReferrerPops.collectAsStateWithLifecycle()
-    HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
+    val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
+    val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
+
+    // レビュー依頼: VM が節目到達を検知したら Play In-App Review を起動(表示可否は Google 判断)。
+    val reviewRequested by viewModel.pendingReviewRequest.collectAsStateWithLifecycle()
+    val reviewContext = LocalContext.current
+    LaunchedEffect(reviewRequested) {
+        if (reviewRequested) {
+            reviewContext.findActivity()?.let { launchInAppReview(it) }
+            viewModel.clearReviewRequest()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
+        // 機能B: 小節目の軽量トースト(HomeContent の上に重ねる。自動消滅で操作は遮らない)。
+        // 大節目ダイアログ提示中(pendingMilestone != null)は二重演出を避けて出さない(VM の guard と二重化)。
+        if (pendingMilestone == null) pendingRankEvent?.let { event ->
+            val (rank, message) = rankCelebrationDisplay(event)
+            RankCelebrationOverlay(
+                rank = rank,
+                message = message,
+                onFinished = { viewModel.clearRankEvent() },
+            )
+        }
+    }
+
     pendingMilestone?.let { milestone ->
         MilestoneCelebrationDialog(
             milestone = milestone,
@@ -60,6 +98,44 @@ fun HomeRoute(
         welcome?.let { com.goexercise.app.presentation.referral.ReferralCelebrationDialog(listOf(it)) { viewModel.consumeWelcome() } }
         if (referrerPops.isNotEmpty()) com.goexercise.app.presentation.referral.ReferralCelebrationDialog(referrerPops) { viewModel.consumeReferrerPops() }
     }
+
+    // 機能D: 復活ポップ。**launch ごとに 1 度だけ**、復活可能 かつ この途切れが未対応の時に出す。
+    var reviveShownThisLaunch by rememberSaveable { mutableStateOf(false) }
+    var reviveDismissedLocal by remember { mutableStateOf(false) }
+    reviveState?.let { rs ->
+        val handled = viewModel.reviveBreakHandled(rs)
+        if (!handled && !reviveShownThisLaunch && !reviveDismissedLocal) {
+            StreakRevivePopup(
+                potentialStreak = rs.potentialStreak,
+                freezesNeeded = rs.result.freezesNeeded,
+                remaining = rs.remaining,
+                hasEnough = rs.result.hasEnough,
+                onUseFreeze = {
+                    reviveShownThisLaunch = true
+                    viewModel.applyRevive()
+                },
+                onSeePremium = {
+                    reviveShownThisLaunch = true
+                    onOpenFreezePaywall()
+                },
+                onDismiss = {
+                    reviveShownThisLaunch = true
+                    reviveDismissedLocal = true
+                    viewModel.dismissRevive()
+                },
+            )
+        }
+    }
+}
+
+/** RankUpEvent → 表示用の (称号ランク, メッセージ)。RankUp は到達した称号の閾値 streak でランクを作る。 */
+private fun rankCelebrationDisplay(event: RankUpEvent): Pair<CatRank, String> = when (event) {
+    is RankUpEvent.RankUp -> {
+        // rank=to の閾値 streak からランクを再構成(thresholds は公開済み・1-indexed の to)。
+        val thresholdStreak = CatRank.thresholds.getOrNull(event.to - 1) ?: 0
+        CatRank.of(thresholdStreak) to "称号アップ!"
+    }
+    is RankUpEvent.Weekly -> CatRank.of(event.streak) to "${event.streak}日連続!"
 }
 
 /** 達成お祝いダイアログ(emoji + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */
@@ -95,30 +171,34 @@ fun HomeContent(
     onShareClick: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(palette.background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        CatTheater(state)
-        WeekStrip(state.weekStatuses)
-        StatsRow(state)
-        Button(
-            onClick = onRecordClick,
-            modifier = Modifier.fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 連続ランク駆動の進化背景(最背面)。背景は backdrop が描くので Column 側の
+        // .background(palette.background) は外す(付けると backdrop を覆って見えなくなる)。
+        com.goexercise.app.ui.components.MilestoneBackdrop(streak = state.streak.currentStreak)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("記録する")
-        }
-        // 連続記録がある時だけシェア導線を出す(マイルストーン画像)。
-        if (state.streak.currentStreak > 0) {
-            TextButton(
-                onClick = onShareClick,
+            CatTheater(state)
+            WeekStrip(state.weekStatuses)
+            StatsRow(state)
+            Button(
+                onClick = onRecordClick,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
+                Text("記録する")
+            }
+            // 連続記録がある時だけシェア導線を出す(マイルストーン画像)。
+            if (state.streak.currentStreak > 0) {
+                TextButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
+                }
             }
         }
     }
@@ -133,6 +213,8 @@ private fun CatTheater(state: HomeUiState) {
             breed = state.catBreed,
             state = state.catState,
             modifier = Modifier.size(96.dp),
+            // 今日まだ未記録なら補給(シェイカー)版で「これからやろう」を演出。iOS: !todayStatus.countsAsAchieved。
+            useShaker = !state.todayStatus.countsAsAchieved,
         )
         Surface(
             color = palette.surface,
@@ -183,8 +265,29 @@ private fun StatsRow(state: HomeUiState) {
         StatPill(label = "連続", value = "${state.streak.currentStreak}日", modifier = Modifier.weight(1f))
         StatPill(label = "累計達成", value = "${state.lifetimeStats.achievedDays}日", modifier = Modifier.weight(1f))
         StatPill(label = "今週", value = "${state.weeklySummary.totalMinutes}分", modifier = Modifier.weight(1f))
-        val decoText = if (state.catDecoration == com.goexercise.app.domain.CatDecoration.None) "—" else state.catDecoration.emoji
-        StatPill(label = "ランク", value = decoText, modifier = Modifier.weight(1f))
+        RankPill(streak = state.streak.currentStreak, modifier = Modifier.weight(1f))
+    }
+}
+
+/** 称号(連続ベースのメタルチップ)を表示する StatPill。rank0 は「—」で見栄えを保つ。 */
+@Composable
+private fun RankPill(streak: Int, modifier: Modifier = Modifier) {
+    val palette = LocalAppPalette.current
+    val rank = com.goexercise.app.domain.CatRank.of(streak)
+    Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (rank.rank > 0) {
+                com.goexercise.app.ui.components.CatRankChip(rank = rank, compact = true)
+            } else {
+                Text(text = "—", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+            }
+            Text(text = "称号", color = palette.textSecondary, fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
     }
 }
 

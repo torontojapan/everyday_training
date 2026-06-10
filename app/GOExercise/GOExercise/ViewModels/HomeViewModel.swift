@@ -32,6 +32,13 @@ final class HomeViewModel {
     /// - 累計達成日 >= 3 (= 習慣を持っていた経験あり)
     /// 朝起きて未記録でも、昨日達成済みなら通常 UI のまま。
     var isComebackToday: Bool = false
+    /// 復活ウィンドウ(nil=対象外)。HomeView がポップ提示判定に使う。
+    var reviveWindow: StreakFreezeWindow.Result?
+    /// 復活対象の missed 日(**refresh 時点の絶対日付**, startOfDay)。applyRevive はこれを使い、
+    /// ポップ表示中に日付が変わっても offset 再変換でズレた日にフリーズを当てない(監査 F2)。
+    private(set) var reviveMissedDates: [Date] = []
+    /// 復活したら到達する連続日数(ポップのコピー「連続◯日」に使用)。
+    var potentialReviveStreak: Int = 0
     private let usageTracker = LifetimeUsageTracker()
     private let rescueTicketStore: RescueTicketStore
     private let milestoneDetector: MilestoneDetector
@@ -43,6 +50,15 @@ final class HomeViewModel {
 
     private var rescueAllowance: Int {
         RescueTicketAllowance.current(isPremium: isPremium, referralBonus: referralFreezeBonus)
+    }
+
+    /// 対象日の「その月」の allowance。紹介フリーズ加算は今月分の集計なので、月初の4日グレースで
+    /// 前月の missed 日を復活するときは加算を載せない(GPT-5.5 監査: 復活ポップ経路でも現在月ボーナスを
+    /// 前月へ流用できた件。RescueTicketUseView.allowance(for:) と対称)。
+    private func allowance(for date: Date) -> Int {
+        let inCurrentMonth = calendar.isDate(date, equalTo: dateProvider.currentDate(), toGranularity: .month)
+        let bonus = inCurrentMonth ? referralFreezeBonus : 0
+        return RescueTicketAllowance.current(isPremium: isPremium, referralBonus: bonus)
     }
 
     init(dateProvider: any DateProviding = SystemDateProvider(),
@@ -112,6 +128,29 @@ final class HomeViewModel {
         isComebackToday = yesterdayStatus(records: records, today: today) == .missed
             && !todayStatus.countsAsAchieved
             && lifetimeStats.achievedDays >= 3
+        // 復活ウィンドウ(4日グレース)。残枠は月次 allowance から算出。
+        let reviveRemaining = rescueTicketStore.remainingTickets(today: today, allowance: rescueAllowance)
+        let reviveRescued = rescueTicketStore.rescuedDates()
+        let window = StreakFreezeWindow.evaluate(
+            records: records, today: today, rescuedDates: reviveRescued,
+            remainingFreezes: reviveRemaining, calendar: calendar)
+        if window.revivable {
+            let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+            // hasEnough は「各 missed 日をその日の月の allowance で順に消費できるか」を厳密判定する。
+            // remainingTickets(today) は今日の月だけを見るため、月境界の missed 日で過大/過小評価する(Codex/Gemini監査)。
+            let monthAwareEnough = canReviveAll(missed: missed, rescued: reviveRescued)
+            reviveWindow = StreakFreezeWindow.Result(
+                revivable: true, missedOffsets: window.missedOffsets,
+                freezesNeeded: window.freezesNeeded, hasEnough: monthAwareEnough)
+            reviveMissedDates = missed.map { calendar.startOfDay(for: $0) }
+            let hypothetical = reviveRescued.union(reviveMissedDates)
+            potentialReviveStreak = restoredStreakLength(
+                records: records, hypothetical: hypothetical, today: today, missed: missed)
+        } else {
+            reviveWindow = nil
+            reviveMissedDates = []
+            potentialReviveStreak = 0
+        }
     }
 
     /// 昨日の DailyStatus (rest day **+ rescue ticket** 自動補完を込みで評価)。
@@ -139,7 +178,9 @@ final class HomeViewModel {
               let interval = calendar.dateInterval(of: .month, for: previousMonth) else {
             return false
         }
-        return records.contains { interval.contains($0.date) }
+        // DateInterval.contains は終端(=今月1日 0:00)を含むため、今月1日付の record が
+        // 先月扱いになる off-by-one を避け、半開区間 [start, end) で判定する(監査 P2)。
+        return records.contains { interval.start <= $0.date && $0.date < interval.end }
     }
 
     func acknowledgeMilestone(_ milestone: Milestone) {
@@ -159,5 +200,91 @@ final class HomeViewModel {
     /// 判断が一致するようにする (Codex round2 priority 1)。
     private func yesterdayAchieved(records: [WorkoutRecord], today: Date) -> Bool {
         yesterdayStatus(records: records, today: today).countsAsAchieved
+    }
+
+    var reviveRemainingFreezes: Int {
+        let today = calendar.startOfDay(for: dateProvider.currentDate())
+        return rescueTicketStore.remainingTickets(today: today, allowance: rescueAllowance)
+    }
+
+    /// 復活ウィンドウの missed 日すべてにフリーズを適用し、連続を復活させる。
+    /// - Returns: 復活後の `CatRank`(復活演出用)。適用不可(枠不足/window無)なら nil。
+    @discardableResult
+    func applyRevive() -> CatRank? {
+        guard let window = reviveWindow, window.hasEnough else { return nil }
+        // refresh 時点の絶対 missed 日を使う。offset を今の today で再変換すると、ポップ表示中に
+        // 日付が変わったとき別の日へフリーズを当ててしまう(監査 F2)。
+        let missed = reviveMissedDates
+        guard !missed.isEmpty else { return nil }
+        var applied = 0
+        for day in missed {
+            if rescueTicketStore.useTicket(on: day, allowance: allowance(for: day)) { applied += 1 }
+        }
+        guard applied == missed.count else { return nil }
+        return CatRank(currentStreak: potentialReviveStreak)
+    }
+
+    /// 復活対象 break の識別キー(refresh 時点の missed 日から導出)。HomeView の
+    /// 提示済み判定/handled 記録を、offset+その時の today 再計算ではなくこの安定キーで揃える(F2)。
+    var reviveBreakKey: String? {
+        ReviveDismissStore.breakKey(missedDates: reviveMissedDates, calendar: calendar)
+    }
+
+    /// missed 日すべてを **各日の月の allowance** で順に(累積で)消費できるか。
+    /// `useTicket(on:)` が missed 日の月で課金するため、今日の月だけの remainingTickets では
+    /// 月境界で誤判定する。実際の消費をシミュレートして hasEnough を厳密化する(Codex/Gemini監査)。
+    private func canReviveAll(missed: [Date], rescued: Set<Date>) -> Bool {
+        var sim = rescued
+        for raw in missed {
+            let day = calendar.startOfDay(for: raw)
+            if sim.contains(day) { return false } // 既に救済済み(通常あり得ない)
+            let usedInMonth = sim.filter { calendar.isDate($0, equalTo: day, toGranularity: .month) }.count
+            // 各 missed 日は「その日の月」の allowance で課金する(applyRevive の useTicket と対称)。
+            if usedInMonth >= allowance(for: day) { return false }
+            sim.insert(day)
+        }
+        return true
+    }
+
+    /// 復活で「守られる連続日数」。`StreakCalculator.currentStreak` は今日を起点にすると
+    /// 今日が todayPending の場合 0 を返す(=未達成の今朝は連続0扱い)ため使えない。
+    /// 代わりに **最新 missed 日(橋渡し後に過去日として achieved 扱いになる)** を起点に
+    /// 後方へ achieved/rescued を数える(rest は連続を切らず加算もしない)。`today` は実際の
+    /// 今日を渡し、起点を過去日にすることで rescuedDates が効くようにする。
+    private func restoredStreakLength(records: [WorkoutRecord], hypothetical: Set<Date>, today: Date, missed: [Date]) -> Int {
+        let todayStart = calendar.startOfDay(for: today)
+        // 今日が既に達成済みなら **今日起点**(今日 + 橋渡しした gap + 手前を全部数える)。
+        // 今日未達成(todayPending)なら最新 missed 日起点(今日を起点にすると 0 を返すため)。
+        // Codex/Gemini監査: 旧実装は常に最新 missed 起点で、今日達成済みのとき今日分を取りこぼしていた。
+        let todayStatus = AchievementEvaluator.dailyStatus(
+            for: todayStart, records: records,
+            restDays: RestDayResolver.restDaySet(for: todayStart, records: records, today: todayStart, calendar: calendar),
+            rescuedDates: hypothetical, today: todayStart, calendar: calendar)
+        let start: Date
+        if todayStatus == .todayAchieved {
+            start = todayStart
+        } else if let latestMissed = missed.map({ calendar.startOfDay(for: $0) }).max() {
+            start = latestMissed
+        } else {
+            return 0
+        }
+        var count = 0
+        var cursor = start
+        while true {
+            let restDays = RestDayResolver.restDaySet(for: cursor, records: records, today: today, calendar: calendar)
+            let status = AchievementEvaluator.dailyStatus(
+                for: cursor, records: records, restDays: restDays,
+                rescuedDates: hypothetical, today: today, calendar: calendar)
+            switch status {
+            case .achieved, .todayAchieved:
+                count += 1
+            case .rest:
+                break // skip — 連続は切らないが加算もしない
+            default:
+                return count // .missed / .todayPending / .future で停止
+            }
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { return count }
+            cursor = prev
+        }
     }
 }

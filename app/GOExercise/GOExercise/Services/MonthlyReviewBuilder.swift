@@ -19,6 +19,8 @@ enum MonthlyReviewBuilder {
     static func build(
         records: [WorkoutRecord],
         month: Date,
+        today: Date,
+        rescuedDates: Set<Date> = [],
         calendar: Calendar = .mondayFirst
     ) -> Review {
         let monthStart = startOfMonth(month, calendar: calendar)
@@ -31,7 +33,12 @@ enum MonthlyReviewBuilder {
             let day = calendar.startOfDay(for: record.date)
             return day >= monthStart && day <= monthEnd
         }
-        return buildCore(scoped: scoped, label: label, totalDays: range.count, calendar: calendar)
+        return buildCore(
+            scoped: scoped, allRecords: records,
+            rangeStart: monthStart, rangeEnd: monthEnd,
+            today: today, rescuedDates: rescuedDates,
+            label: label, totalDays: range.count, calendar: calendar
+        )
     }
 
     // MARK: - 週次
@@ -39,6 +46,8 @@ enum MonthlyReviewBuilder {
     static func weekly(
         records: [WorkoutRecord],
         weekContaining date: Date,
+        today: Date,
+        rescuedDates: Set<Date> = [],
         calendar: Calendar = .mondayFirst
     ) -> Review {
         guard let week = calendar.dateInterval(of: .weekOfYear, for: date) else {
@@ -51,7 +60,12 @@ enum MonthlyReviewBuilder {
             let day = calendar.startOfDay(for: record.date)
             return day >= weekStart && day <= weekEnd
         }
-        return buildCore(scoped: scoped, label: weekLabel(weekStart, weekEnd, calendar: calendar), totalDays: 7, calendar: calendar)
+        return buildCore(
+            scoped: scoped, allRecords: records,
+            rangeStart: weekStart, rangeEnd: weekEnd,
+            today: today, rescuedDates: rescuedDates,
+            label: weekLabel(weekStart, weekEnd, calendar: calendar), totalDays: 7, calendar: calendar
+        )
     }
 
     // MARK: - 累計
@@ -59,31 +73,66 @@ enum MonthlyReviewBuilder {
     static func lifetime(
         records: [WorkoutRecord],
         today: Date,
+        rescuedDates: Set<Date> = [],
         calendar: Calendar = .mondayFirst
     ) -> Review {
         let todayStart = calendar.startOfDay(for: today)
-        let totalDays: Int
-        if let first = records.map({ calendar.startOfDay(for: $0.date) }).min() {
-            totalDays = (calendar.dateComponents([.day], from: first, to: todayStart).day ?? 0) + 1
-        } else {
-            totalDays = 0
-        }
-        return buildCore(scoped: records, label: "通算 \(totalDays)日", totalDays: totalDays, calendar: calendar)
+        let firstRecordDay = records.map { calendar.startOfDay(for: $0.date) }.min()
+        // 最長連続の走査開始日は記録と救済の両方の最古日。救済日が最初の記録より前にある
+        // 履歴も連続として正しく拾う (正本 streakState は固定窓 today-365 なのでこの穴が無い。
+        // lifetime は records.min に依存していたため救済日が範囲外に落ちる edge を埋める。Codex P2)。
+        let firstRescuedDay = rescuedDates.map { calendar.startOfDay(for: $0) }.min()
+        let rangeStart = [firstRecordDay, firstRescuedDay].compactMap { $0 }.min() ?? todayStart
+        // totalDays は **rangeStart 基準**で数える(firstRecordDay 基準だと、救済日が初記録より前にある
+        // とき longestStreakInMonth > totalDays の矛盾が出る。監査 F4)。記録も救済も無ければ 0。
+        let totalDays: Int = (firstRecordDay == nil && firstRescuedDay == nil)
+            ? 0
+            : (calendar.dateComponents([.day], from: rangeStart, to: todayStart).day ?? 0) + 1
+        return buildCore(
+            scoped: records, allRecords: records,
+            rangeStart: rangeStart, rangeEnd: todayStart,
+            today: today, rescuedDates: rescuedDates,
+            label: "通算 \(totalDays)日", totalDays: totalDays, calendar: calendar
+        )
     }
 
     // MARK: - 共通コア
 
     private static func buildCore(
         scoped: [WorkoutRecord],
+        allRecords: [WorkoutRecord],
+        rangeStart: Date,
+        rangeEnd: Date,
+        today: Date,
+        rescuedDates: Set<Date>,
+        restLimit: Int = 2,
         label: String,
         totalDays: Int,
         calendar: Calendar
     ) -> Review {
-        let achievedDates = Set(
+        var achievedDates = Set(
             scoped.filter { AchievementEvaluator.isAchieved(record: $0) }
                 .map { calendar.startOfDay(for: $0.date) }
         )
-        let longestStreak = longestConsecutive(in: achievedDates, calendar: calendar)
+        // フリーズ救済日も「達成」として数える。アプリ全体(月カレンダー footer・週次進捗・
+        // dailyStatus.countsAsAchieved・longestStreakInMonth の橋渡し)が rescue=achieved 扱い
+        // なのに、ここだけ records 由来で除外していたため「達成8日/最長連続9日」のような自己矛盾が
+        // 出ていた(監査 F4)。範囲 [rangeStart, min(rangeEnd, today)] 内の rescued 日を union する。
+        let rangeStartDay = calendar.startOfDay(for: rangeStart)
+        let clampEnd = min(calendar.startOfDay(for: rangeEnd), calendar.startOfDay(for: today))
+        let rescuedInRange = rescuedDates
+            .map { calendar.startOfDay(for: $0) }
+            .filter { $0 >= rangeStartDay && $0 <= clampEnd }
+        achievedDates.formUnion(rescuedInRange)
+        // 最長連続は正本 (StreakCalculator.streakState) と同じ判定でカウントする:
+        // 自動休養 (rest) 日とフリーズ救済日 (rescuedDates) は連続を切らず橋渡しする。
+        // 期間 [rangeStart, min(rangeEnd, today)] を 1 日ずつ走査し、
+        // dailyStatus が achieved/todayAchieved なら running を伸ばし、
+        // rest/todayPending は据え置き (skip)、それ以外で running をリセットする。
+        let longestStreak = longestConsecutiveBridged(
+            records: allRecords, from: rangeStart, to: rangeEnd,
+            today: today, rescuedDates: rescuedDates, restLimit: restLimit, calendar: calendar
+        )
 
         let allExercises = scoped.flatMap(\.exercises)
         let totalDurationMinutes = allExercises.compactMap(\.durationSeconds).reduce(0, +) / 60
@@ -142,21 +191,47 @@ enum MonthlyReviewBuilder {
         return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
     }
 
-    private static func longestConsecutive(in achievedDates: Set<Date>, calendar: Calendar) -> Int {
-        guard !achievedDates.isEmpty else { return 0 }
-        let sorted = achievedDates.sorted()
-        var longest = 1
-        var current = 1
-        for i in 1..<sorted.count {
-            let prev = sorted[i - 1]
-            let curr = sorted[i]
-            let days = calendar.dateComponents([.day], from: prev, to: curr).day ?? 0
-            if days == 1 {
-                current += 1
-                longest = max(longest, current)
-            } else {
-                current = 1
+    /// 期間内の最長連続達成日数を、正本 (StreakCalculator.streakState) と同一の
+    /// 判定で算出する。自動休養 (rest) 日とフリーズ救済日 (rescuedDates) は
+    /// 連続を切らず橋渡しする。範囲は [rangeStart, min(rangeEnd, today)]。
+    private static func longestConsecutiveBridged(
+        records: [WorkoutRecord],
+        from rangeStart: Date,
+        to rangeEnd: Date,
+        today: Date,
+        rescuedDates: Set<Date>,
+        restLimit: Int,
+        calendar: Calendar
+    ) -> Int {
+        let todayStart = calendar.startOfDay(for: today)
+        let start = calendar.startOfDay(for: rangeStart)
+        // 未来日は連続に寄与しないので today までにクランプする。
+        let end = min(calendar.startOfDay(for: rangeEnd), todayStart)
+        guard start <= end else { return 0 }
+
+        var longest = 0
+        var running = 0
+        var cursor = start
+        while cursor <= end {
+            let restDays = RestDayResolver.restDaySet(
+                for: cursor, records: records, today: todayStart,
+                limit: restLimit, calendar: calendar
+            )
+            let status = AchievementEvaluator.dailyStatus(
+                for: cursor, records: records, restDays: restDays,
+                rescuedDates: rescuedDates, today: todayStart, calendar: calendar
+            )
+            switch status {
+            case .achieved, .todayAchieved:
+                running += 1
+                longest = max(longest, running)
+            case .rest, .todayPending:
+                break  // skip — 連続を切らず running を保つ (rest/救済の橋渡し)
+            default:
+                running = 0
             }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
         }
         return longest
     }

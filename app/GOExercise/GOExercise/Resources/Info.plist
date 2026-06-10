@@ -31,11 +31,13 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FriendsAppleLinkEnabled</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。</string>
 	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>FriendsAppleLinkEnabled</key>
 	<true/>
 	<key>SupabaseAnonKey</key>
 	<string>$(SUPABASE_ANON_KEY)</string>

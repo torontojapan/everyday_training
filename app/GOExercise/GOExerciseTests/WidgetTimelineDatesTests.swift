@@ -16,11 +16,18 @@ final class WidgetTimelineDatesTests: XCTestCase {
         return calendar.date(from: components) ?? Date()
     }
 
-    func testEntryDatesReturnsThreeEntriesStartingWithNow() {
+    func testEntryDatesReturnsFourEntriesStartingWithNow() {
         let now = date(2026, 5, 24, 10, 0)
         let entries = WidgetTimelineDates.entryDates(from: now, calendar: calendar)
-        XCTAssertEqual(entries.count, 3)
+        // now / +1h / 当日23:59 / 翌日0:00(翌朝の達成済み固着を解くための投影トリガ)
+        XCTAssertEqual(entries.count, 4)
         XCTAssertEqual(entries[0], now)
+    }
+
+    func testEntryDatesFourthEntryIsStartOfTomorrow() {
+        let now = date(2026, 5, 24, 10, 0)
+        let entries = WidgetTimelineDates.entryDates(from: now, calendar: calendar)
+        XCTAssertEqual(entries[3], date(2026, 5, 25, 0, 0))
     }
 
     func testEntryDatesSecondEntryIsOneHourLater() {
@@ -53,5 +60,6 @@ final class WidgetTimelineDatesTests: XCTestCase {
         let entries = WidgetTimelineDates.entryDates(from: now, calendar: calendar)
         XCTAssertLessThan(entries[0], entries[1])
         XCTAssertLessThan(entries[1], entries[2])
+        XCTAssertLessThan(entries[2], entries[3])
     }
 }

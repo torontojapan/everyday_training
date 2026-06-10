@@ -43,9 +43,23 @@ class StreakCalculatorTest {
     }
 
     @Test
-    fun pendingToday_returnsZeroWhenNoRecord() {
+    fun pendingToday_countsStreakThroughYesterday() {
+        // 今日(5/20)未記録でも「昨日までの連続」を数える(iOS と同一仕様, 2026-06-07 変更)。
+        // 5/19 達成 → 今日は TodayPending でスキップ → 連続 = 1(昨日まで)。
         val today = date(20)
         val records = listOf(record(19))
+
+        val streak = StreakCalculator.currentStreak(records = records, today = today)
+
+        assertEquals(1, streak)
+    }
+
+    @Test
+    fun pendingToday_withMissedYesterday_isZero() {
+        // TodayPending スキップが「本当に途切れた過去 missed」まで無視しないことの確認。
+        // 記録を 5/10 のみにし、以降を週2日の休養枠を超える長い欠けにする → 昨日(5/19)は missed → 0。
+        val today = date(20)
+        val records = listOf(record(10))
 
         val streak = StreakCalculator.currentStreak(records = records, today = today)
 

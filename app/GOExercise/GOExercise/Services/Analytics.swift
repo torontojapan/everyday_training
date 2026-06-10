@@ -86,6 +86,19 @@ enum Analytics {
         service.track(event)
     }
 
+    /// 設定トグルからの opt-in/out 切替。OFF にしたら **その場で** SDK 実体を Noop に戻し、
+    /// セッション中も完全に送信を止める(GPT-5.5/Claude 監査: 旧実装は track の gate のみで、
+    /// 既に初期化済みの TelemetryDeck はセッション中 live のまま=厳格なレビュアが残留を問題視し得る)。
+    /// ON は次回 configureIfPossible(or 即時再構成)で再有効化。
+    static func setEnabled(_ enabled: Bool) {
+        isEnabled = enabled
+        if enabled {
+            configureIfPossible()
+        } else {
+            service = NoopAnalytics()
+        }
+    }
+
     /// 起動時に一度だけ呼ぶ。**ユーザーが分析を許可** かつ App ID 設定済み かつ Release ビルドの
     /// ときだけ TelemetryDeck を有効化する。オプトアウト中は SDK 自体を起動しない。
     static func configureIfPossible() {

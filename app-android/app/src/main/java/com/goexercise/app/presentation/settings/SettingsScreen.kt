@@ -45,7 +45,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatRank
 import com.goexercise.app.ui.components.CatAvatar
+import com.goexercise.app.ui.components.metalColor
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 
@@ -63,6 +65,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val laterSubmitting by viewModel.laterSubmitting.collectAsStateWithLifecycle()
     val laterAccepted by viewModel.laterAccepted.collectAsStateWithLifecycle()
     val referralError by viewModel.referralError.collectAsStateWithLifecycle()
+    val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -118,6 +121,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         laterAccepted = laterAccepted,
         onSubmitLaterInvite = viewModel::submitLaterInvite,
         referralError = referralError,
+        currentStreak = currentStreak,
     )
 }
 
@@ -148,6 +152,7 @@ fun SettingsContent(
     laterAccepted: Boolean = false,
     onSubmitLaterInvite: () -> Unit = {},
     referralError: String? = null,
+    currentStreak: Int = 0,
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -164,6 +169,9 @@ fun SettingsContent(
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
         CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
+
+        Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
+        CatRankLadderSection(palette, currentStreak)
 
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
         ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
@@ -238,6 +246,85 @@ private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (Cat
                         }
                     }
                     repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 称号一覧（連続記録で進化する全11段）。iOS `CatRankGuideView` の移植。
+ * 先頭に次目標ヒント（最高位なら賞賛）、各段はメタルドット + 称号名 + 到達日数。
+ * 現在の称号に「いま」バッジ、到達済みは強調。目標を可視化して前進動機を作る。
+ */
+@Composable
+private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
+    val currentRank = CatRank.of(currentStreak).rank
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // 次の目標（最高位なら賞賛）
+            if (currentRank >= CatRank.thresholds.size) {
+                Text(
+                    "最高位「ぬしネコ」を達成！",
+                    color = palette.primaryDeep,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+            } else {
+                val nextThreshold = CatRank.thresholds[currentRank]
+                val nextTitle = CatRank.of(nextThreshold).title ?: ""
+                val remaining = (nextThreshold - currentStreak).coerceAtLeast(0)
+                Text(
+                    "連続記録を続けると称号が進化。次は「$nextTitle」まで あと${remaining}日！",
+                    color = palette.primaryDeep,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                )
+            }
+            CatRank.thresholds.forEachIndexed { idx, threshold ->
+                val rank = idx + 1
+                val entry = CatRank.of(threshold)
+                val isCurrent = rank == currentRank
+                val achieved = currentStreak >= threshold
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(entry.metalKind?.let { metalColor(it) } ?: palette.textSecondary)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.55f), CircleShape),
+                    )
+                    Text(
+                        entry.title ?: "",
+                        color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
+                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                    if (isCurrent) {
+                        Text(
+                            "いま",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .background(palette.primary, RoundedCornerShape(50))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                    Box(Modifier.weight(1f))
+                    Text(
+                        "${threshold}日",
+                        color = if (achieved) palette.primaryDeep else palette.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
                 }
             }
         }
