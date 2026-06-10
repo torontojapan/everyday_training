@@ -54,6 +54,25 @@ final class ReferralLogicTests: XCTestCase {
         let day8 = start.addingTimeInterval(8 * 86400)
         XCTAssertFalse(ReferralEntryPolicy.canEnterCodeLater(firstLaunchAt: start, now: day8, hasExistingReferral: false))
     }
+    // 境界(監査): 「7日以内」= ちょうど 7×24h まで許可、それを 1 秒でも超えたら不可。
+    // 旧実装は Int(interval/86400)<=7 で実質8日まで許可していた。
+    func test_entryPolicy_boundaryExactly7Days_allowed() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let day7 = start.addingTimeInterval(7 * 86400)
+        XCTAssertTrue(ReferralEntryPolicy.canEnterCodeLater(firstLaunchAt: start, now: day7, hasExistingReferral: false))
+    }
+    func test_entryPolicy_justOver7Days_blocked() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let justOver = start.addingTimeInterval(7 * 86400 + 1)
+        XCTAssertFalse(ReferralEntryPolicy.canEnterCodeLater(firstLaunchAt: start, now: justOver, hasExistingReferral: false))
+    }
+    func test_entryPolicy_oldTruncationWindow_nowBlocked() {
+        // 旧実装で許可されていた 7.5 日(切り捨てで days=7)は、新実装では不可。
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let day7_5 = start.addingTimeInterval(7.5 * 86400)
+        XCTAssertFalse(ReferralEntryPolicy.canEnterCodeLater(firstLaunchAt: start, now: day7_5, hasExistingReferral: false))
+    }
+
     func test_entryPolicy_blocksWhenAlreadyReferred() {
         let start = Date(timeIntervalSince1970: 1_000_000)
         let day1 = start.addingTimeInterval(86400)

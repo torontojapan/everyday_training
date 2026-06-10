@@ -119,6 +119,49 @@ final class MonthlyReviewBuilderTests: XCTestCase {
         XCTAssertEqual(review.longestStreakInMonth, 0)
     }
 
+    // MARK: - achievedDays に救済日を含める(監査 F4: カレンダー footer / longest との整合)
+
+    func testAchievedDaysIncludesRescuedDay() {
+        // 5/21〜5/24 記録達成(4日)+ 5/20 を救済。救済日も「達成」と数え達成5日。
+        // longestStreakInMonth(5)と矛盾しない(旧実装は achievedDays=4 で自己矛盾)。
+        let records = [record(day: 21), record(day: 22), record(day: 23), record(day: 24)]
+        let rescued: Set<Date> = [date(day: 20)]
+
+        let review = MonthlyReviewBuilder.build(
+            records: records, month: date(day: 1), today: date(month: 6, day: 1),
+            rescuedDates: rescued, calendar: calendar
+        )
+
+        XCTAssertEqual(review.achievedDays, 5, "救済日も達成日数に含める")
+        XCTAssertLessThanOrEqual(review.longestStreakInMonth, review.achievedDays, "最長連続 ≤ 達成日数")
+    }
+
+    func testAchievedDaysDoesNotDoubleCountRescuedOnRecordedDay() {
+        // 記録済みの日を救済しても二重カウントしない(Set union)。
+        let records = [record(day: 21), record(day: 22)]
+        let rescued: Set<Date> = [date(day: 21)] // 記録日と同じ
+
+        let review = MonthlyReviewBuilder.build(
+            records: records, month: date(day: 1), today: date(month: 6, day: 1),
+            rescuedDates: rescued, calendar: calendar
+        )
+
+        XCTAssertEqual(review.achievedDays, 2, "記録日と重なる救済日は二重計上しない")
+    }
+
+    func testLifetimeTotalDaysSpansRescueBeforeFirstRecord() {
+        // 記録より前の救済日を範囲に含めるなら、totalDays もその起点から数え、
+        // longestStreakInMonth > totalDays の矛盾を起こさない(監査 F4)。
+        let records = [record(day: 18), record(day: 19)]
+        let rescued: Set<Date> = [date(day: 17)]
+
+        let review = MonthlyReviewBuilder.lifetime(
+            records: records, today: date(month: 6, day: 1), rescuedDates: rescued, calendar: calendar
+        )
+
+        XCTAssertLessThanOrEqual(review.longestStreakInMonth, review.totalDays, "最長連続 ≤ 通算日数")
+    }
+
     // MARK: - Helpers
 
     private func record(day: Int) -> WorkoutRecord {

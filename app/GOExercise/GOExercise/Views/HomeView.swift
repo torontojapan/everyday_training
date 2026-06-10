@@ -541,22 +541,18 @@ struct HomeView: View {
         // 大節目シート提示中は二重 .sheet を避ける(evaluateRankCelebration と同じガード)。
         // ここで reviveShownThisLaunch を立てる前に return することで、次回 onAppear で再評価される。
         guard presentedMilestone == nil else { return }
-        guard let window = viewModel.reviveWindow else { return }
-        let today = calendar.startOfDay(for: store.today)
-        let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
-        guard let key = ReviveDismissStore.breakKey(missedDates: missed, calendar: calendar) else { return }
+        guard viewModel.reviveWindow != nil else { return }
+        // break 識別は refresh 時点の missed 日から導出した安定キーを使う(offset+今の today の
+        // 再計算だと日跨ぎで別キーになる, 監査 F2)。
+        guard let key = viewModel.reviveBreakKey else { return }
         guard !reviveDismissStore.isHandled(key) else { return }
         reviveShownThisLaunch = true
         isShowingRevive = true
     }
 
     private func markReviveHandled() {
-        let today = calendar.startOfDay(for: store.today)
-        if let window = viewModel.reviveWindow {
-            let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
-            if let key = ReviveDismissStore.breakKey(missedDates: missed, calendar: calendar) {
-                reviveDismissStore.markHandled(key)
-            }
+        if let key = viewModel.reviveBreakKey {
+            reviveDismissStore.markHandled(key)
         }
     }
 

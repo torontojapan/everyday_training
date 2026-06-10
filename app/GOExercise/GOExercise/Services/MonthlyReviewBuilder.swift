@@ -78,17 +78,16 @@ enum MonthlyReviewBuilder {
     ) -> Review {
         let todayStart = calendar.startOfDay(for: today)
         let firstRecordDay = records.map { calendar.startOfDay(for: $0.date) }.min()
-        let totalDays: Int
-        if let first = firstRecordDay {
-            totalDays = (calendar.dateComponents([.day], from: first, to: todayStart).day ?? 0) + 1
-        } else {
-            totalDays = 0
-        }
         // 最長連続の走査開始日は記録と救済の両方の最古日。救済日が最初の記録より前にある
         // 履歴も連続として正しく拾う (正本 streakState は固定窓 today-365 なのでこの穴が無い。
         // lifetime は records.min に依存していたため救済日が範囲外に落ちる edge を埋める。Codex P2)。
         let firstRescuedDay = rescuedDates.map { calendar.startOfDay(for: $0) }.min()
         let rangeStart = [firstRecordDay, firstRescuedDay].compactMap { $0 }.min() ?? todayStart
+        // totalDays は **rangeStart 基準**で数える(firstRecordDay 基準だと、救済日が初記録より前にある
+        // とき longestStreakInMonth > totalDays の矛盾が出る。監査 F4)。記録も救済も無ければ 0。
+        let totalDays: Int = (firstRecordDay == nil && firstRescuedDay == nil)
+            ? 0
+            : (calendar.dateComponents([.day], from: rangeStart, to: todayStart).day ?? 0) + 1
         return buildCore(
             scoped: records, allRecords: records,
             rangeStart: rangeStart, rangeEnd: todayStart,
@@ -111,10 +110,20 @@ enum MonthlyReviewBuilder {
         totalDays: Int,
         calendar: Calendar
     ) -> Review {
-        let achievedDates = Set(
+        var achievedDates = Set(
             scoped.filter { AchievementEvaluator.isAchieved(record: $0) }
                 .map { calendar.startOfDay(for: $0.date) }
         )
+        // フリーズ救済日も「達成」として数える。アプリ全体(月カレンダー footer・週次進捗・
+        // dailyStatus.countsAsAchieved・longestStreakInMonth の橋渡し)が rescue=achieved 扱い
+        // なのに、ここだけ records 由来で除外していたため「達成8日/最長連続9日」のような自己矛盾が
+        // 出ていた(監査 F4)。範囲 [rangeStart, min(rangeEnd, today)] 内の rescued 日を union する。
+        let rangeStartDay = calendar.startOfDay(for: rangeStart)
+        let clampEnd = min(calendar.startOfDay(for: rangeEnd), calendar.startOfDay(for: today))
+        let rescuedInRange = rescuedDates
+            .map { calendar.startOfDay(for: $0) }
+            .filter { $0 >= rangeStartDay && $0 <= clampEnd }
+        achievedDates.formUnion(rescuedInRange)
         // 最長連続は正本 (StreakCalculator.streakState) と同じ判定でカウントする:
         // 自動休養 (rest) 日とフリーズ救済日 (rescuedDates) は連続を切らず橋渡しする。
         // 期間 [rangeStart, min(rangeEnd, today)] を 1 日ずつ走査し、

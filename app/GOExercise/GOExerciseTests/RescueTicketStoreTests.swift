@@ -112,4 +112,59 @@ struct RescueTicketStoreTests {
         #expect(RescueTicketAllowance.current(isPremium: true) == 4)
         #expect(RescueTicketAllowance.current(isPremium: false) == 1)
     }
+
+    // MARK: - 永続化(監査 F5: y-m-d 文字列・TZ 非依存)
+
+    private func gregorian(tz: String) -> Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.firstWeekday = 2
+        c.timeZone = TimeZone(identifier: tz)!
+        return c
+    }
+    private func ymd(_ c: Calendar, _ y: Int, _ m: Int, _ d: Int) -> Date {
+        c.date(from: DateComponents(year: y, month: m, day: d))!
+    }
+
+    @Test
+    func usage_persistsAcrossReinit() {
+        let suite = "test.rescue.persist.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let today = cal.startOfDay(for: Date())
+        let s1 = RescueTicketStore(defaults: defaults, calendar: cal)
+        _ = s1.useTicket(on: today, allowance: 1)
+        let s2 = RescueTicketStore(defaults: defaults, calendar: cal)
+        #expect(s2.rescuedDates().contains(today))
+        #expect(s2.remainingTickets(today: today, allowance: 1) == 0)
+    }
+
+    @Test
+    func persistence_survivesTimezoneChange_asCalendarDay() {
+        let suite = "test.rescue.tz.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let jst = gregorian(tz: "Asia/Tokyo")
+        let utc = gregorian(tz: "UTC")
+        // JST で 2026-03-10 を救済
+        let sJST = RescueTicketStore(defaults: defaults, calendar: jst)
+        #expect(sJST.useTicket(on: ymd(jst, 2026, 3, 10), allowance: 4) == true)
+        // 端末 TZ が UTC に変わった想定で同じ defaults を再読込 → 暦日 3/10 は救済済みのまま
+        let sUTC = RescueTicketStore(defaults: defaults, calendar: utc)
+        #expect(sUTC.rescuedDates().contains(utc.startOfDay(for: ymd(utc, 2026, 3, 10))) == true)
+        #expect(sUTC.usedCount(inMonthOf: ymd(utc, 2026, 3, 1)) == 1)
+    }
+
+    @Test
+    func legacyEpochFormat_isReadAndMigratedToStrings() {
+        let suite = "test.rescue.legacy.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let day = cal.startOfDay(for: Date())
+        // 旧形式(epoch 秒の配列)を直接投入
+        defaults.set([day.timeIntervalSince1970], forKey: RescueTicketStore.usedDatesKey)
+        let store = RescueTicketStore(defaults: defaults, calendar: cal)
+        #expect(store.rescuedDates().contains(day))
+        // 初回 init で y-m-d 文字列配列へ移行保存されている
+        #expect(defaults.array(forKey: RescueTicketStore.usedDatesKey) is [String])
+    }
 }

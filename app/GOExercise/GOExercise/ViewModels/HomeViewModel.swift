@@ -34,6 +34,9 @@ final class HomeViewModel {
     var isComebackToday: Bool = false
     /// 復活ウィンドウ(nil=対象外)。HomeView がポップ提示判定に使う。
     var reviveWindow: StreakFreezeWindow.Result?
+    /// 復活対象の missed 日(**refresh 時点の絶対日付**, startOfDay)。applyRevive はこれを使い、
+    /// ポップ表示中に日付が変わっても offset 再変換でズレた日にフリーズを当てない(監査 F2)。
+    private(set) var reviveMissedDates: [Date] = []
     /// 復活したら到達する連続日数(ポップのコピー「連続◯日」に使用)。
     var potentialReviveStreak: Int = 0
     private let usageTracker = LifetimeUsageTracker()
@@ -139,11 +142,13 @@ final class HomeViewModel {
             reviveWindow = StreakFreezeWindow.Result(
                 revivable: true, missedOffsets: window.missedOffsets,
                 freezesNeeded: window.freezesNeeded, hasEnough: monthAwareEnough)
-            let hypothetical = reviveRescued.union(missed.map { calendar.startOfDay(for: $0) })
+            reviveMissedDates = missed.map { calendar.startOfDay(for: $0) }
+            let hypothetical = reviveRescued.union(reviveMissedDates)
             potentialReviveStreak = restoredStreakLength(
                 records: records, hypothetical: hypothetical, today: today, missed: missed)
         } else {
             reviveWindow = nil
+            reviveMissedDates = []
             potentialReviveStreak = 0
         }
     }
@@ -207,14 +212,22 @@ final class HomeViewModel {
     @discardableResult
     func applyRevive() -> CatRank? {
         guard let window = reviveWindow, window.hasEnough else { return nil }
-        let today = calendar.startOfDay(for: dateProvider.currentDate())
-        let missed = StreakFreezeWindow.missedDates(forOffsets: window.missedOffsets, today: today, calendar: calendar)
+        // refresh 時点の絶対 missed 日を使う。offset を今の today で再変換すると、ポップ表示中に
+        // 日付が変わったとき別の日へフリーズを当ててしまう(監査 F2)。
+        let missed = reviveMissedDates
+        guard !missed.isEmpty else { return nil }
         var applied = 0
         for day in missed {
             if rescueTicketStore.useTicket(on: day, allowance: allowance(for: day)) { applied += 1 }
         }
         guard applied == missed.count else { return nil }
         return CatRank(currentStreak: potentialReviveStreak)
+    }
+
+    /// 復活対象 break の識別キー(refresh 時点の missed 日から導出)。HomeView の
+    /// 提示済み判定/handled 記録を、offset+その時の today 再計算ではなくこの安定キーで揃える(F2)。
+    var reviveBreakKey: String? {
+        ReviveDismissStore.breakKey(missedDates: reviveMissedDates, calendar: calendar)
     }
 
     /// missed 日すべてを **各日の月の allowance** で順に(累積で)消費できるか。
