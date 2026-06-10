@@ -173,7 +173,9 @@ final class HomeViewModel {
               let interval = calendar.dateInterval(of: .month, for: previousMonth) else {
             return false
         }
-        return records.contains { interval.contains($0.date) }
+        // DateInterval.contains は終端(=今月1日 0:00)を含むため、今月1日付の record が
+        // 先月扱いになる off-by-one を避け、半開区間 [start, end) で判定する(監査 P2)。
+        return records.contains { interval.start <= $0.date && $0.date < interval.end }
     }
 
     func acknowledgeMilestone(_ milestone: Milestone) {

@@ -75,7 +75,7 @@ struct SmallWidgetView: View {
         }
         .frame(width: 46, height: 46)
         .accessibilityLabel("今週の達成数")
-        .accessibilityValue("\(snapshot.weeklyAchieved)日中\(max(snapshot.weeklyTotal, 1))日")
+        .accessibilityValue("\(max(snapshot.weeklyTotal, 1))日中\(snapshot.weeklyAchieved)日")
     }
 
     private var progress: Double {

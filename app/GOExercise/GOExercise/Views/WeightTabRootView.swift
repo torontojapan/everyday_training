@@ -73,7 +73,9 @@ struct WeightTabRootView: View {
             Text("体重タブは GOプレミアム機能です")
                 .font(.headline)
                 .multilineTextAlignment(.center)
-            Text("14日間無料でお試しいただけます。\n推移グラフ・BMI・レポート・周期オーバーレイなどを解放。")
+            Text(storeKit.isEligibleForIntroOffer
+                 ? "14日間無料でお試しいただけます。\n推移グラフ・BMI・レポート・周期オーバーレイなどを解放。"
+                 : "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。")
                 .font(.subheadline)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)

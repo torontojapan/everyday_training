@@ -130,4 +130,29 @@ struct HomeViewModelComebackTests {
         vm.refresh(records: [])
         #expect(vm.isComebackToday == false)
     }
+
+    /// 回帰(監査 P2): 「先月のハイライト」ボタン点灯判定。今月1日付の記録を
+    /// 先月扱いしない(DateInterval.contains の終端包含 off-by-one)。
+    @Test
+    func previousMonthHasRecords_excludesFirstOfCurrentMonth() {
+        var t = DateComponents(); t.year = 2026; t.month = 6; t.day = 15
+        let today = cal.date(from: t)!
+        var f = DateComponents(); f.year = 2026; f.month = 6; f.day = 1
+        let firstOfThisMonth = cal.date(from: f)!
+        let vm = makeViewModel(today: today)
+        vm.refresh(records: [record(on: firstOfThisMonth)])
+        #expect(vm.previousMonthHasRecords == false,
+                "今月1日 0:00 が先月区間の終端に含まれてしまう off-by-one を防ぐ")
+    }
+
+    @Test
+    func previousMonthHasRecords_trueForRealPreviousMonth() {
+        var t = DateComponents(); t.year = 2026; t.month = 6; t.day = 15
+        let today = cal.date(from: t)!
+        var m = DateComponents(); m.year = 2026; m.month = 5; m.day = 20
+        let inMay = cal.date(from: m)!
+        let vm = makeViewModel(today: today)
+        vm.refresh(records: [record(on: inMay)])
+        #expect(vm.previousMonthHasRecords == true)
+    }
 }

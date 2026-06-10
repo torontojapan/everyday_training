@@ -10,6 +10,7 @@ struct HomeView: View {
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(ReferralStore.self) private var referralStore
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = HomeViewModel()
     @State private var isShowingEntry = false
     @State private var completedRecord: WorkoutRecord?
@@ -103,14 +104,15 @@ struct HomeView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
-                store.fetchRecords()
-                viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
-                // 達成演出(節目シート/称号トースト/紙吹雪)は「運動を記録した後」だけに出す。
-                // アプリ起動・タブ切替などの onAppear では出さない(記録完了→ホーム復帰時に
-                // `fireRecordCelebrations()` で発火する)。復活ポップは演出ではなく救済導線
-                // なので従来どおり起動時に評価する。
-                maybePresentRevive()
-                syncMyFriendProfile()
+                refreshHomeState()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                // 前面復帰時の再計算。これが無いと、ウィジェットの QuickRecord で記録した後や、
+                // バックグラウンドで日付が変わった翌朝に、ホームが昨日の「達成済み」チップや
+                // 古い CTA を出したまま固まる(タブ切替で onAppear が走るまで直らない)。
+                // WeightView は既に scenePhase を監視しており、ホームに同等が欠けていた(監査 P1)。
+                guard newPhase == .active else { return }
+                refreshHomeState()
             }
             .onChange(of: completedRecord) { oldValue, newValue in
                 // 記録完了画面から**ホームへ戻った**ときだけ達成演出を出す。
@@ -124,6 +126,10 @@ struct HomeView: View {
             // タイミングで再同期して友達タブの自分の実績を最新化する (3 LLM 監査 B-Critical)。
             .onChange(of: friendsStore.profile?.friendCode) { _, _ in
                 syncMyFriendProfile()
+                // アカウント切替/復元/サインアウトで friend_code が変わったら紹介状態も取り直す。
+                // これが無いと星/今月フリーズ/⭐10猫解放が前アカウントの値のまま、または
+                // 新アカウントの正当な解放が次回起動まで反映されない(口座スコープ漏れ、監査 P2)。
+                Task { await referralStore.refresh() }
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
@@ -285,9 +291,9 @@ struct HomeView: View {
     @ViewBuilder
     private var referralStarsFullRow: some View {
         if AppFeatureFlags.isReferralActive,
-           referralStore.summary.starBadges > 0,
+           referralStore.currentAccountStarBadges > 0,
            let code = friendsStore.profile?.friendCode {
-            ReferralStarsRow(count: referralStore.summary.starBadges, friendCode: code)
+            ReferralStarsRow(count: referralStore.currentAccountStarBadges, friendCode: code)
         }
     }
 
@@ -519,6 +525,17 @@ struct HomeView: View {
     }
 
     /// 復活ポップを条件付きで提示(1起動1回・未処理 break のみ)。
+    /// onAppear と前面復帰(scenePhase=.active)で共有するホーム状態の再計算。
+    /// 達成演出(節目/称号/紙吹雪)は記録完了→ホーム復帰時のみに限定する設計なので
+    /// ここでは出さない。復活ポップは演出ではなく救済導線であり、二重ガード
+    /// (reviveShownThisLaunch + 永続 isHandled)があるため呼んでも安全。
+    private func refreshHomeState() {
+        store.fetchRecords()
+        viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+        maybePresentRevive()
+        syncMyFriendProfile()
+    }
+
     private func maybePresentRevive() {
         guard !reviveShownThisLaunch else { return }
         // 大節目シート提示中は二重 .sheet を避ける(evaluateRankCelebration と同じガード)。

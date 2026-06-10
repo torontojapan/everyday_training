@@ -67,9 +67,11 @@ struct SettingsView: View {
                             Label("GOプレミアムにアップグレード", systemImage: "crown.fill")
                                 .foregroundStyle(Palette.textPrimary)
                             Spacer()
-                            Text("14日間無料")
-                                .font(Typography.caption)
-                                .foregroundStyle(Palette.primary)
+                            if storeKit.isEligibleForIntroOffer {
+                                Text("14日間無料")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(Palette.primary)
+                            }
                         }
                     }
                     .accessibilityIdentifier("premium-upsell-row")
@@ -98,7 +100,7 @@ struct SettingsView: View {
                     HStack {
                         Label("紹介した友達", systemImage: "star.fill")
                         Spacer()
-                        Text("\(referralStore.summary.starBadges) 人")
+                        Text("\(referralStore.currentAccountStarBadges) 人")
                             .foregroundStyle(Palette.textSecondary)
                     }
                     // 後から入力(登録7日以内 & 紹介者未登録のときだけ)。
