@@ -39,6 +39,7 @@ class RescueViewModel @Inject constructor(
     workoutRepository: WorkoutRepository,
     private val rescue: RescueTicketRepository,
     private val premium: PremiumRepository,
+    private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -50,9 +51,13 @@ class RescueViewModel @Inject constructor(
             rescue.rescuedDates,
             selectedMonth,
             premium.isPremiumActive,
-        ) { records, rescued, month, isPremium ->
+            // 紹介サマリも入力に含める。これが無いと、アカウント切替で summary がリセットされても
+            // 他の入力が変わるまで uiState が再計算されず、前アカウントの allowance/remaining を
+            // 表示し続ける(Codex R1 #3)。
+            referralStore.summary,
+        ) { records, rescued, month, isPremium, summary ->
             val today = LocalDate.now(clock)
-            val allowance = RescueTicketAllowance.current(isPremium)
+            val allowance = RescueTicketAllowance.current(isPremium, summary.freezeBonusThisMonth)
             val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
             RescueUiState(
                 month = month,
@@ -64,7 +69,7 @@ class RescueViewModel @Inject constructor(
 
     /** missed 日をフリーズで救済。枠切れ/対象外は no-op(repo が判定)。現在の付与枠で判定する。 */
     fun useTicket(date: LocalDate) {
-        val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
+        val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value, referralStore.summary.value.freezeBonusThisMonth)
         viewModelScope.launch { rescue.useTicket(date, allowance) }
     }
 

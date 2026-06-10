@@ -38,6 +38,8 @@ class SettingsViewModel @Inject constructor(
     workoutRepository: WorkoutRepository,
     rescueTickets: RescueTicketRepository,
     private val clock: Clock,
+    private val referralStore: com.goexercise.app.data.referral.ReferralStore,
+    private val friendsService: com.goexercise.app.data.friends.FriendsService,
 ) : ViewModel() {
 
     /** 現在の連続記録(称号一覧の現在地「いま」/次目標「あとN日」表示用)。
@@ -120,6 +122,50 @@ class SettingsViewModel @Inject constructor(
             } finally {
                 _isBusy.value = false
             }
+        }
+    }
+
+    // --- 友達を招待(共有 / 星バッジ / 後から入力) ---
+
+    /** 紹介サマリ(星バッジ数など)。 */
+    val referralSummary = referralStore.summary
+
+    /** 自分の招待コード(共有メッセージ用)。プロフィール取得後に埋める。 */
+    private val _myFriendCode = MutableStateFlow<String?>(null)
+    val myFriendCode: StateFlow<String?> = _myFriendCode
+
+    /** 初回起動から7日以内かつ未紹介なら、後から招待コードを入れられる。 */
+    val canEnterCodeLater: Boolean get() = referralStore.canEnterCodeLater()
+
+    private val _laterCode = MutableStateFlow("")
+    val laterCode: StateFlow<String> = _laterCode
+    private val _laterSubmitting = MutableStateFlow(false)
+    val laterSubmitting: StateFlow<Boolean> = _laterSubmitting
+    private val _laterAccepted = MutableStateFlow(false)
+    val laterAccepted: StateFlow<Boolean> = _laterAccepted
+    val referralError get() = referralStore.lastError
+
+    fun onLaterCodeChange(v: String) { _laterCode.value = v }
+
+    fun inviteMessage(code: String): String =
+        "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → $code\n" +
+            "https://play.google.com/store/apps/details?id=com.goexercise.app"
+
+    fun submitLaterInvite() {
+        _laterSubmitting.value = true
+        referralStore.clearError()
+        viewModelScope.launch {
+            val ok = referralStore.submitCode(_laterCode.value)
+            _laterSubmitting.value = false
+            if (ok) _laterAccepted.value = true
+            // 確定は Home の初記録フックに委ねる(幽霊確定を防ぐためここでは confirm しない)。
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            _myFriendCode.value = friendsService.myProfile()?.friendCode
+            referralStore.refresh()
         }
     }
 }

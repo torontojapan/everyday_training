@@ -59,6 +59,8 @@ fun HomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
+    val welcome by viewModel.pendingWelcome.collectAsStateWithLifecycle()
+    val referrerPops by viewModel.pendingReferrerPops.collectAsStateWithLifecycle()
     val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
     val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
 
@@ -91,6 +93,10 @@ fun HomeRoute(
             milestone = milestone,
             onDismiss = { viewModel.acknowledgeMilestone(milestone) },
         )
+    }
+    if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+        welcome?.let { com.goexercise.app.presentation.referral.ReferralCelebrationDialog(listOf(it)) { viewModel.consumeWelcome() } }
+        if (referrerPops.isNotEmpty()) com.goexercise.app.presentation.referral.ReferralCelebrationDialog(referrerPops) { viewModel.consumeReferrerPops() }
     }
 
     // 機能D: 復活ポップ。**launch ごとに 1 度だけ**、復活可能 かつ この途切れが未対応の時に出す。

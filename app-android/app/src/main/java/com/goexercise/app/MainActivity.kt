@@ -29,9 +29,17 @@ class MainActivity : ComponentActivity() {
     // goexercise:// ディープリンクの保留 URI。onCreate / onNewIntent で更新し、Compose 側で消費する。
     private var pendingDeepLink by mutableStateOf<String?>(null)
 
+    @javax.inject.Inject lateinit var referralStore: com.goexercise.app.data.referral.ReferralStore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+            lifecycleScope.launch {
+                referralStore.refresh()
+                referralStore.pollReferrerPops()
+            }
+        }
         pendingDeepLink = consumeIntentUri(intent?.dataString)
         setContent {
             App(
@@ -89,7 +97,7 @@ private fun App(
         when (onboarded) {
             // null=DataStore 読込前。チラつき防止に何も出さない(直後に false/true が来る)。
             null -> Unit
-            false -> OnboardingScreen(onFinish = onboardingViewModel::complete)
+            false -> OnboardingScreen(onFinish = onboardingViewModel::complete, viewModel = onboardingViewModel)
             true -> AppNavHost(deepLinkUri = deepLinkUri, onDeepLinkConsumed = onDeepLinkConsumed)
         }
     }
