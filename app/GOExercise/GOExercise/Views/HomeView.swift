@@ -131,8 +131,10 @@ struct HomeView: View {
                 // これが無いと星/今月フリーズ/⭐10猫解放が前アカウントの値のまま、または
                 // 新アカウントの正当な解放が次回起動まで反映されない(口座スコープ漏れ、監査 P2)。
                 Task { await referralStore.refresh() }
-                // 機種変更/再インストールの復元: 新アカウントにクラウドバックアップが
+                // 機種変更/再インストールの復元: まず前アカウント宛の削除キュー/同期時刻を
+                // 破棄してから(口座跨ぎ wipe 防止, Codex P1)、新アカウントのバックアップが
                 // あれば取り込み、バックアップ設定も自動で ON にする(Duolingo 型)。
+                recordSync.resetForIdentityChange()
                 Task { await recordSync.restoreAfterSignIn() }
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {

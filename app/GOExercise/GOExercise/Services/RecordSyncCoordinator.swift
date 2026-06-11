@@ -86,7 +86,7 @@ final class RecordSyncCoordinator {
             guard !rows.isEmpty else { return }
             try apply(remote: rows)
             isEnabled = true
-            stampSynced()
+            stampSynced(at: Date())
         } catch {
             lastError = "バックアップの復元に失敗しました: \(error.localizedDescription)"
         }
@@ -98,23 +98,37 @@ final class RecordSyncCoordinator {
         isSyncing = true
         defer { isSyncing = false }
         lastError = nil
+        // watermark は同期**開始**時刻。終了時刻で打つと、await 中に作成/編集された
+        // レコードが updatedAt <= lastSync になり永久に push されない(Codex P1)。
+        let syncStart = Date()
         do {
-            // 1) 削除キューを先に伝播(wipe は物理全削除)
-            let pending = RecordSyncTombstones.drain(defaults: defaults)
+            // 1) 削除キューを伝播(wipe は物理全削除)。peek→成功後に clear。
+            //    先に drain すると、ネットワーク失敗時に tombstone が失われ削除が
+            //    リモートに残る=後の pull で復活する(Codex P1)。
+            let pending = RecordSyncTombstones.peek(defaults: defaults)
             if pending.wipe {
                 try await service.backupWipeAll()
             } else if !pending.ids.isEmpty {
                 try await service.backupMarkDeleted(pending.ids)
             }
+            RecordSyncTombstones.clear(ids: pending.ids, wipe: pending.wipe, defaults: defaults)
             // 2) push(lastSync 以降の変更 + 救済日全件)
             try await service.backupUpsert(changedRecords(since: lastSyncAt))
             // 3) pull → マージ適用
             try apply(remote: try await service.backupFetchAll())
-            stampSynced()
+            stampSynced(at: syncStart)
         } catch {
-            // 失敗した削除キューは再投入(次回再試行)
             lastError = "同期に失敗しました: \(error.localizedDescription)"
         }
+    }
+
+    /// アカウント切替/復元時に呼ぶ。前アカウント宛の削除キュー/wipe/同期時刻を破棄し、
+    /// A の「すべて削除」が B のバックアップを消す等の口座跨ぎ事故を防ぐ(Codex P1)。
+    /// lastSync も破棄するので、次回同期は全量 push(冪等 upsert)で安全側。
+    func resetForIdentityChange() {
+        RecordSyncTombstones.clearAll(defaults: defaults)
+        lastSyncAt = nil
+        defaults.removeObject(forKey: Self.lastSyncKey)
     }
 
     // MARK: - push(エンコード)
@@ -267,10 +281,9 @@ final class RecordSyncCoordinator {
 
     // MARK: - Helpers
 
-    private func stampSynced() {
-        let now = Date()
-        lastSyncAt = now
-        defaults.set(now.timeIntervalSince1970, forKey: Self.lastSyncKey)
+    private func stampSynced(at date: Date) {
+        lastSyncAt = date
+        defaults.set(date.timeIntervalSince1970, forKey: Self.lastSyncKey)
     }
 
     private static let iso = ISO8601DateFormatter()
@@ -312,11 +325,23 @@ enum RecordSyncTombstones {
         defaults.removeObject(forKey: idsKey)
     }
 
-    static func drain(defaults: UserDefaults = .standard) -> (ids: [String], wipe: Bool) {
-        let ids = (defaults.array(forKey: idsKey) as? [String]) ?? []
-        let wipe = defaults.bool(forKey: wipeKey)
+    /// 送信前に読むだけ(消さない)。送信成功後に `clear(ids:wipe:)` で消す。
+    static func peek(defaults: UserDefaults = .standard) -> (ids: [String], wipe: Bool) {
+        (((defaults.array(forKey: idsKey) as? [String]) ?? []), defaults.bool(forKey: wipeKey))
+    }
+
+    /// 送信に成功した分だけ消す(送信中に note された新規 id は残す)。
+    static func clear(ids: [String], wipe: Bool, defaults: UserDefaults = .standard) {
+        if wipe { defaults.removeObject(forKey: wipeKey) }
+        guard !ids.isEmpty else { return }
+        let current = (defaults.array(forKey: idsKey) as? [String]) ?? []
+        let remaining = current.filter { !ids.contains($0) }
+        if remaining.isEmpty { defaults.removeObject(forKey: idsKey) }
+        else { defaults.set(remaining, forKey: idsKey) }
+    }
+
+    static func clearAll(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: idsKey)
         defaults.removeObject(forKey: wipeKey)
-        return (ids, wipe)
     }
 }

@@ -466,6 +466,10 @@ final class SupabaseFriendsService: FriendsService {
         // 2) フォールバック: 本人データをクライアント側で削除し審査要件を満たす。
         //    FK は全て auth.users を参照 (表間 FK 無し) のため削除順は任意。冪等。
         //    セッション有効中なので失敗は throw 伝播 = 再試行可能。
+        // 機微データ(運動・体重・体調のバックアップ)も本人 RLS で削除する。EF 成功時は
+        // auth.users cascade で消えるが、この fallback 経路では明示しないと残る(Codex P2)。
+        try await client.from("user_records").delete()
+            .eq("user_id", value: uid).execute()
         try await client.from("cheers").delete()
             .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
         try await client.from("friend_requests").delete()
