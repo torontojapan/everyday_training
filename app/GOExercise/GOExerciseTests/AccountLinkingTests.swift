@@ -231,6 +231,13 @@ private final class RestoreStubService: FriendsService {
     }
     func anonymousSessionHasData() async -> Bool { hasData }
 
+    // 記録バックアップ (テスト対象外: no-op 準拠)
+    func backupUpsert(_ records: [BackupRecord]) async throws {}
+    func backupFetchAll() async throws -> [BackupRecord] { [] }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {}
+    func backupWipeAll() async throws {}
+
+
     func signIn(displayName: String, username: String) async throws {}
     func signOut() async {}
     func refreshFriends() async throws -> [FriendProfile] { [] }
@@ -241,7 +248,7 @@ private final class RestoreStubService: FriendsService {
     func removeFriend(_ profile: FriendProfile) async throws {}
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
     func refreshBackupStatus() async {}
 }
 
@@ -258,6 +265,13 @@ private final class LinkStubService: FriendsService {
     }
 
     var myProfile: FriendProfile? { nil }
+
+    // 記録バックアップ (テスト対象外: no-op 準拠)
+    func backupUpsert(_ records: [BackupRecord]) async throws {}
+    func backupFetchAll() async throws -> [BackupRecord] { [] }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {}
+    func backupWipeAll() async throws {}
+
     func signIn(displayName: String, username: String) async throws {}
     func signOut() async {}
     func refreshFriends() async throws -> [FriendProfile] { [] }
@@ -268,7 +282,7 @@ private final class LinkStubService: FriendsService {
     func removeFriend(_ profile: FriendProfile) async throws {}
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
 
     func refreshBackupStatus() async {}
     func linkApple(idToken: String, nonce: String) async throws {

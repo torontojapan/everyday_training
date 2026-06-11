@@ -27,32 +27,25 @@ final class FriendsFlowUITests: XCTestCase {
 
     // MARK: - Friends list
 
-    func testFriendsLazyConnectShowsProfile() {
-        // lazy 化: タブを開いただけでは匿名サインインせず歓迎画面に留まる
-        // (孤児アカウント/プライバシー対策)。「友達とつながる」= 能動操作の瞬間に
-        // 初めてサインインし、signed-in UI (友達追加ボタン) に着地する。
-        let app = launch(route: "friends", extra: ["--mock-force-signed-out"])
+    func testFriendsTabAutoSignsIn() {
+        // eb372c2 でワンステップ化: タブを開くと自動で匿名アカウントを発行し、
+        // ボタンを押さなくても signed-in UI (友達追加ボタン) に着地する(ユーザー要望)。
+        // 注意: --mock-force-signed-out は App.task の signOut と FriendsView.task の
+        // 自動サインインが競合するため使わない(自動サインインの検証が目的)。
+        let app = launch(route: "friends")
 
-        // 起動直後は welcome の「友達とつながる」ボタンが出て、まだ signed-in UI は出ない。
-        let connect = app.buttons.matching(identifier: "friends-connect-button").firstMatch
-        XCTAssertTrue(connect.waitForExistence(timeout: 10),
-                      "未サインインでは歓迎画面の『友達とつながる』が表示されるはず")
         let addButton = app.buttons.matching(identifier: "friend-add-button").firstMatch
-        XCTAssertFalse(addButton.exists,
-                       "タブ表示だけでは signed-in UI (友達追加ボタン) は出ないはず (lazy)")
-
-        // 能動操作でサインイン → signed-in UI に着地。
-        connect.tap()
-        XCTAssertTrue(addButton.waitForExistence(timeout: 10),
-                      "『友達とつながる』後に signed-in UI の友達追加ボタンが表示されるはず")
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15),
+                      "タブを開くだけで自動サインインし、友達追加ボタンが表示されるはず")
     }
 
     func testFriendsSignedInShowsRankingLink() {
-        let app = launch(route: "friends",
-                          extra: ["--mock-force-signed-out", "--mock-seed-friends"])
+        let app = launch(route: "friends", extra: ["--mock-seed-friends"])
 
-        // NavigationLinks are queryable by accessibility identifier.
+        // 週間ランキングのリンクは友達一覧より下にあるのでスクロールして探す。
         let ranking = app.buttons.matching(identifier: "weekly-ranking-link").firstMatch
+        var attempts = 0
+        while !ranking.exists && attempts < 6 { app.swipeUp(); attempts += 1 }
         XCTAssertTrue(ranking.waitForExistence(timeout: 8),
                       "週間ランキングへのリンクが表示されるはず")
     }
@@ -96,9 +89,10 @@ final class FriendsFlowUITests: XCTestCase {
     func testDeepLinkFriendsHasCloseButton() {
         let app = launch(route: "friends", extra: ["--mock-seed-friends"])
 
-        // The deep-link wrapper places "閉じる" in the top-leading nav bar.
-        let close = app.buttons["閉じる"].firstMatch
-        XCTAssertTrue(close.waitForExistence(timeout: 8),
+        // deep-link ラッパーの閉じるは専用 ID で取る(ラベル "閉じる" はエラーバナーや
+        // 名前プロンプト等と重複し firstMatch が不安定なため)。
+        let close = app.buttons["friends-deeplink-close"].firstMatch
+        XCTAssertTrue(close.waitForExistence(timeout: 15),
                       "URL scheme で開いた friends 画面に閉じるボタンがあるはず")
     }
 }
