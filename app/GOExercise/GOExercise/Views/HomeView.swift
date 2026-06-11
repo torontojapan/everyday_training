@@ -407,7 +407,7 @@ struct HomeView: View {
     @ViewBuilder
     private var primaryActionButton: some View {
         if viewModel.todayStatus == .todayAchieved {
-            LargePrimaryCTA(title: "もう一種目する 🔥",
+            LargePrimaryCTA(title: "もう一種目する",
                             systemImage: "plus.circle.fill",
                             identifier: "primary-record-action",
                             pulsing: false) {
@@ -415,7 +415,7 @@ struct HomeView: View {
             }
         } else if viewModel.isComebackToday {
             // Codex UX #2: 復帰日は低圧コピーで踏み込ませる ("never miss twice")。
-            LargePrimaryCTA(title: "ただいま記録 ☕",
+            LargePrimaryCTA(title: "ただいま記録",
                             systemImage: "house.fill",
                             identifier: "primary-record-action",
                             pulsing: true) {

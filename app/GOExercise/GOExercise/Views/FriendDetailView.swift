@@ -235,17 +235,17 @@ struct FriendDetailView: View {
 
     private var statsCard: some View {
         HStack(spacing: 12) {
-            statTile(emoji: "🐾",
+            statTile(systemImage: "pawprint.fill",
                      value: "\(friend.currentStreak)",
                      label: "連続日数",
                      accent: Palette.primaryDeep)
-            statTile(emoji: "🏆",
+            statTile(systemImage: "trophy.fill",
                      value: "\(friend.totalAchievedDays)",
                      label: "累計達成日",
                      accent: tierColor)
             if let since = friend.connectedSince {
                 let days = max(1, calendar.dateComponents([.day], from: since, to: Date()).day ?? 0)
-                statTile(emoji: "🤝",
+                statTile(systemImage: "person.2.fill",
                          value: "\(days)",
                          label: "つながって",
                          accent: Palette.secondary)
@@ -253,10 +253,11 @@ struct FriendDetailView: View {
         }
     }
 
-    private func statTile(emoji: String, value: String, label: String, accent: Color) -> some View {
+    private func statTile(systemImage: String, value: String, label: String, accent: Color) -> some View {
         VStack(spacing: 4) {
-            Text(emoji)
-                .font(.system(size: 26))
+            Image(systemName: systemImage)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(accent)
             Text(value)
                 .font(.system(.title2, design: .rounded, weight: .heavy))
                 .foregroundStyle(accent)

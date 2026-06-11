@@ -12,6 +12,7 @@ struct FriendAddView: View {
     @State private var hasSearched = false   // 検索ボタンを押すまで「結果なし」を出さない
     @State private var resultMessage: String?
     @State private var searchTask: Task<Void, Never>?
+    @State private var isShowingScanner = false
 
     init(initialCode: String? = nil) {
         self.initialCode = initialCode
@@ -36,8 +37,16 @@ struct FriendAddView: View {
                 }
                 .disabled(!FriendCodeValidator.isValid(codeInput))
 
+                // 相手のアプリの「友達コード」横の QR を、アプリ内カメラで読み取って追加。
+                Button {
+                    isShowingScanner = true
+                } label: {
+                    Label("QRコードを読み取る", systemImage: "qrcode.viewfinder")
+                }
+                .accessibilityIdentifier("scan-friend-qr")
+
                 if !codeInput.isEmpty && !FriendCodeValidator.isValid(codeInput) {
-                    Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)")
+                    Text("友達コードは 6 文字の英数字です (O / 0 / I / 1 は使われません)")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                 }
@@ -115,6 +124,12 @@ struct FriendAddView: View {
                 Button("閉じる") { dismiss() }
             }
         }
+        .sheet(isPresented: $isShowingScanner) {
+            QRScannerView { code in
+                codeInput = code
+                Task { await sendByCode(code: code) }
+            }
+        }
     }
 
     private func sendByCode(code: String? = nil) async {
@@ -123,7 +138,7 @@ struct FriendAddView: View {
         if let err = friendsStore.lastError {
             resultMessage = err
         } else {
-            resultMessage = "\(target) に友達申請を送りました 🤝"
+            resultMessage = "\(target) に友達申請を送りました"
             codeInput = ""
         }
     }

@@ -861,7 +861,7 @@ struct FriendsView: View {
                     .accessibilityLabel(isShowingMyQR ? "QR コードを隠す" : "QR コードを表示")
                     .accessibilityIdentifier("toggle-my-qr")
                 }
-                if isShowingMyQR, let qr = qrImage(text: AppSharingConfig.shareURL.absoluteString) {
+                if isShowingMyQR, let qr = qrImage(text: friendInviteURL(profile.friendCode)) {
                     VStack(spacing: 6) {
                         Image(uiImage: qr)
                             .interpolation(.none)
@@ -870,9 +870,9 @@ struct FriendsView: View {
                             .frame(width: 140, height: 140)
                             .padding(8)
                             .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        // QR は App Store のインストール導線(標準カメラで開ける)。コード自体は
-                        // 上のコピー/共有で渡す(カスタムスキーム QR は標準カメラが開けないため)。
-                        Text("カメラで読むとインストール画面が開きます。\nコードは上のコピー/共有で送ってね。")
+                        // このQRは「友達追加用」。相手のアプリの 友達 → ＋ →「QRコードを読み取る」で
+                        // 読むと、そのコードで友達追加できる(アプリ内スキャナ。両者ともアプリ必須)。
+                        Text("相手のアプリの 友達 → ＋ →「QRコードを読み取る」で読んでもらうと追加できます。")
                             .font(Typography.caption)
                             .foregroundStyle(Palette.textSecondary)
                             .multilineTextAlignment(.center)
@@ -1289,6 +1289,12 @@ struct FriendsView: View {
         case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
         default: return Palette.textSecondary
         }
+    }
+
+    /// 友達追加用 QR にエンコードする招待リンク。アプリ内スキャナ(QRScannerView)が
+    /// この `goexercise://friends?code=XXX` から友達コードを取り出して追加する。
+    private func friendInviteURL(_ code: String) -> String {
+        "goexercise://friends?code=\(code)"
     }
 
     private func qrImage(text: String) -> UIImage? {
