@@ -158,6 +158,11 @@ struct MonthlyCalendarView: View {
             // 記号だけだと初見で意味が分からないので凡例を表示。
             // 達成 / 休養 / 未達成 / ★ 体調マーク / 🎫 保険チケット。
             legendRow
+            // 休養日ルールの説明(ユーザー要望: 仕組みをどこかに明記)。
+            Text("休養日は週2日まで自動でカウントされ、連続記録は途切れません。最初の記録より前の日は集計されません。")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -268,9 +273,25 @@ struct MonthlyCalendarView: View {
 
         var cells: [MonthCell] = Array(repeating: .blank, count: leading)
         let todayStart = calendar.startOfDay(for: today)
+        // アプリを始める前(=最初の記録/救済日より前)は未達成でも休養でもなく「記録なし」。
+        // 表示層でのみ .future("-" 中立表示)へ振替える(streak 計算には影響させない)。
+        let firstRecordDay = records.map { calendar.startOfDay(for: $0.date) }.min()
+        let firstRescuedDay = rescuedDates.map { calendar.startOfDay(for: $0) }.min()
+        let firstActivityDay = [firstRecordDay, firstRescuedDay].compactMap { $0 }.min()
 
         for day in 0..<daysInMonth {
             guard let date = calendar.date(byAdding: .day, value: day, to: monthStart) else { continue }
+            if let first = firstActivityDay, calendar.startOfDay(for: date) < first {
+                cells.append(.day(date: date, status: .future,
+                                  isToday: calendar.isDate(date, inSameDayAs: todayStart)))
+                continue
+            }
+            if firstActivityDay == nil, calendar.startOfDay(for: date) <= todayStart,
+               !calendar.isDate(date, inSameDayAs: todayStart) {
+                // 記録がまだ1件も無いユーザーの過去日も「記録なし」(× や 休 を出さない)。
+                cells.append(.day(date: date, status: .future, isToday: false))
+                continue
+            }
             let restDays = RestDayResolver.restDaySet(for: date, records: records, today: today, calendar: calendar)
             let status = AchievementEvaluator.dailyStatus(
                 for: date,
