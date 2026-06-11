@@ -50,7 +50,7 @@ struct MediumWidgetView: View {
     /// 未達成時は行動喚起「1分だけでも運動しよう」を前面に (ユーザー要望)。
     /// 達成・回復日は状態に合わせたメッセージを出す。
     private var headlineMessage: String {
-        if snapshot.todayAchieved { return "今日も達成！えらい ✨" }
+        if snapshot.todayAchieved { return "今日も達成！えらい" }
         if snapshot.isRestDay { return "今日はむりせず整えよう" }
         return "1分だけでも運動しよう"
     }

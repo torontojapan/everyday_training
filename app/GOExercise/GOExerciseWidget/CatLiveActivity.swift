@@ -37,7 +37,7 @@ struct CatLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
                         Text(context.state.todayAchieved
-                             ? "今日も達成 ✨ お疲れさま"
+                             ? "今日も達成、お疲れさま"
                              : "1分だけでも運動しよう")
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         Spacer()
@@ -143,7 +143,7 @@ struct CatLockScreenView: View {
                         .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                 }
                 Text(state.todayAchieved
-                     ? "今日も達成 ✨"
+                     ? "今日も達成"
                      : "1分だけでも・残り \(state.hoursLeftToday) 時間")
                     .font(.caption)
                     .foregroundStyle(Color.black.opacity(0.58))
