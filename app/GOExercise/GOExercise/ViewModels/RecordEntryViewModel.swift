@@ -16,6 +16,8 @@ final class RecordEntryViewModel {
         /// セット数。プルダウン選択。0 = 未設定。
         var sets: Int
         var memo: String
+        /// 重さ(kg)。フリー入力(空=未設定)。
+        var loadText: String
 
         init(
             id: UUID = UUID(),
@@ -24,7 +26,8 @@ final class RecordEntryViewModel {
             minutes: Int = 0,
             reps: Int = 0,
             sets: Int = 0,
-            memo: String = ""
+            memo: String = "",
+            loadText: String = ""
         ) {
             self.id = id
             self.name = name
@@ -33,6 +36,7 @@ final class RecordEntryViewModel {
             self.reps = reps
             self.sets = sets
             self.memo = memo
+            self.loadText = loadText
         }
     }
 
@@ -90,9 +94,17 @@ final class RecordEntryViewModel {
                 reps: draft.reps > 0 ? draft.reps : nil,
                 sets: draft.sets > 0 ? draft.sets : nil,
                 memo: trimmedMemo.isEmpty ? nil : trimmedMemo,
+                loadKilograms: Self.parsedLoad(draft.loadText),
                 category: draft.category
             )
         }
+    }
+
+    /// 重さ(kg)のフリー入力をパース。空/非数値/範囲外(0〜1000)は nil = 未設定。
+    static func parsedLoad(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let v = Double(trimmed), v > 0, v < 1000 else { return nil }
+        return v
     }
 
     func addExercise() {

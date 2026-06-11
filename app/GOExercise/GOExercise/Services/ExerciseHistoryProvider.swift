@@ -44,12 +44,11 @@ final class ExerciseHistoryProvider {
             }
             .values
             .sorted { lhs, rhs in
-                let lhsScore = score(for: lhs)
-                let rhsScore = score(for: rhs)
-                if lhsScore == rhsScore {
-                    return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-                }
-                return lhsScore > rhsScore
+                // 「前回使った種目が手前」: 最後に使った日の新しい順を最優先し、
+                // 同日内は使用回数 → 名前順。(旧: 頻度×新しさの合成スコア順)
+                if lhs.lastUsedDate != rhs.lastUsedDate { return lhs.lastUsedDate > rhs.lastUsedDate }
+                if lhs.count != rhs.count { return lhs.count > rhs.count }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
 
         return Array(suggestions.prefix(limit)).map(\.name)

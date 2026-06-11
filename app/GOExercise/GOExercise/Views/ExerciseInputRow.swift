@@ -50,6 +50,9 @@ struct ExerciseInputRow: View {
         if draft.minutes > 0 { parts.append("\(draft.minutes)分") }
         if draft.reps > 0 { parts.append("\(draft.reps)回") }
         if draft.sets > 0 { parts.append("\(draft.sets)セット") }
+        if let kg = RecordEntryViewModel.parsedLoad(draft.loadText) {
+            parts.append(kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))kg" : "\(kg)kg")
+        }
         return parts.joined(separator: "・")
     }
 
@@ -106,8 +109,26 @@ struct ExerciseInputRow: View {
                     Text("よく使う種目")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(Palette.textSecondary)
-                    SuggestionFlow(suggestions: suggestions) { suggestion in
-                        draft.name = suggestion
+                    // 種類と同じ横スクロールのチップ。前回使った種目が先頭に来る
+                    // (ExerciseHistoryProvider が最終使用日の新しい順で返す)。
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                Button { draft.name = suggestion } label: {
+                                    Text(suggestion)
+                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                        .fixedSize()
+                                        .foregroundStyle(Palette.textPrimary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(Palette.chipBackground.opacity(0.6), in: Capsule())
+                                        .overlay(Capsule().strokeBorder(Palette.primary.opacity(0.25), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 1)
                     }
                 }
             } else {
@@ -122,6 +143,22 @@ struct ExerciseInputRow: View {
                 labeledPicker("時間 (分)", selection: $draft.minutes, options: Self.minuteOptions, unit: "分", accessibility: "時間 分単位")
                 labeledPicker("回数", selection: $draft.reps, options: Self.repOptions, unit: "回", accessibility: "回数")
                 labeledPicker("セット", selection: $draft.sets, options: Self.setOptions, unit: "", accessibility: "セット数")
+                // 重さ(kg)はフリー入力(器具の重量は刻みが多様なためプルダウンにしない)。
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("重さ (kg)")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.textSecondary)
+                    TextField("0", text: $draft.loadText)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity)
+                        .background(Palette.chipBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .accessibilityLabel("重さ キログラム")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             TextField("種目メモ (例: 体調メモ、回数アップ等)", text: $draft.memo)
