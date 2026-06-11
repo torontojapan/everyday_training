@@ -78,8 +78,9 @@ struct FriendsParkView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 HStack(spacing: 3) {
-                    Text("🔥")
-                        .font(.system(size: 10))
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Palette.primaryDeep)
                     Text("\(friend.currentStreak)")
                         .font(.system(size: 10, weight: .heavy, design: .rounded))
                         .foregroundStyle(Palette.primaryDeep)

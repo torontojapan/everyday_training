@@ -806,7 +806,7 @@ struct FriendsView: View {
                     Text("@\(profile.username)")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
-                    Text("🔥 \(profile.currentStreak) 日連続")
+                    Label("\(profile.currentStreak) 日連続", systemImage: "pawprint.fill")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.primaryDeep)
                 }
@@ -827,6 +827,20 @@ struct FriendsView: View {
                             .foregroundStyle(Palette.primaryDeep)
                     }
                     Spacer()
+                    // ワンタップでコードをコピー(ユーザー要望)。共有シートより手軽。
+                    Button {
+                        UIPasteboard.general.string = profile.friendCode
+                        hapticFeedback.success()
+                        showCopyToast()
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .frame(width: 44, height: 44)
+                            .background(Palette.chipBackground, in: Circle())
+                    }
+                    .accessibilityLabel("友達コードをコピー")
+                    .accessibilityIdentifier("copy-friend-code")
                     ShareLink(item: shareText(for: profile)) {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 16, weight: .semibold))
@@ -847,9 +861,8 @@ struct FriendsView: View {
                     .accessibilityLabel(isShowingMyQR ? "QR コードを隠す" : "QR コードを表示")
                     .accessibilityIdentifier("toggle-my-qr")
                 }
-                if isShowingMyQR, let qr = qrImage(text: friendInviteURL(profile.friendCode)) {
-                    HStack {
-                        Spacer()
+                if isShowingMyQR, let qr = qrImage(text: AppSharingConfig.shareURL.absoluteString) {
+                    VStack(spacing: 6) {
                         Image(uiImage: qr)
                             .interpolation(.none)
                             .resizable()
@@ -857,8 +870,15 @@ struct FriendsView: View {
                             .frame(width: 140, height: 140)
                             .padding(8)
                             .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        Spacer()
+                        // QR は App Store のインストール導線(標準カメラで開ける)。コード自体は
+                        // 上のコピー/共有で渡す(カスタムスキーム QR は標準カメラが開けないため)。
+                        Text("カメラで読むとインストール画面が開きます。\nコードは上のコピー/共有で送ってね。")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity)
                     .transition(.opacity.combined(with: .scale))
                 }
             }
@@ -887,7 +907,7 @@ struct FriendsView: View {
                 Text(request.fromProfile.displayName)
                     .font(Typography.body)
                     .foregroundStyle(Palette.textPrimary)
-                Text("@\(request.fromProfile.username) · 🔥 \(request.fromProfile.currentStreak) 日連続")
+                Text("@\(request.fromProfile.username) · \(Image(systemName: "pawprint.fill")) \(request.fromProfile.currentStreak) 日連続")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }
@@ -925,7 +945,7 @@ struct FriendsView: View {
             Text("まだ友達がいません")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
-            Text("右上の + から、友達コードや QR でつながろう。\n猫があなたの友達を待っています。")
+            Text("右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -1051,7 +1071,7 @@ struct FriendsView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("🔥 \(friend.currentStreak)")
+                        Label("\(friend.currentStreak)", systemImage: "pawprint.fill")
                             .font(.system(.title3, design: .rounded, weight: .heavy))
                             .foregroundStyle(Palette.primaryDeep)
                             .monospacedDigit()
@@ -1271,12 +1291,6 @@ struct FriendsView: View {
         }
     }
 
-    /// QR にエンコードする招待ディープリンク。相手が標準カメラで読むと
-    /// `goexercise://friends?code=XXX` で本アプリが開き、追加画面がプリフィルされる。
-    private func friendInviteURL(_ code: String) -> String {
-        "goexercise://friends?code=\(code)"
-    }
-
     private func qrImage(text: String) -> UIImage? {
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
@@ -1290,7 +1304,22 @@ struct FriendsView: View {
     }
 
     private func shareText(for profile: FriendProfile) -> String {
-        "GO エクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n@\(profile.username) (🔥 \(profile.currentStreak)日連続)"
+        // 連続日数は載せない(ユーザー要望)。コードと導線だけのシンプルな招待文。
+        "GO エクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n\(AppSharingConfig.shareURL.absoluteString)"
+    }
+
+    /// コピー完了を既存の下部トースト(cheerToast)で 2 秒だけ表示する。
+    private func showCopyToast() {
+        let token = UUID()
+        cheerToastToken = token
+        cheerToast = "招待コードをコピーしました"
+        Task {
+            try? await Task.sleep(for: .seconds(2.0))
+            if cheerToastToken == token {
+                cheerToast = nil
+                cheerToastToken = nil
+            }
+        }
     }
 }
 

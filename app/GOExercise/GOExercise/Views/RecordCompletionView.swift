@@ -184,7 +184,9 @@ struct RecordCompletionView: View {
     private var streakHero: some View {
         VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("🔥").font(.system(size: 30))
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(Palette.primaryDeep)
                 Text("\(streak)")
                     .font(.system(size: 60, weight: .black, design: .rounded))
                     .monospacedDigit()

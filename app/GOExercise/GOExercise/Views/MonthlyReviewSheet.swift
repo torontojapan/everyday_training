@@ -192,7 +192,7 @@ struct MonthlyReviewCard: View {
             }
 
             VStack(spacing: 10) {
-                statRow(icon: "flame.fill", label: streakLabel, value: "\(review.longestStreakInMonth) 日")
+                statRow(icon: "pawprint.fill", label: streakLabel, value: "\(review.longestStreakInMonth) 日")
                 statRow(icon: "clock.fill", label: "合計時間", value: "\(review.totalDurationMinutes) 分")
                 statRow(icon: "list.bullet.rectangle", label: "種目数", value: "\(review.totalExerciseCount) 件")
                 if let cat = review.topCategory {

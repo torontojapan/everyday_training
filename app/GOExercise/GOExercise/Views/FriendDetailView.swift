@@ -235,7 +235,7 @@ struct FriendDetailView: View {
 
     private var statsCard: some View {
         HStack(spacing: 12) {
-            statTile(emoji: "🔥",
+            statTile(emoji: "🐾",
                      value: "\(friend.currentStreak)",
                      label: "連続日数",
                      accent: Palette.primaryDeep)

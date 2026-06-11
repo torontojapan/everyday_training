@@ -18,7 +18,7 @@ enum PerkGuide {
                       detail: "連続記録を続けると猫の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
         PerkGuideItem(icon: "cat.fill", title: "猫種",
                       detail: "無料はオレンジ。プレミアム、または⭐10で全11種から選べます。"),
-        PerkGuideItem(icon: "flame.fill", title: "連続記録の節目",
+        PerkGuideItem(icon: "pawprint.fill", title: "連続記録の節目",
                       detail: "連続記録のマイルストーンでお祝い演出が出ます。"),
     ]
 }

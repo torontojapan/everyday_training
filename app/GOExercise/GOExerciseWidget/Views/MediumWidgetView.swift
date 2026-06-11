@@ -16,7 +16,7 @@ struct MediumWidgetView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 5) {
-                    Text("🔥\(snapshot.currentStreak)")
+                    Label("\(snapshot.currentStreak)", systemImage: "pawprint.fill")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .monospacedDigit()
                         .foregroundStyle(Color(red: 0.95, green: 0.42, blue: 0.30))

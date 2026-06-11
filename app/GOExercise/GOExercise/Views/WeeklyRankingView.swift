@@ -116,7 +116,7 @@ struct WeeklyRankingView: View {
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
                 HStack(spacing: 12) {
-                    Label("\(me.profile.currentStreak) 日連続", systemImage: "flame.fill")
+                    Label("\(me.profile.currentStreak) 日連続", systemImage: "pawprint.fill")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.primaryDeep)
                     Label("\(me.totalMinutes) 分", systemImage: "clock.fill")
@@ -163,7 +163,7 @@ struct WeeklyRankingView: View {
                 // ★ 順位の根拠を毎行に表示。連続日数と運動時間が
                 //   一目で比較でき、「なぜこの順位か」が読み取れる。
                 HStack(spacing: 10) {
-                    Label("\(entry.profile.currentStreak)", systemImage: "flame.fill")
+                    Label("\(entry.profile.currentStreak)", systemImage: "pawprint.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Palette.primaryDeep)
                         .monospacedDigit()

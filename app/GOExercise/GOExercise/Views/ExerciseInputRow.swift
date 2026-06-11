@@ -59,7 +59,9 @@ struct ExerciseInputRow: View {
         VStack(alignment: .leading, spacing: 12) {
             // この種目のカテゴリ選択 + 削除 + 最小化。カテゴリを種目ごとに持てる。
             HStack(spacing: 8) {
-                categoryMenu
+                Text("種類")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.textSecondary)
                 Spacer(minLength: 4)
                 if canRemove {
                     Button(role: .destructive, action: onRemove) {
@@ -76,6 +78,9 @@ struct ExerciseInputRow: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("最小化")
             }
+            // 全カテゴリを横スクロールで常時表示し、タップ選択(旧プルダウンは
+            // 「押すと選べる」ことが分かりづらかった、というユーザー指摘の解消)。
+            categorySelector
 
             // 種目名は入力の主役。ラベル + 枠線付きフィールドで埋もれないようにする。
             VStack(alignment: .leading, spacing: 4) {
@@ -130,30 +135,45 @@ struct ExerciseInputRow: View {
         .padding(.vertical, 6)
     }
 
-    private var categoryMenu: some View {
-        Menu {
-            Picker("カテゴリ", selection: $draft.category) {
+    /// 全カテゴリを横スクロールのチップで常時表示。選択中は塗り、その他は枠線。
+    private var categorySelector: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
                 ForEach(WorkoutCategory.allCases) { category in
-                    Label(category.displayName, systemImage: category.symbolName).tag(category)
+                    let isSelected = draft.category == category
+                    Button {
+                        draft.category = category
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: category.symbolName)
+                                .font(.system(size: 14, weight: .bold))
+                            Text(category.displayName)
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .fixedSize()
+                        }
+                        .foregroundStyle(isSelected ? .white : Palette.textPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(
+                            isSelected ? Palette.primary : Palette.chipBackground.opacity(0.6),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(
+                                isSelected ? Color.clear : Palette.primary.opacity(0.35),
+                                lineWidth: 1.2
+                            )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(category.displayName)
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                 }
             }
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: draft.category.symbolName)
-                    .font(.system(size: 17, weight: .bold))
-                Text(draft.category.displayName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .bold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Palette.primary, in: Capsule())
-            .shadow(color: Palette.primary.opacity(0.30), radius: 6, x: 0, y: 2)
+            .padding(.vertical, 2)
+            .padding(.horizontal, 1)
         }
-        .accessibilityLabel("カテゴリ: \(draft.category.displayName)")
-        .accessibilityIdentifier("exercise-category-menu")
+        .accessibilityIdentifier("exercise-category-selector")
     }
 
     // 0 = 未設定。時間は 5 分刻みで最大 100 分、回数は最大 50、セットは最大 10。

@@ -21,7 +21,7 @@ struct FriendAddView: View {
     var body: some View {
         Form {
             Section("友達コードで追加") {
-                TextField("6桁の英数字", text: $codeInput)
+                TextField("6文字の英数字 (例: ABC123)", text: $codeInput)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("friend-code-field")
@@ -84,7 +84,7 @@ struct FriendAddView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(result.displayName)
                                 .font(Typography.body)
-                            Text("@\(result.username) · 🔥 \(result.currentStreak)")
+                            Text("@\(result.username) · \(Image(systemName: "pawprint.fill")) \(result.currentStreak)")
                                 .font(Typography.caption)
                                 .foregroundStyle(Palette.textSecondary)
                         }

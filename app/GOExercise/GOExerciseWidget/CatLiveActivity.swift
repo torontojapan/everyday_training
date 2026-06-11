@@ -16,7 +16,8 @@ struct CatLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
-                        Text("🔥")
+                        Image(systemName: "pawprint.fill")
+                            .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
                         Text("\(context.state.currentStreak)")
                             .font(.system(.headline, design: .rounded, weight: .heavy))
                             .monospacedDigit()
@@ -61,7 +62,8 @@ struct CatLiveActivity: Widget {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                 } else {
-                    Text("🔥\(context.state.currentStreak)")
+                    // compactLeading に肉球があるので trailing は数字のみ(🔥は出さない)。
+                    Text("\(context.state.currentStreak)")
                         .font(.caption.weight(.heavy))
                         .monospacedDigit()
                 }
@@ -130,7 +132,9 @@ struct CatLockScreenView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text("🔥")
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                     Text("\(state.currentStreak) 日連続")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .monospacedDigit()
