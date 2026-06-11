@@ -6,9 +6,11 @@ struct FriendDetailView: View {
     let friend: FriendProfile
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(\.dismiss) private var dismiss
-    @State private var sentCheer: CheerKind?
+    @State private var sentCheerText: String?
     @State private var sentCheerToken: UUID?
     @State private var cheerInFlight = false
+    /// 応援の一言コメント入力(プリセットタップで反映 / 自由入力可・30字制限)。
+    @State private var cheerText = ""
     @State private var pendingRemoval = false
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
     private let calendar = Calendar.mondayFirst
@@ -274,23 +276,59 @@ struct FriendDetailView: View {
 
     // MARK: - Cheer
 
+    /// 応援コメントの最大文字数(トースト/カード表示に収まる長さ。DB 側は 60 字で最終ガード)。
+    private static let cheerLimit = 30
+
+    private var trimmedCheerText: String {
+        cheerText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var cheerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("応援を送る")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
 
+            // コメント入力欄 + 送信ボタン。下のプリセットをタップすると入力欄に反映され、
+            // そのまま送るか、自由に書き換えてから送れる(ユーザー要望)。
+            HStack(spacing: 8) {
+                TextField("応援メッセージ(\(Self.cheerLimit)字まで)", text: $cheerText)
+                    .textInputAutocapitalization(.never)
+                    .submitLabel(.send)
+                    .onSubmit { Task { await sendCheerMessage() } }
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .onChange(of: cheerText) { _, newValue in
+                        if newValue.count > Self.cheerLimit {
+                            cheerText = String(newValue.prefix(Self.cheerLimit))
+                        }
+                    }
+                    .accessibilityIdentifier("cheer-message-field")
+                Button {
+                    Task { await sendCheerMessage() }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(trimmedCheerText.isEmpty || cheerInFlight
+                                         ? Palette.textSecondary.opacity(0.4)
+                                         : Palette.primary)
+                }
+                .buttonStyle(.plain)
+                .disabled(trimmedCheerText.isEmpty || cheerInFlight)
+                .accessibilityLabel("応援を送信")
+                .accessibilityIdentifier("cheer-send-button")
+            }
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(CheerKind.allCases, id: \.self) { kind in
                     cheerButton(kind)
                 }
             }
 
-            if let sentCheer {
+            if let sentCheerText {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Palette.success)
-                    Text("\(sentCheer.emoji) \(sentCheer.label) を送りました")
+                    Text("「\(sentCheerText)」を送りました")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textPrimary)
                     Spacer()
@@ -303,43 +341,55 @@ struct FriendDetailView: View {
         }
         .padding(16)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .animation(.easeOut(duration: 0.25), value: sentCheer)
+        .animation(.easeOut(duration: 0.25), value: sentCheerText)
     }
 
+    /// プリセット: タップでコメント欄に反映する(送信はしない。送信は右の↑ボタン)。
     private func cheerButton(_ kind: CheerKind) -> some View {
         Button {
-            Task { await send(kind) }
+            cheerText = kind.label
         } label: {
             HStack(spacing: 6) {
-                Text(kind.emoji)
-                    .font(.system(size: 22))
+                Image(systemName: kind.symbolName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Palette.primaryDeep)
                 Text(kind.label)
                     .font(Typography.body)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(
+                cheerText == kind.label ? Palette.primary.opacity(0.18) : Palette.chipBackground,
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
         }
         .buttonStyle(.plain)
         .disabled(cheerInFlight)
         .accessibilityIdentifier("cheer-\(kind.rawValue)")
-        .accessibilityLabel("\(kind.label) を送る")
+        .accessibilityLabel("\(kind.label) をコメント欄に入れる")
     }
 
-    private func send(_ kind: CheerKind) async {
+    /// 入力欄の内容を送信する。プリセットのラベルと一致すればその kind、
+    /// 自由文なら kind = custom(アイコンはハート)として送る。
+    private func sendCheerMessage() async {
+        let text = trimmedCheerText
+        guard !text.isEmpty, !cheerInFlight else { return }
+        // プリセットのラベルと一致すればその kind、自由文は fight を器にする
+        // (表示は常に message が優先されるので kind は互換用のフォールバックに過ぎない)。
+        let kind = CheerKind.allCases.first { $0.label == text } ?? .fight
         cheerInFlight = true
         hapticFeedback.success()
-        await friendsStore.cheer(kind, to: friend.friendCode)
+        await friendsStore.cheer(kind, to: friend.friendCode, message: text)
         let token = UUID()
         sentCheerToken = token
-        sentCheer = kind
+        sentCheerText = text
+        cheerText = ""
         cheerInFlight = false
         try? await Task.sleep(for: .seconds(2.4))
-        // Token-based dismissal so rapid taps of the same kind don't
-        // dismiss the latest toast early.
+        // Token-based dismissal so rapid sends don't dismiss the latest toast early.
         if sentCheerToken == token {
-            sentCheer = nil
+            sentCheerText = nil
             sentCheerToken = nil
         }
     }

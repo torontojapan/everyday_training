@@ -9,6 +9,14 @@ struct SettingsView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(ReferralStore.self) private var referralStore
     @Environment(RecordSyncCoordinator.self) private var recordSync
+    /// 連携済み状態の表示文言(プロバイダ名があれば添える)。
+    private var linkedStatusText: String {
+        switch friendsStore.backupStatus.providerName {
+        case "apple": return "Apple アカウントでバックアップ中"
+        case "google": return "Google アカウントでバックアップ中"
+        default: return "アカウントでバックアップ中"
+        }
+    }
     @State private var showPremiumPaywall = false
     @State private var laterInviteCode = ""
     @State private var isSubmittingLater = false
@@ -245,12 +253,27 @@ struct SettingsView: View {
                         Text(err).font(Typography.caption).foregroundStyle(.red)
                     }
                 }
+
+                // 機種変更で確実に復元するための「鍵」= Apple/Google サインイン。
+                // ここに集約(旧: 友達タブの連携 UI)。連携済みなら状態表示、未連携なら導線。
+                if SupabaseConfig.isAccountLinkingEnabled {
+                    if friendsStore.backupStatus.isBackedUp {
+                        Label(linkedStatusText, systemImage: "checkmark.seal.fill")
+                            .font(Typography.body)
+                            .foregroundStyle(Palette.success)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Apple / Google でサインインすると、機種変更や再インストールでも確実に復元できます(メール・パスワード不要)。")
+                                .font(Typography.caption)
+                                .foregroundStyle(Palette.textSecondary)
+                            AccountBackupSignIn()
+                        }
+                    }
+                }
             } header: {
                 Text("アカウントとバックアップ")
             } footer: {
-                Text(friendsStore.profile == nil
-                     ? "ON にすると自動でアカウントが作られます。機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。"
-                     : "機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。新しい端末で同じアカウントにサインインすると記録が戻ります。")
+                Text("運動・体重・体調の記録をあなたのアカウントに保存します。友達には共有されません。新しい端末で同じアカウントにサインインすると記録が戻ります。")
             }
 
             Section {
@@ -336,6 +359,12 @@ struct SettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Palette.background)
+        .task {
+            // 「アカウントとバックアップ」の連携済み表示を最新化(Apple/Google サインイン状態)。
+            if SupabaseConfig.isAccountLinkingEnabled {
+                await friendsStore.refreshBackupStatus()
+            }
+        }
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(onClose != nil)

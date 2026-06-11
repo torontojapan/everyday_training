@@ -82,7 +82,7 @@ struct SharedExerciseDetail: Identifiable, Hashable, Sendable, Codable {
     }
 }
 
-struct FriendRequest: Identifiable, Hashable, Sendable {
+struct FriendRequest: Identifiable, Hashable, Sendable, Codable {
     let id: String
     var fromProfile: FriendProfile
     var requestedAt: Date

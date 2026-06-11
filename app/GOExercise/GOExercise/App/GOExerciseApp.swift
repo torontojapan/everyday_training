@@ -71,6 +71,7 @@ struct GOExerciseApp: App {
                         .environment(storeKit)
                         .environment(rescueTicketStore)
                         .environment(referralStore)
+                        .environment(recordSync)
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
@@ -160,7 +161,7 @@ struct GOExerciseApp: App {
                     Task { await storeKit.refreshPurchaseState() }
                 }
         }
-        // Widget / QuickRecordIntent と同じ App Group 共有ストアを使う。
+        // Widget と同じ App Group 共有ストアを使う。
         // 旧 `.modelContainer(for:)` はデフォルトのローカルストアを使っており、
         // ウィジェットのクイック記録がメインアプリに反映されなかった (監査 B-Critical-1)。
         .modelContainer(sharedModelContainer)

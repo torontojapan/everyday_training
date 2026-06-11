@@ -619,15 +619,28 @@ final class SupabaseFriendsService: FriendsService {
         return rows.map { profile(from: $0) }.filter { $0.friendCode != myCode }
     }
 
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String? = nil) async throws {
         let client = try requireClient()
         let uid = try await ensureUID()
         let rows: [ProfileRow] = try await client.from("profiles")
             .select().eq("friend_code", value: friendCode).limit(1).execute().value
         guard let toID = rows.first?.user_id else { throw FriendsServiceError.codeNotFound }
-        try await client.from("cheers")
-            .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue))
-            .execute()
+        // 一言コメント: クライアント 30 字制限 + DB 60 字 check の二重ガード(送信前に最終クランプ)。
+        let clamped = message.flatMap { msg -> String? in
+            let trimmed = msg.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : String(trimmed.prefix(30))
+        }
+        do {
+            try await client.from("cheers")
+                .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue, message: clamped))
+                .execute()
+        } catch where clamped != nil && "\(error)".contains("message") {
+            // 本番に message 列が未適用の環境では列エラーになるため、コメント無しで再送する
+            // (応援自体は届く。列適用後は自動的にコメント付きになる)。
+            try await client.from("cheers")
+                .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue, message: nil))
+                .execute()
+        }
     }
 
     // MARK: - 友達紹介 (リファラル)
@@ -742,6 +755,47 @@ final class SupabaseFriendsService: FriendsService {
         let rows: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: session.user.id.uuidString).limit(1).execute().value
         return !rows.isEmpty
+    }
+
+    // MARK: - 応援の受信 (cheers)
+
+    /// 前回チェック以降に自分宛てへ届いた応援を返す(友達タブを開いた時に呼ぶ)。
+    /// watermark は端末ローカル(UserDefaults, uid 別キー)。初回は「今」を起点にして
+    /// 過去の蓄積を一気に出さない。取得成功後にのみ watermark を進める(失敗時は次回再表示)。
+    func unseenReceivedCheers() async throws -> [ReceivedCheer] {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return [] }
+        let uid = session.user.id.uuidString.lowercased()
+        let key = "cheers.lastSeenAt.\(uid)"
+        guard let last = defaults.object(forKey: key) as? Double else {
+            defaults.set(Date().timeIntervalSince1970, forKey: key)
+            return []
+        }
+        let since = Date(timeIntervalSince1970: last)
+        let rows: [CheerRow] = try await client.from("cheers")
+            .select()
+            .eq("to_user", value: uid)
+            .gt("created_at", value: Self.backupDateFormatter.string(from: since))
+            .order("created_at", ascending: true)
+            .execute().value
+        guard !rows.isEmpty else { return [] }
+        let fromIds = Array(Set(rows.map { $0.from_user.lowercased() }))
+        let profs: [ProfileRow] = try await client.from("profiles")
+            .select().in("user_id", values: fromIds).execute().value
+        let nameByID = Dictionary(uniqueKeysWithValues: profs.map { ($0.user_id.lowercased(), $0.display_name) })
+        let parsed = rows.map { row in
+            ReceivedCheer(
+                id: row.id,
+                fromDisplayName: nameByID[row.from_user.lowercased()] ?? "ともだち",
+                kindRaw: row.kind,
+                message: row.message,
+                createdAt: ReferralClock.parseTimestamp(row.created_at) ?? Date()
+            )
+        }
+        if let newest = parsed.map(\.createdAt).max() {
+            defaults.set(newest.timeIntervalSince1970, forKey: key)
+        }
+        return parsed
     }
 
     // MARK: - 記録のクラウドバックアップ (user_records)
@@ -957,10 +1011,19 @@ private struct RequestWrite: Encodable {
     let to_user: String
     let status: String
 }
+private struct CheerRow: Decodable {
+    let id: String
+    let from_user: String
+    let kind: String
+    var message: String?
+    let created_at: String
+}
+
 private struct CheerWrite: Encodable {
     let from_user: String
     let to_user: String
     let kind: String
+    var message: String?
 }
 private struct ReferralRow: Decodable {
     let referrer_user_id: String

@@ -94,9 +94,13 @@ create table if not exists public.cheers (
   id uuid primary key default gen_random_uuid(),
   from_user uuid not null references auth.users(id) on delete cascade,
   to_user uuid not null references auth.users(id) on delete cascade,
-  kind text not null,                      -- fight / great / clap / fire
+  kind text not null,                      -- fight / wontlose / protein / catpunch / custom (旧: great/clap/fire)
   created_at timestamptz not null default now()
 );
+-- 応援の一言コメント(任意・2026-06-12)。クライアントは 30 字制限、DB は 60 字で最終ガード。
+-- 既存環境への適用も兼ねて alter で追加(本番は SQL Editor で再 Run)。
+alter table public.cheers add column if not exists message text
+  check (message is null or char_length(message) <= 60);
 create index if not exists cheers_to_user_idx on public.cheers (to_user, created_at desc);
 
 -- ============ referrals (友達紹介。referee 主キー = 1人1紹介者) ============

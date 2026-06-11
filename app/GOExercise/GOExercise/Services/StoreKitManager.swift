@@ -31,10 +31,22 @@ final class StoreKitManager {
     @ObservationIgnored private var analyticsTrackedPurchaseIDs: Set<UInt64> = []
 
     /// DEBUG 限定のデモ/スクショ用 Premium 強制フラグ (`--mock-premium`)。
-    /// Release ビルドでは常に false。
+    /// 一度渡すと UserDefaults に永続化し、**以後は引数なしの再起動でも有効のまま**
+    /// (シミュレータQAで毎回フラグ付き起動しなくて済むように)。`--mock-premium-off` で解除。
+    /// Release ビルドでは常に false(引数も永続値も読まない)。
     @ObservationIgnored private let forcePremiumForDemo: Bool = {
         #if DEBUG
-        return ProcessInfo.processInfo.arguments.contains("--mock-premium")
+        let key = "debug.mockPremium.enabled"
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("--mock-premium-off") {
+            UserDefaults.standard.removeObject(forKey: key)
+            return false
+        }
+        if args.contains("--mock-premium") {
+            UserDefaults.standard.set(true, forKey: key)
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: key)
         #else
         return false
         #endif

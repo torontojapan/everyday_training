@@ -72,6 +72,9 @@ targets:
         # これが無いと SupabaseConfig.appleLinkEnabled=false → Apple バックアップ/復元UIが
         # 非表示。手動キーだと xcodegen 再生成で落ちるため project.yml で恒久宣言する。
         FriendsAppleLinkEnabled: true
+        # Google サインイン (web/PKCE) でのバックアップ/復元を有効にするか。Apple と対称に表示。
+        # Supabase の Google provider 有効化 + redirect 許可リスト (goexercise://auth-callback) が前提。
+        FriendsGoogleLinkEnabled: true
         # 友達バックエンド (Supabase)。値は Secrets.xcconfig 由来 (gitignore)。
         # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
         SupabaseHost: "$(SUPABASE_HOST)"

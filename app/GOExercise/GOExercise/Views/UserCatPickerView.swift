@@ -14,6 +14,8 @@ struct UserCatPickerView: View {
     @State private var inviteCode = ""
     @State private var isSubmittingInvite = false
     @State private var inviteAccepted = false
+    /// オンボーディングで猫選択の後に表示するバックアップ用サインインステップ。
+    @State private var showBackupStep = false
     let isOnboarding: Bool
 
     private var referralUnlocked: Bool {
@@ -29,20 +31,58 @@ struct UserCatPickerView: View {
     }
 
     var body: some View {
+        // オンボーディングで猫選択後はバックアップ用サインインへ。連携が有効でない
+        // ビルドではスキップ(従来どおり猫選択のみで完了)。
+        if isOnboarding && showBackupStep {
+            backupStep
+        } else {
+            catPickerBody
+        }
+    }
+
+    /// オンボーディングが2ステップ(猫選択 → バックアップ)かどうか。
+    /// 連携が無効なビルドでは1ステップ(猫選択のみ)になるのでステップ表示も出さない。
+    private var isTwoStepOnboarding: Bool {
+        isOnboarding && SupabaseConfig.isAccountLinkingEnabled
+    }
+
+    /// 両ステップ共通のヘッダー。ステップ表示(2ステップ時のみ)+ 大見出し + 補足。
+    @ViewBuilder
+    private func onboardingHeader(step: Int, title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if isTwoStepOnboarding {
+                Text("ステップ \(step) / 2")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(Palette.primaryDeep)
+                    .padding(.horizontal, 12).padding(.vertical, 5)
+                    .background(Palette.primary.opacity(0.14), in: Capsule())
+            }
+            Text(title)
+                .font(Typography.title)
+                .foregroundStyle(Palette.textPrimary)
+            Text(subtitle)
+                .font(Typography.body)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - ステップ1: 猫選択
+
+    private var catPickerBody: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if isOnboarding {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("一緒にがんばる猫を選ぼう")
-                                .font(Typography.title)
-                                .foregroundStyle(Palette.textPrimary)
-                            Text(AppFeatureFlags.friendsEnabled
-                                 ? "選んだ猫はホーム画面・達成演出・友達一覧で使われます。あとから設定でいつでも変更できます。"
-                                 : "選んだ猫はホーム画面・達成演出で使われます。あとから設定でいつでも変更できます。")
-                                .font(Typography.body)
-                                .foregroundStyle(Palette.textSecondary)
-                        }
+                        onboardingHeader(
+                            step: 1,
+                            title: "一緒にがんばる猫を選ぼう",
+                            subtitle: AppFeatureFlags.friendsEnabled
+                                ? "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+                                : "選んだ猫はホーム画面・達成演出で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+                        )
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
                     }
@@ -82,27 +122,33 @@ struct UserCatPickerView: View {
                 .padding(.vertical, 20)
             }
             .background(Palette.background)
-            .navigationTitle(isOnboarding ? "ようこそ" : "自分のキャラを選ぶ")
+            .navigationTitle(isOnboarding ? "" : "自分のキャラを選ぶ")
             .navigationBarTitleDisplayMode(.inline)
+            // オンボーディングはアクションを下部に固定(2画面で配置を統一)。
+            .safeAreaInset(edge: .bottom) {
+                if isOnboarding {
+                    PrimaryButton(isTwoStepOnboarding ? "つぎへ" : "はじめる", systemImage: "arrow.right") {
+                        advanceFromCatSelection()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .accessibilityIdentifier("user-cat-confirm")
+                }
+            }
             .toolbar {
                 if !isOnboarding {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("キャンセル") { dismiss() }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(isOnboarding ? "はじめる" : "決定") {
-                        if CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
-                            selected = prefs.myCat
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("決定") {
+                            commitSelectedCat()
+                            dismiss()
                         }
-                        prefs.myCat = selected
-                        if isOnboarding {
-                            Analytics.track(.onboardingCompleted)
-                        }
-                        dismiss()
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("user-cat-confirm")
                     }
-                    .fontWeight(.semibold)
-                    .accessibilityIdentifier("user-cat-confirm")
                 }
             }
             .interactiveDismissDisabled(isOnboarding)   // onboarding は閉じれない
@@ -110,6 +156,75 @@ struct UserCatPickerView: View {
                 PremiumPaywallSheet(store: storeKit, context: .general)
             }
         }
+    }
+
+    /// 選択中の猫を確定して保存。初期設定では何でも選べる。確定後の再選択(設定)では
+    /// ロック中の猫は無効化して現状維持(=種類変更にはプレミアムが必要)。
+    private func commitSelectedCat() {
+        if !isOnboarding,
+           CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
+            selected = prefs.myCat
+        }
+        prefs.myCat = selected
+    }
+
+    private func advanceFromCatSelection() {
+        commitSelectedCat()
+        // 連携が有効ならバックアップステップへ。無効ビルドはそのまま完了。
+        if isTwoStepOnboarding {
+            showBackupStep = true
+        } else {
+            completeOnboarding()
+        }
+    }
+
+    // MARK: - ステップ2: バックアップ(猫選択と同じレイアウト言語で統一)
+
+    /// 猫選択の後の「機種変更でも記録を引き継ぐ?」ステップ(任意・スキップ可)。
+    /// サインインした人は記録バックアップが自動 ON になり、以後どの端末でも復元できる。
+    private var backupStep: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    onboardingHeader(
+                        step: 2,
+                        title: "機種変更でも記録を引き継ぐ",
+                        subtitle: "Apple または Google でサインインすると、運動・体重・体調の記録が自動でバックアップされ、機種変更(iPhone↔Android)や再インストールでも元に戻せます。メールやパスワードは不要です。"
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    // ステップ1と同じ猫ヒーローを置いて、2画面の連続性を出す。
+                    catPreview
+
+                    AccountBackupSignIn(onFinished: { _ in completeOnboarding() }, showsSkip: true)
+                        .padding(.horizontal, 20)
+
+                    Text("あとから設定 →「アカウントとバックアップ」でも有効にできます。")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 20)
+                }
+                .padding(.vertical, 20)
+            }
+            .background(Palette.background)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // 猫選択へ戻れるように(ウィザードの一貫性)。
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("もどる") { showBackupStep = false }
+                        .accessibilityIdentifier("backup-step-back")
+                }
+            }
+            .interactiveDismissDisabled(true)
+        }
+    }
+
+    private func completeOnboarding() {
+        Analytics.track(.onboardingCompleted)
+        dismiss()
     }
 
     private var catPreview: some View {
@@ -138,7 +253,10 @@ struct UserCatPickerView: View {
 
     private func cell(_ breed: CatBreed) -> some View {
         let isSelected = selected == breed
-        let locked = CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
+        // 初期設定(オンボーディング)では全種類を自由に選べる(ロックしない)。
+        // 確定後に種類を変えるにはプレミアムが必要 = 設定からの再選択時のみロック判定する。
+        let locked = !isOnboarding &&
+            CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
         return Button {
             if locked { showPaywall = true } else { selected = breed }
         } label: {

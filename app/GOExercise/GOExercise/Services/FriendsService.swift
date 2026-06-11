@@ -21,7 +21,7 @@ protocol FriendsService: AnyObject {
     /// Push the user's own daily snapshot to the backend.
     func publishMyProfile(_ profile: FriendProfile) async throws
 
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws
 
     // MARK: - 友達紹介 (リファラル)
 
@@ -138,6 +138,9 @@ extension FriendsService {
     // 既定 (連携を扱わないスタブ等): 削除導線は実装側で必須。未実装は安全側で throw。
     func deleteAccount() async throws { throw FriendsServiceError.notSignedIn }
 
+    // 応援の受信。既定は空(Mock/スタブ)。Supabase 実装が override する。
+    func unseenReceivedCheers() async throws -> [ReceivedCheer] { [] }
+
     // 紹介を扱わないスタブ用の安全側既定。実バックエンド/Mock は override する。
     func submitInviteCode(_ code: String) async throws { throw FriendsServiceError.backendUnavailable }
     func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? { nil }
@@ -146,29 +149,53 @@ extension FriendsService {
     func hasReferrer() async throws -> Bool { false }
 }
 
+/// 応援スタンプ。rawValue はサーバ `cheers.kind` の契約値(Android と共通。変更時は両OS同時に)。
+/// 絵文字は使わず SF Symbol で描く(ユーザー要望)。旧 kind(great/clap/fire)は送信しないが、
+/// 受信側は `received(fromRaw:)` で互換表示する(旧クライアント/過去データ)。
 enum CheerKind: String, CaseIterable, Sendable {
-    case fight       // がんばれ
-    case great       // すごい
-    case clap        // 👏
-    case fire        // 🔥
+    case fight                  // がんばれ
+    case wontLose = "wontlose"  // 負けないぞ
+    case protein                // プロテイン
+    case catPunch = "catpunch"  // ねこぱんち
 
-    var emoji: String {
+    var symbolName: String {
         switch self {
-        case .fight: return "💪"
-        case .great: return "🌟"
-        case .clap: return "👏"
-        case .fire: return "🔥"
+        case .fight: return "megaphone.fill"
+        case .wontLose: return "bolt.fill"
+        case .protein: return "waterbottle.fill"
+        case .catPunch: return "pawprint.fill"
         }
     }
 
     var label: String {
         switch self {
         case .fight: return "がんばれ"
-        case .great: return "すごい"
-        case .clap: return "拍手"
-        case .fire: return "応援"
+        case .wontLose: return "負けないぞ"
+        case .protein: return "プロテイン"
+        case .catPunch: return "ねこぱんち"
         }
     }
+
+    /// 受信表示用: 未知/旧 kind も解釈して落とさない。
+    static func received(fromRaw raw: String) -> (label: String, symbolName: String) {
+        if let kind = CheerKind(rawValue: raw) { return (kind.label, kind.symbolName) }
+        switch raw {
+        case "great": return ("すごい", "star.fill")
+        case "clap": return ("拍手", "hands.clap")
+        case "fire": return ("応援", "flame.fill")
+        default: return ("応援", "heart.fill")
+        }
+    }
+}
+
+/// 自分宛てに届いた応援(前回チェック以降の未読分)。
+struct ReceivedCheer: Identifiable, Sendable, Equatable {
+    let id: String
+    let fromDisplayName: String
+    let kindRaw: String
+    /// 任意の一言コメント(message 列。旧クライアント/旧データは nil → kind のラベルで表示)。
+    let message: String?
+    let createdAt: Date
 }
 
 enum FriendsServiceError: LocalizedError {
@@ -208,6 +235,8 @@ final class FriendsStore {
     private(set) var hasLoadedOnce = false
     /// チア送信中の friendCode 集合。多重送信ガード + UI disabled に使う (Codex#3)。
     private(set) var cheeringCodes: Set<String> = []
+    /// 自分宛てに届いた応援(未読分)。refresh で取り込み、View が consume して表示する。
+    private(set) var receivedCheers: [ReceivedCheer] = []
     /// refresh の再入ガード。
     private var isRefreshing = false
     /// identity (サインイン中の uid) の世代トークン。サインアウト/復元/切替で +1 する。
@@ -229,6 +258,12 @@ final class FriendsStore {
 
     /// エラーバナーの「閉じる」用。
     func clearError() { lastError = nil }
+    /// 受信した応援を取り出してクリアする(View がトースト表示する)。
+    func consumeReceivedCheers() -> [ReceivedCheer] {
+        let cheers = receivedCheers
+        receivedCheers = []
+        return cheers
+    }
     /// エラーバナーの「更新」用 (直前操作の再試行ではなく状態の再取得, Codex#4)。
     func reload() async { await refresh() }
 
@@ -475,10 +510,13 @@ final class FriendsStore {
             do {
                 let loadedFriends = try await service.refreshFriends()
                 let loadedRequests = try await service.pendingRequests()
+                // 自分宛ての応援(未読分)。失敗しても友達一覧は出す(致命でない)。
+                let loadedCheers = (try? await service.unseenReceivedCheers()) ?? []
                 // await 中に identity が切替わっていたら旧アカウントの結果を捨てる (Codex)。
                 if gen == identityGeneration {
                     friends = loadedFriends
                     requests = loadedRequests
+                    if !loadedCheers.isEmpty { receivedCheers.append(contentsOf: loadedCheers) }
                     lastError = nil
                 }
             } catch {
@@ -553,12 +591,12 @@ final class FriendsStore {
         await refresh()
     }
 
-    func cheer(_ kind: CheerKind, to friendCode: String) async {
+    func cheer(_ kind: CheerKind, to friendCode: String, message: String? = nil) async {
         guard !cheeringCodes.contains(friendCode) else { return }  // 多重送信ガード (Codex#3)
         cheeringCodes.insert(friendCode)
         defer { cheeringCodes.remove(friendCode) }
         do {
-            try await service.sendCheer(kind, to: friendCode)
+            try await service.sendCheer(kind, to: friendCode, message: message)
         } catch {
             lastError = error.localizedDescription
         }
