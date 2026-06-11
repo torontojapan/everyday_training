@@ -29,7 +29,9 @@ enum StreakCalculator {
             )
 
             switch status {
-            case .achieved, .todayAchieved:
+            case .achieved, .todayAchieved, .rescued:
+                // rescued(フリーズ救済日)は達成として加算(.rescued は表示分離用の新ケース。
+                // default に落とすと救済日で連続が切れる=再発バグ類型「連続×救済」)。
                 streak += 1
             case .rest, .todayPending:
                 // rest = 連続を切らずスキップ。
@@ -86,7 +88,7 @@ enum StreakCalculator {
             )
 
             switch status {
-            case .achieved, .todayAchieved:
+            case .achieved, .todayAchieved, .rescued:
                 running += 1
                 longest = max(longest, running)
                 lastAchievedDate = cursor

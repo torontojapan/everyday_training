@@ -7,10 +7,14 @@ enum DailyStatus: String, Codable, CaseIterable, Sendable {
     case future
     case todayPending
     case todayAchieved
+    /// フリーズ(保険チケット)で救済された日。達成扱いだが「実際に運動した日(◎)」とは
+    /// 表示を分ける(ユーザー要望: ◎=実運動 / ○=フリーズ / 休=休養日)。
+    case rescued
 
     var symbol: String {
         switch self {
-        case .achieved: "○"
+        case .achieved: "◎"
+        case .rescued: "○"
         case .rest: "休"
         case .missed: "×"
         case .future: "-"
@@ -20,7 +24,7 @@ enum DailyStatus: String, Codable, CaseIterable, Sendable {
     }
 
     var countsAsAchieved: Bool {
-        self == .achieved || self == .rest || self == .todayAchieved
+        self == .achieved || self == .rest || self == .todayAchieved || self == .rescued
     }
 }
 

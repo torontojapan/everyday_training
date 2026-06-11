@@ -6,13 +6,10 @@ struct MediumWidgetView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            VStack(spacing: 6) {
-                WidgetCatView(rawState: snapshot.catState, size: 74)
-                Text(catState.displayName)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color(red: 0.54, green: 0.47, blue: 0.39))
-            }
-            .frame(width: 84)
+            // 猫の表情が状態を語るので、下の状態ラベル(「達成」等)は出さない
+            // (見出しと同義の繰り返しになっていた。ユーザー指摘の重複解消)。
+            WidgetCatView(rawState: snapshot.catState, size: 74)
+                .frame(width: 84)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 5) {
@@ -38,7 +35,8 @@ struct MediumWidgetView: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color(red: 0.54, green: 0.47, blue: 0.39))
                     Spacer()
-                    // Phase 7.0 Step 3: 1-tap 記録ボタン (Medium ウィジェット内)
+                    // CTA チップは未達成時のみ(達成/回復日のステータスチップは見出しと
+                    // 重複するため出さない。ユーザー指摘の「同じことを言い過ぎ」解消)。
                     QuickRecordButtonView(snapshot: snapshot)
                 }
             }
@@ -60,16 +58,13 @@ struct MediumWidgetView: View {
         return Color(red: 0.95, green: 0.42, blue: 0.30)
     }
 
-    private var catState: CatState {
-        CatState(rawValue: snapshot.catState) ?? .waitingMorning
-    }
-
+    /// 見出しが状態を宣言するので、この行は**繰り返さず**次への一言/残り時間を出す。
     private var remainingText: String {
         if snapshot.todayAchieved {
-            return "今日は達成済み"
+            return "また明日も続けよう"
         }
         if snapshot.isRestDay {
-            return "今日は整える日"
+            return "おやすみしても連続はとぎれません"
         }
         return "23:59まであと\(snapshot.nightDeadlineHoursLeft)時間"
     }

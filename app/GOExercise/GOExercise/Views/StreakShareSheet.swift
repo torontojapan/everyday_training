@@ -7,6 +7,8 @@ struct StreakShareSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    /// 背景グラデの選択(端末ローカルに記憶。カード種別ごとのキー)。
+    @AppStorage("shareCard.gradient.streak") private var gradientRaw = ShareCardGradient.ocean.rawValue
 
     init(streak: Int, isPresented: Binding<Bool> = .constant(true)) {
         self.streak = streak
@@ -15,11 +17,13 @@ struct StreakShareSheet: View {
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     private var appName: String { "GO エクササイズ" }
+    private var gradient: ShareCardGradient { ShareCardGradient(rawValue: gradientRaw) ?? .ocean }
 
     var body: some View {
         ZStack(alignment: .top) {
+            // フルスクリーン背景はカードと同じ選択グラデ(既定 = 寒色オーシャン)。
             LinearGradient(
-                colors: level.gradientColors,
+                colors: gradient.colors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -29,7 +33,7 @@ struct StreakShareSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    StreakShareCard(streak: streak, appName: appName)
+                    StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors)
 
                     if let renderedImage {
                         ShareLink(
@@ -65,6 +69,9 @@ struct StreakShareSheet: View {
                         }
                     }
 
+                    // 背景グラデの選択(5種)。変更すると共有画像も再レンダリングされる。
+                    ShareGradientPicker(selectionRaw: $gradientRaw)
+
                     if let saveBannerText {
                         Text(saveBannerText)
                             .font(Typography.caption)
@@ -84,6 +91,7 @@ struct StreakShareSheet: View {
         .task {
             renderImage()
         }
+        .onChange(of: gradientRaw) { _, _ in renderImage() }
     }
 
     private var closeButtonOverlay: some View {
@@ -115,7 +123,7 @@ struct StreakShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = StreakShareCard(streak: streak, appName: appName)
+        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -147,106 +155,76 @@ struct StreakShareSheet: View {
     }
 }
 
+/// ImageRenderer で書き出される静的ブランドカード。
+/// `WeeklyHighlightShareCard`(履歴タブのハイライト)とレイアウト言語を統一:
+/// バッジ → タイトル → 大きい猫 → 巨大 KPI → アプリ名。🔥/✨ の絵文字装飾は廃止。
+/// 背景はハイライト(暖色)と被らない寒色系グラデーション(ユーザー要望)。
 struct StreakShareCard: View {
     let streak: Int
     let appName: String
+    var gradientColors: [Color] = ShareCardGradient.ocean.colors
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
 
     var body: some View {
         VStack(spacing: 18) {
-            if let badge = level.badgeText {
-                Text(badge)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .tracking(2)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(.black.opacity(0.45), in: Capsule())
-            }
+            // バッジ(レベル称号があればそれを、無ければ STREAK)
+            Text(level.badgeText ?? "STREAK")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(3)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14).padding(.vertical, 5)
+                .background(.black.opacity(0.45), in: Capsule())
 
             Text(level.headline)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 4) {
-                Text(String(repeating: "🔥", count: level.fireCount))
-                    .font(.system(size: 28))
-            }
+            // 猫キャラ (大きく。ハイライトカードと同じ扱い)
+            catImage
+                .frame(width: 200, height: 200)
+                .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+                .padding(.top, 4)
 
+            // メイン KPI: 連続日数
             HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text("\(streak)")
-                    .font(.system(size: 110, weight: .black, design: .rounded))
+                    .font(.system(size: 88, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
                 Text("日連続")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
             }
-
-            ZStack {
-                ForEach(0..<level.sparkleCount, id: \.self) { idx in
-                    sparkle(at: idx)
-                }
-                catImage
-                    .frame(width: 180, height: 180)
-            }
-            .frame(height: 220)
 
             Text(appName)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.92))
-                .padding(.top, 8)
-
-            Text("GO Exercise")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.7))
-                .tracking(1.5)
+                .padding(.top, 10)
         }
         .padding(28)
         .frame(maxWidth: .infinity)
         .background(
-            ZStack {
-                LinearGradient(
-                    colors: level.gradientColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .opacity(0.85)
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .strokeBorder(.white.opacity(0.35), lineWidth: 2)
-            }
+            LinearGradient(
+                colors: gradientColors,
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 22, y: 10)
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
     }
 
     @ViewBuilder
     private var catImage: some View {
-        // Phase 6.3 の刷新後は被写体が画像全体に大きく入っているので、
-        // scale 1.0 + Circle clip で過不足なく収まる。
+        // ハイライトカードと同じ scaledToFit(被写体が全面に入っている asset 前提)。
         if UIImage(named: level.catStateAssetName) != nil {
             Image(level.catStateAssetName)
                 .resizable()
-                .scaledToFill()
-                .clipShape(Circle())
-                .overlay(Circle().strokeBorder(.white.opacity(0.45), lineWidth: 3))
+                .scaledToFit()
         } else {
             Text(level.fallbackEmoji)
                 .font(.system(size: 100))
         }
-    }
-
-    private func sparkle(at index: Int) -> some View {
-        let angle = Double(index) / Double(max(1, level.sparkleCount)) * 360
-        let radius: CGFloat = 110 + CGFloat(index % 3) * 12
-        let size: CGFloat = 12 + CGFloat(index % 4) * 4
-        return Text("✨")
-            .font(.system(size: size))
-            .offset(
-                x: cos(angle * .pi / 180) * radius,
-                y: sin(angle * .pi / 180) * radius
-            )
     }
 }

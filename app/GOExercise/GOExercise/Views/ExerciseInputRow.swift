@@ -7,6 +7,8 @@ struct ExerciseInputRow: View {
     let isExpanded: Bool
     let onToggleExpand: () -> Void
     let onRemove: () -> Void
+    /// 「同じ種目でセットを追加」。この行を複製して直下に挿入する(重さ違いの複数セット用)。
+    let onAddSet: () -> Void
 
     var body: some View {
         if isExpanded {
@@ -159,6 +161,19 @@ struct ExerciseInputRow: View {
                         .accessibilityLabel("重さ キログラム")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // 同じ種目で重さ・回数を変えて複数セットやる時のワンタップ導線。
+            // 名前・種類・重さを引き継いだ行が直下に増え、回数(や重さ)だけ入れればよい。
+            if !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button(action: onAddSet) {
+                    Label("同じ種目でセットを追加", systemImage: "plus.circle")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("add-set-button")
+                .accessibilityHint("この種目の名前と重さを引き継いだ行を下に追加します")
             }
 
             TextField("種目メモ (例: 体調メモ、回数アップ等)", text: $draft.memo)

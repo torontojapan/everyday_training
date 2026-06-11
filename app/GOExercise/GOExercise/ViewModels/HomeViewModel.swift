@@ -288,7 +288,7 @@ final class HomeViewModel {
                 for: cursor, records: records, restDays: restDays,
                 rescuedDates: hypothetical, today: today, calendar: calendar)
             switch status {
-            case .achieved, .todayAchieved:
+            case .achieved, .todayAchieved, .rescued:
                 count += 1
             case .rest:
                 break // skip — 連続は切らないが加算もしない

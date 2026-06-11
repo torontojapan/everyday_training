@@ -149,14 +149,8 @@ struct MonthlyCalendarView: View {
 
     private var footerSummary: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(summaryText)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                Spacer()
-            }
+            // 「6月: 1/30 日達成」のサマリ行は削除(ユーザー要望。カレンダー自体が語る)。
             // 記号だけだと初見で意味が分からないので凡例を表示。
-            // 達成 / 休養 / 未達成 / ★ 体調マーク / 🎫 保険チケット。
             legendRow
             // 休養日ルールの説明(ユーザー要望: 仕組みをどこかに明記)。
             Text("休養日は週2日まで自動でカウントされ、連続記録は途切れません。最初の記録より前の日は集計されません。")
@@ -171,9 +165,10 @@ struct MonthlyCalendarView: View {
             HStack(spacing: 10) {
                 // ヒートマップ移行に伴い、symbol チップから「色チップ」に変更。
                 // 凡例とセルの色を直結させて「色 == 状態」を一発で読めるように。
-                legendSwatch(color: Palette.success.opacity(0.55), label: "達成")
-                legendSwatch(color: Palette.restDay.opacity(0.55), label: "休養日")
-                legendSwatch(color: Palette.missed.opacity(0.18), label: "未達成")
+                legendSwatch(color: Color(red: 0.93, green: 0.33, blue: 0.30).opacity(0.60), label: "運動した日")
+                legendSwatch(color: Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.55), label: "休養日")
+                legendSwatch(color: Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.32), label: "フリーズ")
+                legendSwatch(color: Color(red: 0.38, green: 0.55, blue: 0.90).opacity(0.30), label: "未達成")
                 if !menstrualDates.isEmpty {
                     legendDot(color: Color(red: 0.86, green: 0.36, blue: 0.45), label: "生理日")
                 }
@@ -312,29 +307,6 @@ struct MonthlyCalendarView: View {
         return cells
     }
 
-    private var summaryText: String {
-        let monthStart = startOfMonth(currentMonth)
-        guard let range = calendar.range(of: .day, in: .month, for: monthStart) else { return "" }
-        // 「達成」と「休養」を分離してカウント。以前は countsAsAchieved で合算
-        // していたため、休養しか無い月でも「N 日達成」と表示されて誤解を招いた。
-        var achievedOnly = 0
-        var restCount = 0
-        for cell in monthCells {
-            if case let .day(_, status, _) = cell {
-                if status == .achieved || status == .todayAchieved {
-                    achievedOnly += 1
-                } else if status == .rest {
-                    restCount += 1
-                }
-            }
-        }
-        let month = calendar.component(.month, from: currentMonth)
-        if restCount > 0 {
-            return "\(month)月: \(achievedOnly) 日達成・\(restCount) 日休養"
-        }
-        return "\(month)月: \(achievedOnly) / \(range.count) 日達成"
-    }
-
     // MARK: - Helpers
 
     private func shiftMonth(by months: Int) {
@@ -355,10 +327,13 @@ struct MonthlyCalendarView: View {
         if isToday {
             return Palette.primary.opacity(0.85)
         }
+        // 配色ルール(ユーザー要望): 運動した日=赤で強調 / 休養・フリーズ=意味が近いので同じ緑系 /
+        // 未達成=青(落ち着いた色でネガティブ感を抑える)。
         switch status {
-        case .achieved, .todayAchieved: return Palette.success.opacity(0.55)
-        case .rest: return Palette.restDay.opacity(0.55)
-        case .missed: return Palette.missed.opacity(0.18)  // 薄い赤系で「未達成」と認識可能に
+        case .achieved, .todayAchieved: return Color(red: 0.93, green: 0.33, blue: 0.30).opacity(0.60)
+        case .rest: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.55)
+        case .rescued: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.32) // 休養と同系の薄緑
+        case .missed: return Color(red: 0.38, green: 0.55, blue: 0.90).opacity(0.30)
         case .future: return Palette.surface
         case .todayPending: return Palette.secondary.opacity(0.40)
         }
@@ -366,7 +341,7 @@ struct MonthlyCalendarView: View {
 
     private func shouldShowSymbol(for status: DailyStatus) -> Bool {
         switch status {
-        case .achieved, .todayAchieved, .rest, .todayPending, .missed: return true
+        case .achieved, .todayAchieved, .rescued, .rest, .todayPending, .missed: return true
         case .future: return false
         }
     }
@@ -382,6 +357,7 @@ struct MonthlyCalendarView: View {
     private func accessibilityValue(for status: DailyStatus) -> String {
         switch status {
         case .achieved, .todayAchieved: return "達成"
+        case .rescued: return "フリーズで継続"
         case .rest: return "休養日"
         case .missed: return "未達成"
         case .future: return "未来"

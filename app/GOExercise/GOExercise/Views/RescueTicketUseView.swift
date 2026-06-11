@@ -226,6 +226,8 @@ struct RescueTicketUseView: View {
             pendingDate = date
         case .achieved, .todayAchieved:
             resultMessage = ResultMessage(title: "この日は達成済み", text: "保険チケットは未達成 (×) の日にだけ使えます。")
+        case .rescued:
+            resultMessage = ResultMessage(title: "この日は救済済み", text: "すでにフリーズで継続扱いになっています。")
         case .rest:
             resultMessage = ResultMessage(title: "この日は自動休養日", text: "もう連続記録は維持されています。チケット不要です。")
         case .future:

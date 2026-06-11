@@ -14,6 +14,7 @@ struct WeeklyHighlightShareSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    @AppStorage("shareCard.gradient.weekly") private var gradientRaw = ShareCardGradient.sunset.rawValue
 
     init(summary: ExerciseTrendSummary.WeeklySummary,
          weekLabel: String,
@@ -24,15 +25,12 @@ struct WeeklyHighlightShareSheet: View {
     }
 
     private var appName: String { "GO エクササイズ" }
+    private var gradient: ShareCardGradient { ShareCardGradient(rawValue: gradientRaw) ?? .sunset }
 
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.80, blue: 0.55),
-                    Color(red: 0.95, green: 0.55, blue: 0.50),
-                    Color(red: 0.80, green: 0.50, blue: 0.85)
-                ],
+                colors: gradient.colors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
@@ -44,7 +42,8 @@ struct WeeklyHighlightShareSheet: View {
                     WeeklyHighlightShareCard(
                         summary: summary,
                         weekLabel: weekLabel,
-                        appName: appName
+                        appName: appName,
+                        gradientColors: gradient.colors
                     )
 
                     if let renderedImage {
@@ -75,6 +74,8 @@ struct WeeklyHighlightShareSheet: View {
                         }
                     }
 
+                    ShareGradientPicker(selectionRaw: $gradientRaw)
+
                     if let saveBannerText {
                         Text(saveBannerText)
                             .font(Typography.caption)
@@ -90,6 +91,7 @@ struct WeeklyHighlightShareSheet: View {
             closeButtonOverlay
         }
         .task { renderImage() }
+        .onChange(of: gradientRaw) { _, _ in renderImage() }
     }
 
     private var closeButtonOverlay: some View {
@@ -115,7 +117,7 @@ struct WeeklyHighlightShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName)
+        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName, gradientColors: gradient.colors)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -150,6 +152,7 @@ struct WeeklyHighlightShareCard: View {
     let summary: ExerciseTrendSummary.WeeklySummary
     let weekLabel: String
     let appName: String
+    var gradientColors: [Color] = ShareCardGradient.sunset.colors
 
     var body: some View {
         VStack(spacing: 18) {
@@ -223,11 +226,7 @@ struct WeeklyHighlightShareCard: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(red: 1.00, green: 0.62, blue: 0.42),
-                    Color(red: 0.90, green: 0.45, blue: 0.55),
-                    Color(red: 0.65, green: 0.42, blue: 0.85)
-                ],
+                colors: gradientColors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)

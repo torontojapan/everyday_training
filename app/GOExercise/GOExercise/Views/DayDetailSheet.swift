@@ -64,6 +64,7 @@ struct DayDetailSheet: View {
         case .future: return "calendar"
         case .missed, .todayPending: return "pawprint.fill"
         case .achieved, .todayAchieved: return "checkmark.seal.fill"
+        case .rescued: return "snowflake"
         }
     }
 
@@ -71,7 +72,7 @@ struct DayDetailSheet: View {
         switch status {
         case .rest, .future: return Palette.textSecondary
         case .missed, .todayPending: return Palette.primary
-        case .achieved, .todayAchieved: return Palette.primary
+        case .achieved, .todayAchieved, .rescued: return Palette.primary
         }
     }
 
@@ -82,6 +83,7 @@ struct DayDetailSheet: View {
         case .missed: return "この日は記録がないよ"
         case .todayPending: return "今日はまだ記録がないよ"
         case .achieved, .todayAchieved: return "記録がここに表示されます"
+        case .rescued: return "この日はフリーズで連続記録を継続したよ"
         }
     }
 }

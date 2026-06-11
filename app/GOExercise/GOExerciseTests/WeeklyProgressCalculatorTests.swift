@@ -85,9 +85,9 @@ final class WeeklyProgressCalculatorTests: XCTestCase {
             forWeekContaining: today, records: records, today: today,
             rescuedDates: rescued, restLimit: 0, calendar: calendar)
 
-        // index 2 = 水曜(20)。救済なしでは missed、救済ありでは achieved。
+        // index 2 = 水曜(20)。救済なしでは missed、救済ありでは rescued(○。実運動の ◎ と区別)。
         XCTAssertEqual(withoutRescue[2].status, .missed)
-        XCTAssertEqual(withRescue[2].status, .achieved)
+        XCTAssertEqual(withRescue[2].status, .rescued)
         XCTAssertGreaterThan(
             WeeklyProgressCalculator.progress(from: withRescue).achievedCount,
             WeeklyProgressCalculator.progress(from: withoutRescue).achievedCount)

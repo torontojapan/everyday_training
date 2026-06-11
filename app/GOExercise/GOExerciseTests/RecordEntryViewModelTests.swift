@@ -27,6 +27,32 @@ final class RecordEntryViewModelTests: XCTestCase {
         XCTAssertTrue(vm.canSave)
     }
 
+    func testAddSetDuplicatesNameCategoryAndLoadRightBelow() {
+        let vm = RecordEntryViewModel()
+        vm.drafts[0].name = "スクワット"
+        vm.drafts[0].category = .strength
+        vm.drafts[0].reps = 10
+        vm.drafts[0].loadText = "20"
+        vm.addExercise() // 末尾に別種目の空行がある状態でも「直下」に入ることを確認
+
+        let newId = vm.addSet(after: vm.drafts[0].id)
+
+        XCTAssertEqual(vm.drafts.count, 3)
+        XCTAssertEqual(vm.drafts[1].id, newId, "複製行は元の行の直下に挿入される")
+        XCTAssertEqual(vm.drafts[1].name, "スクワット", "種目名を引き継ぐ")
+        XCTAssertEqual(vm.drafts[1].category, .strength, "カテゴリを引き継ぐ")
+        XCTAssertEqual(vm.drafts[1].loadText, "20", "重さを引き継ぐ(セット間で同じ器具が多い)")
+        XCTAssertEqual(vm.drafts[1].reps, 0, "回数は引き継がない(セットごとに入れ直す)")
+        XCTAssertNotEqual(vm.drafts[1].id, vm.drafts[0].id, "別レコードとして保存される")
+    }
+
+    func testAddSetWithUnknownIdReturnsNilAndKeepsDrafts() {
+        let vm = RecordEntryViewModel()
+        vm.drafts[0].name = "スクワット"
+        XCTAssertNil(vm.addSet(after: UUID()))
+        XCTAssertEqual(vm.drafts.count, 1)
+    }
+
     func testResetAfterSaveResetsDraftsAndKeepsCanSaveBehavior() {
         let vm = RecordEntryViewModel()
         vm.drafts[0].name = "スクワット"

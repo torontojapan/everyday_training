@@ -67,10 +67,12 @@ struct WeeklyCalendarView: View {
             return Palette.primary.opacity(0.95)
         }
 
+        // 配色は履歴の月カレンダーと同一ルール: 運動=赤強調 / 休養・フリーズ=緑系 / 未達成=青。
         switch entry.status {
-        case .achieved, .todayAchieved: return Palette.success.opacity(0.65)
-        case .rest: return Palette.restDay.opacity(0.75)
-        case .missed: return Palette.missed.opacity(0.28)
+        case .achieved, .todayAchieved: return Color(red: 0.93, green: 0.33, blue: 0.30).opacity(0.65)
+        case .rest: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.60)
+        case .rescued: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.35)
+        case .missed: return Color(red: 0.38, green: 0.55, blue: 0.90).opacity(0.32)
         case .future, .todayPending: return Palette.secondary.opacity(0.45)
         }
     }
@@ -86,6 +88,7 @@ struct WeeklyCalendarView: View {
 
         switch entry.status {
         case .achieved, .todayAchieved: return "達成済み"
+        case .rescued: return "フリーズで継続"
         case .rest: return "休養日"
         case .missed: return "未達成"
         case .future: return "未来"

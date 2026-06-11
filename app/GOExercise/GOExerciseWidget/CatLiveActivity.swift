@@ -42,14 +42,15 @@ struct CatLiveActivity: Widget {
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         Spacer()
                         if !context.state.todayAchieved {
-                            Button(intent: QuickRecordIntent()) {
+                            // クイック記録は廃止(ユーザー要望)。アプリのホームタブを開いて記録する。
+                            Link(destination: URL(string: "goexercise://home")!) {
                                 Text("運動を記録")
                                     .font(.system(.caption, design: .rounded, weight: .heavy))
                                     .lineLimit(1)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Color(red: 1.00, green: 0.55, blue: 0.42), in: Capsule())
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color(red: 1.00, green: 0.55, blue: 0.42))
-                            .controlSize(.small)
                         }
                     }
                 }
@@ -152,7 +153,8 @@ struct CatLockScreenView: View {
             Spacer()
 
             if !state.todayAchieved {
-                Button(intent: QuickRecordIntent()) {
+                // クイック記録は廃止(ユーザー要望)。アプリのホームタブを開いて記録する。
+                Link(destination: URL(string: "goexercise://home")!) {
                     Text("運動を記録")
                         .font(.system(.caption, design: .rounded, weight: .heavy))
                         .foregroundStyle(.white)
@@ -171,7 +173,6 @@ struct CatLockScreenView: View {
                             in: Capsule()
                         )
                 }
-                .buttonStyle(.plain)
             } else {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 28))

@@ -44,6 +44,14 @@ struct RecordEntryView: View {
                                 if expandedExerciseID == removingId {
                                     expandedExerciseID = viewModel.drafts.last?.id
                                 }
+                            },
+                            onAddSet: {
+                                // 複製行を直下に挿入し、そちらへ展開を移す(元の行は最小化)。
+                                if let newId = viewModel.addSet(after: draft.id) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        expandedExerciseID = newId
+                                    }
+                                }
                             }
                         )
                     }

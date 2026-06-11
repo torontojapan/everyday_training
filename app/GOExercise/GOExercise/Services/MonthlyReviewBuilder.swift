@@ -222,11 +222,13 @@ enum MonthlyReviewBuilder {
                 rescuedDates: rescuedDates, today: todayStart, calendar: calendar
             )
             switch status {
-            case .achieved, .todayAchieved:
+            case .achieved, .todayAchieved, .rescued:
+                // rescued(フリーズ救済日)は正本 StreakCalculator と同じく達成として数える
+                // (.rescued は表示分離用の新ケース。default に落ちると連続が切れる)。
                 running += 1
                 longest = max(longest, running)
             case .rest, .todayPending:
-                break  // skip — 連続を切らず running を保つ (rest/救済の橋渡し)
+                break  // skip — 連続を切らず running を保つ (rest の橋渡し)
             default:
                 running = 0
             }

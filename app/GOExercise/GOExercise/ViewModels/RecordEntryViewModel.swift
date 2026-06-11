@@ -112,6 +112,19 @@ final class RecordEntryViewModel {
         drafts.append(ExerciseDraft(category: drafts.last?.category ?? .strength))
     }
 
+    /// 同じ種目でもう1セットぶんの行を直下に複製追加する(重さ・回数を変えて
+    /// 複数セットやる時に、種目を選び直す手間を無くすワンタップ導線)。
+    /// 名前・カテゴリ・重さを引き継ぎ、時間/回数/セット/メモは空で始める。
+    /// 戻り値 = 新しい行の id(呼び出し側がその行へ展開を切り替える)。nil = 元の行が見つからない。
+    @discardableResult
+    func addSet(after id: UUID) -> UUID? {
+        guard let index = drafts.firstIndex(where: { $0.id == id }) else { return nil }
+        let source = drafts[index]
+        let copy = ExerciseDraft(name: source.name, category: source.category, loadText: source.loadText)
+        drafts.insert(copy, at: index + 1)
+        return copy.id
+    }
+
     /// 記録全体の代表カテゴリ (先頭種目)。履歴グルーピング・ウィジェット等の
     /// 「1 記録 = 1 カテゴリ」前提の箇所に渡す後方互換用。
     var primaryCategory: WorkoutCategory {

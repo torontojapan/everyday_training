@@ -32,13 +32,19 @@ struct MonthlyReviewSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    /// 背景グラデの上書き選択。空 = 呼び出し元の既定 `gradient` を使う(先月=紫 等)。
+    @AppStorage("shareCard.gradient.review") private var gradientRaw = ""
 
     private var appName: String { "GO エクササイズ" }
+    /// ピッカーで選んでいればそれを、未選択なら呼び出し元の既定を使う。
+    private var activeGradient: [Color] {
+        ShareCardGradient(rawValue: gradientRaw)?.colors ?? gradient
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                colors: gradient,
+                colors: activeGradient,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
@@ -47,7 +53,7 @@ struct MonthlyReviewSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: gradient)
+                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient)
 
                     if let renderedImage {
                         ShareLink(
@@ -76,6 +82,8 @@ struct MonthlyReviewSheet: View {
                         }
                     }
 
+                    ShareGradientPicker(selectionRaw: $gradientRaw)
+
                     if let saveBannerText {
                         Text(saveBannerText)
                             .font(Typography.caption)
@@ -91,6 +99,7 @@ struct MonthlyReviewSheet: View {
             closeButtonOverlay
         }
         .task { renderImage() }
+        .onChange(of: gradientRaw) { _, _ in renderImage() }
     }
 
     private var closeButtonOverlay: some View {
@@ -115,7 +124,7 @@ struct MonthlyReviewSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: gradient)
+        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3

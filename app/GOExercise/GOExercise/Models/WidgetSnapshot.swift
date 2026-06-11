@@ -14,7 +14,7 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     /// タイムラインの各 entry は同一スナップショットを使い回すため、生成日と異なる「翌日以降」の
     /// entry では当日状態(達成/休養/締切)が古くなる。日付が変わった entry は「新しい日・未記録」
     /// として描画し直す(監査 P1: 翌朝までウィジェットが「達成済み」で固着し、クイック記録ボタンが
-    /// 隠れてしまう。QuickRecordIntent は書込み側で同じ date-blind 対策を既に持つ=表示側の漏れ)。
+    /// 隠れてしまう。書込み側は同じ date-blind 対策を既に持つ=表示側の漏れ)。
     /// 連続日数は「昨日まで」基準なので据え置く。週次カウントは月曜跨ぎでわずかに甘くなるが据え置く。
     func projected(to entryDate: Date, calendar: Calendar = .current) -> WidgetSnapshot {
         guard !calendar.isDate(entryDate, inSameDayAs: generatedAt) else { return self }

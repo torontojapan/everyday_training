@@ -27,7 +27,8 @@ enum StreakFreezeWindow {
             loop: for (idx, status) in statuses.enumerated() {
                 let offset = idx + 1
                 switch status {
-                case .achieved, .todayAchieved:
+                case .achieved, .todayAchieved, .rescued:
+                    // rescued(過去のフリーズ救済日)も達成と同じ「連続の頭」(.rescued は表示分離用)。
                     foundPrior = true // 連続の頭に到達
                     break loop
                 case .rest:
@@ -81,8 +82,8 @@ enum StreakFreezeWindow {
                 rescuedDates: rescuedDates, today: todayStart, calendar: calendar)
             statuses.append(s)
             switch s {
-            case .achieved, .todayAchieved:
-                break scan                       // anchor 到達 → これ以上不要
+            case .achieved, .todayAchieved, .rescued:
+                break scan                       // anchor 到達 → これ以上不要(rescued も達成扱い)
             case .rest:
                 continue                          // 休養は枠を消費せず連続も切らない → 延長
             case .missed:
