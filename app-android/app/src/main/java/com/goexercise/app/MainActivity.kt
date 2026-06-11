@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private var pendingDeepLink by mutableStateOf<String?>(null)
 
     @javax.inject.Inject lateinit var referralStore: com.goexercise.app.data.referral.ReferralStore
+    @javax.inject.Inject lateinit var recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -67,6 +68,8 @@ class MainActivity : ComponentActivity() {
         // アプリを離れる時にホーム画面ウィジェットを更新する。Glance の updatePeriodMillis(30分)を
         // 待たず、直前の記録/削除/猫変更/フリーズ使用を反映する(最も低結合な単一トリガ)。
         lifecycleScope.launch { runCatching { StreakWidget().updateAll(applicationContext) } }
+        // バックグラウンド移行時にバックアップ同期(iOS scenePhase .background と対称。OFF なら即 return)。
+        lifecycleScope.launch { runCatching { recordSync.syncNow() } }
     }
 
     /**

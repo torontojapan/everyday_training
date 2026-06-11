@@ -390,10 +390,68 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
         client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } }
         client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } }
+        // user_records は体重・体調を含む機微データ。EF 不達時にサーバへ残留させない(iOS Codex 監査の是正と対称)。
+        client.from("user_records").delete { filter { eq("user_id", uid) } }
         client.from("profiles").delete { filter { eq("user_id", uid) } }
         runCatching { client.auth.signOut(SignOutScope.GLOBAL) } // best-effort(token 失効は EF の役目)
         backup = AccountBackupStatus.Anonymous
     }
+
+    // ================= 記録のクラウドバックアップ(user_records)=================
+    // 体重・体調を含む機微データ。RLS で本人のみ読み書き可(profiles と違い SELECT も本人限定)。
+    // payload は jsonb。クライアント間契約(キー名/日付形式)は RecordSyncCoordinator が正本。
+
+    override suspend fun backupUpsert(records: List<BackupRecord>) {
+        if (records.isEmpty()) return
+        val uid = ensureUid()
+        val rows = records.map { r ->
+            UserRecordRow(
+                userId = uid, recordId = r.id, kind = r.kind,
+                payload = r.payload,
+                updatedAt = backupTimestamp(r.updatedAt),
+                deleted = r.deleted,
+            )
+        }
+        client.from("user_records").upsert(rows) { onConflict = "user_id,record_id" }
+    }
+
+    override suspend fun backupFetchAll(): List<BackupRecord> {
+        // 未サインインで匿名アカウントを勝手に作らない(opt-in 厳守。iOS signedInSessionOrNil→[] と同型)。
+        val uid = client.auth.currentUserOrNull()?.id ?: return emptyList()
+        val rows = client.from("user_records").select { filter { eq("user_id", uid) } }
+            .decodeList<UserRecordRow>()
+        return rows.map { row ->
+            BackupRecord(
+                id = row.recordId, kind = row.kind, payload = row.payload,
+                updatedAt = com.goexercise.app.domain.friends.ReferralClock.parseTimestamp(row.updatedAt)
+                    ?: java.time.Instant.now(),
+                deleted = row.deleted,
+            )
+        }
+    }
+
+    override suspend fun backupMarkDeleted(recordIds: List<String>) {
+        if (recordIds.isEmpty()) return
+        val uid = ensureUid()
+        client.from("user_records").update(
+            UserRecordTombstoneUpdate(
+                deleted = true,
+                payload = kotlinx.serialization.json.JsonObject(emptyMap()),
+                updatedAt = backupTimestamp(java.time.Instant.now()),
+            ),
+        ) {
+            filter { eq("user_id", uid); isIn("record_id", recordIds) }
+        }
+    }
+
+    override suspend fun backupWipeAll() {
+        val uid = client.auth.currentUserOrNull()?.id ?: return
+        client.from("user_records").delete { filter { eq("user_id", uid) } }
+    }
+
+    /** ISO8601(秒精度・UTC)。iOS ISO8601DateFormatter 既定と同形("2026-06-11T05:00:00Z")。 */
+    private fun backupTimestamp(instant: java.time.Instant): String =
+        java.time.format.DateTimeFormatter.ISO_INSTANT.format(instant.truncatedTo(java.time.temporal.ChronoUnit.SECONDS))
 
     // ---- エラー写像(iOS mapLinkError / mapPKCECallback 相当の簡易版)----
 

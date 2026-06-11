@@ -86,10 +86,15 @@ final class RecordSyncCoordinator {
             guard !rows.isEmpty else { return }
             try apply(remote: rows)
             isEnabled = true
-            stampSynced(at: Date())
         } catch {
             lastError = "バックアップの復元に失敗しました: \(error.localizedDescription)"
+            return
         }
+        // ここで watermark(lastSyncAt)は**打たない**。切替前から端末にあったローカル限定の
+        // 記録が updatedAt <= stamp で永久に push されなくなる(Codex R4)。代わりに全量同期:
+        // resetForIdentityChange 済みで lastSync=nil のため、ローカル全件 push(冪等 upsert)
+        // → pull → 開始時刻 stamp となり、切替前からの記録も確実にクラウドへ載る。
+        await syncNow()
     }
 
     /// 通常同期(起動時/バックグラウンド移行時/手動)。
@@ -112,10 +117,13 @@ final class RecordSyncCoordinator {
                 try await service.backupMarkDeleted(pending.ids)
             }
             RecordSyncTombstones.clear(ids: pending.ids, wipe: pending.wipe, defaults: defaults)
-            // 2) push(lastSync 以降の変更 + 救済日全件)
-            try await service.backupUpsert(changedRecords(since: lastSyncAt))
-            // 3) pull → マージ適用
+            // 2) pull → マージ適用を **push より先に** 行う。push を先にすると、自端末の古い編集
+            //    (updatedAt > lastSync だが他端末の編集より古い)が無条件 upsert で新しいリモート行を
+            //    潰し、LWW の比較機会が失われる(Codex R5: 新しい編集の喪失)。pull で remote-newer を
+            //    取り込んでから push すれば、古い側はローカルで上書きされ、push は最新内容の冪等 echo になる。
             try apply(remote: try await service.backupFetchAll())
+            // 3) push(lastSync 以降の変更 + 救済日全件)
+            try await service.backupUpsert(changedRecords(since: lastSyncAt))
             stampSynced(at: syncStart)
         } catch {
             lastError = "同期に失敗しました: \(error.localizedDescription)"

@@ -29,6 +29,9 @@ interface RescueTicketRepository {
 
     /** 救済使用日を全消去(データ全削除導線。残すと削除後も達成扱いの日が残る)。 */
     suspend fun clearAll()
+
+    /** クラウドバックアップ復元: allowance を消費せず救済日を取り込む(iOS importRescuedDays)。 */
+    suspend fun importRescuedDays(days: Set<LocalDate>)
 }
 
 class RescueTicketRepositoryImpl @Inject constructor(
@@ -55,6 +58,13 @@ class RescueTicketRepositoryImpl @Inject constructor(
 
     override suspend fun clearAll() {
         dataStore.edit { it.remove(usedKey) }
+    }
+
+    override suspend fun importRescuedDays(days: Set<LocalDate>) {
+        if (days.isEmpty()) return
+        dataStore.edit { prefs ->
+            prefs[usedKey] = (prefs[usedKey] ?: emptySet()) + days.map { it.toEpochDay().toString() }
+        }
     }
 }
 

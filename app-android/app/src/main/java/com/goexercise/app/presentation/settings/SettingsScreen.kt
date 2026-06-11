@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -66,6 +67,9 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val laterAccepted by viewModel.laterAccepted.collectAsStateWithLifecycle()
     val referralError by viewModel.referralError.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
+    val backupEnabled by viewModel.backupEnabled.collectAsStateWithLifecycle()
+    val backupSyncing by viewModel.backupSyncing.collectAsStateWithLifecycle()
+    val backupError by viewModel.backupError.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -122,6 +126,11 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onSubmitLaterInvite = viewModel::submitLaterInvite,
         referralError = referralError,
         currentStreak = currentStreak,
+        backupEnabled = backupEnabled,
+        backupSyncing = backupSyncing,
+        backupError = backupError,
+        onToggleBackup = viewModel::setBackupEnabled,
+        onBackupNow = viewModel::backupNow,
     )
 }
 
@@ -153,6 +162,11 @@ fun SettingsContent(
     onSubmitLaterInvite: () -> Unit = {},
     referralError: String? = null,
     currentStreak: Int = 0,
+    backupEnabled: Boolean = false,
+    backupSyncing: Boolean = false,
+    backupError: String? = null,
+    onToggleBackup: (Boolean) -> Unit = {},
+    onBackupNow: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -198,11 +212,75 @@ fun SettingsContent(
             ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
         }
 
+        Text("アカウントとバックアップ", color = palette.textSecondary, fontSize = 13.sp)
+        BackupSection(
+            palette = palette,
+            enabled = backupEnabled,
+            syncing = backupSyncing,
+            error = backupError,
+            hasAccount = myFriendCode != null,
+            onToggle = onToggleBackup,
+            onBackupNow = onBackupNow,
+        )
+
         Text("データ管理", color = palette.textSecondary, fontSize = 13.sp)
         DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
 
         Text("プライバシー", color = palette.textSecondary, fontSize = 13.sp)
         AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
+    }
+}
+
+/**
+ * 記録のクラウドバックアップ(オプトイン)+ 機種変更復元の案内。iOS 設定の同セクション移植。
+ * Apple/Google 連携(復元の鍵)は友達タブの連携 UI と同じアカウントを共有する。
+ */
+@Composable
+private fun BackupSection(
+    palette: AppTheme,
+    enabled: Boolean,
+    syncing: Boolean,
+    error: String?,
+    hasAccount: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onBackupNow: () -> Unit,
+) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("記録をクラウドにバックアップ", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        "運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(Android↔iPhone)や再インストールで復元できます。友達には共有されません。",
+                        color = palette.textSecondary, fontSize = 12.sp,
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onToggle)
+            }
+            if (enabled) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !syncing) { onBackupNow() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("今すぐバックアップ", color = palette.textPrimary)
+                    Spacer(Modifier.weight(1f))
+                    if (syncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                }
+                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+            }
+            Text(
+                if (hasAccount) {
+                    "機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。新しい端末で同じアカウントにサインインすると記録が戻ります。"
+                } else {
+                    "ON にすると自動でアカウントが作られます。機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。"
+                },
+                color = palette.textSecondary, fontSize = 11.sp,
+            )
+        }
     }
 }
 

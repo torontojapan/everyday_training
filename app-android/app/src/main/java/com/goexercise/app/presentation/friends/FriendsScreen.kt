@@ -99,6 +99,8 @@ fun FriendsRoute(
     val myBreed by viewModel.myBreed.collectAsStateWithLifecycle()
     val backupSuppressed by viewModel.backupSuppressed.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // タブを開いたら自動でアカウントを発行(iOS と同じワンステップ化。失敗時は welcome+再試行)。
+    LaunchedEffect(Unit) { viewModel.ensureSignedIn() }
     // 追加/ランキングから戻る・アプリ復帰のたびに最新化(別 VM の add がサーバを変えるため)。
     LifecycleResumeEffect(Unit) {
         viewModel.refreshIfSignedIn()

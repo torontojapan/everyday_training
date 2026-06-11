@@ -40,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     private val clock: Clock,
     private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val friendsService: com.goexercise.app.data.friends.FriendsService,
+    private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
 ) : ViewModel() {
 
     /** 現在の連続記録(称号一覧の現在地「いま」/次目標「あとN日」表示用)。
@@ -123,6 +124,35 @@ class SettingsViewModel @Inject constructor(
                 _isBusy.value = false
             }
         }
+    }
+
+    // --- アカウントとバックアップ(記録のクラウド保存。iOS 設定の同セクション移植) ---
+
+    /** バックアップのオプトイン状態(既定 OFF)。 */
+    val backupEnabled: StateFlow<Boolean> = recordSync.isEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** 同期中(今すぐバックアップのスピナー)。 */
+    val backupSyncing: StateFlow<Boolean> = recordSync.isSyncing
+
+    /** 直近の同期/復元エラー(利用者向け文言)。 */
+    val backupError: StateFlow<String?> = recordSync.lastError
+
+    /** トグル: ON は(未サインインなら)匿名アカウント発行→全量同期、OFF は同期停止のみ。 */
+    fun setBackupEnabled(on: Boolean) {
+        viewModelScope.launch {
+            if (on) {
+                recordSync.enableBackup()
+                _myFriendCode.value = friendsService.myProfile()?.friendCode // ON で初めてアカウントができた場合に反映
+            } else {
+                recordSync.disableBackup()
+            }
+        }
+    }
+
+    /** 「今すぐバックアップ」。 */
+    fun backupNow() {
+        viewModelScope.launch { recordSync.syncNow() }
     }
 
     // --- 友達を招待(共有 / 星バッジ / 後から入力) ---
