@@ -98,6 +98,12 @@ struct FriendsView: View {
                 if SupabaseConfig.isAccountLinkingEnabled {
                     await friendsStore.refreshBackupStatus()
                 }
+            } else if !friendsStore.isSigningIn && !isLinkingAccount {
+                // タブを開いたら自動でアカウントを発行し、最初から友達コード画面を見せる
+                // (旧: welcome のボタンを押すまで作らない lazy 方式。ユーザー要望でワンステップ化)。
+                // 失敗時は welcome に留まり CTA が再試行を兼ねる(従来挙動)。
+                // 復元したい人は welcome/設定の Apple/Google 復元でアカウントを切替できる。
+                await friendsStore.ensureSignedIn()
             }
             handlePendingFriendCode()   // pending な deep link code がある時だけ lazy サインイン
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、

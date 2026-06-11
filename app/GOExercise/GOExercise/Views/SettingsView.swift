@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(ReferralStore.self) private var referralStore
+    @Environment(RecordSyncCoordinator.self) private var recordSync
     @State private var showPremiumPaywall = false
     @State private var laterInviteCode = ""
     @State private var isSubmittingLater = false
@@ -213,6 +214,45 @@ struct SettingsView: View {
             }
 
             // ⑤ データ & プライバシー
+            // アカウントとバックアップ: 記録のクラウド保存(オプトイン)+ 機種変更復元の案内。
+            // Apple/Google 連携(復元の鍵)は友達タブの連携 UI と同じアカウントを共有する。
+            Section {
+                Toggle(isOn: Binding(
+                    get: { recordSync.isEnabled },
+                    set: { on in
+                        if on { Task { await recordSync.enableBackup() } } else { recordSync.disableBackup() }
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("記録をクラウドにバックアップ")
+                            .foregroundStyle(Palette.textPrimary)
+                        Text("運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(iPhone↔Android)や再インストールで復元できます。友達には共有されません。")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+                .accessibilityIdentifier("record-backup-toggle")
+                if recordSync.isEnabled {
+                    HStack {
+                        Label("今すぐバックアップ", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(Palette.textPrimary)
+                        Spacer()
+                        if recordSync.isSyncing { ProgressView() }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { Task { await recordSync.syncNow() } }
+                    if let err = recordSync.lastError {
+                        Text(err).font(Typography.caption).foregroundStyle(.red)
+                    }
+                }
+            } header: {
+                Text("アカウントとバックアップ")
+            } footer: {
+                Text(friendsStore.profile == nil
+                     ? "ON にすると自動でアカウントが作られます。機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。"
+                     : "機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。新しい端末で同じアカウントにサインインすると記録が戻ります。")
+            }
+
             Section {
                 Button {
                     exportData()

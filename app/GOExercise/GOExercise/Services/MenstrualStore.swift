@@ -55,6 +55,8 @@ final class MenstrualStore {
         } else {
             let toDelete = entries.filter { calendar.isDate($0.date, inSameDayAs: day) }
             for entry in toDelete {
+                // クラウドバックアップ有効時は削除をサーバへも伝播(次回同期で論理削除)。
+                RecordSyncTombstones.note(entry.id.uuidString.lowercased())
                 context.delete(entry)
             }
         }

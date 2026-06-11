@@ -71,6 +71,16 @@ final class RescueTicketStore {
         return true
     }
 
+    /// クラウドバックアップ復元用: 救済日を allowance を消費せずに取り込む(過去に正規に
+    /// 消費済みの日の復元なので再課金しない)。冪等(既存日との union)。
+    func importRescuedDays(_ days: Set<Date>) {
+        let normalized = Set(days.map { calendar.startOfDay(for: $0) })
+        let merged = usedDates.union(normalized)
+        guard merged != usedDates else { return }
+        usedDates = merged
+        defaults.set(usedDates.map { Self.dayKey(for: $0, calendar: calendar) }, forKey: Self.usedDatesKey)
+    }
+
     func clear() {
         usedDates.removeAll()
         defaults.removeObject(forKey: Self.usedDatesKey)

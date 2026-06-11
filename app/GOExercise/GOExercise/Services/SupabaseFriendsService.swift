@@ -740,6 +740,60 @@ final class SupabaseFriendsService: FriendsService {
         return !rows.isEmpty
     }
 
+    // MARK: - 記録のクラウドバックアップ (user_records)
+    // 体重・体調を含む機微データ。RLS で本人のみ読み書き可(profiles と違い SELECT も本人限定)。
+    // payload は jsonb。クライアント間契約(キー名/日付形式)は RecordSyncCoordinator が正本。
+
+    func backupUpsert(_ records: [BackupRecord]) async throws {
+        guard !records.isEmpty else { return }
+        let client = try requireClient()
+        let uid = try await ensureUID().uuidString.lowercased()
+        let rows = try records.map { r in
+            UserRecordRow(
+                user_id: uid, record_id: r.id, kind: r.kind,
+                payload: try JSONDecoder().decode(AnyJSON.self, from: r.payloadJSON),
+                updated_at: Self.backupDateFormatter.string(from: r.updatedAt),
+                deleted: r.deleted)
+        }
+        try await client.from("user_records").upsert(rows, onConflict: "user_id,record_id").execute()
+    }
+
+    func backupFetchAll() async throws -> [BackupRecord] {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return [] }
+        let uid = session.user.id.uuidString.lowercased()
+        let rows: [UserRecordRow] = try await client.from("user_records")
+            .select().eq("user_id", value: uid).execute().value
+        return try rows.map { row in
+            BackupRecord(
+                id: row.record_id, kind: row.kind,
+                payloadJSON: try JSONEncoder().encode(row.payload),
+                updatedAt: ReferralClock.parseTimestamp(row.updated_at) ?? Date(),
+                deleted: row.deleted)
+        }
+    }
+
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {
+        guard !recordIDs.isEmpty else { return }
+        let client = try requireClient()
+        let uid = try await ensureUID().uuidString.lowercased()
+        try await client.from("user_records")
+            .update(UserRecordTombstone(deleted: true, payload: .object([:]),
+                                        updated_at: Self.backupDateFormatter.string(from: Date())))
+            .eq("user_id", value: uid)
+            .in("record_id", values: recordIDs)
+            .execute()
+    }
+
+    func backupWipeAll() async throws {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return }
+        let uid = session.user.id.uuidString.lowercased()
+        try await client.from("user_records").delete().eq("user_id", value: uid).execute()
+    }
+
+    private static let backupDateFormatter = ISO8601DateFormatter()
+
     // MARK: - Helpers
 
     /// user_a < user_b 正規化。`UUID.uuidString` は大文字・DB由来IDは小文字のため、
@@ -918,6 +972,19 @@ private struct ReferralInsert: Encodable {
 private struct ReferralConfirmUpdate: Encodable {
     let status: String
     let confirmed_at: String
+}
+private struct UserRecordRow: Codable {
+    let user_id: String
+    let record_id: String
+    let kind: String
+    let payload: AnyJSON
+    let updated_at: String
+    let deleted: Bool
+}
+private struct UserRecordTombstone: Encodable {
+    let deleted: Bool
+    let payload: AnyJSON
+    let updated_at: String
 }
 private struct ReferralSeenUpdate: Encodable {
     let seen_by_referrer: Bool

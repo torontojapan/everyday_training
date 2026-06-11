@@ -78,6 +78,8 @@ struct DataManagementService {
         weights.forEach(context.delete)
         menstrual.forEach(context.delete)
         try context.save()
+        // クラウドバックアップ有効時はサーバ側も全削除(次回同期で物理 delete)。
+        RecordSyncTombstones.noteWipe()
         return total
     }
 

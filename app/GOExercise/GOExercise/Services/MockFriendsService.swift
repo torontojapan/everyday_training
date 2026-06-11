@@ -95,6 +95,30 @@ final class MockFriendsService: FriendsService {
         defaults.removeObject(forKey: Self.profileKey)
     }
 
+    // MARK: 記録バックアップ (in-memory モック。テスト/シミュ確認用)
+    private var backupRows: [String: BackupRecord] = [:]
+
+    func backupUpsert(_ records: [BackupRecord]) async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        for r in records { backupRows[r.id] = r }
+    }
+    func backupFetchAll() async throws -> [BackupRecord] {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        return Array(backupRows.values)
+    }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        for id in recordIDs {
+            if let r = backupRows[id] {
+                backupRows[id] = BackupRecord(id: r.id, kind: r.kind, payloadJSON: Data("{}".utf8), updatedAt: Date(), deleted: true)
+            }
+        }
+    }
+    func backupWipeAll() async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        backupRows.removeAll()
+    }
+
     /// アカウント削除 (審査 5.1.1(v))。モックは in-memory 状態を全消去する (実 BE のデータ消去相当)。
     func deleteAccount() async throws {
         myProfile = nil

@@ -9,6 +9,7 @@ struct HomeView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(ReferralStore.self) private var referralStore
+    @Environment(RecordSyncCoordinator.self) private var recordSync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = HomeViewModel()
@@ -130,6 +131,9 @@ struct HomeView: View {
                 // これが無いと星/今月フリーズ/⭐10猫解放が前アカウントの値のまま、または
                 // 新アカウントの正当な解放が次回起動まで反映されない(口座スコープ漏れ、監査 P2)。
                 Task { await referralStore.refresh() }
+                // 機種変更/再インストールの復元: 新アカウントにクラウドバックアップが
+                // あれば取り込み、バックアップ設定も自動で ON にする(Duolingo 型)。
+                Task { await recordSync.restoreAfterSignIn() }
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)

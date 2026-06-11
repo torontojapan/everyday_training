@@ -87,6 +87,27 @@ protocol FriendsService: AnyObject {
     /// (= 別途 Edge Function。本人のデータが消えれば残る行に PII は無く、cascade で連鎖削除される)。
     /// 失敗時は throw し、呼び出し側はサインアウトせず再試行可能にする。
     func deleteAccount() async throws
+
+    // MARK: 記録のクラウドバックアップ (user_records, iOS/Android 共通スキーマ)
+
+    /// 変更行をまとめて upsert する (PK = user_id × record_id で冪等)。
+    func backupUpsert(_ records: [BackupRecord]) async throws
+    /// 本人の全行 (tombstone 含む) を取得する。復元・同期のプル側。
+    func backupFetchAll() async throws -> [BackupRecord]
+    /// 指定 record_id を論理削除 (deleted=true, payload 空) にする。他端末へ削除を伝播。
+    func backupMarkDeleted(_ recordIDs: [String]) async throws
+    /// 本人の全行を物理削除 (設定「すべての記録を削除」用)。
+    func backupWipeAll() async throws
+}
+
+/// クラウドバックアップ1行ぶんのニュートラルDTO。payload は kind ごとの JSON (Data)。
+/// スキーマ正本 = supabase/schema.sql の user_records。Android も同形式で読み書きする。
+struct BackupRecord: Sendable, Equatable {
+    let id: String          // record_id (workout/weight/menstrual は UUID 文字列, rescued_day は "rescued-YYYY-MM-DD")
+    let kind: String        // workout / weight / menstrual / rescued_day
+    let payloadJSON: Data   // jsonb に入る JSON オブジェクト
+    let updatedAt: Date
+    let deleted: Bool
 }
 
 extension FriendsService {
