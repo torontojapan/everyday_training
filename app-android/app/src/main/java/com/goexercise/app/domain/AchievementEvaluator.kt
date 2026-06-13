@@ -34,8 +34,9 @@ object AchievementEvaluator {
 
         if (achieved) return DailyStatus.Achieved
 
-        // 保険チケット使用日は achieved 同等(連続記録にカウント)。
-        if (rescuedDates.contains(day)) return DailyStatus.Achieved
+        // 保険チケット使用日は ○(Rescued)。連続記録には達成同等にカウントするが、
+        // 実運動(◎)とは表示を分ける(iOS と一致。countsAsAchieved=true)。
+        if (rescuedDates.contains(day)) return DailyStatus.Rescued
 
         if (restDays.contains(day)) return DailyStatus.Rest
 

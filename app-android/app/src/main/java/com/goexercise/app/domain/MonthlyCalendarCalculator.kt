@@ -44,7 +44,9 @@ object MonthlyCalendarCalculator {
      * (Achieved/TodayAchieved のみ。MonthlyCalendarView.summaryText 参照)。
      */
     fun achievedDaysInMonth(cells: List<MonthCell>): Int =
-        cells.count { it.status == DailyStatus.Achieved || it.status == DailyStatus.TodayAchieved }
+        cells.count {
+            it.status == DailyStatus.Achieved || it.status == DailyStatus.Rescued || it.status == DailyStatus.TodayAchieved
+        }
 
     /** 当月の休養(Rest)日数。iOS は達成と分離表示する。 */
     fun restDaysInMonth(cells: List<MonthCell>): Int =

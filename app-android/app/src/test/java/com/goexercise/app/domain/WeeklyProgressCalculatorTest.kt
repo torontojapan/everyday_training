@@ -84,7 +84,9 @@ class WeeklyProgressCalculatorTest {
         )
 
         assertEquals(DailyStatus.Missed, withoutRescue[2].status)
-        assertEquals(DailyStatus.Achieved, withRescue[2].status)
+        // 救済日は Rescued(○)= 実運動(◎)と表示分離。ただし達成同等に週次へカウントされる。
+        assertEquals(DailyStatus.Rescued, withRescue[2].status)
+        assertTrue(withRescue[2].status.countsAsAchieved)
         assertTrue(
             WeeklyProgressCalculator.progress(withRescue).achievedCount >
                 WeeklyProgressCalculator.progress(withoutRescue).achievedCount,

@@ -83,6 +83,21 @@ class StreakCalculatorTest {
         assertEquals(today, state.lastAchievedDate)
     }
 
+    @Test
+    fun rescuedDay_continuesStreak() {
+        // 5/20 achieved, 5/19 は未運動だが保険チケットで救済 → 5/18 achieved。連続は切れず streak=3。
+        // (Rescued を達成カウントから漏らすとここで連続が切れる回帰バグのガード)。
+        val today = date(20)
+        val records = listOf(record(20), record(18))
+        val rescued = setOf(date(19))
+
+        val streak = StreakCalculator.currentStreak(
+            records = records, today = today, rescuedDates = rescued, restLimit = 0,
+        )
+
+        assertEquals(3, streak)
+    }
+
     private fun record(day: Int): WorkoutRecord =
         WorkoutRecord(
             date = date(day),

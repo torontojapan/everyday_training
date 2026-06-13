@@ -29,7 +29,8 @@ object StreakCalculator {
             )
 
             when (status) {
-                DailyStatus.Achieved, DailyStatus.TodayAchieved -> streak += 1
+                // Rescued(保険チケット救済)も達成同等に連続へ加算(漏らすとフリーズ日で連続が切れる)。
+                DailyStatus.Achieved, DailyStatus.Rescued, DailyStatus.TodayAchieved -> streak += 1
                 // Rest = カウントしないが連続も切れない。
                 // TodayPending = 今日まだ未記録 → 連続を切らずスキップし「昨日までの連続」を数える
                 // (今日記録すれば TodayAchieved になり加算される。iOS StreakCalculator と同一挙動)。
