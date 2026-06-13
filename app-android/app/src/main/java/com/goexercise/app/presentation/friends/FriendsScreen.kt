@@ -936,9 +936,26 @@ private fun ErrorBanner(message: String, palette: AppTheme, onClear: () -> Unit)
 
 // MARK: - Add friend sheet
 
+/** スキャンした文字列から友達コードを抽出。goexercise://friends?code=XXX または生6桁を受理(iOS QRScannerView パリティ)。 */
+private fun extractFriendCode(scanned: String): String? {
+    val raw = scanned.trim()
+    // 1) URL のクエリ code=
+    val fromQuery = raw.substringAfter("code=", "").substringBefore("&")
+    FriendCodeValidator.sanitize(fromQuery).let { if (FriendCodeValidator.isValid(it)) return it }
+    // 2) 生の6桁コード
+    FriendCodeValidator.sanitize(raw).let { if (FriendCodeValidator.isValid(it)) return it }
+    return null
+}
+
 @Composable
 private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (String) -> Unit) {
     var code by remember { mutableStateOf(initialCode ?: "") }
+    // アプリ内QRスキャナ(#8)。読み取った goexercise://friends?code=XXX または生6桁から友達コードを抽出。
+    val scanLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        com.journeyapps.barcodescanner.ScanContract(),
+    ) { result ->
+        result.contents?.let { extractFriendCode(it)?.let { c -> code = c } }
+    }
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("友達を追加", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         Text("友達コードで申請を送ります。", fontSize = 13.sp, color = palette.textSecondary)
@@ -950,6 +967,19 @@ private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (Str
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
         )
+        OutlinedButton(
+            onClick = {
+                scanLauncher.launch(
+                    com.journeyapps.barcodescanner.ScanOptions().apply {
+                        setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                        setPrompt("友達のQRコードを枠に合わせてください")
+                        setBeepEnabled(false)
+                        setOrientationLocked(false)
+                    },
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("QRコードを読み取る") }
         if (code.isNotEmpty() && !FriendCodeValidator.isValid(code)) {
             Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)", fontSize = 12.sp, color = palette.textSecondary)
         }

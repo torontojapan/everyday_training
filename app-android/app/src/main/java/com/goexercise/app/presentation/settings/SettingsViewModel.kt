@@ -44,7 +44,48 @@ class SettingsViewModel @Inject constructor(
     private val friendsService: com.goexercise.app.data.friends.FriendsService,
     private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
     private val health: com.goexercise.app.data.settings.HealthRepository,
+    private val authCoordinator: com.goexercise.app.presentation.friends.AccountAuthCoordinator,
 ) : ViewModel() {
+
+    // --- 認証(Apple/Google でバックアップ)を設定に集約(#14。iOS は設定に集約・友達タブから撤去) ---
+
+    /** 連携済みプロバイダ名(null=匿名)。設定で「未連携=サインインボタン/連携済=状態表示」に使う。 */
+    private val _linkedProvider = MutableStateFlow<String?>(friendsService.backupStatus.providerName)
+    val linkedProvider: StateFlow<String?> = _linkedProvider.asStateFlow()
+    private val _isLinkingAccount = MutableStateFlow(false)
+    val isLinkingAccount: StateFlow<Boolean> = _isLinkingAccount.asStateFlow()
+    private val _linkError = MutableStateFlow<String?>(null)
+    val linkError: StateFlow<String?> = _linkError.asStateFlow()
+
+    /** Apple でバックアップ(連携)。連携後にバックアップを自動 ON にする(iOS パリティ)。 */
+    fun linkApple(context: android.content.Context) =
+        performLink { friendsService.linkAppleWeb(authCoordinator.appleWebFlow(context)) }
+
+    /** Google でバックアップ(連携)。native id_token。 */
+    fun linkGoogle(context: android.content.Context) =
+        performLink { friendsService.linkGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performLink(op: suspend () -> Unit) {
+        if (_isLinkingAccount.value) return
+        _isLinkingAccount.value = true
+        _linkError.value = null
+        viewModelScope.launch {
+            try {
+                op()
+                // 連携は匿名 uid をそのまま Apple/Google に紐付ける(identity 不変)。続けてバックアップを自動 ON。
+                recordSync.enableBackup()
+                _linkedProvider.value = friendsService.backupStatus.providerName
+            } catch (e: com.goexercise.app.data.friends.AccountLinkError.Cancelled) {
+                // ユーザーキャンセルは無言で戻す。
+            } catch (e: Exception) {
+                _linkError.value = "サインインに失敗しました: ${e.message}"
+            } finally {
+                _isLinkingAccount.value = false
+            }
+        }
+    }
+
+    fun clearLinkError() { _linkError.value = null }
 
     /** 生理周期トラッキングのオプトイン状態(既定 OFF)。ON で体重タブに生理日記録 UI を出す。 */
     val cycleTrackingEnabled: StateFlow<Boolean> = health.prefs

@@ -63,6 +63,9 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
     val cycleTrackingEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val linkedProvider by viewModel.linkedProvider.collectAsStateWithLifecycle()
+    val isLinkingAccount by viewModel.isLinkingAccount.collectAsStateWithLifecycle()
+    val linkError by viewModel.linkError.collectAsStateWithLifecycle()
     val myFriendCode by viewModel.myFriendCode.collectAsStateWithLifecycle()
     val referralSummary by viewModel.referralSummary.collectAsStateWithLifecycle()
     val laterCode by viewModel.laterCode.collectAsStateWithLifecycle()
@@ -114,6 +117,11 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
         cycleTrackingEnabled = cycleTrackingEnabled,
         onToggleCycleTracking = viewModel::setCycleTrackingEnabled,
+        linkedProvider = linkedProvider,
+        isLinkingAccount = isLinkingAccount,
+        linkError = linkError,
+        onLinkApple = { viewModel.linkApple(context) },
+        onLinkGoogle = { viewModel.linkGoogle(context) },
         myFriendCode = myFriendCode,
         referralStarBadges = referralSummary.starBadges,
         canEnterCodeLater = viewModel.canEnterCodeLater,
@@ -174,6 +182,11 @@ fun SettingsContent(
     backupError: String? = null,
     onToggleBackup: (Boolean) -> Unit = {},
     onBackupNow: () -> Unit = {},
+    linkedProvider: String? = null,
+    isLinkingAccount: Boolean = false,
+    linkError: String? = null,
+    onLinkApple: () -> Unit = {},
+    onLinkGoogle: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -196,6 +209,11 @@ fun SettingsContent(
             hasAccount = myFriendCode != null,
             onToggle = onToggleBackup,
             onBackupNow = onBackupNow,
+            linkedProvider = linkedProvider,
+            isLinking = isLinkingAccount,
+            linkError = linkError,
+            onLinkApple = onLinkApple,
+            onLinkGoogle = onLinkGoogle,
         )
 
         PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
@@ -273,6 +291,11 @@ private fun BackupSection(
     hasAccount: Boolean,
     onToggle: (Boolean) -> Unit,
     onBackupNow: () -> Unit,
+    linkedProvider: String? = null,
+    isLinking: Boolean = false,
+    linkError: String? = null,
+    onLinkApple: () -> Unit = {},
+    onLinkGoogle: () -> Unit = {},
 ) {
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -301,14 +324,24 @@ private fun BackupSection(
                 }
                 error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
             }
-            Text(
-                if (hasAccount) {
-                    "機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。新しい端末で同じアカウントにサインインすると記録が戻ります。"
-                } else {
-                    "ON にすると自動でアカウントが作られます。機種変更で確実に復元するには、友達タブの「Apple/Googleでバックアップ」も設定してください。"
-                },
-                color = palette.textSecondary, fontSize = 11.sp,
-            )
+            // 認証(Apple/Google でバックアップ)を設定に集約(#14)。未連携=サインインボタン / 連携済=状態表示。
+            if (linkedProvider != null) {
+                Text("✓ $linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
+                    color = palette.textSecondary, fontSize = 11.sp)
+            } else {
+                Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
+                    color = palette.textSecondary, fontSize = 11.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onLinkApple, enabled = !isLinking, modifier = Modifier.weight(1f)) {
+                        Text("Apple で連携")
+                    }
+                    OutlinedButton(onClick = onLinkGoogle, enabled = !isLinking, modifier = Modifier.weight(1f)) {
+                        Text("Google で連携")
+                    }
+                }
+                if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+            }
         }
     }
 }

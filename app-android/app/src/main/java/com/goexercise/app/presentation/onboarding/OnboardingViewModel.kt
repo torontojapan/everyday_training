@@ -23,7 +23,43 @@ import javax.inject.Inject
 class OnboardingViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val referralStore: ReferralStore,
+    private val friendsService: com.goexercise.app.data.friends.FriendsService,
+    private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
+    private val authCoordinator: com.goexercise.app.presentation.friends.AccountAuthCoordinator,
 ) : ViewModel() {
+
+    // --- サインイン→バックアップ自動ON(#15。オンボ2ステップ目。iOS パリティ) ---
+    private val _isLinkingAccount = MutableStateFlow(false)
+    val isLinkingAccount: StateFlow<Boolean> = _isLinkingAccount
+    private val _linkError = MutableStateFlow<String?>(null)
+    val linkError: StateFlow<String?> = _linkError
+    private val _linked = MutableStateFlow(false)
+    val linked: StateFlow<Boolean> = _linked
+
+    fun linkApple(context: android.content.Context, onLinked: () -> Unit) =
+        performLink(onLinked) { friendsService.linkAppleWeb(authCoordinator.appleWebFlow(context)) }
+    fun linkGoogle(context: android.content.Context, onLinked: () -> Unit) =
+        performLink(onLinked) { friendsService.linkGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performLink(onLinked: () -> Unit, op: suspend () -> Unit) {
+        if (_isLinkingAccount.value) return
+        _isLinkingAccount.value = true
+        _linkError.value = null
+        viewModelScope.launch {
+            try {
+                op()
+                recordSync.enableBackup() // 連携で記録バックアップを自動 ON。
+                _linked.value = true
+                onLinked()
+            } catch (e: com.goexercise.app.data.friends.AccountLinkError.Cancelled) {
+                // キャンセルは無言で戻す。
+            } catch (e: Exception) {
+                _linkError.value = "サインインに失敗しました: ${e.message}"
+            } finally {
+                _isLinkingAccount.value = false
+            }
+        }
+    }
 
     /** null=判定中 / false=未完了(オンボ表示) / true=完了(本編)。 */
     val isComplete: StateFlow<Boolean?> = settings.onboardingComplete

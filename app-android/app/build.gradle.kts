@@ -150,6 +150,7 @@ dependencies {
 
     // QR コード生成 (友達コードの招待リンクを QR 化)。pure-Java で実通信不要。
     implementation(libs.zxing.core)
+    implementation(libs.zxing.embedded) // アプリ内QRスキャナ(ScanContract/CaptureActivity)
 
     // Google Play Billing(サブスク課金 / プレミアム エンタイトルメント)。
     implementation(libs.billing.ktx)
