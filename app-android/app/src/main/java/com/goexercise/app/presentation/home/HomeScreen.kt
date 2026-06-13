@@ -61,6 +61,7 @@ fun HomeRoute(
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
     val welcome by viewModel.pendingWelcome.collectAsStateWithLifecycle()
     val referrerPops by viewModel.pendingReferrerPops.collectAsStateWithLifecycle()
+    val breedUnlock by viewModel.pendingBreedUnlock.collectAsStateWithLifecycle()
     val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
     val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
 
@@ -97,6 +98,17 @@ fun HomeRoute(
     if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
         welcome?.let { com.goexercise.app.presentation.referral.ReferralCelebrationDialog(listOf(it)) { viewModel.consumeWelcome() } }
         if (referrerPops.isNotEmpty()) com.goexercise.app.presentation.referral.ReferralCelebrationDialog(referrerPops) { viewModel.consumeReferrerPops() }
+        // ⭐10 達成で全猫種解放の祝福(アカウント別 1 回限り)。
+        if (breedUnlock) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { viewModel.consumeBreedUnlock() },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { viewModel.consumeBreedUnlock() }) { Text("やった！") }
+                },
+                title = { Text("⭐10 達成！") },
+                text = { Text("友達紹介の星が10個に到達しました。すべての猫種が解放されました！設定からいつでも変更できます。") },
+            )
+        }
     }
 
     // 機能D: 復活ポップ。**launch ごとに 1 度だけ**、復活可能 かつ この途切れが未対応の時に出す。

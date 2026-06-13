@@ -75,8 +75,10 @@ class HomeViewModel @Inject constructor(
     // 友達紹介ポップ(歓迎/被紹介者の初記録)を Home UI へ公開(Task 7 が消費)。
     val pendingWelcome = referralStore.pendingWelcome
     val pendingReferrerPops = referralStore.pendingReferrerPops
+    val pendingBreedUnlock = referralStore.pendingBreedUnlock
     fun consumeWelcome() = referralStore.consumeWelcome()
     fun consumeReferrerPops() = referralStore.consumeReferrerPops()
+    fun consumeBreedUnlock() = referralStore.consumeBreedUnlock()
 
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。

@@ -2,9 +2,11 @@ package com.goexercise.app.data.referral
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import com.goexercise.app.data.friends.FriendsService
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.ReferralConfirmation
 import com.goexercise.app.domain.friends.ReferralEntryPolicy
@@ -41,6 +43,11 @@ class ReferralStore @Inject constructor(
     val pendingWelcome: StateFlow<ReferralConfirmation?> = _pendingWelcome.asStateFlow()
     private val _pendingReferrerPops = MutableStateFlow<List<ReferralConfirmation>>(emptyList())
     val pendingReferrerPops: StateFlow<List<ReferralConfirmation>> = _pendingReferrerPops.asStateFlow()
+    /** ⭐10 達成で全猫種解放したときの祝福(アカウント別 1 回限り)。iOS breedUnlockCelebrated 相当。 */
+    private val _pendingBreedUnlock = MutableStateFlow(false)
+    val pendingBreedUnlock: StateFlow<Boolean> = _pendingBreedUnlock.asStateFlow()
+    private fun breedUnlockCelebratedKey(account: String) =
+        booleanPreferencesKey("referral_breed_unlock_celebrated_$account")
     /** 現在の summary がどのアカウント(friend_code)由来かを記録し、口座跨ぎの stale を防ぐ
      *  (iOS summaryAccountCode 相当)。 */
     private val _summaryAccountCode = MutableStateFlow<String?>(null)
@@ -82,6 +89,7 @@ class ReferralStore @Inject constructor(
         _hasReferrer.value = false
         _pendingWelcome.value = null
         _pendingReferrerPops.value = emptyList()
+        _pendingBreedUnlock.value = false
         _summaryAccountCode.value = null
     }
 
@@ -116,6 +124,11 @@ class ReferralStore @Inject constructor(
             _summary.value = summary
             _hasReferrer.value = hasReferrer
             _summaryAccountCode.value = account
+            // ⭐10 到達で全猫種解放。アカウント別に未祝いなら祝福ポップを一度だけ出す。
+            if (summary.starBadges >= CatBreedAccess.BREED_UNLOCK_STARS) {
+                val celebrated = dataStore.data.first()[breedUnlockCelebratedKey(account)] ?: false
+                if (!celebrated) _pendingBreedUnlock.value = true
+            }
         } catch (e: Exception) { _lastError.value = e.message }
     }
 
@@ -148,6 +161,11 @@ class ReferralStore @Inject constructor(
 
     fun consumeWelcome() { _pendingWelcome.value = null }
     fun consumeReferrerPops() { _pendingReferrerPops.value = emptyList() }
+    fun consumeBreedUnlock() {
+        _pendingBreedUnlock.value = false
+        val account = _summaryAccountCode.value ?: return
+        scope.launch { dataStore.edit { it[breedUnlockCelebratedKey(account)] = true } }
+    }
     fun clearError() { _lastError.value = null }
 
     private fun generatedUsername(): String =
