@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatRank
+import com.goexercise.app.domain.MetalKind
 import com.goexercise.app.domain.StreakLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,20 +56,15 @@ object StreakShareImageRenderer {
 
         var top = 96f
 
-        // バッジ(任意)。
-        level.badgeText?.let { badge ->
-            val tp = textPaint(40f, bold = true)
-            val tw = tp.measureText(badge)
-            val fm = tp.fontMetrics
-            val padH = 34f
-            val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 16f)
-            canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x73000000 })
-            canvas.drawText(badge, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
-            top = rect.bottom + 28f
+        // 見出しは「称号バッジ」: 連続日数で決まる CatRank 称号(みならいネコ〜ぬしネコ)を
+        // メタル色カプセル+肉球で描く(iOS の RankBadge パリティ)。rank0(7日未満)は称賛文を出す。
+        val rank = CatRank.of(streak)
+        val rankTitle = rank.title
+        if (rankTitle != null && rank.metalKind != null) {
+            top = drawRankBadge(canvas, cx, top, rankTitle, rank.metalKind!!)
+        } else {
+            top = canvas.drawCentered(level.headline, cx, top, textPaint(56f, bold = true), gap = 24f)
         }
-
-        // 見出し(称号系の称賛文。絵文字は廃止)。
-        top = canvas.drawCentered(level.headline, cx, top, textPaint(60f, bold = true), gap = 24f)
 
         // 🔥 行は廃止(iOS 同様、絵文字装飾をやめる)。
 
@@ -170,6 +167,49 @@ object StreakShareImageRenderer {
         }
     }
 
+    /** メタル種別 → 代表色(CatRankChip と同じ RGB 値)。Rainbow はゴールド寄り。 */
+    private fun metalColor(kind: MetalKind): Int {
+        val (r, g, b, delta) = when (kind) {
+            MetalKind.Bronze -> listOf(0.74, 0.45, 0.20, 0.0)
+            MetalKind.BronzePlus -> listOf(0.74, 0.45, 0.20, 0.08)
+            MetalKind.Silver -> listOf(0.62, 0.66, 0.71, 0.0)
+            MetalKind.SilverPlus -> listOf(0.62, 0.66, 0.71, 0.08)
+            MetalKind.GoldMinus -> listOf(1.0, 0.76, 0.24, -0.06)
+            MetalKind.Gold -> listOf(1.0, 0.76, 0.24, 0.0)
+            MetalKind.GoldPlus -> listOf(1.0, 0.76, 0.24, 0.08)
+            MetalKind.Platinum -> listOf(0.72, 0.80, 0.94, 0.0)
+            MetalKind.Rainbow -> listOf(1.0, 0.76, 0.24, 0.0)
+        }
+        fun ch(v: Double) = ((v + delta).coerceIn(0.0, 1.0) * 255).toInt()
+        return android.graphics.Color.rgb(ch(r), ch(g), ch(b))
+    }
+
+    /** 称号バッジ(メタル色カプセル + 🐾 + 称号)を中央に描き、次要素の上端 Y を返す。 */
+    private fun drawRankBadge(canvas: Canvas, cx: Float, top: Float, title: String, kind: MetalKind): Float {
+        val label = "🐾 $title"
+        val tp = textPaint(46f, bold = true).apply { color = 0xFF1A1A1A.toInt() } // メタル地に黒文字(コントラスト)
+        val tw = tp.measureText(label)
+        val fm = tp.fontMetrics
+        val padH = 40f
+        val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 22f)
+        val rad = rect.height() / 2
+        // メタル地: 上→下で明→暗の簡易グラデで金属らしさを出す。
+        val base = metalColor(kind)
+        val lighter = android.graphics.Color.rgb(
+            (android.graphics.Color.red(base) + 40).coerceAtMost(255),
+            (android.graphics.Color.green(base) + 40).coerceAtMost(255),
+            (android.graphics.Color.blue(base) + 40).coerceAtMost(255),
+        )
+        canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, rect.top, 0f, rect.bottom, lighter, base, Shader.TileMode.CLAMP)
+        })
+        canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = 3f; color = 0x66FFFFFF
+        })
+        canvas.drawText(label, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
+        return rect.bottom + 28f
+    }
+
     private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel, poseSeed: Int) {
         val r = diameter / 2
         // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で決定的に選ぶ。
@@ -180,14 +220,10 @@ object StreakShareImageRenderer {
         val resId = context.resources.getIdentifier(poseAsset, "drawable", context.packageName)
         val drawable = if (resId != 0) ContextCompat.getDrawable(context, resId) else null
         if (drawable != null) {
+            // 円クリップを廃止し全身ポーズをそのまま描く(happy2/happy3 は全身なので円だと手足が切れる)。
+            // 透過 PNG をそのまま中央に配置。背面の紙吹雪が周囲に見える。
             val src = drawable.toBitmap(diameter.toInt(), diameter.toInt())
-            val shader = android.graphics.BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
-                setLocalMatrix(android.graphics.Matrix().apply { postTranslate(cx - r, cy - r) })
-            }
-            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader })
-            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = 6f; color = 0x73FFFFFF
-            })
+            canvas.drawBitmap(src, cx - r, cy - r, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         } else {
             // アセット欠損時は絵文字。中央寄せのため上下中心に合わせる。
             val p = textPaint(min(diameter, 200f))
