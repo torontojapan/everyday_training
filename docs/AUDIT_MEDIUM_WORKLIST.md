@@ -1,11 +1,12 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件(7件完了)
+# MEDIUM 所見 worklist (2026-06-14) — 140件(17件完了)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
 
 進捗(2026-06-14):
 - 1_correctness 残2件 完了(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)。
 - 4_審査/コンプラ 5件 完了(復元キーボタン=HIGH#14既済 / QR導線=HIGH#8既済 / paywall eligibilityテスト両OS / 記録での体重・生理日同時入力)。
-- 次=2_課金10件 → 3_privacy21 → 5_UX97 → 6_テスト1。
+- 2_課金 10件 完了(オンボ誤誘導文修正 + eligibility設計明文化。他8件はHIGH/PaywallCopyで既済を確認)。
+- 次=3_privacy21 → 5_UX97 → 6_テスト1。
 
 
 ## 1_correctness/データ (6件)
@@ -19,16 +20,16 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 
 ## 2_課金 (10件)
 
-- [ ] **onboarding** | Androidオンボ補足文が「あとから設定でいつでも変更できます」と表示し、有料ゲートを誤誘導
-- [ ] **onboarding** | parity: 設定からの猫種変更でロック判定(非プレミアムは現猫種以外ロック・paywall)
-- [ ] **paywall** | Android: trialOffer が eligibility 無視で無料 offer を常時優先選択
-- [ ] **paywall** | Android ペイウォール「14日間無料」表示(ヘッダー/CTA/開示) (mismatch)
-- [ ] **paywall** | Android 設定>猫種ピッカー(11種タップ) (mismatch)
-- [ ] **paywall** | parity: トライアル eligibility による「14日間無料」出し分け
-- [ ] **paywall** | parity: 紹介⭐10での全種解放(referralUnlocked)
-- [ ] **referrals** | 猫種ピッカーの各猫タップ (設定 CatBreedPicker / UserCatPickerView) (mismatch)
-- [ ] **referrals** | ⭐10到達の猫種解放お祝いポップ (dead-control)
-- [ ] **referrals** | parity: ⭐10→猫種解放(報酬の核)
+- [x] **onboarding** | Androidオンボ補足文が「あとから設定でいつでも変更できます」と表示し、有料ゲートを誤誘導 — iOS文言に合わせ「今だけ全種類…(あとで変更はプレミアム必要)」へ(e158698)
+- [x] **onboarding** | parity: 設定からの猫種変更でロック判定(非プレミアムは現猫種以外ロック・paywall) — HIGH CatBreedAccess.isLocked で実装済(SettingsScreen/VM 多層防御)
+- [x] **paywall** | Android: trialOffer が eligibility 無視で無料 offer を常時優先選択 — 誤解。Play は適格offerのみ返すため返却offerから無料選択=eligibility担保。コメント明文化(e158698)
+- [x] **paywall** | Android ペイウォール「14日間無料」表示(ヘッダー/CTA/開示) (mismatch) — PaywallCopy 出し分け(d6e101c)
+- [x] **paywall** | Android 設定>猫種ピッカー(11種タップ) (mismatch) — 11種タップ可・ロック猫→paywall 実装済
+- [x] **paywall** | parity: トライアル eligibility による「14日間無料」出し分け — PaywallCopy + Play offer フィルタ
+- [x] **paywall** | parity: 紹介⭐10での全種解放(referralUnlocked) — CatBreedAccess.referralUnlocked 両OS
+- [x] **referrals** | 猫種ピッカーの各猫タップ (設定 CatBreedPicker / UserCatPickerView) (mismatch) — onSelect→setCatBreed 配線済
+- [x] **referrals** | ⭐10到達の猫種解放お祝いポップ (dead-control) — pendingBreedUnlock→AlertDialog→consume(HomeScreen)実装済
+- [x] **referrals** | parity: ⭐10→猫種解放(報酬の核) — ReferralStore.refresh で検知・口座別1回・iOS パリティ確認済
 
 ## 3_privacy/削除 (21件)
 
