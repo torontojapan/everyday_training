@@ -82,7 +82,20 @@ class SupabaseFriendsService(
     }
 
     override suspend fun signOut() {
+        // **匿名のときだけ**クラウドデータを削除する(=iOS「忘れる」セマンティクス)。連携済み
+        // (バックアップ)は保持=別端末/再サインインで復旧可能。ensureUid は呼ばない(サインアウト中に
+        // 新規匿名セッションを作らない)。uid 取得失敗時は不確実なので削除しない(安全側=誤削除より残留)。
+        // 各 delete は best-effort(runCatching): 一部失敗でも auth signOut まで到達させる。
+        val user = client.auth.currentUserOrNull()
+        if (user != null && user.isAnonymous == true) {
+            val uid = user.id
+            runCatching { client.from("profiles").delete { filter { eq("user_id", uid) } } }
+            runCatching { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
+            runCatching { client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
+            runCatching { client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } } }
+        }
         client.auth.signOut()
+        backup = AccountBackupStatus.Anonymous
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> {

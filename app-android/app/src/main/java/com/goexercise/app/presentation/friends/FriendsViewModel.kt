@@ -257,7 +257,8 @@ class FriendsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 service.sendCheer(kind, code, message)
-                _uiState.update { it.copy(toast = "${kind.emoji} ${to.displayName} に ${kind.label} を送りました") }
+                // 入力した一言があればそれを、無ければ kind ラベルを反映(iOS「『text』を送りました」相当)。
+                _uiState.update { it.copy(toast = CheerToast.sent(kind.emoji, kind.label, to.displayName, message)) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {
@@ -272,8 +273,7 @@ class FriendsViewModel @Inject constructor(
             val cheers = runCatching { service.unseenReceivedCheers() }.getOrDefault(emptyList())
             val latest = cheers.maxByOrNull { it.createdAtEpochMs } ?: return@launch
             val (emoji, label) = CheerKind.receivedFromRaw(latest.kindRaw)
-            val body = latest.message?.takeIf { it.isNotBlank() } ?: label
-            _uiState.update { it.copy(toast = "$emoji ${latest.fromDisplayName} から「$body」") }
+            _uiState.update { it.copy(toast = CheerToast.received(emoji, latest.fromDisplayName, label, latest.message)) }
         }
     }
 

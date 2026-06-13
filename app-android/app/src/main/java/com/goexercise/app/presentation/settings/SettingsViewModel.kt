@@ -16,7 +16,10 @@ import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
+import androidx.glance.appwidget.updateAll
+import com.goexercise.app.widget.StreakWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +48,7 @@ class SettingsViewModel @Inject constructor(
     private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
     private val health: com.goexercise.app.data.settings.HealthRepository,
     private val authCoordinator: com.goexercise.app.presentation.friends.AccountAuthCoordinator,
+    @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     // --- 認証(Apple/Google でバックアップ)を設定に集約(#14。iOS は設定に集約・友達タブから撤去) ---
@@ -177,6 +181,9 @@ class SettingsViewModel @Inject constructor(
             try {
                 onDone(dataManagement.deleteAllRecords())
                 Analytics.track(AnalyticsEvent.DataDeleted)
+                // 全削除後にホームウィジェットを即リフレッシュ(古い連続日数/今日達成の残留を防ぐ。
+                // iOS の全削除後 WidgetCenter.reloadAllTimelines 相当)。
+                runCatching { StreakWidget().updateAll(appContext) }
             } finally {
                 _isBusy.value = false
             }
