@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -154,7 +155,7 @@ fun FriendsContent(
     onAccept: (FriendRequest) -> Unit = {},
     onDecline: (FriendRequest) -> Unit = {},
     onRemove: (FriendProfile) -> Unit = {},
-    onCheer: (CheerKind, FriendProfile) -> Unit = { _, _ -> },
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit = { _, _, _ -> },
     onSetSort: (FriendSortOrder) -> Unit = {},
     onSignOut: () -> Unit = {},
     onOpenRanking: () -> Unit = {},
@@ -322,8 +323,8 @@ fun FriendsContent(
             onDismissRequest = { cheerTarget = null },
             containerColor = palette.background,
         ) {
-            CheerPickerSheet(friend, palette) { kind ->
-                onCheer(kind, friend)
+            CheerPickerSheet(friend, palette) { kind, message ->
+                onCheer(kind, friend, message)
                 cheerTarget = null
             }
         }
@@ -461,7 +462,7 @@ private fun SignedInBody(
     onRename: (String) -> Unit,
     onAccept: (FriendRequest) -> Unit,
     onDecline: (FriendRequest) -> Unit,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onSetSort: (FriendSortOrder) -> Unit,
     onSignOut: () -> Unit,
     onOpenRanking: () -> Unit,
@@ -717,7 +718,7 @@ private fun FriendsSection(
     palette: AppTheme,
     onSetSort: (FriendSortOrder) -> Unit,
     onOpenRanking: () -> Unit,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
 ) {
@@ -791,7 +792,7 @@ private fun FriendCard(
     friend: FriendProfile,
     palette: AppTheme,
     isCheering: Boolean,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
 ) {
@@ -849,7 +850,7 @@ private fun FriendCard(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(palette.primary.copy(alpha = 0.10f))
-                            .clickable(enabled = !isCheering) { onCheer(kind, friend) },
+                            .clickable(enabled = !isCheering) { onCheer(kind, friend, null) },
                         contentAlignment = Alignment.Center,
                     ) { Text(kind.emoji, fontSize = 18.sp) }
                 }
@@ -945,7 +946,9 @@ private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (Str
 // MARK: - Cheer picker
 
 @Composable
-private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (CheerKind) -> Unit) {
+private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (CheerKind, String?) -> Unit) {
+    // 一言コメント(任意・30字)。プリセットをタップすると欄に反映され、自由入力も可。
+    var message by rememberSaveable { mutableStateOf("") }
     Column(
         Modifier.padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -957,7 +960,7 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
                 Surface(
                     color = palette.chipBackground,
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.weight(1f).clickable { onSend(kind) },
+                    modifier = Modifier.weight(1f).clickable { onSend(kind, message.trim().ifBlank { null }) },
                 ) {
                     Column(
                         Modifier.padding(vertical = 14.dp),
@@ -970,6 +973,13 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
                 }
             }
         }
+        OutlinedTextField(
+            value = message,
+            onValueChange = { if (it.length <= 30) message = it },
+            placeholder = { Text("一言そえる(任意・30字)", fontSize = 13.sp) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(8.dp))
     }
 }
