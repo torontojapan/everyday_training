@@ -52,6 +52,19 @@ class RecordViewModel @Inject constructor(
         if (s.drafts.size <= 1) s else s.copy(drafts = s.drafts.filterNot { it.id == id })
     }
 
+    /**
+     * 「+ 同じ種目でセットを追加」: 指定行の名前・カテゴリ・重さ(reps/sets/minutes は引き継がず
+     * セットごとに入れ直す前提で空)を引き継いだ新しい行を直下に複製する。iOS addSet(after:) 相当。
+     * 重さ違いの複数セットを種目選び直しなしで記録できる。
+     */
+    fun addSet(id: String) = _state.update { s ->
+        val index = s.drafts.indexOfFirst { it.id == id }
+        if (index < 0) return@update s
+        val src = s.drafts[index]
+        val copy = ExerciseDraft(name = src.name, category = src.category)
+        s.copy(drafts = s.drafts.toMutableList().apply { add(index + 1, copy) })
+    }
+
     /** 保存。保存中は無視(二重実行ガード)。成功で one-shot イベント、失敗で errorMessage。 */
     fun save() {
         val current = _state.value

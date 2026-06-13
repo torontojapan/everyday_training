@@ -51,6 +51,7 @@ fun RecordRoute(
         onUpdateDraft = viewModel::updateDraft,
         onAddExercise = viewModel::addExercise,
         onRemoveExercise = viewModel::removeExercise,
+        onAddSet = viewModel::addSet,
         onSave = viewModel::save,
     )
 }
@@ -64,6 +65,7 @@ fun RecordContent(
     onUpdateDraft: (String, (ExerciseDraft) -> ExerciseDraft) -> Unit = { _, _ -> },
     onAddExercise: () -> Unit = {},
     onRemoveExercise: (String) -> Unit = {},
+    onAddSet: (String) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
@@ -87,6 +89,7 @@ fun RecordContent(
                 onCategory = { cat -> onCategory(draft.id, cat) },
                 onChange = { updated -> onUpdateDraft(draft.id) { updated } },
                 onRemove = { onRemoveExercise(draft.id) },
+                onAddSet = { onAddSet(draft.id) },
             )
         }
 
@@ -120,6 +123,7 @@ private fun ExerciseDraftCard(
     onCategory: (WorkoutCategory) -> Unit,
     onChange: (ExerciseDraft) -> Unit,
     onRemove: () -> Unit,
+    onAddSet: () -> Unit,
 ) {
     val palette = LocalAppPalette.current
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -145,8 +149,11 @@ private fun ExerciseDraftCard(
                 NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
                 NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
             }
-            if (canRemove) {
-                TextButton(onClick = onRemove) { Text("この種目を削除") }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onAddSet) { Text("＋ 同じ種目でセットを追加") }
+                if (canRemove) {
+                    TextButton(onClick = onRemove) { Text("削除") }
+                }
             }
         }
     }
