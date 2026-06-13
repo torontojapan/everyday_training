@@ -34,6 +34,7 @@ struct MonthlyReviewSheet: View {
     @State private var saveBannerText: String?
     /// 背景グラデの上書き選択。空 = 呼び出し元の既定 `gradient` を使う(先月=紫 等)。
     @AppStorage("shareCard.gradient.review") private var gradientRaw = ""
+    @State private var poseSeed = Int.random(in: 0..<10_000)
 
     private var appName: String { "GO エクササイズ" }
     /// ピッカーで選んでいればそれを、未選択なら呼び出し元の既定を使う。
@@ -53,7 +54,7 @@ struct MonthlyReviewSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient)
+                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed)
 
                     if let renderedImage {
                         ShareLink(
@@ -124,7 +125,7 @@ struct MonthlyReviewSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient)
+        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -164,6 +165,7 @@ struct MonthlyReviewCard: View {
     var title: String = "先月のハイライト"
     var streakLabel: String = "今月の最長連続"
     var gradient: [Color] = MonthlyReviewSheet.monthlyGradient
+    var poseSeed: Int = 0
 
     var body: some View {
         VStack(spacing: 18) {
@@ -235,10 +237,8 @@ struct MonthlyReviewCard: View {
     /// 無ければ emoji)。今週/これまでカードと同じ解決ロジック。
     private var catImage: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = breed.assetName(for: .celebrating)
-        let resolved = UIImage(named: primary) != nil
-            ? primary
-            : CatBreed.fallbackAssetName(for: .celebrating)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
+        let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {
             if UIImage(named: resolved) != nil {
                 Image(resolved)

@@ -12,6 +12,7 @@ struct LifetimeStatsShareSheet: View {
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
     @AppStorage("shareCard.gradient.lifetime") private var gradientRaw = ShareCardGradient.daybreak.rawValue
+    @State private var poseSeed = Int.random(in: 0..<10_000)
 
     init(achievedDays: Int,
          usedDays: Int,
@@ -40,7 +41,8 @@ struct LifetimeStatsShareSheet: View {
                         achievedDays: achievedDays,
                         usedDays: usedDays,
                         appName: appName,
-                        gradientColors: gradient.colors
+                        gradientColors: gradient.colors,
+                        poseSeed: poseSeed
                     )
 
                     if let renderedImage {
@@ -116,7 +118,7 @@ struct LifetimeStatsShareSheet: View {
     private func renderImage() {
         let card = LifetimeStatsShareCard(
             achievedDays: achievedDays, usedDays: usedDays, appName: appName,
-            gradientColors: gradient.colors
+            gradientColors: gradient.colors, poseSeed: poseSeed
         ).frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -150,6 +152,7 @@ struct LifetimeStatsShareCard: View {
     let usedDays: Int
     let appName: String
     var gradientColors: [Color] = ShareCardGradient.daybreak.colors
+    var poseSeed: Int = 0
 
     /// 達成率 (使用日 0 のときは 0 で防御)。
     private var rate: Double {
@@ -232,10 +235,8 @@ struct LifetimeStatsShareCard: View {
 
     private var catImage: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = breed.assetName(for: .celebrating)
-        let resolved = UIImage(named: primary) != nil
-            ? primary
-            : CatBreed.fallbackAssetName(for: .celebrating)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
+        let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {
             if UIImage(named: resolved) != nil {
                 Image(resolved)

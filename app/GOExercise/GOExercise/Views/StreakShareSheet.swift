@@ -7,6 +7,8 @@ struct StreakShareSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    /// 提示ごとに固定のポーズ seed(再レンダリングでブレない / シート開き直しで変わる)。
+    @State private var poseSeed = Int.random(in: 0..<10_000)
     /// 背景グラデの選択(端末ローカルに記憶。カード種別ごとのキー)。
     @AppStorage("shareCard.gradient.streak") private var gradientRaw = ShareCardGradient.ocean.rawValue
 
@@ -33,7 +35,7 @@ struct StreakShareSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors)
+                    StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
 
                     if let renderedImage {
                         ShareLink(
@@ -123,7 +125,7 @@ struct StreakShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors)
+        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -163,10 +165,17 @@ struct StreakShareCard: View {
     let streak: Int
     let appName: String
     var gradientColors: [Color] = ShareCardGradient.ocean.colors
+    /// 提示ごとに固定のポーズ seed(0 = 既定の celebrating)。
+    var poseSeed: Int = 0
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     /// 連続日数に対応する称号ランク(背景進化・ホームの称号バッジと同一)。
     private var rank: CatRank { CatRank(currentStreak: streak) }
+    /// シェアカードの猫はハッピーポーズ3種(celebrating/happy2/happy3)からランダム表示。
+    private var poseAsset: String {
+        UserCatPreferences.shared.myCat.randomHappyPoseAsset(
+            seed: poseSeed, exists: { UIImage(named: $0) != nil })
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -230,8 +239,8 @@ struct StreakShareCard: View {
     @ViewBuilder
     private var catImage: some View {
         // ハイライトカードと同じ scaledToFit(被写体が全面に入っている asset 前提)。
-        if UIImage(named: level.catStateAssetName) != nil {
-            Image(level.catStateAssetName)
+        if UIImage(named: poseAsset) != nil {
+            Image(poseAsset)
                 .resizable()
                 .scaledToFit()
         } else {

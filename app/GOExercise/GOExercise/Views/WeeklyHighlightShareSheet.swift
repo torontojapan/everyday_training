@@ -15,6 +15,7 @@ struct WeeklyHighlightShareSheet: View {
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
     @AppStorage("shareCard.gradient.weekly") private var gradientRaw = ShareCardGradient.sunset.rawValue
+    @State private var poseSeed = Int.random(in: 0..<10_000)
 
     init(summary: ExerciseTrendSummary.WeeklySummary,
          weekLabel: String,
@@ -43,7 +44,8 @@ struct WeeklyHighlightShareSheet: View {
                         summary: summary,
                         weekLabel: weekLabel,
                         appName: appName,
-                        gradientColors: gradient.colors
+                        gradientColors: gradient.colors,
+                        poseSeed: poseSeed
                     )
 
                     if let renderedImage {
@@ -117,7 +119,7 @@ struct WeeklyHighlightShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName, gradientColors: gradient.colors)
+        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -153,6 +155,7 @@ struct WeeklyHighlightShareCard: View {
     let weekLabel: String
     let appName: String
     var gradientColors: [Color] = ShareCardGradient.sunset.colors
+    var poseSeed: Int = 0
 
     var body: some View {
         VStack(spacing: 18) {
@@ -238,10 +241,8 @@ struct WeeklyHighlightShareCard: View {
     /// 無ければ emoji)。share card は静的なので毎回新 instance でも問題なし。
     private var catImage: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = breed.assetName(for: .celebrating)
-        let resolved = UIImage(named: primary) != nil
-            ? primary
-            : CatBreed.fallbackAssetName(for: .celebrating)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
+        let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {
             if UIImage(named: resolved) != nil {
                 Image(resolved)
