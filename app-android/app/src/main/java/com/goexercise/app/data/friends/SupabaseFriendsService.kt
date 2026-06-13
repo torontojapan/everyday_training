@@ -364,11 +364,22 @@ class SupabaseFriendsService(
     private suspend fun signInWithGoogle(idToken: String): RestoreOutcome {
         try {
             client.auth.signInWith(IDToken) { this.idToken = idToken; provider = Google }
-            return finishIdentitySwitch()
         } catch (e: Exception) {
             throw mapLinkError(e)
         }
+        return finishOrRollback()
     }
+
+    /** 認可成立後の profile ロード等で失敗したら、半端な切替状態を残さずローカルサインアウトで巻き戻す。
+     *  これが無いと、後続の ensureUid(自動既定名)が新 uid 上に他人の既存プロフィールを上書きしうる(iOS の
+     *  signOut(scope:.local) ロールバックと対称)。 */
+    private suspend fun finishOrRollback(): RestoreOutcome =
+        try {
+            finishIdentitySwitch()
+        } catch (e: Exception) {
+            runCatching { client.auth.signOut(SignOutScope.LOCAL) }
+            throw mapLinkError(e)
+        }
 
     // ---- Apple = web/PKCE(Custom Tabs。flow が認可 URL を開き callback を返す)----
 
@@ -397,10 +408,10 @@ class SupabaseFriendsService(
             val authUrl = client.auth.getOAuthUrl(Apple, redirectUrl = SupabaseConfig.googleRedirectUrl) {}
             val code = parseCallbackForCode(flow(authUrl))
             client.auth.exchangeCodeForSession(code)
-            return finishIdentitySwitch()
         } catch (e: Exception) {
             throw mapLinkError(e)
         }
+        return finishOrRollback()
     }
 
     /** サインイン(切替/復元)後: 既存プロフィールが有れば restored、無ければ既定で作成し created。 */
