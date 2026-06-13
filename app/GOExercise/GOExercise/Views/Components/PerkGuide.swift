@@ -10,10 +10,10 @@ struct PerkGuideItem: Identifiable {
 
 enum PerkGuide {
     static let items: [PerkGuideItem] = [
-        PerkGuideItem(icon: "snowflake", title: "連続記録フリーズ",
+        PerkGuideItem(icon: "snowflake", title: "保険チケット",
                       detail: "無料は月1 / プレミアムは月4。友達紹介で +1(上限5)。招待された人はウェルカム +1。"),
         PerkGuideItem(icon: "star.fill", title: "友達紹介",
-                      detail: "1人紹介ごとに⭐とフリーズ。⭐10個で好きな猫が無料で選べるようになります。"),
+                      detail: "1人紹介ごとに⭐と保険チケット。⭐10個で好きな猫が無料で選べるようになります。"),
         PerkGuideItem(icon: "rosette", title: "称号 & 背景の進化",
                       detail: "連続記録を続けると猫の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
         PerkGuideItem(icon: "cat.fill", title: "猫種",

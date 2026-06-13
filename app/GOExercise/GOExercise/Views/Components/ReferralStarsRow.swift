@@ -11,7 +11,7 @@ struct ReferralStarsRow: View {
     private let starGold = Color.orange
 
     private var inviteText: String {
-        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → \(friendCode)\nhttps://apps.apple.com/jp/app/id6774551663"
+        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いに保険チケットがもらえます → \(friendCode)\nhttps://apps.apple.com/jp/app/id6774551663"
     }
 
     var body: some View {

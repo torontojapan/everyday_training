@@ -36,13 +36,13 @@ struct ReferralCelebrationSheet: View {
                 if isWelcome {
                     Text("\(confirmations.first?.friendDisplayName ?? "ともだち") さんの招待で参加")
                         .font(Typography.body).foregroundStyle(Palette.textSecondary)
-                    rewardRow(icon: "snowflake", text: "ウェルカム・フリーズ +1(今月)")
+                    rewardRow(icon: "snowflake", text: "ウェルカム・保険チケット +1(今月)")
                 } else {
                     ForEach(confirmations) { c in
                         Text("\(c.friendDisplayName) さんが参加!")
                             .font(Typography.body).foregroundStyle(Palette.textSecondary)
                     }
-                    rewardRow(icon: "snowflake", text: "フリーズ +1(今月・上限5)")
+                    rewardRow(icon: "snowflake", text: "保険チケット +1(今月・上限5)")
                     rewardRow(icon: "star.fill", text: "星バッジ +\(confirmations.count)")
                 }
             }

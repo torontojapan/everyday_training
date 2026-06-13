@@ -88,7 +88,7 @@ struct WeeklyCalendarView: View {
 
         switch entry.status {
         case .achieved, .todayAchieved: return "達成済み"
-        case .rescued: return "フリーズで継続"
+        case .rescued: return "保険チケットで継続"
         case .rest: return "休養日"
         case .missed: return "未達成"
         case .future: return "未来"

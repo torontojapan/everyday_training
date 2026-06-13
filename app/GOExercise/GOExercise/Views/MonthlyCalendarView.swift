@@ -143,7 +143,7 @@ struct MonthlyCalendarView: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")\(isRescued ? " フリーズ使用" : "")")
+            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")\(isRescued ? " 保険チケット使用" : "")")
         }
     }
 
@@ -167,13 +167,13 @@ struct MonthlyCalendarView: View {
                 // 凡例とセルの色を直結させて「色 == 状態」を一発で読めるように。
                 legendSwatch(color: Color(red: 0.93, green: 0.33, blue: 0.30).opacity(0.60), label: "運動した日")
                 legendSwatch(color: Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.55), label: "休養日")
-                legendSwatch(color: Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.32), label: "フリーズ")
+                legendSwatch(color: Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.32), label: "保険チケット")
                 legendSwatch(color: Color(red: 0.38, green: 0.55, blue: 0.90).opacity(0.30), label: "未達成")
                 if !menstrualDates.isEmpty {
                     legendDot(color: Color(red: 0.86, green: 0.36, blue: 0.45), label: "生理日")
                 }
                 if !rescuedDates.isEmpty {
-                    legendChip(systemImage: "ticket.fill", label: "フリーズ使用")
+                    legendChip(systemImage: "ticket.fill", label: "保険チケット使用")
                 }
             }
         }
@@ -357,7 +357,7 @@ struct MonthlyCalendarView: View {
     private func accessibilityValue(for status: DailyStatus) -> String {
         switch status {
         case .achieved, .todayAchieved: return "達成"
-        case .rescued: return "フリーズで継続"
+        case .rescued: return "保険チケットで継続"
         case .rest: return "休養日"
         case .missed: return "未達成"
         case .future: return "未来"

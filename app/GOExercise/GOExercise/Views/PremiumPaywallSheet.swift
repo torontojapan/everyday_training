@@ -17,7 +17,7 @@ struct PremiumPaywallSheet: View {
         var headline: String {
             switch self {
             case .weight:  return "体重タブの全機能を解放しよう"
-            case .freeze:  return "連続記録フリーズを月4回に"
+            case .freeze:  return "保険チケットを月4回に"
             case .general: return "GOプレミアムで全機能を解放"
             }
         }
@@ -101,7 +101,7 @@ struct PremiumPaywallSheet: View {
             benefitRow("chart.xyaxis.line", "週次 / 月次レポート + トレンドライン")
             benefitRow("calendar", "周期オーバーレイで体調と体重を重ねて可視化")
             benefitRow("target", "目標 / BMI / 達成リング / 進捗バー")
-            benefitRow("snowflake", "連続記録フリーズ 月4回 (無料は月1回)")
+            benefitRow("snowflake", "保険チケット 月4回 (無料は月1回)")
             benefitRow("sparkles", "減量ご褒美マイルストーン (-3 / -5 / -10 kg)")
             benefitRow("cat.fill", "全11種の猫から好きな子を選べる")
         }

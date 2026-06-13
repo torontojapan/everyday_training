@@ -83,7 +83,7 @@ struct DayDetailSheet: View {
         case .missed: return "この日は記録がないよ"
         case .todayPending: return "今日はまだ記録がないよ"
         case .achieved, .todayAchieved: return "記録がここに表示されます"
-        case .rescued: return "この日はフリーズで連続記録を継続したよ"
+        case .rescued: return "この日は保険チケットで連続記録を継続したよ"
         }
     }
 }

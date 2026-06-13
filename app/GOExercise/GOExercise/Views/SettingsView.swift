@@ -238,7 +238,7 @@ struct SettingsView: View {
     }
 
     private func inviteMessage(code: String) -> String {
-        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → \(code)\nhttps://apps.apple.com/jp/app/id6774551663"
+        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いに保険チケットがもらえます → \(code)\nhttps://apps.apple.com/jp/app/id6774551663"
     }
 
     private func submitLaterInvite() {
@@ -366,7 +366,7 @@ private struct RecordSharingSettingsPage: View {
                         bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
                         bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
                         bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
-                        bulletRow("運動不可な日が増えそうな週は、連続記録フリーズ (無料は月1回 / GOプレミアムは月4回) で別途救済できます。")
+                        bulletRow("運動不可な日が増えそうな週は、保険チケット (無料は月1回 / GOプレミアムは月4回) で別途救済できます。")
                     }
                     .padding(.top, 4)
                 } label: {
