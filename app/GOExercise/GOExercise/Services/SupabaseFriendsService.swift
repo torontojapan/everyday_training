@@ -767,8 +767,10 @@ final class SupabaseFriendsService: FriendsService {
         guard let session = try await signedInSessionOrNil() else { return [] }
         let uid = session.user.id.uuidString.lowercased()
         let key = "cheers.lastSeenAt.\(uid)"
+        let now = Date()
         guard let last = defaults.object(forKey: key) as? Double else {
-            defaults.set(Date().timeIntervalSince1970, forKey: key)
+            // 初回は「今」を起点にして過去の蓄積を一気に出さない(前進ロジックは CheerWatermarkLogic に集約)。
+            defaults.set(CheerWatermarkLogic.evaluate(lastSeen: nil, now: now, candidates: []).newWatermark.timeIntervalSince1970, forKey: key)
             return []
         }
         let since = Date(timeIntervalSince1970: last)
@@ -792,10 +794,11 @@ final class SupabaseFriendsService: FriendsService {
                 createdAt: ReferralClock.parseTimestamp(row.created_at) ?? Date()
             )
         }
-        if let newest = parsed.map(\.createdAt).max() {
-            defaults.set(newest.timeIntervalSince1970, forKey: key)
-        }
-        return parsed
+        // watermark の前進と「より後だけ surface」は CheerWatermarkLogic に一本化する
+        // (サーバ側 gt フィルタが緩んでも二度出さない多層防御)。
+        let outcome = CheerWatermarkLogic.evaluate(lastSeen: since, now: now, candidates: parsed)
+        defaults.set(outcome.newWatermark.timeIntervalSince1970, forKey: key)
+        return outcome.unseen
     }
 
     // MARK: - 記録のクラウドバックアップ (user_records)
