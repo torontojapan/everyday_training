@@ -32,8 +32,12 @@ object StreakShareImageRenderer {
     private const val W = 1080
     private const val H = 1440
 
-    /** 連続日数 + 猫種からシェアカードの Bitmap を描く。 */
-    fun render(context: Context, streak: Int, breed: CatBreed): Bitmap {
+    /**
+     * 連続日数 + 猫種からシェアカードの Bitmap を描く。
+     * `poseSeed` で猫のハッピーポーズ(celebrating/happy2/happy3)を決定的に選ぶ
+     * (iOS の poseSeed 相当。同 seed なら再描画でブレない)。
+     */
+    fun render(context: Context, streak: Int, breed: CatBreed, poseSeed: Int = (0..9999).random()): Bitmap {
         val level = StreakLevel.of(streak)
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
@@ -82,7 +86,7 @@ object StreakShareImageRenderer {
         val diameter = 360f
         val centerY = top + diameter / 2
         drawSparkles(canvas, cx, centerY, level.sparkleCount)
-        drawCat(context, canvas, cx, centerY, diameter, breed, level)
+        drawCat(context, canvas, cx, centerY, diameter, breed, level, poseSeed)
         top = centerY + diameter / 2 + 40f
 
         // アプリ名。
@@ -97,7 +101,7 @@ object StreakShareImageRenderer {
      * 描画(1080×1440)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
      * (重い処理を UI スレッドから外す)。呼び出し側のコルーチン(VM/Compose scope)から呼ぶこと。
      */
-    suspend fun share(context: Context, streak: Int, breed: CatBreed) {
+    suspend fun share(context: Context, streak: Int, breed: CatBreed, poseSeed: Int = (0..9999).random()) {
         val app = context.applicationContext
         val level = StreakLevel.of(streak)
         val uri = withContext(Dispatchers.IO) {
@@ -105,7 +109,7 @@ object StreakShareImageRenderer {
             // 過去のシェア画像を溜めない(書き出し前に古い分を消す)。
             dir.listFiles { f -> f.name.startsWith("goexercise-streak-") }?.forEach { it.delete() }
             val file = File(dir, "goexercise-streak-${System.currentTimeMillis()}.png")
-            file.outputStream().use { render(app, streak, breed).compress(Bitmap.CompressFormat.PNG, 100, it) }
+            file.outputStream().use { render(app, streak, breed, poseSeed).compress(Bitmap.CompressFormat.PNG, 100, it) }
             FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -154,9 +158,14 @@ object StreakShareImageRenderer {
         }
     }
 
-    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel) {
+    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel, poseSeed: Int) {
         val r = diameter / 2
-        val resId = context.resources.getIdentifier(breed.assetName(level.catState), "drawable", context.packageName)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で決定的に選ぶ。
+        // 実在チェックは drawable リソース ID の有無で行う(欠損は orange celebrating に縮退)。
+        val poseAsset = breed.randomHappyPoseAsset(poseSeed) { name ->
+            context.resources.getIdentifier(name, "drawable", context.packageName) != 0
+        }
+        val resId = context.resources.getIdentifier(poseAsset, "drawable", context.packageName)
         val drawable = if (resId != 0) ContextCompat.getDrawable(context, resId) else null
         if (drawable != null) {
             val src = drawable.toBitmap(diameter.toInt(), diameter.toInt())

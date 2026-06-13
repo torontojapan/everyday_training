@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,12 +58,14 @@ fun StreakShareContent(streak: Int, breed: CatBreed, onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val level = StreakLevel.of(streak)
+    // 提示ごとに固定のポーズ seed(プレビューと実シェアで同じハッピーポーズが出るよう共有)。
+    val poseSeed = rememberSaveable { (0..9999).random() }
 
     // プレビューは共有と同一の Canvas レンダラから生成(WYSIWYG)。1080×1440 の描画は重いので
     // Default ディスパッチャで生成し、完了まで null(スピナー表示)。streak/breed 変化時のみ再生成。
-    val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed) {
+    val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed, poseSeed) {
         value = withContext(Dispatchers.Default) {
-            StreakShareImageRenderer.render(context, streak, breed).asImageBitmap()
+            StreakShareImageRenderer.render(context, streak, breed, poseSeed).asImageBitmap()
         }
     }
 
@@ -101,7 +104,7 @@ fun StreakShareContent(streak: Int, breed: CatBreed, onBack: () -> Unit = {}) {
         }
 
         Button(
-            onClick = { scope.launch { StreakShareImageRenderer.share(context, streak, breed) } },
+            onClick = { scope.launch { StreakShareImageRenderer.share(context, streak, breed, poseSeed) } },
             modifier = Modifier.fillMaxWidth(),
             enabled = streak > 0,
         ) {

@@ -27,7 +27,22 @@ enum class CatBreed(val rawValue: String, val displayName: String, val tintArgb:
     /** プロテインシェイカーを持つ待機ポーズの asset 名(運動記録の前後フレーバー)。*/
     val shakerAssetName: String get() = "cat_${rawValue}_waitingmorning_shaker"
 
+    /**
+     * 共有カード用のハッピーポーズ asset 名を seed で決定的に1つ選ぶ。iOS randomHappyPoseAsset 相当。
+     * 候補は celebrating + happy2(サムズアップ) + happy3(ピースジャンプ)。実在する drawable のみを
+     * 対象にし(`exists` で判定)、皆無なら orange の celebrating にフォールバックする。
+     * 提示ごとに seed を変えれば毎回ランダム / 同一 seed なら再コンポーズしてもブレない。
+     */
+    fun randomHappyPoseAsset(seed: Int, exists: (String) -> Boolean): String {
+        val candidates = HAPPY_POSE_SUFFIXES
+            .map { "cat_${rawValue}_$it" }
+            .filter(exists)
+        if (candidates.isEmpty()) return "cat_orange_celebrating"
+        return candidates[Math.floorMod(seed, candidates.size)]
+    }
+
     companion object {
+        val HAPPY_POSE_SUFFIXES = listOf("celebrating", "happy2", "happy3")
         val Default = Orange
 
         fun fromRaw(raw: String?): CatBreed = entries.firstOrNull { it.rawValue == raw } ?: Default
