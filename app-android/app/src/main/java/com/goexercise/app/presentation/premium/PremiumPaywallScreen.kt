@@ -120,12 +120,15 @@ fun PremiumPaywallContent(
             TextButton(onClick = onClose) { Text("✕", fontSize = 18.sp, color = palette.textSecondary) }
         }
 
+        // トライアル適格による出し分け文言は PaywallCopy に集約(誤「14日間無料」表示=審査リスク回避)。
+        val copy = PaywallCopy.strings(trialEligible)
+
         // ヘッダー
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("👑", fontSize = 48.sp)
             Text(context.headline, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary, textAlign = TextAlign.Center)
             Text(
-                if (trialEligible) "14日間無料。いつでも解約できます。" else "いつでも解約できます。",
+                copy.subhead,
                 fontSize = 13.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
             )
         }
@@ -158,7 +161,7 @@ fun PremiumPaywallContent(
             if (isWorking) {
                 CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
             } else {
-                Text(if (trialEligible) "14日間無料で始める" else "プレミアムを始める", fontSize = 16.sp, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White)
+                Text(copy.cta, fontSize = 16.sp, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White)
             }
         }
 
@@ -178,12 +181,11 @@ fun PremiumPaywallContent(
         // サブスク開示(審査必須: 価格・周期・自動更新・トライアル後課金・解約方法)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("サブスクリプションについて", fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
-            if (trialEligible) disclosure("・14日間の無料体験後、選択したプランで自動更新されます", palette)
-            else disclosure("・選択したプランで自動更新されます", palette)
+            disclosure(copy.autoRenewDisclosure, palette)
             disclosure("・自動更新: 期間終了の24時間前までに解約しない限り自動で更新されます", palette)
             disclosure("・解約方法: Google Play ストア > メニュー > 定期購入 からいつでも解約できます", palette)
             disclosure("・料金は Google Play アカウントに請求されます", palette)
-            if (trialEligible) disclosure("・無料体験中に解約すれば課金されません", palette)
+            copy.freeTrialCancelNote?.let { disclosure(it, palette) }
         }
 
         // 法務リンク
