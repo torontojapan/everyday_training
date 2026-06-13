@@ -561,7 +561,7 @@ private fun ReferralSection(
                         Column(Modifier.weight(1f)) {
                             Text("友達を招待する", color = palette.textPrimary, fontWeight = FontWeight.Bold)
                             Text(
-                                "招待コードを共有すると、お互いにフリーズがもらえます。",
+                                "招待コードを共有すると、お互いに保険チケットがもらえます。",
                                 color = palette.textSecondary, fontSize = 12.sp,
                             )
                         }

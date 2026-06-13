@@ -178,7 +178,7 @@ class SettingsViewModel @Inject constructor(
     fun onLaterCodeChange(v: String) { _laterCode.value = v }
 
     fun inviteMessage(code: String): String =
-        "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → $code\n" +
+        "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、お互いに保険チケットがもらえます → $code\n" +
             "https://play.google.com/store/apps/details?id=com.goexercise.app"
 
     fun submitLaterInvite() {

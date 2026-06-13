@@ -51,7 +51,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 /** ペイウォールを開いた文脈で見出しを出し分ける。iOS PremiumPaywallSheet.Context。 */
 enum class PaywallContext(val headline: String) {
     Weight("体重タブの全機能を解放しよう"),
-    Freeze("連続記録フリーズを月4回に"),
+    Freeze("保険チケットを月4回に"),
     General("GOプレミアムで全機能を解放"),
 }
 
@@ -131,7 +131,7 @@ fun PremiumPaywallContent(
                 benefit("📈", "週次 / 月次レポート + トレンドライン", palette)
                 benefit("🌙", "周期オーバーレイで体調と体重を重ねて可視化", palette)
                 benefit("🎯", "目標 / BMI / 達成リング / 進捗バー", palette)
-                benefit("❄️", "連続記録フリーズ 月4回(無料は月1回)", palette)
+                benefit("❄️", "保険チケット 月4回(無料は月1回)", palette)
                 benefit("✨", "減量ご褒美マイルストーン(-3 / -5 / -10 kg)", palette)
             }
         }

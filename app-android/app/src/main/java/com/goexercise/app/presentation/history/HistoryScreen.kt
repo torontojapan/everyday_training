@@ -72,7 +72,7 @@ fun HistoryContent(
                 repeat(7 - week.size) { Box(Modifier.weight(1f)) } // 末週の埋め
             }
         }
-        TextButton(onClick = onUseRescue) { Text("連続記録フリーズを使う") }
+        TextButton(onClick = onUseRescue) { Text("保険チケットを使う") }
     }
 }
 
