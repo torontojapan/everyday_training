@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.metalColor
@@ -60,6 +62,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
+    val cycleTrackingEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
     val myFriendCode by viewModel.myFriendCode.collectAsStateWithLifecycle()
     val referralSummary by viewModel.referralSummary.collectAsStateWithLifecycle()
     val laterCode by viewModel.laterCode.collectAsStateWithLifecycle()
@@ -109,6 +112,8 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
         analyticsEnabled = analyticsEnabled,
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
+        cycleTrackingEnabled = cycleTrackingEnabled,
+        onToggleCycleTracking = viewModel::setCycleTrackingEnabled,
         myFriendCode = myFriendCode,
         referralStarBadges = referralSummary.starBadges,
         canEnterCodeLater = viewModel.canEnterCodeLater,
@@ -151,6 +156,8 @@ fun SettingsContent(
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
     analyticsEnabled: Boolean = true,
     onToggleAnalytics: (Boolean) -> Unit = {},
+    cycleTrackingEnabled: Boolean = false,
+    onToggleCycleTracking: (Boolean) -> Unit = {},
     myFriendCode: String? = null,
     referralStarBadges: Int = 0,
     canEnterCodeLater: Boolean = false,
@@ -194,7 +201,14 @@ fun SettingsContent(
         PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
-        CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
+        CatBreedPicker(
+            selected = catBreed,
+            palette = palette,
+            isPremium = isPremium,
+            referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
+            onSelect = onSelectBreed,
+            onLockedTap = onOpenPremium,
+        )
 
         Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
         CatRankLadderSection(palette, currentStreak)
@@ -229,6 +243,20 @@ fun SettingsContent(
 
         Text("プライバシー", color = palette.textSecondary, fontSize = 13.sp)
         AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
+
+        // 生理周期トラッキングのオプトイン(既定 OFF・プライバシー優先)。ON で体重タブに生理日記録 UI を出す。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("生理周期トラッキング", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        "ON にすると体重タブに生理日の記録と周期オーバーレイが表示されます。端末内のみに保存。",
+                        color = palette.textSecondary, fontSize = 12.sp,
+                    )
+                }
+                Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
+            }
+        }
     }
 }
 
@@ -302,25 +330,40 @@ private fun AnalyticsSection(palette: AppTheme, enabled: Boolean, onToggle: (Boo
     }
 }
 
-/** 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。 */
+/**
+ * 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。
+ * 課金/紹介ゲート: 非プレミアムかつ紹介⭐<10 のとき「今の猫」以外はロック(淡色+🔒)、
+ * ロック猫タップはペイウォールへ誘導(iOS UserCatPickerView パリティ)。
+ */
 @Composable
-private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (CatBreed) -> Unit) {
+private fun CatBreedPicker(
+    selected: CatBreed,
+    palette: AppTheme,
+    isPremium: Boolean,
+    referralUnlocked: Boolean,
+    onSelect: (CatBreed) -> Unit,
+    onLockedTap: () -> Unit,
+) {
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CatBreed.entries.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { breed ->
+                        val locked = CatBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
                                 .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
-                                .clickable { onSelect(breed) }
+                                .clickable { if (locked) onLockedTap() else onSelect(breed) }
                                 .padding(vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            CatAvatar(breed = breed, size = 52.dp)
+                            Box(contentAlignment = Alignment.Center) {
+                                CatAvatar(breed = breed, size = 52.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
+                                if (locked) Text("🔒", fontSize = 18.sp)
+                            }
                             Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
                         }
                     }

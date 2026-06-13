@@ -25,6 +25,10 @@ data class HistoryUiState(
     val month: YearMonth,
     val cells: List<MonthCell> = emptyList(),
     val achievedDays: Int = 0,
+    /** 日セルタップ時の詳細シートで「その日の記録」を引くための全記録。 */
+    val records: List<com.goexercise.app.domain.WorkoutRecord> = emptyList(),
+    /** 生理日(履歴カレンダーに ★ を出す)。iOS パリティ。 */
+    val periodDays: Set<LocalDate> = emptySet(),
 )
 
 /** 履歴(月カレンダー)の VM。記録 Flow × 選択月 → 月グリッド。 */
@@ -32,6 +36,7 @@ data class HistoryUiState(
 class HistoryViewModel @Inject constructor(
     repository: WorkoutRepository,
     rescueTickets: RescueTicketRepository,
+    menstrual: com.goexercise.app.data.settings.MenstrualRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -43,9 +48,10 @@ class HistoryViewModel @Inject constructor(
             selectedMonth,
             todayTicker(),
             rescueTickets.rescuedDates,
-        ) { records, month, today, rescued ->
+            menstrual.periodDays,
+        ) { records, month, today, rescued, periodDays ->
             val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
-            HistoryUiState(month, cells, MonthlyCalendarCalculator.achievedDaysInMonth(cells))
+            HistoryUiState(month, cells, MonthlyCalendarCalculator.achievedDaysInMonth(cells), records, periodDays)
         }.stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),

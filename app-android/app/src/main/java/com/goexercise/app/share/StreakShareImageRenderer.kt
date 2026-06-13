@@ -39,14 +39,20 @@ object StreakShareImageRenderer {
      * `poseSeed` で猫のハッピーポーズ(celebrating/happy2/happy3)を決定的に選ぶ
      * (iOS の poseSeed 相当。同 seed なら再描画でブレない)。
      */
-    fun render(context: Context, streak: Int, breed: CatBreed, poseSeed: Int = (0..9999).random()): Bitmap {
+    fun render(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ): Bitmap {
         val level = StreakLevel.of(streak)
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val cx = W / 2f
 
-        // 背景グラデーション(左上→右下)。
-        val colors = level.gradientColors.toIntArray()
+        // 背景グラデーション(左上→右下)。ユーザー選択があればそれを、無ければ称号レベル既定色を使う。
+        val colors = (gradient?.colors ?: level.gradientColors).toIntArray()
         canvas.drawRect(
             0f, 0f, W.toFloat(), H.toFloat(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -96,7 +102,13 @@ object StreakShareImageRenderer {
      * 描画(1080×1440)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
      * (重い処理を UI スレッドから外す)。呼び出し側のコルーチン(VM/Compose scope)から呼ぶこと。
      */
-    suspend fun share(context: Context, streak: Int, breed: CatBreed, poseSeed: Int = (0..9999).random()) {
+    suspend fun share(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ) {
         val app = context.applicationContext
         val level = StreakLevel.of(streak)
         val uri = withContext(Dispatchers.IO) {
@@ -104,7 +116,7 @@ object StreakShareImageRenderer {
             // 過去のシェア画像を溜めない(書き出し前に古い分を消す)。
             dir.listFiles { f -> f.name.startsWith("goexercise-streak-") }?.forEach { it.delete() }
             val file = File(dir, "goexercise-streak-${System.currentTimeMillis()}.png")
-            file.outputStream().use { render(app, streak, breed, poseSeed).compress(Bitmap.CompressFormat.PNG, 100, it) }
+            file.outputStream().use { render(app, streak, breed, poseSeed, gradient).compress(Bitmap.CompressFormat.PNG, 100, it) }
             FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
         }
         val intent = Intent(Intent.ACTION_SEND).apply {

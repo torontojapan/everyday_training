@@ -12,12 +12,17 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDateTime
 import javax.inject.Inject
 
-/** シェア画面の状態(現在の連続日数 + 猫種)。 */
-data class StreakShareUi(val streak: Int = 0, val breed: CatBreed = CatBreed.Default)
+/** シェア画面の状態(現在の連続日数 + 猫種 + 背景グラデ選択)。 */
+data class StreakShareUi(
+    val streak: Int = 0,
+    val breed: CatBreed = CatBreed.Default,
+    val gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Default,
+)
 
 /**
  * マイルストーン シェア画面の VM。現在の連続日数を [HomeStateReducer](純粋・テスト済)で算出し、
@@ -27,7 +32,7 @@ data class StreakShareUi(val streak: Int = 0, val breed: CatBreed = CatBreed.Def
 class StreakShareViewModel @Inject constructor(
     repository: WorkoutRepository,
     rescueTickets: RescueTicketRepository,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -36,8 +41,13 @@ class StreakShareViewModel @Inject constructor(
         rescueTickets.rescuedDates,
         settings.firstUseDate,
         settings.catBreed,
-    ) { records, rescued, firstUse, breed ->
+        settings.shareGradient,
+    ) { records, rescued, firstUse, breed, gradient ->
         val home = HomeStateReducer.reduce(records, LocalDateTime.now(clock), rescuedDates = rescued, firstUseDate = firstUse)
-        StreakShareUi(streak = home.streak.currentStreak, breed = breed)
+        StreakShareUi(streak = home.streak.currentStreak, breed = breed, gradient = gradient)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StreakShareUi())
+
+    fun setGradient(gradient: com.goexercise.app.domain.ShareCardGradient) {
+        viewModelScope.launch { settings.setShareGradient(gradient) }
+    }
 }

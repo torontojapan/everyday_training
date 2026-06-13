@@ -33,7 +33,13 @@ class SupabaseFriendsService(
     override val isMock: Boolean = false
 
     private suspend fun ensureUid(): String {
+        // 起動直後はストレージからのセッション復元が未完のことがある。匿名作成前に初期化を待つ。
+        // ここを怠ると既存の連携アカウント(Apple/Google)が一時的に未ロードの隙に新規匿名アカウントを
+        // 作って上書きし、友達/星を喪失する(iOS の sessionMissing 限定ガードと対称)。
+        runCatching { client.auth.awaitInitialization() }
         client.auth.currentUserOrNull()?.id?.let { return it }
+        // 初期化後も user が無いが session は在る(リフレッシュ失敗等の一時障害)→ 匿名で上書きせずエラー。
+        if (client.auth.currentSessionOrNull() != null) throw FriendsError.NotSignedIn
         client.auth.signInAnonymously()
         return client.auth.currentUserOrNull()?.id ?: throw FriendsError.NotSignedIn
     }

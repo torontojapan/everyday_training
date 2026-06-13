@@ -69,6 +69,23 @@ class MonthlyCalendarCalculatorTest {
     }
 
     @Test
+    fun daysBeforeFirstRecordAreNeutralFuture() {
+        // 初記録(5/10)より前の日は未達成でも休養でもなく中立「-」(Future)。iOS パリティ。
+        val today = LocalDate.of(2026, 5, 31)
+        val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 5), listOf(record(10)), today = today)
+        assertEquals(DailyStatus.Future, cells.first { it.date == LocalDate.of(2026, 5, 5) }.status)
+        assertEquals(DailyStatus.Achieved, cells.first { it.date == LocalDate.of(2026, 5, 10) }.status)
+    }
+
+    @Test
+    fun pastDaysAreNeutralWhenNoRecordsEver() {
+        // 記録が1件も無いユーザーの過去日も中立(× や 休 を出さない)。今日は除外。
+        val today = LocalDate.of(2026, 5, 15)
+        val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 5), emptyList(), today = today)
+        assertEquals(DailyStatus.Future, cells.first { it.date == LocalDate.of(2026, 5, 10) }.status)
+    }
+
+    @Test
     fun futureMonthDaysAreFuture() {
         val today = LocalDate.of(2026, 5, 15)
         val cells = MonthlyCalendarCalculator.cells(YearMonth.of(2026, 5), emptyList(), today = today)

@@ -43,6 +43,25 @@ class RecordViewModelAddSetTest {
     }
 
     @Test
+    fun addSet_carriesWeight() {
+        val vm = vm()
+        val first = vm.state.value.drafts.first()
+        vm.updateDraft(first.id) { it.copy(name = "ベンチプレス", loadText = "60") }
+        vm.addSet(vm.state.value.drafts.first().id)
+        // 重さ違いの複数セットを種目選び直しなしで記録するため、重さも引き継ぐ。
+        assertEquals("60", vm.state.value.drafts[1].loadText)
+    }
+
+    @Test
+    fun validExercises_parsesLoadKilograms() {
+        val vm = vm()
+        val first = vm.state.value.drafts.first()
+        vm.updateDraft(first.id) { it.copy(name = "デッドリフト", loadText = "80.5") }
+        val ex = vm.state.value.validExercises().first()
+        assertEquals(80.5, ex.loadKilograms!!, 0.001)
+    }
+
+    @Test
     fun addSet_unknownId_isNoOp() {
         val vm = vm()
         vm.addSet("does-not-exist")

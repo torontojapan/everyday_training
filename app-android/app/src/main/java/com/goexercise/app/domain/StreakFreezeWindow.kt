@@ -51,7 +51,8 @@ object StreakFreezeWindow {
                 statuses.forEachIndexed { idx, status ->
                     val offset = idx + 1
                     when (status) {
-                        DailyStatus.Achieved, DailyStatus.TodayAchieved -> {
+                        DailyStatus.Achieved, DailyStatus.TodayAchieved, DailyStatus.Rescued -> {
+                            // rescued(過去のフリーズ救済日)も達成と同じ「連続の頭」(表示分離用)。iOS パリティ。
                             foundPrior = true
                             return@run
                         }
@@ -96,8 +97,12 @@ object StreakFreezeWindow {
     }
 
     /**
-     * 記録から状態列(offset 1..(lookback+1))を組み立てて判定を委譲する。
-     * アンカー(直前の達成日)を見つけられるよう lookback より 1 件余分に遡る。
+     * 記録から状態列を組み立てて判定を委譲する。
+     * rest 日は lookback 枠を消費しない(連続を切らない)ため、anchor(連続の頭=achieved/rescued)に
+     * 到達するまで rest を読み飛ばして走査を**動的に延長**する。固定 lookback+1 件だと、
+     * missed と anchor の間に自動休養(週最大2日)が挟まったとき anchor が窓の外へ押し出され、
+     * 復活可能なのに復活ポップが発火しない(iOS が修正済みの不具合の Android 未移植分)。
+     * 打ち切り条件: anchor 到達 / lookback 超の missed 到達 / 安全上限(lookback + 1週間)。
      */
     fun evaluate(
         records: List<WorkoutRecord>,
@@ -106,16 +111,26 @@ object StreakFreezeWindow {
         remainingFreezes: Int,
         lookback: Int = 4,
     ): Result {
-        val statuses = (1..(lookback + 1)).map { offset ->
+        val statuses = mutableListOf<DailyStatus>()
+        // 自動休養は最大週2日。grace(lookback)+ 連続した休養の最大幅を吸収できる安全上限。
+        val hardCap = lookback + 7
+        for (offset in 1..hardCap) {
             val date = today.minusDays(offset.toLong())
             val restDays = RestDayResolver.restDaySet(date, records, today)
-            AchievementEvaluator.dailyStatus(
+            val s = AchievementEvaluator.dailyStatus(
                 date = date,
                 records = records,
                 restDays = restDays,
                 rescuedDates = rescuedDates,
                 today = today,
             )
+            statuses.add(s)
+            when (s) {
+                DailyStatus.Achieved, DailyStatus.TodayAchieved, DailyStatus.Rescued -> break // anchor 到達
+                DailyStatus.Rest -> Unit // 休養は枠を消費せず連続も切らない → 延長
+                DailyStatus.Missed -> if (offset > lookback) break // グレース超 → 復活不可確定
+                else -> break // Future / TodayPending は後方に現れない想定、安全側で停止
+            }
         }
         return Decision.evaluate(statuses, remainingFreezes, lookback)
     }

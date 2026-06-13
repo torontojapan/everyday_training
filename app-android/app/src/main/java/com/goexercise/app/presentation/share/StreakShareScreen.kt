@@ -2,7 +2,12 @@ package com.goexercise.app.presentation.share
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,12 +53,24 @@ fun StreakShareRoute(
     viewModel: StreakShareViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    StreakShareContent(streak = state.streak, breed = state.breed, onBack = onBack)
+    StreakShareContent(
+        streak = state.streak,
+        breed = state.breed,
+        gradient = state.gradient,
+        onSelectGradient = viewModel::setGradient,
+        onBack = onBack,
+    )
 }
 
 /** ステートレスなシェア本体。カード画像をプレビューし、共有 chooser を開く。 */
 @Composable
-fun StreakShareContent(streak: Int, breed: CatBreed, onBack: () -> Unit = {}) {
+fun StreakShareContent(
+    streak: Int,
+    breed: CatBreed,
+    gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Default,
+    onSelectGradient: (com.goexercise.app.domain.ShareCardGradient) -> Unit = {},
+    onBack: () -> Unit = {},
+) {
     val palette = LocalAppPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -63,9 +80,9 @@ fun StreakShareContent(streak: Int, breed: CatBreed, onBack: () -> Unit = {}) {
 
     // プレビューは共有と同一の Canvas レンダラから生成(WYSIWYG)。1080×1440 の描画は重いので
     // Default ディスパッチャで生成し、完了まで null(スピナー表示)。streak/breed 変化時のみ再生成。
-    val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed, poseSeed) {
+    val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed, poseSeed, gradient) {
         value = withContext(Dispatchers.Default) {
-            StreakShareImageRenderer.render(context, streak, breed, poseSeed).asImageBitmap()
+            StreakShareImageRenderer.render(context, streak, breed, poseSeed, gradient).asImageBitmap()
         }
     }
 
@@ -103,8 +120,27 @@ fun StreakShareContent(streak: Int, breed: CatBreed, onBack: () -> Unit = {}) {
             } ?: CircularProgressIndicator(color = palette.primaryDeep)
         }
 
+        // 背景グラデーション ピッカー(5種・選択は永続化)。iOS パリティ。
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(g.colors.map { androidx.compose.ui.graphics.Color(it) }),
+                        )
+                        .then(
+                            if (g == gradient) Modifier.border(3.dp, palette.primaryDeep, CircleShape)
+                            else Modifier.border(1.dp, palette.textSecondary.copy(alpha = 0.3f), CircleShape),
+                        )
+                        .clickable { onSelectGradient(g) },
+                )
+            }
+        }
+
         Button(
-            onClick = { scope.launch { StreakShareImageRenderer.share(context, streak, breed, poseSeed) } },
+            onClick = { scope.launch { StreakShareImageRenderer.share(context, streak, breed, poseSeed, gradient) } },
             modifier = Modifier.fillMaxWidth(),
             enabled = streak > 0,
         ) {

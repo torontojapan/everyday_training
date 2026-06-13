@@ -61,7 +61,7 @@ class RecordViewModel @Inject constructor(
         val index = s.drafts.indexOfFirst { it.id == id }
         if (index < 0) return@update s
         val src = s.drafts[index]
-        val copy = ExerciseDraft(name = src.name, category = src.category)
+        val copy = ExerciseDraft(name = src.name, category = src.category, loadText = src.loadText)
         s.copy(drafts = s.drafts.toMutableList().apply { add(index + 1, copy) })
     }
 

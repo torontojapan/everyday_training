@@ -12,6 +12,7 @@ import com.goexercise.app.data.settings.NotificationPrefsRepository
 import com.goexercise.app.data.settings.ReminderPrefs
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -41,7 +43,17 @@ class SettingsViewModel @Inject constructor(
     private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val friendsService: com.goexercise.app.data.friends.FriendsService,
     private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
+    private val health: com.goexercise.app.data.settings.HealthRepository,
 ) : ViewModel() {
+
+    /** 生理周期トラッキングのオプトイン状態(既定 OFF)。ON で体重タブに生理日記録 UI を出す。 */
+    val cycleTrackingEnabled: StateFlow<Boolean> = health.prefs
+        .map { it.cycleTrackingEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setCycleTrackingEnabled(on: Boolean) {
+        viewModelScope.launch { health.setCycleTrackingEnabled(on) }
+    }
 
     /** 現在の連続記録(称号一覧の現在地「いま」/次目標「あとN日」表示用)。
      *  記録 + 保険救済日から StreakCalculator で算出。Home と同一の寛容判定。 */
@@ -67,6 +79,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setCatBreed(breed: CatBreed) {
+        // 課金/紹介ゲート(UI迂回時の多層防御): 非プレミアムかつ紹介⭐<10 は「今の猫」以外に変更できない。
+        val unlocked = CatBreedAccess.referralUnlocked(referralSummary.value.starBadges)
+        if (CatBreedAccess.isLocked(breed, catBreed.value, isPremium.value, unlocked)) return
         viewModelScope.launch { repository.setCatBreed(breed) }
     }
 

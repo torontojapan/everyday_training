@@ -32,10 +32,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -111,7 +114,8 @@ private fun WeightContent(
             ChartSection(state, palette, onSetPeriod, onToggleCycle)
         }
         ReportCard(state, palette)
-        CyclePanel(state, palette, onTogglePeriodDay)
+        // 生理日トラッキングはオプトイン(設定で ON)時のみ表示。既定 OFF=プライバシー優先。iOS パリティ。
+        if (state.health.cycleTrackingEnabled) CyclePanel(state, palette, onTogglePeriodDay)
         HistoryList(state, palette, onDelete)
     }
 }
@@ -288,8 +292,21 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
     val ySpan = (yMax - yMin).coerceAtLeast(0.1)
     val primary = palette.primary
     val primaryDeep = palette.primaryDeep
+    // タップで最近傍の実測点を選択(再タップ解除)。iOS グラフのタップ選択パリティ。
+    var selectedIndex by remember(daily) { mutableStateOf<Int?>(null) }
 
-    Canvas(modifier) {
+    Canvas(
+        modifier.pointerInput(daily, xMinDay, xSpan) {
+            detectTapGestures { tap ->
+                val w = size.width.toFloat()
+                fun pxLocal(day: Float) = (day - xMinDay) / xSpan * w
+                val nearest = daily.indices.minByOrNull { i ->
+                    kotlin.math.abs(pxLocal(daily[i].date.toEpochDay().toFloat()) - tap.x)
+                }
+                selectedIndex = if (nearest == selectedIndex) null else nearest
+            }
+        },
+    ) {
         val w = size.width
         val h = size.height
         fun px(day: Float) = (day - xMinDay) / xSpan * w
@@ -321,6 +338,24 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
         drawPath(raw, color = primary, style = Stroke(width = 6f))
         daily.forEach { e ->
             drawCircle(color = primaryDeep, radius = 7f, center = Offset(px(e.date.toEpochDay().toFloat()), py(e.weightKg)))
+        }
+        // 選択点を強調 + 値ラベル。
+        selectedIndex?.let { idx ->
+            val e = daily.getOrNull(idx) ?: return@let
+            val cx = px(e.date.toEpochDay().toFloat()); val cy = py(e.weightKg)
+            drawCircle(color = primaryDeep, radius = 12f, center = Offset(cx, cy))
+            drawCircle(color = Color.White, radius = 5f, center = Offset(cx, cy))
+            drawContext.canvas.nativeCanvas.drawText(
+                "${e.weightKg}kg",
+                cx.coerceIn(40f, w - 40f),
+                (cy - 22f).coerceAtLeast(30f),
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.DKGRAY
+                    textSize = 30f
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                },
+            )
         }
     }
 }

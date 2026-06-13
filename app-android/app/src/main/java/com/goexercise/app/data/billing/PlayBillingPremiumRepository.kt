@@ -44,6 +44,10 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
     private val _isPremiumActive = MutableStateFlow(false)
     override val isPremiumActive: StateFlow<Boolean> = _isPremiumActive.asStateFlow()
 
+    // 既定 false(商品ロード前は不明=控えめ)。loadProducts で無料トライアル offer の有無により確定。
+    private val _isTrialEligible = MutableStateFlow(false)
+    override val isTrialEligible: StateFlow<Boolean> = _isTrialEligible.asStateFlow()
+
     private val _lastError = MutableStateFlow<String?>(null)
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
@@ -103,6 +107,10 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
             ).build()
         val result = client.queryProductDetails(params)
         result.productDetailsList?.forEach { productDetailsCache[it.productId] = it }
+        // 無料トライアル offer が1商品でも返れば適格(Play は消化済みユーザーには trial offer を返さない)。
+        _isTrialEligible.value = ProductIds.all.any { id ->
+            productDetailsCache[id]?.let { trialOffer(it) != null } == true
+        }
     }
 
     private suspend fun refreshEntitlements() {

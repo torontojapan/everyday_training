@@ -149,6 +149,15 @@ private fun ExerciseDraftCard(
                 NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
                 NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
             }
+            // 重さ(kg)フリー入力(ダンベル等の負荷。小数可)。iOS パリティ。
+            OutlinedTextField(
+                value = draft.loadText,
+                onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
+                label = { Text("重さ (kg)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onAddSet) { Text("＋ 同じ種目でセットを追加") }
                 if (canRemove) {

@@ -111,4 +111,32 @@ class StreakFreezeWindowTest {
         assertTrue(r.revivable)
         assertEquals(listOf(2), r.missedOffsets)
     }
+
+    @Test
+    fun rescuedActsAsAnchor_revivable() {
+        // 過去のフリーズ救済日(Rescued)も達成と同じ「連続の頭」。iOS パリティ。
+        val r = decide(listOf(DailyStatus.Missed, DailyStatus.Rescued), remaining = 1)
+        assertTrue(r.revivable)
+        assertEquals(listOf(1), r.missedOffsets)
+    }
+
+    @Test
+    fun missedThenManyRestsThenAchieved_anchorBeyondFixedWindow_revivable() {
+        // missed(offset1) と達成アンカーの間に自動休養が複数挟まり、アンカーが offset6(=旧固定窓 lookback+1=5 の外)。
+        // 休養は枠を消費しないので復活可能でなければならない(#3: 固定窓だと anchor 押し出しで復活ポップ消失)。
+        val r = decide(
+            listOf(
+                DailyStatus.Missed,  // offset1
+                DailyStatus.Rest,    // offset2
+                DailyStatus.Rest,    // offset3
+                DailyStatus.Rest,    // offset4
+                DailyStatus.Rest,    // offset5
+                DailyStatus.Achieved // offset6 = アンカー(旧固定窓の外)
+            ),
+            remaining = 1,
+            lookback = 4,
+        )
+        assertTrue(r.revivable)
+        assertEquals(listOf(1), r.missedOffsets)
+    }
 }
