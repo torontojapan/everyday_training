@@ -1,6 +1,8 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件
+# MEDIUM 所見 worklist (2026-06-14) — 140件(2件完了)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
+
+進捗: 1_correctness の残2件(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)完了(68b42e1/853ce8b)。次=4_審査コンプラ。
 
 
 ## 1_correctness/データ (6件)
@@ -8,9 +10,9 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 - [ ] **account** | Android 連携失敗時にセッションを巻き戻さず、半端な切替状態が残りうる
 - [ ] **account** | 友達タブ初回表示 (ensureUid / 匿名lazy生成) (mismatch)
 - [ ] **account** | parity: ensureUID: transient障害 vs 無セッションの区別
-- [ ] **cheers** | 受信応援トーストの単体/結合テストが両OSとも皆無(watermark前進含む)
+- [x] **cheers** | 受信応援トーストの単体/結合テストが両OSとも皆無(watermark前進含む) — CheerWatermarkLogic 抽出+Android/iOS テスト各6本(68b42e1/853ce8b)
 - [ ] **paywall** | parity: 猫種変更のプレミアム gate
-- [ ] **referrals** | Android の星バッジ/今月フリーズ表示が口座一致チェックを経ず raw summary を直読み
+- [x] **referrals** | Android の星バッジ/今月フリーズ表示が口座一致チェックを経ず raw summary を直読み — ReferralAccountScope+_currentAccountCode で reactive 口座ガード化、設定/レスキュー消費を経由化、テスト5本(68b42e1)
 
 ## 2_課金 (10件)
 
