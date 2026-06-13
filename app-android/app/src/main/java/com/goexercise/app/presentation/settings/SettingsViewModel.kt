@@ -121,7 +121,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setCatBreed(breed: CatBreed) {
         // 課金/紹介ゲート(UI迂回時の多層防御): 非プレミアムかつ紹介⭐<10 は「今の猫」以外に変更できない。
-        val unlocked = CatBreedAccess.referralUnlocked(referralSummary.value.starBadges)
+        // 口座ガード経由で判定し、切替/復元直後に前アカウントの星で誤解放しない。
+        val unlocked = referralStore.isBreedUnlockedForCurrentAccount()
         if (CatBreedAccess.isLocked(breed, catBreed.value, isPremium.value, unlocked)) return
         viewModelScope.launch { repository.setCatBreed(breed) }
     }
@@ -213,8 +214,9 @@ class SettingsViewModel @Inject constructor(
 
     // --- 友達を招待(共有 / 星バッジ / 後から入力) ---
 
-    /** 紹介サマリ(星バッジ数など)。 */
-    val referralSummary = referralStore.summary
+    /** 紹介サマリの星バッジ数(設定の招待カード表示用)。口座ガード経由で読み、切替/復元直後に
+     *  前アカウントの星を表示しない(iOS currentAccountStarBadges 相当)。 */
+    val referralStarBadges: StateFlow<Int> = referralStore.currentAccountStarBadges
 
     /** 自分の招待コード(共有メッセージ用)。プロフィール取得後に埋める。 */
     private val _myFriendCode = MutableStateFlow<String?>(null)

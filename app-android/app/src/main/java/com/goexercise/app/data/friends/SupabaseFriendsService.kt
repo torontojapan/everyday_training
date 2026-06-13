@@ -172,9 +172,10 @@ class SupabaseFriendsService(
         val store = cheerWatermark ?: return emptyList()
         val uid = client.auth.currentUserOrNull()?.id?.lowercase() ?: return emptyList()
         val last = store.lastSeen(uid)
+        val now = System.currentTimeMillis()
         if (last == null) {
-            // 初回は「今」を起点にして過去の蓄積を一気に出さない。
-            store.setLastSeen(uid, System.currentTimeMillis())
+            // 初回は「今」を起点にして過去の蓄積を一気に出さない(前進ロジックは CheerWatermarkLogic に集約)。
+            store.setLastSeen(uid, CheerWatermarkLogic.evaluate(null, now, emptyList()).newWatermark)
             return emptyList()
         }
         val sinceIso = backupTimestamp(java.time.Instant.ofEpochMilli(last))
@@ -201,8 +202,11 @@ class SupabaseFriendsService(
                     ?: java.time.Instant.now()).toEpochMilli(),
             )
         }
-        parsed.maxOfOrNull { it.createdAtEpochMs }?.let { store.setLastSeen(uid, it) }
-        return parsed
+        // watermark の前進と「より後だけ surface」は CheerWatermarkLogic に一本化する
+        // (サーバ側 gt フィルタが緩んでも二度出さない多層防御)。
+        val outcome = CheerWatermarkLogic.evaluate(last, now, parsed)
+        store.setLastSeen(uid, outcome.newWatermark)
+        return outcome.unseen
     }
 
     override suspend fun publishMyProfile(profile: FriendProfile) {

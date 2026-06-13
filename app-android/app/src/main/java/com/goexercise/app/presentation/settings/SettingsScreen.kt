@@ -67,7 +67,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isLinkingAccount by viewModel.isLinkingAccount.collectAsStateWithLifecycle()
     val linkError by viewModel.linkError.collectAsStateWithLifecycle()
     val myFriendCode by viewModel.myFriendCode.collectAsStateWithLifecycle()
-    val referralSummary by viewModel.referralSummary.collectAsStateWithLifecycle()
+    val referralStarBadges by viewModel.referralStarBadges.collectAsStateWithLifecycle()
     val laterCode by viewModel.laterCode.collectAsStateWithLifecycle()
     val laterSubmitting by viewModel.laterSubmitting.collectAsStateWithLifecycle()
     val laterAccepted by viewModel.laterAccepted.collectAsStateWithLifecycle()
@@ -123,7 +123,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onLinkApple = { viewModel.linkApple(context) },
         onLinkGoogle = { viewModel.linkGoogle(context) },
         myFriendCode = myFriendCode,
-        referralStarBadges = referralSummary.starBadges,
+        referralStarBadges = referralStarBadges,
         canEnterCodeLater = viewModel.canEnterCodeLater,
         onShareInvite = { code ->
             val intent = Intent(Intent.ACTION_SEND).apply {
