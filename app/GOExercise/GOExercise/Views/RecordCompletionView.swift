@@ -202,7 +202,9 @@ struct RecordCompletionView: View {
                     .foregroundStyle(Palette.textSecondary)
             }
             if streakExtendedThisRun {
-                Label("きのうから +1 のばした！", systemImage: "sparkles")
+                // アイコン無しのテキストのみ (sparkles は安っぽいというユーザー指摘で削除。
+                // 肉球=ブランドアイコンは直上のヒーローに既出のため重ねない)。
+                Text("きのうから +1 のばした！")
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(Palette.primaryDeep)
             }

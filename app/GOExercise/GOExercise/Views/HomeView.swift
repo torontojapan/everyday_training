@@ -142,7 +142,14 @@ struct HomeView: View {
                 syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+                    // 連続日数が「この記録で」伸びたのは今日 1 件目のときだけ。
+                    // 2 件目以降(もう一種目)でも true を渡すと完了画面に
+                    // 「きのうから +1 のばした!」が再表示される誤りがあった。
+                    // store.records はこの時点で新しい記録を含む。
+                    let isFirstRecordToday = store.records.filter {
+                        calendar.isDate($0.date, inSameDayAs: Date())
+                    }.count <= 1
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: isFirstRecordToday, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                     // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
                     // onAppear/onChange のみで、記録後すぐは stale だった)。
                     syncMyFriendProfile()
