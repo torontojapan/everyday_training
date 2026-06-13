@@ -66,13 +66,10 @@ object StreakShareImageRenderer {
             top = rect.bottom + 28f
         }
 
-        // 見出し。
+        // 見出し(称号系の称賛文。絵文字は廃止)。
         top = canvas.drawCentered(level.headline, cx, top, textPaint(60f, bold = true), gap = 24f)
 
-        // 🔥 行。
-        if (level.fireCount > 0) {
-            top = canvas.drawCentered("🔥".repeat(level.fireCount), cx, top, textPaint(64f), gap = 24f)
-        }
+        // 🔥 行は廃止(iOS 同様、絵文字装飾をやめる)。
 
         // 大きな連続日数 + 「日連続」。
         top = canvas.drawCentered(
@@ -85,7 +82,8 @@ object StreakShareImageRenderer {
         // 猫(円形クリップ + 白枠)+ きらめき。欠損時は絵文字フォールバック。
         val diameter = 360f
         val centerY = top + diameter / 2
-        drawSparkles(canvas, cx, centerY, level.sparkleCount)
+        // ✨ 絵文字きらめきは廃止(iOS は紙吹雪。安っぽい絵文字をやめる)。
+        drawConfetti(canvas, cx, centerY, diameter)
         drawCat(context, canvas, cx, centerY, diameter, breed, level, poseSeed)
         top = centerY + diameter / 2 + 40f
 
@@ -147,14 +145,28 @@ object StreakShareImageRenderer {
         return top + (fm.descent - fm.ascent) + gap
     }
 
-    private fun drawSparkles(canvas: Canvas, cx: Float, cy: Float, count: Int) {
+    /** 猫の周りに紙吹雪(色付き矩形)を散らす。iOS の StaticConfettiView 相当。
+     *  決定論的配置(再描画でブレない)。絵文字きらめきの置き換え。 */
+    private fun drawConfetti(canvas: Canvas, cx: Float, cy: Float, diameter: Float) {
+        val colors = intArrayOf(
+            0xFFFFFFFF.toInt(), 0xFFFFD94D.toInt(), 0xFFFC8C73.toInt(),
+            0xFF8CCCF2.toInt(), 0xFFB38CF2.toInt(),
+        )
+        val count = 18
         for (i in 0 until count) {
-            val angle = i.toDouble() / maxOf(1, count) * 360.0
-            val radius = 230f + (i % 3) * 24f
-            val size = 24f + (i % 4) * 8f
+            val angle = i * 137.5 // 黄金角で偏りなく散らす
+            val radius = 200f + (i % 5) * 26f
             val x = cx + (cos(Math.toRadians(angle)) * radius).toFloat()
-            val y = cy + (sin(Math.toRadians(angle)) * radius).toFloat()
-            canvas.drawText("✨", x, y, textPaint(size).apply { textAlign = Paint.Align.CENTER })
+            val y = cy + (sin(Math.toRadians(angle)) * radius).toFloat() - 30f
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors[i % colors.size] }
+            canvas.save()
+            canvas.rotate((i * 47 % 360).toFloat(), x, y)
+            if (i % 4 == 0) {
+                canvas.drawCircle(x, y, 9f, paint)
+            } else {
+                canvas.drawRoundRect(RectF(x - 7f, y - 11f, x + 7f, y + 11f), 3f, 3f, paint)
+            }
+            canvas.restore()
         }
     }
 
