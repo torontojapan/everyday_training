@@ -114,7 +114,7 @@ targets:
       - path: GOExercise/Models/WorkoutRecord.swift
       - path: GOExercise/Models/ExerciseItem.swift
       - path: GOExercise/Models/WorkoutCategory.swift
-      # WeightEntry / MenstrualEntry は QuickRecordIntent が App Group 共有ストアを
+      # WeightEntry / MenstrualEntry はウィジェットが App Group 共有ストアを
       # メインアプリと同一 schema で開くために必要 (監査 B-Critical-1)。
       - path: GOExercise/Models/WeightEntry.swift
       - path: GOExercise/Models/MenstrualEntry.swift

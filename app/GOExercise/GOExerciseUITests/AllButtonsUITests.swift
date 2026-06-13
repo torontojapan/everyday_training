@@ -123,7 +123,11 @@ final class AllButtonsUITests: XCTestCase {
         XCTAssertTrue(settingsLink.waitForExistence(timeout: 8))
         settingsLink.tap()
 
+        // 設定ルートは lazy List のため、画面外の行は hierarchy に存在しない。
+        // 「通知設定」が下にある構成 (アカウントとバックアップが最上位) でも
+        // 見つかるよう、必要ならスクロールして探す。
         let notifLink = app.buttons.containing(NSPredicate(format: "label CONTAINS '通知'")).firstMatch
+        if !notifLink.waitForExistence(timeout: 2) { app.swipeUp() }
         XCTAssertTrue(notifLink.waitForExistence(timeout: 5))
         notifLink.tap()
 

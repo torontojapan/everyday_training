@@ -26,7 +26,7 @@ struct SmallWidgetView: View {
             }
 
             // CTA チップは未達成時のみ(達成/回復日は見出しが語るため重複チップを出さない)。
-            QuickRecordButtonView(snapshot: snapshot)
+            RecordPromptChipView(snapshot: snapshot)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }

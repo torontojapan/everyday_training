@@ -1,11 +1,10 @@
 import SwiftUI
 import WidgetKit
 
-/// 今日のステータスチップ + 記録への誘導。
-/// 旧: Button(intent: QuickRecordIntent) でその場記録していたが、クイック記録機能は
-/// 廃止(ユーザー要望)。CTA は装飾のみのチップになり、タップはウィジェット全体の
-/// `widgetURL(goexercise://home)` に落ちてアプリのホームタブが開く。
-struct QuickRecordButtonView: View {
+/// 未達成の日に出す記録誘導チップ。
+/// ウィジェットからの直接記録は提供しない(ユーザー要望)。チップ自体は装飾で、
+/// タップはウィジェット全体の `widgetURL(goexercise://home)` に落ちてホームタブが開く。
+struct RecordPromptChipView: View {
     let snapshot: WidgetSnapshot
 
     var body: some View {

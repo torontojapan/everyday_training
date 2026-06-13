@@ -42,7 +42,7 @@ struct CatLiveActivity: Widget {
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         Spacer()
                         if !context.state.todayAchieved {
-                            // クイック記録は廃止(ユーザー要望)。アプリのホームタブを開いて記録する。
+                            // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
                             Link(destination: URL(string: "goexercise://home")!) {
                                 Text("運動を記録")
                                     .font(.system(.caption, design: .rounded, weight: .heavy))
@@ -153,7 +153,7 @@ struct CatLockScreenView: View {
             Spacer()
 
             if !state.todayAchieved {
-                // クイック記録は廃止(ユーザー要望)。アプリのホームタブを開いて記録する。
+                // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
                 Link(destination: URL(string: "goexercise://home")!) {
                     Text("運動を記録")
                         .font(.system(.caption, design: .rounded, weight: .heavy))

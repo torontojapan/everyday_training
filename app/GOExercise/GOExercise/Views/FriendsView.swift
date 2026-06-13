@@ -737,6 +737,9 @@ struct FriendsView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        // container 化: UI test が otherElements として frame を取れるようにする
+        // (shareAppCard との隣接検証で、初回のみ正当に挟まるこのカードを anchor にするため)。
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("friends-name-prompt")
     }
 

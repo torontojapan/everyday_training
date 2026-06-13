@@ -37,7 +37,7 @@ struct MediumWidgetView: View {
                     Spacer()
                     // CTA チップは未達成時のみ(達成/回復日のステータスチップは見出しと
                     // 重複するため出さない。ユーザー指摘の「同じことを言い過ぎ」解消)。
-                    QuickRecordButtonView(snapshot: snapshot)
+                    RecordPromptChipView(snapshot: snapshot)
                 }
             }
             Spacer(minLength: 0)

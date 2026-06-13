@@ -108,9 +108,9 @@ struct HomeView: View {
                 refreshHomeState()
             }
             .onChange(of: scenePhase) { _, newPhase in
-                // 前面復帰時の再計算。これが無いと、ウィジェットの QuickRecord で記録した後や、
-                // バックグラウンドで日付が変わった翌朝に、ホームが昨日の「達成済み」チップや
-                // 古い CTA を出したまま固まる(タブ切替で onAppear が走るまで直らない)。
+                // 前面復帰時の再計算。これが無いと、バックグラウンドで日付が変わった翌朝に、
+                // ホームが昨日の「達成済み」チップや古い CTA を出したまま固まる
+                // (タブ切替で onAppear が走るまで直らない)。
                 // WeightView は既に scenePhase を監視しており、ホームに同等が欠けていた(監査 P1)。
                 guard newPhase == .active else { return }
                 refreshHomeState()
@@ -303,25 +303,27 @@ struct HomeView: View {
         }
     }
 
+    /// 称号カプセル(RankBadge: footnote + 縦 padding 6)と同じ縦幅に揃える。
+    /// これで右列(称号+状態)が低くなり、fillHeight の連続チップも釣られて低くなる。
     @ViewBuilder
     private var statusChip: some View {
         if viewModel.todayStatus == .todayAchieved {
             Label("今日は達成済み", systemImage: "checkmark.seal.fill")
-                .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .font(.system(.footnote, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.success.opacity(0.18), in: Capsule())
                 .foregroundStyle(Palette.success)
         } else if viewModel.todayStatus == .rest {
             Label("今日は回復日", systemImage: "moon.zzz.fill")
-                .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .font(.system(.footnote, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.restDay.opacity(0.30), in: Capsule())
                 .foregroundStyle(Palette.textPrimary)
         } else {
             Text(remainingTimeText)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.surface, in: Capsule())
         }
     }

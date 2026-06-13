@@ -9,12 +9,13 @@ final class AccountLinkingTests: XCTestCase {
     // MARK: - config gating (既定は無効 = 現挙動維持)
 
     func testLinkingConfigReflectsInfoPlist() {
-        // 本番 Info.plist で Apple 連携(機種変復旧)を有効化済み = `FriendsAppleLinkEnabled: true`。
-        // Google 連携キーは未設定なので false。Bundle.main = テスト host(本体アプリ)の Info.plist を読む。
-        // (旧 testLinkingDisabledByDefault は、Apple 復元キー導入前の前提で書かれていたため更新)
+        // 本番 Info.plist で Apple/Google 連携(機種変復旧)とも有効化済み
+        // (`FriendsAppleLinkEnabled: true` / `FriendsGoogleLinkEnabled: true`。3ba5ac1 で
+        // Google サインインを有効化)。Bundle.main = テスト host(本体アプリ)の Info.plist を読む。
+        // 注: xcodegen がキーを落とす再発バグがあると両方 false に転ぶ = この assert が検知器を兼ねる。
         XCTAssertTrue(SupabaseConfig.appleLinkEnabled, "FriendsAppleLinkEnabled=true(Apple復元)")
-        XCTAssertFalse(SupabaseConfig.googleLinkEnabled, "FriendsGoogleLinkEnabled は未設定")
-        XCTAssertTrue(SupabaseConfig.isAccountLinkingEnabled, "Apple のみで連携は有効")
+        XCTAssertTrue(SupabaseConfig.googleLinkEnabled, "FriendsGoogleLinkEnabled=true(Google復元)")
+        XCTAssertTrue(SupabaseConfig.isAccountLinkingEnabled, "Apple/Google 連携が有効")
     }
 
     // MARK: - エラー文言

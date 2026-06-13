@@ -163,7 +163,7 @@ struct GOExerciseApp: App {
         }
         // Widget と同じ App Group 共有ストアを使う。
         // 旧 `.modelContainer(for:)` はデフォルトのローカルストアを使っており、
-        // ウィジェットのクイック記録がメインアプリに反映されなかった (監査 B-Critical-1)。
+        // ウィジェットとメインアプリで見るストアが分かれていた (監査 B-Critical-1)。
         .modelContainer(sharedModelContainer)
     }
 }
