@@ -99,7 +99,13 @@ final class RecordSyncCoordinator {
 
     /// 通常同期(起動時/バックグラウンド移行時/手動)。
     func syncNow() async {
-        guard isEnabled, !isSyncing, service.myProfile != nil, modelContext != nil else { return }
+        guard isEnabled, !isSyncing, let startProfile = service.myProfile, modelContext != nil else { return }
+        // in-flight 口座切替ガード: 開始時の identity(friendCode)を捕捉し、await 中にアカウントが
+        // 切り替わったら破壊的操作(wipe/upsert)を中止する。これが無いと、同期の await 中に identity が
+        // 変わった瞬間、A の削除キューで B のバックアップを wipe したり、A のローカル記録を B のリモートへ
+        // upsert する口座跨ぎ事故が起きる(Android RecordSyncCoordinator と対称のガード)。
+        let startCode = startProfile.friendCode
+        func identityStable() -> Bool { service.myProfile?.friendCode == startCode }
         isSyncing = true
         defer { isSyncing = false }
         lastError = nil
@@ -111,6 +117,7 @@ final class RecordSyncCoordinator {
             //    先に drain すると、ネットワーク失敗時に tombstone が失われ削除が
             //    リモートに残る=後の pull で復活する(Codex P1)。
             let pending = RecordSyncTombstones.peek(defaults: defaults)
+            guard identityStable() else { return } // 破壊的操作の直前に再検証
             if pending.wipe {
                 try await service.backupWipeAll()
             } else if !pending.ids.isEmpty {
@@ -123,7 +130,9 @@ final class RecordSyncCoordinator {
             //    取り込んでから push すれば、古い側はローカルで上書きされ、push は最新内容の冪等 echo になる。
             try apply(remote: try await service.backupFetchAll())
             // 3) push(lastSync 以降の変更 + 救済日全件)
+            guard identityStable() else { return } // upsert 直前に再検証(他アカウントへ書き込まない)
             try await service.backupUpsert(changedRecords(since: lastSyncAt))
+            guard identityStable() else { return }
             stampSynced(at: syncStart)
         } catch {
             lastError = "同期に失敗しました: \(error.localizedDescription)"
