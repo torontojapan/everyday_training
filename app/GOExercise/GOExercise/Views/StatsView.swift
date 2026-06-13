@@ -77,10 +77,10 @@ struct StatsView: View {
                         menstrualEntry(store: menstrualStore)
                     }
 
-                    // 保険チケット (設定から移動)。折りたたみで残枚数だけ subtitle 表示。
+                    // フリーズ (設定から移動)。折りたたみで残枚数だけ subtitle 表示。
                     CollapsibleSection(
                         persistenceKey: "stats.rescueTicket",
-                        title: "保険チケット",
+                        title: "フリーズ",
                         subtitle: rescueTicketSubtitle,
                         icon: rescueTicketRemaining > 0 ? "ticket.fill" : "ticket"
                     ) {

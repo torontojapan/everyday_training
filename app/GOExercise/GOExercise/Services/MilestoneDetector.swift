@@ -17,17 +17,22 @@ enum Milestone: Equatable, Sendable {
         }
     }
 
-    var emoji: String {
+    /// 種別バッジの SF Symbol(絵文字 🎉✨🔥 は安っぽいというブランド方針で廃止し、
+    /// 金グラデで塗る上質なシンボルへ置換。祝祭画面の右上バッジに使う)。
+    var badgeSymbol: String {
         switch self {
-        case .anniversary: return "🎉"
-        case .lifetimeDays(let d) where d >= 365: return "🏆"
-        case .lifetimeDays: return "🎖️"
-        case .currentStreak(let d) where d >= 100: return "🔥"
-        case .currentStreak: return "✨"
-        case .weightLoss(let kg) where kg >= 10: return "🏆"
-        case .weightLoss: return "🌟"
+        case .anniversary: return "rosette"
+        case .lifetimeDays(let d) where d >= 365: return "trophy.fill"
+        case .lifetimeDays: return "medal.fill"
+        case .currentStreak(let d) where d >= 100: return "crown.fill"
+        case .currentStreak: return "rosette"
+        case .weightLoss(let kg) where kg >= 10: return "trophy.fill"
+        case .weightLoss: return "medal.fill"
         }
     }
+
+    /// asset 欠落時のフォールバック文字(猫)。種別装飾の絵文字は使わない。
+    var fallbackEmoji: String { "😸" }
 
     var detail: String {
         switch self {
@@ -48,13 +53,13 @@ enum Milestone: Equatable, Sendable {
     var shareMessage: String {
         switch self {
         case .anniversary(let years):
-            return "\(emoji) GO エクササイズ \(years)周年達成！ねこ達とゆるく運動習慣を続けてます。一緒にやろう"
+            return "GO エクササイズ \(years)周年達成！ねこ達とゆるく運動習慣を続けてます。一緒にやろう"
         case .lifetimeDays(let d):
-            return "\(emoji) GO エクササイズで通算 \(d) 日達成！ねこ達とゆるく続けてます。一緒にやろう"
+            return "GO エクササイズで通算 \(d) 日達成！ねこ達とゆるく続けてます。一緒にやろう"
         case .currentStreak(let d):
-            return "\(emoji) GO エクササイズで \(d) 日連続達成！ねこ達とゆるく運動習慣つくってます"
+            return "GO エクササイズで \(d) 日連続達成！ねこ達とゆるく運動習慣つくってます"
         case .weightLoss(let kg):
-            return "\(emoji) GO エクササイズで -\(kg)kg 達成！ねこ達と一緒にコツコツ続けた結果"
+            return "GO エクササイズで -\(kg)kg 達成！ねこ達と一緒にコツコツ続けた結果"
         }
     }
 

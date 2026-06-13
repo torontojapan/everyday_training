@@ -143,7 +143,7 @@ struct MonthlyCalendarView: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")\(isRescued ? " 保険チケット使用" : "")")
+            .accessibilityLabel("\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日 \(accessibilityValue(for: status))\(isMenstrual ? " 生理日" : "")\(isRescued ? " フリーズ使用" : "")")
         }
     }
 
@@ -173,7 +173,7 @@ struct MonthlyCalendarView: View {
                     legendDot(color: Color(red: 0.86, green: 0.36, blue: 0.45), label: "生理日")
                 }
                 if !rescuedDates.isEmpty {
-                    legendChip(systemImage: "ticket.fill", label: "保険チケット")
+                    legendChip(systemImage: "ticket.fill", label: "フリーズ使用")
                 }
             }
         }

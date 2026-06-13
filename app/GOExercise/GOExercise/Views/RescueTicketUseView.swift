@@ -54,7 +54,7 @@ struct RescueTicketUseView: View {
             .padding(20)
         }
         .background(Palette.background)
-        .navigationTitle("保険チケットを使う")
+        .navigationTitle("フリーズを使う")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if workoutStore == nil {
@@ -85,7 +85,7 @@ struct RescueTicketUseView: View {
 
     private var confirmTitle: String {
         if let pendingDate {
-            return "\(format(pendingDate)) に保険チケットを適用しますか？"
+            return "\(format(pendingDate)) にフリーズを適用しますか？"
         }
         return ""
     }
@@ -199,7 +199,7 @@ struct RescueTicketUseView: View {
         let dayStart = calendar.startOfDay(for: date)
 
         if self.store.rescuedDates().contains(dayStart) {
-            resultMessage = ResultMessage(title: "この日には既に適用済み", text: "保険チケットは同じ日に重ねて使えません。")
+            resultMessage = ResultMessage(title: "この日には既に適用済み", text: "フリーズは同じ日に重ねて使えません。")
             return
         }
         _ = allowance  // capture in case extended later
@@ -219,19 +219,19 @@ struct RescueTicketUseView: View {
             // useTicket は **適用対象の日 (date)** の月を見るので、月境界で食い違いが
             // 出る (例: 1 日朝に前月末日へ適用)。store と同じ判定軸 (date) で確認する。
             guard self.store.hasTicketAvailable(today: date, allowance: allowance(for: date)) else {
-                resultMessage = ResultMessage(title: "対象月のチケットを使い切っています",
+                resultMessage = ResultMessage(title: "対象月のフリーズを使い切っています",
                                               text: "別の日に適用するか、翌月の補充をお待ちください。")
                 return
             }
             pendingDate = date
         case .achieved, .todayAchieved:
-            resultMessage = ResultMessage(title: "この日は達成済み", text: "保険チケットは未達成 (×) の日にだけ使えます。")
+            resultMessage = ResultMessage(title: "この日は達成済み", text: "フリーズは未達成 (×) の日にだけ使えます。")
         case .rescued:
             resultMessage = ResultMessage(title: "この日は救済済み", text: "すでにフリーズで継続扱いになっています。")
         case .rest:
-            resultMessage = ResultMessage(title: "この日は自動休養日", text: "もう連続記録は維持されています。チケット不要です。")
+            resultMessage = ResultMessage(title: "この日は自動休養日", text: "もう連続記録は維持されています。フリーズ不要です。")
         case .future:
-            resultMessage = ResultMessage(title: "未来の日付", text: "チケットは過去または今日の日にだけ適用できます。")
+            resultMessage = ResultMessage(title: "未来の日付", text: "フリーズは過去または今日の日にだけ適用できます。")
         }
     }
 
@@ -239,9 +239,9 @@ struct RescueTicketUseView: View {
         let success = store.useTicket(on: date, allowance: allowance(for: date))
         pendingDate = nil
         if success {
-            resultMessage = ResultMessage(title: "適用しました ✅", text: "\(format(date)) に保険チケットを使いました。連続記録が守られます。")
+            resultMessage = ResultMessage(title: "適用しました", text: "\(format(date)) にフリーズを使いました。連続記録が守られます。")
         } else {
-            resultMessage = ResultMessage(title: "適用できませんでした", text: "今月のチケットを使い切っています。")
+            resultMessage = ResultMessage(title: "適用できませんでした", text: "今月のフリーズを使い切っています。")
         }
     }
 

@@ -242,7 +242,7 @@ struct LifetimeStatsShareCard: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                Text("🏆").font(.system(size: 120))
+                Text("😺").font(.system(size: 120))
             }
         }
     }
