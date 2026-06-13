@@ -165,27 +165,39 @@ struct StreakShareCard: View {
     var gradientColors: [Color] = ShareCardGradient.ocean.colors
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
+    /// 連続日数に対応する称号ランク(背景進化・ホームの称号バッジと同一)。
+    private var rank: CatRank { CatRank(currentStreak: streak) }
 
     var body: some View {
         VStack(spacing: 18) {
-            // バッジ(レベル称号があればそれを、無ければ STREAK)
-            Text(level.badgeText ?? "STREAK")
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .tracking(3)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14).padding(.vertical, 5)
-                .background(.black.opacity(0.45), in: Capsule())
+            // 見出しは「称号バッジ」。期間表現(旧 "1週間つづいた!" 等)は 7〜13 日を
+            // 一律「1週間」と表すなど不正確なため廃止。ホームと同じメタリックな称号バッジ
+            // (rank のメタル色カプセル+肉球+称号)を大きく見せる(ユーザー要望 2026-06-13)。
+            // ImageRenderer は静止画なので shimmer アニメは off。
+            if rank.rank > 0 {
+                RankBadge(rank: rank, animateShimmer: false)
+                    .scaleEffect(1.2)
+                    .frame(height: 36)
+                    .padding(.top, 6)
+            } else {
+                Text("継続中！")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+            }
 
-            Text(level.headline)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-
-            // 猫キャラ (大きく。ハイライトカードと同じ扱い)
+            // 猫キャラ (大きく。ハイライトカードと同じ扱い)。
+            // 旧「炎を背負う猫」を廃し、celebrating 猫の背面に紙吹雪を散らして祝祭感を出す
+            // (ユーザー要望 2026-06-13: 炎はダサい → 紙吹雪)。
             catImage
                 .frame(width: 200, height: 200)
                 .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
                 .padding(.top, 4)
+                .background(
+                    StaticConfettiView(count: max(level.sparkleCount, 12))
+                        .frame(width: 260, height: 230)
+                        .allowsHitTesting(false)
+                )
 
             // メイン KPI: 連続日数
             HStack(alignment: .lastTextBaseline, spacing: 4) {
@@ -225,6 +237,49 @@ struct StreakShareCard: View {
         } else {
             Text(level.fallbackEmoji)
                 .font(.system(size: 100))
+        }
+    }
+}
+
+/// 静的な紙吹雪(ImageRenderer で書き出すカード用。アニメ無し)。
+/// 決定論的に配置・回転・配色するので、同じ count なら毎回同じ絵になる。
+struct StaticConfettiView: View {
+    let count: Int
+    var colors: [Color] = [
+        .white,
+        Color(red: 1.00, green: 0.85, blue: 0.30),
+        Color(red: 0.99, green: 0.55, blue: 0.45),
+        Color(red: 0.55, green: 0.80, blue: 0.95),
+        Color(red: 0.70, green: 0.55, blue: 0.95),
+    ]
+
+    private func h(_ v: Int) -> Double {
+        var x = UInt64(bitPattern: Int64(v)) &* 0x9E37_79B9_7F4A_7C15
+        x ^= x >> 33
+        x &*= 0xC2B2_AE3D_27D4_EB4F
+        x ^= x >> 29
+        return Double(x % 100_000) / 100_000.0
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ForEach(0..<count, id: \.self) { i in
+                let x = h(i * 3 + 1)
+                let y = h(i * 3 + 2)
+                let isCircle = (i % 4 == 0)
+                Group {
+                    if isCircle {
+                        Circle().frame(width: 9, height: 9)
+                    } else {
+                        RoundedRectangle(cornerRadius: 2)
+                            .frame(width: 9, height: 13)
+                    }
+                }
+                .foregroundStyle(colors[i % colors.count])
+                .rotationEffect(.degrees(h(i * 3) * 360))
+                .position(x: x * geo.size.width, y: y * geo.size.height)
+                .opacity(0.92)
+            }
         }
     }
 }
