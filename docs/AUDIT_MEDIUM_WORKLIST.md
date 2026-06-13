@@ -1,8 +1,11 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件(2件完了)
+# MEDIUM 所見 worklist (2026-06-14) — 140件(7件完了)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
 
-進捗: 1_correctness の残2件(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)完了(68b42e1/853ce8b)。次=4_審査コンプラ。
+進捗(2026-06-14):
+- 1_correctness 残2件 完了(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)。
+- 4_審査/コンプラ 5件 完了(復元キーボタン=HIGH#14既済 / QR導線=HIGH#8既済 / paywall eligibilityテスト両OS / 記録での体重・生理日同時入力)。
+- 次=2_課金10件 → 3_privacy21 → 5_UX97 → 6_テスト1。
 
 
 ## 1_correctness/データ (6件)
@@ -56,8 +59,8 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 - [x] **backup** | Android 設定に復元キー(Apple/Google)ボタンが無く、機種変更の命綱が1遷移遠い — HIGH #14 認証集約で設定「アカウントとバックアップ」に Apple/Google 連携ボタン実装済(SettingsScreen 334-341)
 - [x] **friends** | 友達追加シートの『QRを読み取る』導線 (Android) (mismatch) — HIGH #8 アプリ内QRスキャナで「友達を追加」シートに「QRコードを読み取る」ボタン実装済(FriendsScreen 982)
 - [x] **paywall** | intro/trial eligibility 出し分けの自動テストが iOS/Android とも皆無 — PaywallCopy 抽出+両OSテスト各2本(非適格で「無料」非表示を機械担保)(d6e101c)
-- [ ] **recording** | Android 記録フローに体重・生理日の同時入力導線が無い
-- [ ] **recording** | parity: 体重・生理日の同時記録
+- [x] **recording** | Android 記録フローに体重・生理日の同時入力導線が無い — RecordScreen に体重欄+生理日トグル、save で同時永続化(7e9a463)
+- [x] **recording** | parity: 体重・生理日の同時記録 — 同上(7e9a463)
 
 ## 5_UX/パリティ (97件)
 
