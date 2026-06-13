@@ -73,7 +73,9 @@ fun OnboardingScreen(
             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary,
         )
         Text(
-            if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。あとから設定でいつでも変更できます。"
+            // 猫種は「初回は全解放・以降の変更はプレミアム(or 紹介⭐10)」。オンボで「いつでも変更」と
+            // 誤誘導すると有料ゲートに不意打ちされるため、iOS UserCatPicker と同じく制限を明記する。
+            if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
             else "Apple か Google で連携すると、機種変更や再インストールでも記録が戻ります(あとで設定からでも可)。",
             fontSize = 13.sp, color = palette.textSecondary,
         )
