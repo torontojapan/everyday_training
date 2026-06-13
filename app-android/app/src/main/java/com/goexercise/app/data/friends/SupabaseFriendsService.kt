@@ -1,6 +1,8 @@
 package com.goexercise.app.data.friends
 
 import com.goexercise.app.domain.friends.CheerKind
+import com.goexercise.app.domain.friends.ReceivedCheer
+import io.github.jan.supabase.postgrest.query.Order
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
@@ -23,7 +25,10 @@ import io.github.jan.supabase.postgrest.from
  * (iOS と同じ。双方向の重複行を防ぎ、nested or フィルタも不要)。
  * **コンパイル = API 実在確認**。実通信での正本性検証は実機 PoC(キー所有者作業)で行う。
  */
-class SupabaseFriendsService(private val client: SupabaseClient) : FriendsService {
+class SupabaseFriendsService(
+    private val client: SupabaseClient,
+    private val cheerWatermark: CheerWatermarkStore? = null,
+) : FriendsService {
 
     override val isMock: Boolean = false
 
@@ -139,10 +144,59 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("friendships").delete { filter { eq("user_a", a); eq("user_b", b) } }
     }
 
-    override suspend fun sendCheer(kind: CheerKind, toCode: String) {
+    override suspend fun sendCheer(kind: CheerKind, toCode: String, message: String?) {
         val uid = ensureUid()
         val toId = profileRowByCode(toCode)?.userId ?: throw FriendsError.CodeNotFound
-        client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue))
+        // 一言コメント: クライアント 30 字 + DB 60 字 check の二重ガード(送信前に最終クランプ)。
+        val clamped = message?.trim()?.takeIf { it.isNotEmpty() }?.take(30)
+        try {
+            client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue, message = clamped))
+        } catch (e: Exception) {
+            // 本番に message 列が未適用の環境では列エラーになるため、コメント無しで再送する
+            // (応援自体は届く。列適用後は自動的にコメント付きになる)。iOS と同型のフォールバック。
+            if (clamped != null && (e.message?.contains("message") == true)) {
+                client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue, message = null))
+            } else {
+                throw e
+            }
+        }
+    }
+
+    override suspend fun unseenReceivedCheers(): List<ReceivedCheer> {
+        val store = cheerWatermark ?: return emptyList()
+        val uid = client.auth.currentUserOrNull()?.id?.lowercase() ?: return emptyList()
+        val last = store.lastSeen(uid)
+        if (last == null) {
+            // 初回は「今」を起点にして過去の蓄積を一気に出さない。
+            store.setLastSeen(uid, System.currentTimeMillis())
+            return emptyList()
+        }
+        val sinceIso = backupTimestamp(java.time.Instant.ofEpochMilli(last))
+        val rows = client.from("cheers").select {
+            filter {
+                eq("to_user", uid)
+                gt("created_at", sinceIso)
+            }
+            order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+        }.decodeList<CheerRow>()
+        if (rows.isEmpty()) return emptyList()
+        val fromIds = rows.map { it.fromUser.lowercase() }.distinct()
+        val profs = client.from("profiles").select {
+            filter { isIn("user_id", fromIds) }
+        }.decodeList<ProfileRow>()
+        val nameById = profs.associate { it.userId.lowercase() to it.displayName }
+        val parsed = rows.map { row ->
+            ReceivedCheer(
+                id = row.id,
+                fromDisplayName = nameById[row.fromUser.lowercase()] ?: "ともだち",
+                kindRaw = row.kind,
+                message = row.message,
+                createdAtEpochMs = (com.goexercise.app.domain.friends.ReferralClock.parseTimestamp(row.createdAt)
+                    ?: java.time.Instant.now()).toEpochMilli(),
+            )
+        }
+        parsed.maxOfOrNull { it.createdAtEpochMs }?.let { store.setLastSeen(uid, it) }
+        return parsed
     }
 
     override suspend fun publishMyProfile(profile: FriendProfile) {

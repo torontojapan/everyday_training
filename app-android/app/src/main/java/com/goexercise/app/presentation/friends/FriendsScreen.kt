@@ -843,7 +843,7 @@ private fun FriendCard(
 
             // クイック応援: 1 タップで送信(iOS の quick-cheer 行)。
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf(CheerKind.Fight, CheerKind.Great, CheerKind.Clap, CheerKind.Fire).forEach { kind ->
+                listOf(CheerKind.Fight, CheerKind.WontLose, CheerKind.Protein, CheerKind.CatPunch).forEach { kind ->
                     Box(
                         modifier = Modifier
                             .size(40.dp)

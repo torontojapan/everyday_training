@@ -19,9 +19,12 @@ import javax.inject.Singleton
 object FriendsModule {
     @Provides
     @Singleton
-    fun provideFriendsService(): FriendsService =
+    fun provideFriendsService(watermarkStore: CheerWatermarkStore): FriendsService =
         if (SupabaseConfig.isConfigured) {
-            SupabaseFriendsService(SupabaseClientFactory.create(SupabaseConfig.url!!, SupabaseConfig.anonKey))
+            SupabaseFriendsService(
+                SupabaseClientFactory.create(SupabaseConfig.url!!, SupabaseConfig.anonKey),
+                watermarkStore,
+            )
         } else {
             MockFriendsService()
         }

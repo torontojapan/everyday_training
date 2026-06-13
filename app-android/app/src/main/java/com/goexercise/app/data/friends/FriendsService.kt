@@ -1,6 +1,7 @@
 package com.goexercise.app.data.friends
 
 import com.goexercise.app.domain.friends.CheerKind
+import com.goexercise.app.domain.friends.ReceivedCheer
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendCode
@@ -60,6 +61,18 @@ data class CheerWrite(
     @SerialName("from_user") val fromUser: String,
     @SerialName("to_user") val toUser: String,
     @SerialName("kind") val kind: String,
+    /** 任意の一言コメント(message 列。null なら従来どおりコメント無し)。 */
+    @SerialName("message") val message: String? = null,
+)
+
+/** cheers 行の読み取り用(受信表示)。 */
+@Serializable
+data class CheerRow(
+    @SerialName("id") val id: String,
+    @SerialName("from_user") val fromUser: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("message") val message: String? = null,
+    @SerialName("created_at") val createdAt: String,
 )
 
 @Serializable
@@ -166,8 +179,11 @@ interface FriendsService {
     suspend fun acceptRequest(request: FriendRequest)
     suspend fun declineRequest(request: FriendRequest)
     suspend fun removeFriend(profile: FriendProfile)
-    suspend fun sendCheer(kind: CheerKind, toCode: String)
+    suspend fun sendCheer(kind: CheerKind, toCode: String, message: String? = null)
     suspend fun publishMyProfile(profile: FriendProfile)
+
+    /** 自分宛ての未読応援(前回チェック以降)。既定は空。Supabase が watermark 付きで実装。 */
+    suspend fun unseenReceivedCheers(): List<ReceivedCheer> = emptyList()
 
     // ---- 友達紹介(リファラル)。既定は安全側 no-op。実装は Supabase/Mock が override ----
     suspend fun submitInviteCode(code: String) { throw FriendsError.NotSignedIn }
@@ -279,7 +295,7 @@ class MockFriendsService : FriendsService {
         friends.removeAll { it.friendCode == profile.friendCode }
     }
 
-    override suspend fun sendCheer(kind: CheerKind, toCode: String) {
+    override suspend fun sendCheer(kind: CheerKind, toCode: String, message: String?) {
         /* Mock: no-op(送信したことにする) */
     }
 

@@ -187,6 +187,8 @@ class FriendsViewModel @Inject constructor(
             // 自分が出したスピナーは残さない(isLoading をクリア。新世代の load/リセットが正状態を持つ)。
             if (gen == identityGeneration) {
                 _uiState.update { it.copy(profile = profile, friends = friends, requests = requests, backupStatus = service.backupStatus, isLoading = false) }
+                // サインイン済みなら未読の受信応援をチェックしてトースト表示(iOS の友達タブ受信トースト相当)。
+                fetchReceivedCheers()
             } else {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -247,20 +249,31 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
-    /** 応援スタンプ送信。連打は cheeringCodes で多重送信ガード。 */
-    fun cheer(kind: CheerKind, to: FriendProfile) {
+    /** 応援スタンプ送信。連打は cheeringCodes で多重送信ガード。一言コメント(message)は任意。 */
+    fun cheer(kind: CheerKind, to: FriendProfile, message: String? = null) {
         val code = to.friendCode
         if (_uiState.value.cheeringCodes.contains(code)) return
         _uiState.update { it.copy(cheeringCodes = it.cheeringCodes + code) }
         viewModelScope.launch {
             try {
-                service.sendCheer(kind, code)
+                service.sendCheer(kind, code, message)
                 _uiState.update { it.copy(toast = "${kind.emoji} ${to.displayName} に ${kind.label} を送りました") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {
                 _uiState.update { it.copy(cheeringCodes = it.cheeringCodes - code) }
             }
+        }
+    }
+
+    /** 自分宛ての未読応援を取得し、最新1件をトーストで表示する(message 優先)。iOS の受信トースト相当。 */
+    fun fetchReceivedCheers() {
+        viewModelScope.launch {
+            val cheers = runCatching { service.unseenReceivedCheers() }.getOrDefault(emptyList())
+            val latest = cheers.maxByOrNull { it.createdAtEpochMs } ?: return@launch
+            val (emoji, label) = CheerKind.receivedFromRaw(latest.kindRaw)
+            val body = latest.message?.takeIf { it.isNotBlank() } ?: label
+            _uiState.update { it.copy(toast = "$emoji ${latest.fromDisplayName} から「$body」") }
         }
     }
 
