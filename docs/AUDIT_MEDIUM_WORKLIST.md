@@ -53,9 +53,9 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 
 ## 4_審査/コンプラ (5件)
 
-- [ ] **backup** | Android 設定に復元キー(Apple/Google)ボタンが無く、機種変更の命綱が1遷移遠い
-- [ ] **friends** | 友達追加シートの『QRを読み取る』導線 (Android) (mismatch)
-- [ ] **paywall** | intro/trial eligibility 出し分けの自動テストが iOS/Android とも皆無
+- [x] **backup** | Android 設定に復元キー(Apple/Google)ボタンが無く、機種変更の命綱が1遷移遠い — HIGH #14 認証集約で設定「アカウントとバックアップ」に Apple/Google 連携ボタン実装済(SettingsScreen 334-341)
+- [x] **friends** | 友達追加シートの『QRを読み取る』導線 (Android) (mismatch) — HIGH #8 アプリ内QRスキャナで「友達を追加」シートに「QRコードを読み取る」ボタン実装済(FriendsScreen 982)
+- [x] **paywall** | intro/trial eligibility 出し分けの自動テストが iOS/Android とも皆無 — PaywallCopy 抽出+両OSテスト各2本(非適格で「無料」非表示を機械担保)(d6e101c)
 - [ ] **recording** | Android 記録フローに体重・生理日の同時入力導線が無い
 - [ ] **recording** | parity: 体重・生理日の同時記録
 

@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +53,8 @@ fun RecordRoute(
         onAddExercise = viewModel::addExercise,
         onRemoveExercise = viewModel::removeExercise,
         onAddSet = viewModel::addSet,
+        onWeightInput = viewModel::setWeightInput,
+        onMenstrualToday = viewModel::setMenstrualToday,
         onSave = viewModel::save,
     )
 }
@@ -66,6 +69,8 @@ fun RecordContent(
     onAddExercise: () -> Unit = {},
     onRemoveExercise: (String) -> Unit = {},
     onAddSet: (String) -> Unit = {},
+    onWeightInput: (String) -> Unit = {},
+    onMenstrualToday: (Boolean) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
@@ -94,6 +99,32 @@ fun RecordContent(
         }
 
         TextButton(onClick = onAddExercise) { Text("＋ 種目を追加") }
+
+        // 今日の体重(任意)+ 生理日トグル。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                OutlinedTextField(
+                    value = state.weightInput,
+                    onValueChange = onWeightInput,
+                    label = { Text("体重 (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    state.latestWeightKg?.let { "前回: ${"%.1f".format(it)} kg" }
+                        ?: "体重を入れるとグラフに反映されます",
+                    color = palette.textSecondary, fontSize = 12.sp,
+                )
+                if (state.cycleTrackingEnabled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("今日は生理日", color = palette.textPrimary, modifier = Modifier.weight(1f))
+                        Switch(checked = state.menstrualToday, onCheckedChange = onMenstrualToday)
+                    }
+                }
+            }
+        }
 
         OutlinedTextField(
             value = state.memo,

@@ -172,6 +172,7 @@ dependencies {
     implementation(libs.telemetrydeck.kotlin.sdk)
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     // 計装テスト(Room MigrationTestHelper で v1→v2 migration を実機/emu 検証)。
     androidTestImplementation(libs.junit)

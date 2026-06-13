@@ -33,7 +33,17 @@ data class RecordUiState(
     val memo: String = "",
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
+    /** 今日の体重(任意・kg のフリー入力)。iOS RecordEntryView「今日の体重 (任意)」パリティ。 */
+    val weightInput: String = "",
+    /** 直近の体重(入力欄下の「前回: X kg」ヒント用)。 */
+    val latestWeightKg: Double? = null,
+    /** 「今日は生理日」トグルの状態。周期トラッキング ON のときのみ表示・保存。 */
+    val menstrualToday: Boolean = false,
+    /** 周期トラッキングが有効か(設定)。OFF なら生理日トグルは出さず触らない(iOS cycleSettings.isEnabled)。 */
+    val cycleTrackingEnabled: Boolean = false,
 ) {
+    /** 今日の体重(正の値のみ。空/0/非数値は null)。 */
+    val parsedWeightKg: Double? get() = parseLoad(weightInput)
     /** 種目名が入っている下書きだけを ExerciseItem 化(iOS validExercises 相当)。 */
     fun validExercises(): List<ExerciseItem> =
         drafts.mapNotNull { d ->
