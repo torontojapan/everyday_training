@@ -179,6 +179,18 @@ fun SettingsContent(
     ) {
         Text("設定", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = palette.textPrimary)
 
+        // アカウントとバックアップは機種変更時の命綱なので最上位に置く(iOS 設定再構成パリティ)。
+        Text("アカウントとバックアップ", color = palette.textSecondary, fontSize = 13.sp)
+        BackupSection(
+            palette = palette,
+            enabled = backupEnabled,
+            syncing = backupSyncing,
+            error = backupError,
+            hasAccount = myFriendCode != null,
+            onToggle = onToggleBackup,
+            onBackupNow = onBackupNow,
+        )
+
         PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
@@ -211,17 +223,6 @@ fun SettingsContent(
         AppTheme.entries.forEach { theme ->
             ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
         }
-
-        Text("アカウントとバックアップ", color = palette.textSecondary, fontSize = 13.sp)
-        BackupSection(
-            palette = palette,
-            enabled = backupEnabled,
-            syncing = backupSyncing,
-            error = backupError,
-            hasAccount = myFriendCode != null,
-            onToggle = onToggleBackup,
-            onBackupNow = onBackupNow,
-        )
 
         Text("データ管理", color = palette.textSecondary, fontSize = 13.sp)
         DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
