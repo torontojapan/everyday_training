@@ -76,10 +76,12 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     private fun buildNotification(context: Context, body: String): android.app.Notification {
-        // タップで route=home を渡す(iOS userInfo route=home パリティ)。
+        // タップで home へ。MainActivity は intent.dataString(goexercise://)のみ deep link 消費するため、
+        // extra ではなく **data URI** で渡す(singleTop で別画面表示中でも onNewIntent→home 遷移する。Codex R3)。
         val tapIntent = Intent(context, MainActivity::class.java)
+            .setAction(Intent.ACTION_VIEW)
+            .setData(android.net.Uri.parse("goexercise://home"))
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(EXTRA_ROUTE, "home")
         val contentIntent = PendingIntent.getActivity(
             context, 0, tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -99,7 +101,6 @@ class ReminderReceiver : BroadcastReceiver() {
         const val ACTION_FIRE = "com.goexercise.app.REMINDER_FIRE"
         const val CHANNEL_ID = "daily_reminder"
         const val EXTRA_SLOT = "slot"
-        const val EXTRA_ROUTE = "route"
         private const val NOTIF_ID = 2001
 
         fun ensureChannel(context: Context) {
