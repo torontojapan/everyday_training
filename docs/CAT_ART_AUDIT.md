@@ -5,16 +5,18 @@ iOS `app/GOExercise/.../Assets.xcassets/CatCharacter/` の全110画像(11猫種 
 方法: 各画像を中性グレー/マゼンタ/各テーマ背景に合成 → 11猫種を並列サブエージェントで精査 →
 本体で再確認。Android(`app-android` の webp 110枚)は iOS と同一画なので**修正は両OSに反映必須**。
 
-## A. 要再生成(Codex 画像生成)= 確定不具合
+## A. 要再生成(Codex 画像生成)= 確定不具合 → **✅ 全6件 是正済(2026-06-14)**
 
-| asset | 不具合 | 優先 |
-|---|---|---|
-| `cat_silvertabby_encouraging` | **画風が別物**(他はチビ系ベクター調、これだけ厚塗り写実調)+ ヘッドバンドの肉球プリントが崩れ+縞が薄い | **高** |
-| `cat_persian_waitingMorning` | 目が**青**(他ポーズは銅/琥珀)+ 顔が尖りペルシャらしくない。**=アバター/ピッカー表示の正本ポーズ**ゆえ最も目立つ | **高** |
-| `cat_persian_encouraging` | 目が青(銅/琥珀のはず)= 同一キャラが別猫に見える | 中 |
-| `cat_persian_streakExtended` | 目が青(同上) | 中 |
-| `cat_persian_happy3` | ピース手が崩れ(指が破綻) | 中 |
-| `cat_orange_beggingNight` | 祈り手が融合してブロブ化(指の分離なし) | 中 |
+| asset | 不具合 | 優先 | 是正方法 |
+|---|---|---|---|
+| `cat_silvertabby_encouraging` | **画風が別物**(他はチビ系ベクター調、これだけ厚塗り写実調)+ ヘッドバンドの肉球プリントが崩れ+縞が薄い | **高** | ✅ Codex 再生成(silver tabby チビ調・縞くっきり・cheering ポーズ) |
+| `cat_persian_waitingMorning` | 目が**青**(他ポーズは銅/琥珀)+ 顔が尖りペルシャらしくない。**=アバター/ピッカー表示の正本ポーズ**ゆえ最も目立つ | **高** | ✅ **目のみ PIL recolor**(青アイリス→琥珀、輝度/彩度グラデ・キャッチライト温存)。顔は良好と判断し温存=キャラ完全保持。`/tmp/recolor_eyes.py` |
+| `cat_persian_encouraging` | 目が青(銅/琥珀のはず)= 同一キャラが別猫に見える | 中 | ✅ 目のみ recolor(全画面走査・persian は目以外に青無し) |
+| `cat_persian_streakExtended` | 目が青(同上) | 中 | ✅ 目のみ recolor(**目バンド領域限定**=紙吹雪の青を温存) |
+| `cat_persian_happy3` | ピース手が崩れ(指が破綻) | 中 | ✅ Codex 再生成(ピース2指くっきり・黒衣装/銅目維持・1024 化) |
+| `cat_orange_beggingNight` | 祈り手が融合してブロブ化(指の分離なし) | 中 | ✅ Codex 再生成 v2(祈り手の肉球分離・**黒衣装の橙アクセント**を再指定で v1 の橙過多を是正) |
+
+**所見**: 青目3件は全身再生成より **PIL の局所 recolor が安全**(良好なキャラ/衣装/毛並みを完全保持し目だけ修正)。構造破綻3件(画風/指/融合手)は Codex 再生成。全件 iOS png(1024 or 1254)+ Android webp(lossy q80)へ反映。各テーマ背景に合成して透過/コントラスト/画風を拡大目視確認済([[feedback-visual-selfcheck]])。Codex 再生成は衣装ドリフト(橙過多)が出るため参照画像 + 明示制約 + 1発再試行で収束。
 
 **再生成手順** = memory [[codex-image-generation]]:
 1. Codex CLI で参照画像(同猫種の正常ポーズ)を `-i` 指定し、同画風・同ポーズで再生成。
