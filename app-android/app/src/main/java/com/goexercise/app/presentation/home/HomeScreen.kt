@@ -183,6 +183,15 @@ fun HomeContent(
     onShareClick: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
+    // 達成の全画面紙吹雪ゲート: todayStatus が「未達成→達成」に遷移した瞬間(=記録完了→ホーム復帰)に
+    // 1 回だけ再生する。起動時に既に達成済みなら出さない(iOS celebratedDay と同趣旨)。
+    val achieved = state.todayStatus.countsAsAchieved
+    var prevAchieved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(achieved) }
+    var celebrate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(achieved) {
+        if (achieved && !prevAchieved) celebrate = true
+        prevAchieved = achieved
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。背景は backdrop が描くので Column 側の
         // .background(palette.background) は外す(付けると backdrop を覆って見えなくなる)。
@@ -214,6 +223,8 @@ fun HomeContent(
                 }
             }
         }
+        // 達成時の全画面紙吹雪(最前面)。iOS パリティ。
+        com.goexercise.app.ui.components.ConfettiOverlay(play = celebrate, onFinished = { celebrate = false })
     }
 }
 

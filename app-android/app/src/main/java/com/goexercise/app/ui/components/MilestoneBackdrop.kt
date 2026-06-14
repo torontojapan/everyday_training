@@ -1,9 +1,16 @@
 package com.goexercise.app.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -38,6 +45,13 @@ fun MilestoneBackdrop(streak: Int, modifier: Modifier = Modifier) {
 
     val richness = rank.richness.toFloat()
     val band = metalBandColor(rank.metalKind!!)
+
+    // rank>=10 の上質感: 光帯を 26 秒周期で左→右にスイープ(iOS movingBand パリティ)。
+    val sweepPhase by rememberInfiniteTransition(label = "backdrop-sweep").animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(26_000, easing = LinearEasing), RepeatMode.Restart),
+        label = "sweep",
+    )
 
     Canvas(modifier = modifier.fillMaxSize().background(palette.background)) {
         val w = size.width
@@ -85,7 +99,7 @@ fun MilestoneBackdrop(streak: Int, modifier: Modifier = Modifier) {
             )
         }
 
-        // 4) rank>=10: 静的な薄い白みの追加帯(高ランクの上質感)。アニメは入れない。
+        // 4) rank>=10: 薄い白みの定常帯 + 26秒周期で流れる光帯スイープ(iOS movingBand)。
         if (rank.rank >= 10) {
             drawRect(
                 brush = Brush.verticalGradient(
@@ -94,6 +108,16 @@ fun MilestoneBackdrop(streak: Int, modifier: Modifier = Modifier) {
                         Color.Transparent,
                         Color.White.copy(alpha = 0.05f),
                     ),
+                ),
+            )
+            // 横方向に流れるソフトな光帯。画面外→画面外へ抜ける(端で消える)。
+            val bandW = w * 0.35f
+            val center = -bandW + sweepPhase * (w + bandW * 2f)
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.12f), Color.Transparent),
+                    startX = center - bandW / 2f,
+                    endX = center + bandW / 2f,
                 ),
             )
         }
