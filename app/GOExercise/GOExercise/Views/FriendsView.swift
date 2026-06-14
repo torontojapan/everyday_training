@@ -802,6 +802,8 @@ struct FriendsView: View {
                         Text(profile.friendCode)
                             .font(.system(size: 24, weight: .heavy, design: .monospaced))
                             .foregroundStyle(Palette.primaryDeep)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
                     Spacer()
                     // ワンタップでコードをコピー(ユーザー要望)。共有シートより手軽。

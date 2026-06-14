@@ -33,6 +33,8 @@ struct StreakBadgeView: View {
             .background(Palette.secondary.opacity(0.8), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(PressableScaleButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(streak)日連続")
         .accessibilityHint(streak > 0 ? "タップで連続記録を共有" : "連続記録はまだありません")
         .disabled(streak <= 0)
     }
