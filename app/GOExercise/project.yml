@@ -13,8 +13,13 @@ settings:
     # 1.0(1)却下 / 1.0(2) / 1.0(3)=承認済み(友達+UUID修正)。
     # 1.1 = v1.2機能群(達成装飾A〜F/紹介スター/設定リデザイン/polish)の初の機能更新。build は通し番号で 4。
     # 1.2 = friends-polish群(アカウント堅牢化/anti-resurrection/クラウドバックアップ/友達公園/猫アート是正/コントラスト)。build 通し番号 6。
+    # build 7 = アカウント管理を整理: サインアウト廃止(友達は常時オンの標準機能・認証は backup/restore
+    #   専用で非干渉。匿名サインアウト=全データ消去の footgun を除去)。アカウント削除を友達タブ→
+    #   設定「アカウントとバックアップ」へ移設(審査5.1.1(v)導線は維持)。
+    # build 8 = 受信応援トーストの可視性強化(タブバー被り対策で bottom padding 24→64・
+    #   表示3秒→5秒)。実機で配信は成功(友達化+応援201)もトーストが下端で見落とされた対策。
     MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "6"
+    CURRENT_PROJECT_VERSION: "8"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。

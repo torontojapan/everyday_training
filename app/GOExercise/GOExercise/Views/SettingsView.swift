@@ -17,6 +17,8 @@ struct SettingsView: View {
         }
     }
     @State private var showPremiumPaywall = false
+    @State private var isConfirmingDelete = false
+    @State private var deleteErrorMessage: String?
     @State private var laterInviteCode = ""
     @State private var isSubmittingLater = false
     @State private var laterAccepted = false
@@ -57,12 +59,35 @@ struct SettingsView: View {
                         Label(linkedStatusText, systemImage: "checkmark.seal.fill")
                             .font(Typography.body)
                             .foregroundStyle(Palette.success)
+                        // サインアウトは廃止: 友達は常時オンの標準機能で、認証は backup/restore
+                        // のための「鍵」に過ぎない。匿名のサインアウトは全データ消去(忘れる)になり
+                        // 干渉する footgun だったため除去。アカウント切替は新端末でのサインイン
+                        // (= 復元) が担い、真っさらにしたい場合は下の「アカウントを削除」を使う。
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Apple / Google でサインインすると、機種変更や再インストールでも確実に復元できます(メール・パスワード不要)。")
                                 .font(Typography.caption)
                                 .foregroundStyle(Palette.textSecondary)
                             AccountBackupSignIn()
+                        }
+                    }
+                    // アカウント削除 (審査 Guideline 5.1.1(v))。アカウント作成(連携)を提供する
+                    // 場合に必須のアプリ内削除導線。サインイン済み(匿名含む)のとき常時到達可能にする。
+                    if friendsStore.profile != nil {
+                        Button(role: .destructive) {
+                            isConfirmingDelete = true
+                        } label: {
+                            Label("アカウントを削除", systemImage: "trash")
+                                .foregroundStyle(.red)
+                        }
+                        .disabled(friendsStore.isDeletingAccount)
+                        .accessibilityIdentifier("settings-delete-account")
+                        // 削除失敗(通信障害等)のフィードバック。旧 FriendsView の errorBanner が
+                        // 担っていた表示を移設先でも担保し、「失敗→再試行」契約を保つ。
+                        if let deleteErrorMessage {
+                            Text(deleteErrorMessage)
+                                .font(Typography.caption)
+                                .foregroundStyle(.red)
                         }
                     }
                 }
@@ -234,6 +259,28 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showPremiumPaywall) {
             PremiumPaywallSheet(store: storeKit, context: .general)
+        }
+        // アカウント削除 (審査 5.1.1(v))。連携済みも含め本人データを完全消去する。
+        .alert(
+            "アカウントを削除しますか？",
+            isPresented: $isConfirmingDelete
+        ) {
+            Button("アカウントを削除", role: .destructive) {
+                // 成功すると profile==nil になり、この行は「サインイン」表示へ戻る。
+                // 失敗時は deleteAccount() が false を返す → 下に再試行を促すエラーを表示する
+                // (deleteAccount は冪等なので再実行で完了できる)。
+                Task {
+                    deleteErrorMessage = nil
+                    let ok = await friendsStore.deleteAccount()
+                    if !ok {
+                        deleteErrorMessage = friendsStore.lastError
+                            ?? "アカウントの削除に失敗しました。通信状況を確認してもう一度お試しください。"
+                    }
+                }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("友達・コード・応援などすべてのデータが完全に削除され、元に戻せません。バックアップ済みでも復元できなくなります。")
         }
     }
 

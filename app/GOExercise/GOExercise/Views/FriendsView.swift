@@ -57,8 +57,6 @@ struct FriendsView: View {
     @State private var isConfirmingGoogleRestore = false
     /// welcome の復元入口: 匿名残存データがある時の上書き確認ダイアログ (Codex#3)。
     @State private var isConfirmingRestore = false
-    /// アカウント削除 (審査 5.1.1(v)) の確認ダイアログ。
-    @State private var isConfirmingDelete = false
     @Environment(\.colorScheme) private var colorScheme
     /// バックアップ促しを「あとで」した時刻 (30日沈黙)。
     @AppStorage("friends.backupPromptDismissedAt") private var backupPromptDismissedAt: Double = 0
@@ -130,7 +128,9 @@ struct FriendsView: View {
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(.thinMaterial, in: Capsule())
                     .foregroundStyle(Palette.textPrimary)
-                    .padding(.bottom, 24)
+                    // タブバー(+ホームインジケータ)に隠れないよう十分上げる。24pt では
+                    // 下端ギリギリで見落とし/被りが起きていた(実機検証で受信トースト不可視)。
+                    .padding(.bottom, 64)
                     .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                     .accessibilityIdentifier("friend-cheer-toast")
@@ -151,7 +151,7 @@ struct FriendsView: View {
             cheerToast = "\(latest.fromDisplayName) から「\(body)」が届きました!\(suffix)"
             hapticFeedback.success()
             Task {
-                try? await Task.sleep(for: .seconds(3.0))
+                try? await Task.sleep(for: .seconds(5.0))   // 受信トーストは見落とし防止で長めに
                 if cheerToastToken == token { cheerToast = nil }
             }
         }
@@ -453,27 +453,8 @@ struct FriendsView: View {
 
                 friendsSection
 
-                Button(role: .destructive) {
-                    Task { await friendsStore.signOut() }
-                } label: {
-                    Label("サインアウト", systemImage: "rectangle.portrait.and.arrow.right")
-                        .font(Typography.caption)
-                }
-                .padding(.top, 20)
-
-                // アカウント削除 (審査 Guideline 5.1.1(v))。アカウント作成(連携)を提供する
-                // 場合に必須のアプリ内削除導線。連携が有効なときだけ表示する (gate OFF は不変)。
-                if SupabaseConfig.isAccountLinkingEnabled {
-                    Button(role: .destructive) {
-                        isConfirmingDelete = true
-                    } label: {
-                        Label("アカウントを削除", systemImage: "trash")
-                            .font(Typography.caption)
-                            .foregroundStyle(.red)
-                    }
-                    .disabled(friendsStore.isDeletingAccount)
-                    .accessibilityIdentifier("friends-delete-account")
-                }
+                // サインアウト/アカウント削除は設定「アカウントとバックアップ」に集約した
+                // (アカウント管理の導線を 1 箇所にまとめる UX 改善)。
             }
             .padding(20)
         }
@@ -542,20 +523,6 @@ struct FriendsView: View {
         } message: {
             Text("切り替えると、いまの端末の友達・コードは失われます。")
         }
-        // アカウント削除 (審査 5.1.1(v))。連携済みも含め本人データを完全消去する。
-        .alert(
-            "アカウントを削除しますか？",
-            isPresented: $isConfirmingDelete
-        ) {
-            Button("アカウントを削除", role: .destructive) {
-                // 成功すると profile==nil で welcome に遷移する (それ自体が完了フィードバック)。
-                // 失敗は store.lastError がエラーバナーに出る。
-                Task { await friendsStore.deleteAccount() }
-            }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("友達・コード・応援などすべてのデータが完全に削除され、元に戻せません。バックアップ済みでも復元できなくなります。")
-        }
         .overlay(alignment: .bottom) {
             if let backupToast {
                 Text(backupToast)
@@ -563,7 +530,7 @@ struct FriendsView: View {
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(.thinMaterial, in: Capsule())
                     .foregroundStyle(Palette.textPrimary)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 64)   // タブバーに被らない位置へ(cheerToast と統一)
                     .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
                     .transition(.opacity)
                     .accessibilityIdentifier("friends-backup-toast")
