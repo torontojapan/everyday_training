@@ -131,7 +131,13 @@ class RecordViewModel @Inject constructor(
                 repository.save(record)
                 // 運動記録の保存が source of truth。体重・生理日は**付随**なので各々 best-effort にし、
                 // ここでの失敗で「保存失敗」を報告→再記録で WorkoutRecord が重複するのを防ぐ(Codex R2)。
-                current.parsedWeightKg?.let { kg -> runCatching { weightRepository.add(now, kg, null) } }
+                current.parsedWeightKg?.let { kg ->
+                    runCatching {
+                        weightRepository.add(now, kg, null)
+                        // 体重タブ経路と同じく開始体重を確定(初回値=「開始」表示/目標進捗/減量マイルストーンの基準。Codex R5)。
+                        health.setStartKgIfAbsent(kg)
+                    }
+                }
                 // 生理日トグルは「初期値を読んだ日」と保存日が一致するときだけ適用(日跨ぎ誤適用防止, Codex R2)。
                 if (current.cycleTrackingEnabled && menstrualInitDate == today) {
                     runCatching {

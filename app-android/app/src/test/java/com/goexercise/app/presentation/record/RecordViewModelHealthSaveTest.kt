@@ -63,8 +63,9 @@ class RecordViewModelHealthSaveTest {
     }
 
     private class FakeHealthRepo(cycleEnabled: Boolean) : HealthRepository {
+        val startKgCalls = mutableListOf<Double>()
         override val prefs: Flow<HealthPrefs> = MutableStateFlow(HealthPrefs(cycleTrackingEnabled = cycleEnabled))
-        override suspend fun setStartKgIfAbsent(kg: Double) {}
+        override suspend fun setStartKgIfAbsent(kg: Double) { startKgCalls += kg }
         override suspend fun setTargetKg(kg: Double?) {}
         override suspend fun setHeightCm(cm: Double?) {}
         override suspend fun setIsLossGoal(isLoss: Boolean) {}
@@ -77,7 +78,8 @@ class RecordViewModelHealthSaveTest {
         menstrual: FakeMenstrualRepo = FakeMenstrualRepo(),
         cycleEnabled: Boolean = true,
         workout: FakeWorkoutRepo = FakeWorkoutRepo(),
-    ) = RecordViewModel(workout, weight, menstrual, FakeHealthRepo(cycleEnabled), fixedClock)
+        health: FakeHealthRepo = FakeHealthRepo(cycleEnabled),
+    ) = RecordViewModel(workout, weight, menstrual, health, fixedClock)
 
     private fun RecordViewModel.fillExercise() {
         val id = state.value.drafts.first().id
@@ -87,11 +89,14 @@ class RecordViewModelHealthSaveTest {
     @Test
     fun save_persistsWeight_whenEntered() = runTest {
         val weight = FakeWeightRepo()
-        val vm = vm(weight = weight)
+        val health = FakeHealthRepo(cycleEnabled = true)
+        val vm = vm(weight = weight, health = health)
         vm.fillExercise()
         vm.setWeightInput("62.5")
         vm.save()
         assertEquals(listOf(62.5), weight.added)
+        // 体重タブ経路と同じく開始体重も確定する(Codex R5)。
+        assertEquals(listOf(62.5), health.startKgCalls)
     }
 
     @Test
