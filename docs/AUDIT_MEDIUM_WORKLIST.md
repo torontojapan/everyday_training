@@ -188,4 +188,4 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 
 ## 6_テスト不足 (1件)
 
-- [ ] **friends** | Android の orderedPair が UUID を正規化せず、friendships_check 回帰の防御層が欠落
+- [x] **friends** | Android の orderedPair が UUID を正規化せず、friendships_check 回帰の防御層が欠落 — FriendshipPair.ordered に抽出+小文字化、FriendshipPairTest(3)(68dc5d4)
