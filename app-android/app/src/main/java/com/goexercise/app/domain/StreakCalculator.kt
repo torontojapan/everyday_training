@@ -66,7 +66,10 @@ object StreakCalculator {
             )
 
             when (status) {
-                DailyStatus.Achieved, DailyStatus.TodayAchieved -> {
+                // Rescued(保険チケット救済)も達成同等に longest へ加算する。これを漏らすと
+                // フリーズ救済日で running が 0 に戻り、currentStreak(line 33)や iOS と矛盾して
+                // 最長連続が過小評価される(連続日数エンジンの parity バグ)。
+                DailyStatus.Achieved, DailyStatus.Rescued, DailyStatus.TodayAchieved -> {
                     running += 1
                     longest = maxOf(longest, running)
                     lastAchievedDate = cursor

@@ -84,6 +84,24 @@ class StreakCalculatorTest {
     }
 
     @Test
+    fun streakState_longestIncludesRescuedDays() {
+        // 5/18 achieved, 5/19 rescued(保険チケット), 5/20 achieved → longest=3。
+        // Rescued を longest 計算から漏らすとここで running が 0 に戻り longest=1 になる
+        // (currentStreak / iOS との parity 回帰ガード)。restLimit=0 で自動休養を排除。
+        val today = date(20)
+        val records = listOf(record(18), record(20))
+        val rescued = setOf(date(19))
+
+        val state = StreakCalculator.streakState(
+            records = records, today = today, rescuedDates = rescued, lookbackDays = 7, restLimit = 0,
+        )
+
+        assertEquals(3, state.currentStreak)
+        assertEquals(3, state.longestStreak)
+        assertEquals(today, state.lastAchievedDate)
+    }
+
+    @Test
     fun rescuedDay_continuesStreak() {
         // 5/20 achieved, 5/19 は未運動だが保険チケットで救済 → 5/18 achieved。連続は切れず streak=3。
         // (Rescued を達成カウントから漏らすとここで連続が切れる回帰バグのガード)。
