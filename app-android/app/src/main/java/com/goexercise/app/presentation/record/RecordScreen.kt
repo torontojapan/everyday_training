@@ -41,11 +41,13 @@ fun RecordRoute(
     viewModel: RecordViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val suggestions by viewModel.suggestionsByCategory.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.saved.collect { onSaved() }
     }
     RecordContent(
         state = state,
+        suggestionsByCategory = suggestions,
         onBack = onBack,
         onCategory = viewModel::setCategory,
         onMemo = viewModel::setMemo,
@@ -62,6 +64,7 @@ fun RecordRoute(
 @Composable
 fun RecordContent(
     state: RecordUiState,
+    suggestionsByCategory: Map<WorkoutCategory, List<String>> = emptyMap(),
     onBack: () -> Unit = {},
     onCategory: (String, WorkoutCategory) -> Unit = { _, _ -> },
     onMemo: (String) -> Unit = {},
@@ -91,6 +94,7 @@ fun RecordContent(
             ExerciseDraftCard(
                 draft = draft,
                 canRemove = state.drafts.size > 1,
+                suggestions = suggestionsByCategory[draft.category].orEmpty(),
                 onCategory = { cat -> onCategory(draft.id, cat) },
                 onChange = { updated -> onUpdateDraft(draft.id) { updated } },
                 onRemove = { onRemoveExercise(draft.id) },
@@ -151,6 +155,7 @@ fun RecordContent(
 private fun ExerciseDraftCard(
     draft: ExerciseDraft,
     canRemove: Boolean,
+    suggestions: List<String> = emptyList(),
     onCategory: (WorkoutCategory) -> Unit,
     onChange: (ExerciseDraft) -> Unit,
     onRemove: () -> Unit,
@@ -175,6 +180,21 @@ private fun ExerciseDraftCard(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            // よく使う種目チップ(最終使用日順)。タップで種目名に反映(iOS パリティ)。
+            if (suggestions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { name ->
+                        FilterChip(
+                            selected = draft.name == name,
+                            onClick = { onChange(draft.copy(name = name)) },
+                            label = { Text(name) },
+                        )
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("分", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
                 NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -43,6 +44,16 @@ class RecordViewModel @Inject constructor(
 
     private val _saved = Channel<Unit>(Channel.BUFFERED)
     val saved = _saved.receiveAsFlow()
+
+    /** カテゴリ別「よく使う種目」候補(最終使用日順)。記録入力の横スクロールチップ用(iOS パリティ)。 */
+    val suggestionsByCategory: StateFlow<Map<WorkoutCategory, List<String>>> =
+        repository.observeRecords()
+            .map { records ->
+                WorkoutCategory.entries.associateWith { cat ->
+                    com.goexercise.app.domain.ExerciseHistoryProvider.topExerciseNames(records, cat, limit = 8)
+                }
+            }
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
         // 周期トラッキング設定と直近体重を購読(生理日トグルの表示可否・体重ヒント)。
