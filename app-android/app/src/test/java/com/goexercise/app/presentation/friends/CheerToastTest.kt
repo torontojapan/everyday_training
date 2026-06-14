@@ -32,4 +32,11 @@ class CheerToastTest {
         assertEquals("🥤 けんた から「プロテイン」", CheerToast.received("🥤", "けんた", "プロテイン", null))
         assertEquals("🥤 けんた から「プロテイン」", CheerToast.received("🥤", "けんた", "プロテイン", ""))
     }
+
+    @Test
+    fun received_appendsOthersSuffix_whenMultipleUnseen() {
+        assertEquals("📣 はる から「ファイト」(ほか2件)", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 2))
+        // 0件なら suffix 無し。
+        assertEquals("📣 はる から「ファイト」", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 0))
+    }
 }

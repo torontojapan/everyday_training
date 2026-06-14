@@ -67,6 +67,15 @@ fun OnboardingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Spacer(Modifier.height(8.dp))
+        // ステップバッジ(iOS onboardingHeader「ステップ N/2」パリティ。Android は常に2ステップ)。
+        Text(
+            "ステップ ${step + 1} / 2",
+            fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(palette.primary.copy(alpha = 0.14f))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        )
         Text("ようこそ 🐾", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
         Text(
             if (step == 0) "一緒にがんばる猫を選ぼう" else "記録をバックアップしよう",

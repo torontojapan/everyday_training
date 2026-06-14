@@ -273,7 +273,7 @@ class FriendsViewModel @Inject constructor(
             val cheers = runCatching { service.unseenReceivedCheers() }.getOrDefault(emptyList())
             val latest = cheers.maxByOrNull { it.createdAtEpochMs } ?: return@launch
             val (emoji, label) = CheerKind.receivedFromRaw(latest.kindRaw)
-            _uiState.update { it.copy(toast = CheerToast.received(emoji, latest.fromDisplayName, label, latest.message)) }
+            _uiState.update { it.copy(toast = CheerToast.received(emoji, latest.fromDisplayName, label, latest.message, othersCount = cheers.size - 1)) }
         }
     }
 
