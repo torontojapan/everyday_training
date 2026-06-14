@@ -17,11 +17,11 @@ MEDIUM worklist 全6カテゴリ + 2LLM(Claude+Codex)監査是正まで完了後
 - [Me] P3 hiltViewModel 非推奨 import の移行(`androidx.hilt.lifecycle.viewmodel.compose`)。
 
 ## C. 視覚/挙動 QA(コード実装済・未目視)
-- [User/Me] P2 エミュ/実機で確認: 達成 confetti・MilestoneBackdrop 光帯アニメ・通知の性格別文言・写真保存。([Me] エミュでスクショ可・transient は実機が確実)
+- 🟡[Me/User] P2 視覚確認: **iOS シミュQA一部実施(2026-06-14)** — mockビルドを sim に install→seeded(monthly)起動で **ホーム描画を目視確認**(30日連続/がんばりネコ称号/週7日達成/猫/sparkles粒子=視認可・build+launch clean・クラッシュ無)。**残=transient(達成confetti・MilestoneBackdrop光帯)は記録完了インタラクション駆動で static seeded 起動では発火せず=実機/操作確認が確実**。通知の性格別文言は Reminder/NotificationMessageProvider のテストで担保済。写真保存も実機確実。
 
 ## D. 品質/プロダクト完成度(launch 後でも可)
-- [Me] P2 アクセシビリティ: TalkBack/VoiceOver ラベル・タップ領域・Dynamic Type/フォントスケール検証。
-- [Me] P2 空状態/エラー状態の網羅(友達0件・記録0件・ネットワーク断時の文言)。
+- ✅[Me] P2 **iOS アクセシビリティ監査+小修正 完了(2026-06-14, 38f3ccf)**: 全View監査=既に高水準(EmptyStateView共有・chart/calendar/stat-tile に label・reduceMotion尊重)。実ギャップ3点を修正(体重リング%のVoiceOver読み上げ/StreakBadge明示label/友達コードの大Dynamic Typeクリップ防止)。iOS unit 414 green。Android(TalkBack)は Android 再開時。
+- ✅[Me] P2 **iOS 空状態/エラー状態 = 既にほぼ網羅と確認(2026-06-14監査)**: 友達0/記録0/週ランキング0/体重<2件/BMI/月次レビュー 等すべて fallback 文言あり。新規対応不要(受信応援の履歴一覧化のみ将来の任意機能)。
 - [Me] P3 依存更新(AGP/Compose/Kotlin/ライブラリ)と dead code 整理。
 - [User] P3 ASO: スクショ刷新・説明文最適化(日本語)・キーワード。
 - [User] P3 公開後モニタリング: TelemetryDeck/Apple/Play のクラッシュ・離脱ファネル確認。
