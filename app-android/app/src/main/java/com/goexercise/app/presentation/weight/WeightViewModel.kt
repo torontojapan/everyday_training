@@ -29,6 +29,7 @@ import javax.inject.Inject
 /** 体重タブの UI 状態。プレミアム gate・最新・統計・チャート(日次+トレンド+周期帯)・予測・BMI。 */
 data class WeightUiState(
     val isPremium: Boolean = false,
+    val isTrialEligible: Boolean = false,
     val entries: List<WeightEntry> = emptyList(),
     val period: ChartPeriod = ChartPeriod.Month,
     /** 古→新の日次最新(チャート描画用)。 */
@@ -63,12 +64,14 @@ class WeightViewModel @Inject constructor(
 
     val uiState: StateFlow<WeightUiState> =
         combine(
-            premium.isPremiumActive,
+            // 加入状態 + トライアル適格を 1 入力にまとめる(ロック画面の「14日間無料」誤表示防止。Codex R4)。
+            combine(premium.isPremiumActive, premium.isTrialEligible) { p, t -> p to t },
             weightRepo.observeEntries(),
             health.prefs,
             menstrual.periodDays,
             toggles,
-        ) { isPremium, entries, healthPrefs, periodDays, tg ->
+        ) { premiumState, entries, healthPrefs, periodDays, tg ->
+            val (isPremium, trialEligible) = premiumState
             val today = LocalDate.now(clock)
             val dailyDesc = WeightAnalytics.dailyLatest(entries, tg.period, today) // 新→古
             val dailyChart = dailyDesc.reversed() // 古→新
@@ -81,6 +84,7 @@ class WeightViewModel @Inject constructor(
             }
             WeightUiState(
                 isPremium = isPremium,
+                isTrialEligible = trialEligible,
                 entries = entries,
                 period = tg.period,
                 dailyChart = dailyChart,

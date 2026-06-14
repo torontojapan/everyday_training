@@ -85,7 +85,7 @@ fun WeightRoute(onOpenPremium: () -> Unit = {}, viewModel: WeightViewModel = hil
             blurred = !state.isPremium,
         )
         if (!state.isPremium) {
-            LockedOverlay(palette, onOpenPremium)
+            LockedOverlay(palette, state.isTrialEligible, onOpenPremium)
         }
     }
 }
@@ -126,7 +126,7 @@ private fun WeightContent(
 }
 
 @Composable
-private fun LockedOverlay(palette: AppTheme, onOpenPremium: () -> Unit) {
+private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremium: () -> Unit) {
     // 全画面で**タップを消費**し、ぼかした下層フォームへ非加入ユーザーが触れて
     // 体重/目標/生理日を変更できないようにする(iOS .disabled(!isUnlocked) 相当)。
     Box(
@@ -144,7 +144,12 @@ private fun LockedOverlay(palette: AppTheme, onOpenPremium: () -> Unit) {
             ) {
                 Text("👑", fontSize = 44.sp)
                 Text("体重タブは GOプレミアム機能です", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center)
-                Text("14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。", fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+                Text(
+                    // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
+                    if (trialEligible) "14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。"
+                    else "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。",
+                    fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                )
                 Button(onClick = onOpenPremium, colors = ButtonDefaults.buttonColors(containerColor = palette.primary)) {
                     Text("GOプレミアムを見る", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }

@@ -115,6 +115,9 @@ class SettingsViewModel @Inject constructor(
     /** GOプレミアム加入状態(設定の課金カード表示用)。 */
     val isPremium: StateFlow<Boolean> = premium.isPremiumActive
 
+    /** トライアル適格(消化済みなら false)。課金カードの「14日間無料」誤表示を防ぐ(Codex R4)。 */
+    val isTrialEligible: StateFlow<Boolean> = premium.isTrialEligible
+
     /** 選択中の猫種(猫ピッカー用)。 */
     val catBreed: StateFlow<CatBreed> = repository.catBreed
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CatBreed.Default)
