@@ -1,4 +1,4 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件(34件完了 / 3件は5_UXへ集約 / 1件保留)
+# MEDIUM 所見 worklist (2026-06-14) — 140件(優先順1〜4=36件完了 / 5_UX はアセスメント済・大半既済)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
 凡例: [x]=完了 / [~]=部分(保留理由付記) / [ ]=未着手 or 他カテゴリへ集約。
@@ -66,6 +66,27 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 - [x] **recording** | parity: 体重・生理日の同時記録 — 同上(7e9a463)
 
 ## 5_UX/パリティ (97件)
+
+> **2026-06-14 一括アセスメント結果**(3並列 Explore で iOS↔Android 全項目を突合)。大半は HIGH/
+> パリティ移植で**既済**。本セッションで対応:
+> - [x] **streak**: streakState の longest 計算に Rescued を含める(parity 回帰バグ修正・テスト)(57d8587)
+> - [x] **calendar**: 凡例+休養ルール説明を履歴カレンダーに追加(d2ec271)
+>
+> **既済を確認(対応不要)**: achievements 1/3/4(発火ゲート/pendingMilestone/pendingRankEvent)、
+> calendar 6-8/10-12(未来月ガード/生理★/救済装飾/配色/初記録前中立/日タップ)、streak 16(復活ポップ)、
+> friends 2/5(解除確認/UUID正規化)、onboarding 7/9/10/11(2step/ボタン文言/Apple/スキップ)、
+> settings/account/backup 12-17(連携集約/状態表示/セッション巻戻し=7114b03/in-flightガード/招待順序)、
+> share 19-21(期間見出し廃止/アイコン化/グラデ5種永続化)、recording 2-5(addSet重さ/kg入力/入力方式/保存不可理由)、
+> weight 7/8/10-12(範囲バリデ/グラフtap/cooldown/最小件数案内/周期オーバーレイ)、cycle 14/15(生理トグル/履歴★)、
+> widgets 16-19(タップ遷移/日付投影/文言分離/サイズ)。
+>
+> **★残る真のギャップ(次セッション)**:
+> - **大**: notifications(回数/2本目/性格 picker・rolling7 one-shot・パーソナライズ文言)/ friends 詳細画面
+>   (= cheers 送信経路・アバタータップ・統計表示の核。3_privacy の3件もこれに集約)
+> - **中**: achievements 全画面 confetti / MilestoneBackdrop 光帯アニメ / comebackWelcomeカード /
+>   recording「よく使う種目」サジェスト / weight 任意過去日(>3日)・「その他」日付セグメント / cycle 過去日生理日入力
+> - **小**: cheers 受信トースト「(ほか N件)」suffix / onboarding ステップ「/2」バッジ / share 写真保存ボタン
+> - **要確認**: streak revive anchor の .rescued 認識 / applyRevive の missed 確定タイミング(日跨ぎ)
 
 - [ ] **account** | 連携(切替/復元)中に認可成立後 profile ロード失敗 (mismatch)
 - [ ] **account** | parity: 連携失敗時のセッション巻き戻し
