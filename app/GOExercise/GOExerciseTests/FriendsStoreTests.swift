@@ -109,6 +109,28 @@ final class FriendsStoreTests: XCTestCase {
         XCTAssertEqual(stub.deleteCount, 1)
     }
 
+    /// 回帰防止: `unseenReceivedCheers` は **プロトコル要件**でなければならない。
+    /// 要件宣言が無く extension の既定実装 `{ [] }` だけだと、`any FriendsService` 経由の呼び出しが
+    /// 静的ディスパッチで既定を呼び、具象実装(Supabase)の override が無視される。結果、受信応援が
+    /// 一切 surface されず「受信応援トーストが出ない」バグになる(2026-06-15 発見・修正)。
+    /// 本テストは stub の override が refresh() を通して receivedCheers に反映されることで動的ディスパッチを担保する。
+    func testRefreshSurfacesReceivedCheersViaDynamicDispatch() async {
+        let stub = StubFriendsService()
+        stub.myProfile = make("ME1234")
+        stub.unseenCheers = [
+            ReceivedCheer(id: "c1", fromDisplayName: "おうえんねこ", kindRaw: "fight",
+                          message: "やったね", createdAt: Date())
+        ]
+        let s = FriendsStore(service: stub)
+        s.profile = stub.myProfile
+
+        await s.refresh()
+
+        XCTAssertEqual(s.receivedCheers.count, 1,
+            "unseenReceivedCheers がプロトコル要件でないと any FriendsService 経由で既定[]が呼ばれ受信応援が出ない")
+        XCTAssertEqual(s.receivedCheers.first?.message, "やったね")
+    }
+
     /// 連打しても service.deleteAccount は1回だけ (再入ガード)。
     func testDeleteAccountReentryGuard() async {
         let stub = StubFriendsService()
@@ -354,6 +376,10 @@ final class StubFriendsService: FriendsService {
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
     func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
+
+    // 受信応援: ディスパッチ回帰テスト用に返す内容を差し替えられるようにする。
+    var unseenCheers: [ReceivedCheer] = []
+    func unseenReceivedCheers() async throws -> [ReceivedCheer] { unseenCheers }
 
     func releaseGate() { gate?.resume(); gate = nil }
 }

@@ -37,6 +37,11 @@ protocol FriendsService: AnyObject {
     /// 取得分を seen=true にして返す(起動時ポーリング用、role=.referrer)。
     func unseenReferrerConfirmations() async throws -> [ReferralConfirmation]
 
+    /// 自分宛ての未読受信応援(watermark より後)を取得する。**プロトコル要件として宣言必須**:
+    /// extension の既定実装 `{ [] }` だけだと `any FriendsService` 経由が静的ディスパッチで
+    /// 既定を呼び、Supabase 実装の override が無視される(受信トースト不発の原因。再発注意)。
+    func unseenReceivedCheers() async throws -> [ReceivedCheer]
+
     /// 星バッジ数(累計 confirmed 紹介)と今月のフリーズ加算を集計して返す。
     func referralSummary() async throws -> ReferralSummary
 
