@@ -115,15 +115,18 @@ class RecordViewModel @Inject constructor(
     fun save() {
         val current = _state.value
         if (current.isSaving) return
-        val record = current.toRecord(LocalDate.now(clock)) ?: return
+        // 日付は**一度だけ**確定し、運動・体重・生理日の全副作用で共有する(日跨ぎで記録と
+        // 体重/生理日が別日に割れる回帰を防ぐ。Codex 指摘)。
+        val now = LocalDateTime.now(clock)
+        val today = now.toLocalDate()
+        val record = current.toRecord(today) ?: return
         _state.update { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
             runCatching {
                 repository.save(record)
-                // 同じ保存操作で体重・生理日も永続化(iOS RecordEntryView パリティ)。
-                current.parsedWeightKg?.let { weightRepository.add(LocalDateTime.now(clock), it, null) }
+                // 同じ保存操作で体重・生理日も永続化(iOS RecordEntryView パリティ)。日付は上で固定した today。
+                current.parsedWeightKg?.let { weightRepository.add(now, it, null) }
                 if (current.cycleTrackingEnabled) {
-                    val today = LocalDate.now(clock)
                     // トグルの状態に合わせて冪等に設定(差があるときだけ toggle=iOS set(_:on:) 相当)。
                     val marked = menstrualRepository.periodDays.first().contains(today)
                     if (current.menstrualToday != marked) menstrualRepository.toggle(today)

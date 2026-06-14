@@ -387,13 +387,18 @@ final class SupabaseFriendsService: FriendsService {
         // セッション取得失敗時は不確実なので削除しない (安全側)。
         if let session = try? await client.auth.session, session.user.isAnonymous {
             let uid = session.user.id.uuidString
-            try? await client.from("profiles").delete().eq("user_id", value: uid).execute()
+            // 匿名は signOut で auth が消えず cascade も走らないため、本人スコープの機微行も明示削除する
+            // (cheers / user_records が残ると「忘れる」にならない。deleteAccount fallback と同集合)。
+            try? await client.from("cheers").delete()
+                .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
             try? await client.from("friendships").delete()
                 .or("user_a.eq.\(uid),user_b.eq.\(uid)").execute()
             try? await client.from("friend_requests").delete()
                 .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
             try? await client.from("referrals").delete()
                 .or("referrer_user_id.eq.\(uid),referee_user_id.eq.\(uid)").execute()
+            try? await client.from("user_records").delete().eq("user_id", value: uid).execute()
+            try? await client.from("profiles").delete().eq("user_id", value: uid).execute()
         }
         try? await client.auth.signOut()
         myProfile = nil

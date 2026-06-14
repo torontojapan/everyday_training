@@ -90,10 +90,14 @@ class SupabaseFriendsService(
         val user = client.auth.currentUserOrNull()
         if (user != null && user.isAnonymous == true) {
             val uid = user.id
-            runCatching { client.from("profiles").delete { filter { eq("user_id", uid) } } }
-            runCatching { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
+            // 匿名は signOut=auth 削除されない(cascade 不発)ため、本人スコープの機微行も明示削除する
+            // (Codex 指摘: cheers / user_records が残ると「忘れる」にならない。deleteAccount fallback と同集合)。
+            runCatching { client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
             runCatching { client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
+            runCatching { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
             runCatching { client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } } }
+            runCatching { client.from("user_records").delete { filter { eq("user_id", uid) } } }
+            runCatching { client.from("profiles").delete { filter { eq("user_id", uid) } } }
         }
         client.auth.signOut()
         backup = AccountBackupStatus.Anonymous

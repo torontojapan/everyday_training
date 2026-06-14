@@ -107,9 +107,11 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
             ).build()
         val result = client.queryProductDetails(params)
         result.productDetailsList?.forEach { productDetailsCache[it.productId] = it }
-        // 無料トライアル offer が1商品でも返れば適格(Play は消化済みユーザーには trial offer を返さない)。
+        // 適格判定は**無料フェーズを含む offer の有無**で行う(Play は消化済みユーザーに trial offer を
+        // 返さない)。trialOffer() は購入用に「無ければ先頭」へフォールバックするため eligibility には使わない
+        // (Codex 指摘: フォールバックだと有料 offer しか無くても eligible=true=誤「14日間無料」表示になる)。
         _isTrialEligible.value = ProductIds.all.any { id ->
-            productDetailsCache[id]?.let { trialOffer(it) != null } == true
+            productDetailsCache[id]?.let { hasFreeTrialOffer(it) } == true
         }
     }
 
@@ -184,9 +186,15 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
      */
     private fun trialOffer(details: ProductDetails): ProductDetails.SubscriptionOfferDetails? {
         val offers = details.subscriptionOfferDetails ?: return null
-        return offers.firstOrNull { o -> o.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L } }
-            ?: offers.firstOrNull()
+        return freeTrialOffer(offers) ?: offers.firstOrNull()
     }
+
+    /** 無料フェーズ(priceAmountMicros==0)を含む offer。eligibility 判定はこれ(フォールバックしない)。 */
+    private fun freeTrialOffer(offers: List<ProductDetails.SubscriptionOfferDetails>) =
+        offers.firstOrNull { o -> o.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L } }
+
+    private fun hasFreeTrialOffer(details: ProductDetails): Boolean =
+        freeTrialOffer(details.subscriptionOfferDetails ?: emptyList()) != null
 
     override fun clearError() { _lastError.value = null }
 
