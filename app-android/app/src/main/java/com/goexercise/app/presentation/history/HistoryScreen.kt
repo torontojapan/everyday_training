@@ -41,7 +41,7 @@ import com.goexercise.app.ui.theme.colorForStatus
 @Composable
 fun HistoryRoute(onUseRescue: () -> Unit = {}, viewModel: HistoryViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue)
+    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual)
 }
 
 @Composable
@@ -50,6 +50,7 @@ fun HistoryContent(
     onPrev: () -> Unit = {},
     onNext: () -> Unit = {},
     onUseRescue: () -> Unit = {},
+    onToggleMenstrual: (java.time.LocalDate) -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -105,6 +106,9 @@ fun HistoryContent(
                 date = sel.date,
                 status = sel.status,
                 records = state.records.filter { it.date == sel.date },
+                cycleTrackingEnabled = state.cycleTrackingEnabled,
+                isPeriod = sel.date in state.periodDays,
+                onToggleMenstrual = { onToggleMenstrual(sel.date) },
                 onDismiss = { selected = null },
             )
         }
@@ -189,7 +193,10 @@ private fun DayDetailSheet(
     date: java.time.LocalDate,
     status: DailyStatus,
     records: List<com.goexercise.app.domain.WorkoutRecord>,
-    onDismiss: () -> Unit,
+    cycleTrackingEnabled: Boolean = false,
+    isPeriod: Boolean = false,
+    onToggleMenstrual: () -> Unit = {},
+    onDismiss: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.background) {
@@ -222,6 +229,12 @@ private fun DayDetailSheet(
                             color = palette.textPrimary, fontSize = 14.sp,
                         )
                     }
+                }
+            }
+            // 周期トラッキング ON のとき、過去日を含めて生理日を登録/解除できる(iOS MenstrualEntryView パリティ)。
+            if (cycleTrackingEnabled && !date.isAfter(java.time.LocalDate.now())) {
+                TextButton(onClick = onToggleMenstrual) {
+                    Text(if (isPeriod) "★ 生理日の登録を解除" else "この日を生理日に登録", color = palette.primaryDeep)
                 }
             }
         }

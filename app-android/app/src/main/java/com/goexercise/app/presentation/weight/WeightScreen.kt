@@ -27,10 +27,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
@@ -212,26 +217,35 @@ private fun BmiStrip(state: WeightUiState, palette: AppTheme, onSetHeight: (Doub
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> Unit) {
     var weight by remember { mutableStateOf("") }
     var memo by remember { mutableStateOf("") }
-    var daysAgo by remember { mutableStateOf(0) } // 0=今日, 1=昨日, 2=一昨日
-    val labels = listOf("今日", "昨日", "一昨日")
+    var mode by remember { mutableStateOf(0) } // 0=今日, 1=昨日, 2=その他(任意過去日)
+    var customDate by remember { mutableStateOf(LocalDate.now().minusDays(2)) }
+    var showPicker by remember { mutableStateOf(false) }
+    val today = LocalDate.now()
+    val effectiveDate = when (mode) { 0 -> today; 1 -> today.minusDays(1); else -> customDate }
+
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("記録する", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                labels.forEachIndexed { i, label ->
-                    val sel = daysAgo == i
+                listOf("今日", "昨日", "その他").forEachIndexed { i, label ->
+                    val sel = mode == i
                     Surface(
                         color = if (sel) palette.primary else palette.chipBackground,
                         shape = RoundedCornerShape(50),
-                        modifier = Modifier.clickable { daysAgo = i },
+                        modifier = Modifier.clickable { if (i == 2) showPicker = true else mode = i },
                     ) {
                         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
                     }
                 }
+            }
+            // 「その他」選択時は対象日を明示(任意過去日入力。iOS dateSegment パリティ)。
+            if (mode == 2) {
+                Text("対象日: ${customDate}", fontSize = 12.sp, color = palette.textSecondary)
             }
             OutlinedTextField(
                 value = weight, onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
@@ -242,13 +256,36 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
             OutlinedTextField(value = memo, onValueChange = { memo = it }, label = { Text("メモ (任意)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = {
-                    weight.toDoubleOrNull()?.let { onAdd(LocalDate.now().minusDays(daysAgo.toLong()), it, memo.ifBlank { null }); weight = ""; memo = "" }
+                    weight.toDoubleOrNull()?.let { onAdd(effectiveDate, it, memo.ifBlank { null }); weight = ""; memo = "" }
                 },
                 enabled = weight.toDoubleOrNull() != null,
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("✓ 保存", color = Color.White) }
         }
+    }
+
+    if (showPicker) {
+        val todayMillis = today.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        val dpState = rememberDatePickerState(
+            initialSelectedDateMillis = customDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= todayMillis // 未来日は不可
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dpState.selectedDateMillis?.let {
+                        customDate = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        mode = 2
+                    }
+                    showPicker = false
+                }) { Text("決定") }
+            },
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("キャンセル") } },
+        ) { DatePicker(state = dpState) }
     }
 }
 
