@@ -66,10 +66,15 @@ build 6→8 の中身:
 
 ## App Privacy
 
-**v1.1 から変更なし**(「収集あり・トラッキングなし」)。`app_store_metadata_v1.1.md` の表をそのまま使用。
-iOS の分析(TelemetryDeck)は Info.plist `TelemetryDeckAppID` が設定された状態でビルドしているため、
-ASC の App Privacy で **Usage Data → Product Interaction(リンクなし/トラッキングなし)** を申告するか、
-あるいは送信を止める運用にするかを提出前に確定すること(下記チェックリスト参照)。
+v1.1 の表(「収集あり・トラッキングなし」)を基本そのまま使用。`app_store_metadata_v1.1.md` 参照。
+**変更点(2026-06-15 決定): iOS の分析(TelemetryDeck)を申告する。** 本ビルドは Info.plist `TelemetryDeckAppID` 設定済。
+よって App Privacy に以下を**追加**する:
+
+| カテゴリ | データタイプ | トラッキング | リンク | 用途 |
+|---|---|---|---|---|
+| Usage Data | Product Interaction | しない | しない | Analytics(プロダクト改善) |
+
+`Used to Track You: No` は維持。`PrivacyInfo.xcprivacy` の宣言と整合していることを提出前に確認。
 
 ---
 
