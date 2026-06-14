@@ -5,7 +5,9 @@ import XCTest
 final class ExerciseHistoryProviderTests: XCTestCase {
     private let calendar = Calendar.mondayFirst
 
-    func testTopExerciseNamesPrioritizesFrequency() {
+    func testTopExerciseNamesPrioritizesLastUsedOverFrequency() {
+        // 8ca94e1 で「前回使った種目が手前」(最終使用日の新しい順)に仕様変更。
+        // 頻度は同日内の tie-break のみ(旧: 頻度優先テストを新仕様へ更新)。
         let provider = ExerciseHistoryProvider(records: [
             record(day: 1, category: .strength, names: ["スクワット", "腕立て伏せ"]),
             record(day: 2, category: .strength, names: ["スクワット"]),
@@ -14,7 +16,8 @@ final class ExerciseHistoryProviderTests: XCTestCase {
 
         let names = provider.topExerciseNames(for: .strength, limit: 3)
 
-        XCTAssertEqual(names.first, "スクワット")
+        XCTAssertEqual(names, ["プランク", "スクワット", "腕立て伏せ"],
+                       "最終使用日の新しい順(プランク=3日 > スクワット=2日 > 腕立て=1日)")
     }
 
     func testTopExerciseNamesUsesRecencyWhenFrequencyIsTied() {

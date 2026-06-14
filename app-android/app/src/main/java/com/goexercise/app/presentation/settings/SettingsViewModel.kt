@@ -12,15 +12,20 @@ import com.goexercise.app.data.settings.NotificationPrefsRepository
 import com.goexercise.app.data.settings.ReminderPrefs
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
+import androidx.glance.appwidget.updateAll
+import com.goexercise.app.widget.StreakWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -40,7 +45,60 @@ class SettingsViewModel @Inject constructor(
     private val clock: Clock,
     private val referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val friendsService: com.goexercise.app.data.friends.FriendsService,
+    private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
+    private val health: com.goexercise.app.data.settings.HealthRepository,
+    private val authCoordinator: com.goexercise.app.presentation.friends.AccountAuthCoordinator,
+    @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
+
+    // --- 認証(Apple/Google でバックアップ)を設定に集約(#14。iOS は設定に集約・友達タブから撤去) ---
+
+    /** 連携済みプロバイダ名(null=匿名)。設定で「未連携=サインインボタン/連携済=状態表示」に使う。 */
+    private val _linkedProvider = MutableStateFlow<String?>(friendsService.backupStatus.providerName)
+    val linkedProvider: StateFlow<String?> = _linkedProvider.asStateFlow()
+    private val _isLinkingAccount = MutableStateFlow(false)
+    val isLinkingAccount: StateFlow<Boolean> = _isLinkingAccount.asStateFlow()
+    private val _linkError = MutableStateFlow<String?>(null)
+    val linkError: StateFlow<String?> = _linkError.asStateFlow()
+
+    /** Apple でバックアップ(連携)。連携後にバックアップを自動 ON にする(iOS パリティ)。 */
+    fun linkApple(context: android.content.Context) =
+        performLink { friendsService.linkAppleWeb(authCoordinator.appleWebFlow(context)) }
+
+    /** Google でバックアップ(連携)。native id_token。 */
+    fun linkGoogle(context: android.content.Context) =
+        performLink { friendsService.linkGoogleIdToken(authCoordinator.requestGoogleIdToken(context)) }
+
+    private fun performLink(op: suspend () -> Unit) {
+        if (_isLinkingAccount.value) return
+        _isLinkingAccount.value = true
+        _linkError.value = null
+        viewModelScope.launch {
+            try {
+                op()
+                // 連携は匿名 uid をそのまま Apple/Google に紐付ける(identity 不変)。続けてバックアップを自動 ON。
+                recordSync.enableBackup()
+                _linkedProvider.value = friendsService.backupStatus.providerName
+            } catch (e: com.goexercise.app.data.friends.AccountLinkError.Cancelled) {
+                // ユーザーキャンセルは無言で戻す。
+            } catch (e: Exception) {
+                _linkError.value = "サインインに失敗しました: ${e.message}"
+            } finally {
+                _isLinkingAccount.value = false
+            }
+        }
+    }
+
+    fun clearLinkError() { _linkError.value = null }
+
+    /** 生理周期トラッキングのオプトイン状態(既定 OFF)。ON で体重タブに生理日記録 UI を出す。 */
+    val cycleTrackingEnabled: StateFlow<Boolean> = health.prefs
+        .map { it.cycleTrackingEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setCycleTrackingEnabled(on: Boolean) {
+        viewModelScope.launch { health.setCycleTrackingEnabled(on) }
+    }
 
     /** 現在の連続記録(称号一覧の現在地「いま」/次目標「あとN日」表示用)。
      *  記録 + 保険救済日から StreakCalculator で算出。Home と同一の寛容判定。 */
@@ -66,20 +124,40 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setCatBreed(breed: CatBreed) {
+        // 課金/紹介ゲート(UI迂回時の多層防御): 非プレミアムかつ紹介⭐<10 は「今の猫」以外に変更できない。
+        // 口座ガード経由で判定し、切替/復元直後に前アカウントの星で誤解放しない。
+        val unlocked = referralStore.isBreedUnlockedForCurrentAccount()
+        if (CatBreedAccess.isLocked(breed, catBreed.value, isPremium.value, unlocked)) return
         viewModelScope.launch { repository.setCatBreed(breed) }
     }
 
-    /** 毎日のリマインダー設定(ON/OFF + 時刻)。 */
+    /** 毎日のリマインダー設定(ON/OFF + 朝/夕時刻 + 回数 + 性格)。 */
     val reminder: StateFlow<ReminderPrefs> = notificationPrefs.prefs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReminderPrefs())
 
-    /** リマインダーを設定(保存 + AlarmManager 予約/解除)。enabled=true は通知権限取得後に呼ぶこと。 */
-    fun setReminder(enabled: Boolean, hour: Int, minute: Int) {
+    /** 永続化 + AlarmManager 反映(朝常時/夕は count>1)。性格/回数変更でも即 reschedule。 */
+    private fun applyReminder(prefs: ReminderPrefs) {
         viewModelScope.launch {
-            notificationPrefs.set(enabled, hour, minute)
-            if (enabled) reminderScheduler.schedule(hour, minute) else reminderScheduler.cancel()
+            notificationPrefs.update(prefs)
+            reminderScheduler.apply(prefs)
         }
     }
+
+    /** ON/OFF + 朝(1本目)時刻。enabled=true は通知権限取得後に呼ぶこと(後方互換シグネチャ)。 */
+    fun setReminder(enabled: Boolean, hour: Int, minute: Int) =
+        applyReminder(reminder.value.copy(enabled = enabled, hour = hour, minute = minute))
+
+    /** 夕(2本目)時刻。 */
+    fun setEveningTime(hour: Int, minute: Int) =
+        applyReminder(reminder.value.copy(eveningHour = hour, eveningMinute = minute))
+
+    /** 1日の通知回数(1=朝のみ / 2=朝+夕)。 */
+    fun setReminderCount(count: Int) =
+        applyReminder(reminder.value.copy(count = count.coerceIn(1, 2)))
+
+    /** 通知の性格(quiet/voice/friendDriven)。 */
+    fun setReminderPersonality(personality: com.goexercise.app.domain.NotificationPersonality) =
+        applyReminder(reminder.value.copy(personality = personality))
 
     /** 匿名の利用状況分析(TelemetryDeck)を共有するか。既定 true(匿名 ON)。設定でオプトアウト可。 */
     val analyticsEnabled: StateFlow<Boolean> = repository.analyticsEnabled
@@ -119,16 +197,49 @@ class SettingsViewModel @Inject constructor(
             try {
                 onDone(dataManagement.deleteAllRecords())
                 Analytics.track(AnalyticsEvent.DataDeleted)
+                // 全削除後にホームウィジェットを即リフレッシュ(古い連続日数/今日達成の残留を防ぐ。
+                // iOS の全削除後 WidgetCenter.reloadAllTimelines 相当)。
+                runCatching { StreakWidget().updateAll(appContext) }
             } finally {
                 _isBusy.value = false
             }
         }
     }
 
+    // --- アカウントとバックアップ(記録のクラウド保存。iOS 設定の同セクション移植) ---
+
+    /** バックアップのオプトイン状態(既定 OFF)。 */
+    val backupEnabled: StateFlow<Boolean> = recordSync.isEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** 同期中(今すぐバックアップのスピナー)。 */
+    val backupSyncing: StateFlow<Boolean> = recordSync.isSyncing
+
+    /** 直近の同期/復元エラー(利用者向け文言)。 */
+    val backupError: StateFlow<String?> = recordSync.lastError
+
+    /** トグル: ON は(未サインインなら)匿名アカウント発行→全量同期、OFF は同期停止のみ。 */
+    fun setBackupEnabled(on: Boolean) {
+        viewModelScope.launch {
+            if (on) {
+                recordSync.enableBackup()
+                _myFriendCode.value = friendsService.myProfile()?.friendCode // ON で初めてアカウントができた場合に反映
+            } else {
+                recordSync.disableBackup()
+            }
+        }
+    }
+
+    /** 「今すぐバックアップ」。 */
+    fun backupNow() {
+        viewModelScope.launch { recordSync.syncNow() }
+    }
+
     // --- 友達を招待(共有 / 星バッジ / 後から入力) ---
 
-    /** 紹介サマリ(星バッジ数など)。 */
-    val referralSummary = referralStore.summary
+    /** 紹介サマリの星バッジ数(設定の招待カード表示用)。口座ガード経由で読み、切替/復元直後に
+     *  前アカウントの星を表示しない(iOS currentAccountStarBadges 相当)。 */
+    val referralStarBadges: StateFlow<Int> = referralStore.currentAccountStarBadges
 
     /** 自分の招待コード(共有メッセージ用)。プロフィール取得後に埋める。 */
     private val _myFriendCode = MutableStateFlow<String?>(null)
@@ -148,7 +259,7 @@ class SettingsViewModel @Inject constructor(
     fun onLaterCodeChange(v: String) { _laterCode.value = v }
 
     fun inviteMessage(code: String): String =
-        "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → $code\n" +
+        "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、お互いに保険チケットがもらえます → $code\n" +
             "https://play.google.com/store/apps/details?id=com.goexercise.app"
 
     fun submitLaterInvite() {

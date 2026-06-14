@@ -30,4 +30,6 @@ data class HomeUiState(
     /** 当月の運動時間合計(分)と達成日数。友達バックエンドの月次ランキング用(iOS パリティ)。 */
     val monthlyTotalMinutes: Int = 0,
     val monthlyAchievedDays: Int = 0,
+    /** 復帰日の歓迎カード表示フラグ(昨日 missed・今日未達成・累計>=3日)。iOS isComebackToday パリティ。 */
+    val isComebackToday: Boolean = false,
 )

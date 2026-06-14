@@ -6,7 +6,7 @@ enum WidgetTimelineDates {
         let endOfDay = endOfDayMinusOneMinute(from: now, calendar: calendar)
         // 翌日 0:00 の entry を加える。これと WidgetSnapshot.projected(to:) により、
         // タイムライン再生成が遅れても日付が変わった瞬間に「達成済み」表示が解け、
-        // クイック記録ボタンが翌朝に再表示される(監査 P1: 翌朝まで固着)。
+        // 記録誘導チップが翌朝に再表示される(監査 P1: 翌朝まで固着)。
         let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
         // WidgetKit は時系列(厳密増加)のタイムラインを要求する。深夜生成だと oneHourLater が
         // 翌日へ回り endOfDay より後になるため、ソート+重複排除して必ず昇順・一意にする(Codex R2)。

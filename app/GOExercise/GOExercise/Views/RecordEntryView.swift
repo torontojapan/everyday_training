@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RecordEntryView: View {
     @Environment(WorkoutStore.self) private var store
@@ -42,6 +43,14 @@ struct RecordEntryView: View {
                                 viewModel.removeExercise(id: removingId)
                                 if expandedExerciseID == removingId {
                                     expandedExerciseID = viewModel.drafts.last?.id
+                                }
+                            },
+                            onAddSet: {
+                                // 複製行を直下に挿入し、そちらへ展開を移す(元の行は最小化)。
+                                if let newId = viewModel.addSet(after: draft.id) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        expandedExerciseID = newId
+                                    }
                                 }
                             }
                         )
@@ -133,10 +142,9 @@ struct RecordEntryView: View {
             .background(Palette.background)
             .navigationTitle("今日の記録")
             .navigationBarTitleDisplayMode(.inline)
-            // 時間/回数/セットをプルダウン化してテンキー入力が無くなったため、
-            // 旧「完了」キーボードツールバーは撤去。キーボードを使う体重/メモは
-            // スワイプ (scrollDismissesKeyboard) で閉じられる。これにより、
-            // キーボード非表示時にも下部へ残る白帯+完了ボタンの残留も解消する。
+            // 重さ(kg)/体重のテンキーには Return が無く「閉じられない」というユーザー指摘が
+            // あったため、「完了」キーボードツールバー(下の .toolbar 内 keyboard placement)を
+            // 復活。スワイプ (scrollDismissesKeyboard) でも閉じられる(併用)。
             .scrollDismissesKeyboard(.interactively)
             .onAppear {
                 viewModel.updateHistoryProvider(store: store)
@@ -160,6 +168,15 @@ struct RecordEntryView: View {
                         } else {
                             dismiss()
                         }
+                    }
+                }
+                // フリー入力(重さ/体重 等の数値キーボードには Return が無い)を閉じる手段。
+                // キーボード上部に「完了」を常設してフォーカスを外せるようにする。
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完了") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
                     }
                 }
             }

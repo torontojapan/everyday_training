@@ -4,12 +4,12 @@ import SwiftData
 
 private let containerLogger = Logger(subsystem: "com.goexercise.app", category: "AppModelContainer")
 
-/// メインアプリと Widget Extension (QuickRecordIntent) が **同一の** SwiftData
+/// メインアプリと Widget Extension が **同一の** SwiftData
 /// ストアを共有するためのファクトリ。
 ///
 /// 背景 (3 LLM 監査 B-Critical-1):
 /// 旧構成ではメインアプリが `.modelContainer(for:)` でデフォルトのアプリ
-/// サンドボックス内 `default.store` を使い、QuickRecordIntent は App Group の
+/// サンドボックス内 `default.store` を使い、Widget Extension は App Group の
 /// `WorkoutStore.sqlite` を使っていた。両者が別ファイルだったため、ウィジェット/
 /// Live Activity の「やった！」記録がメインアプリに反映されず、連続記録も伸びな
 /// かった。両ターゲットが本ファクトリ経由で同じ App Group ストアを開くことで解消する。

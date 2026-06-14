@@ -56,9 +56,9 @@ fun StreakRevivePopup(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 val body = if (hasEnough) {
-                    "フリーズを使うと、途切れた日を埋めて連続記録を続けられます。(残り${remaining}回)"
+                    "保険チケットを使うと、途切れた日を埋めて連続記録を続けられます。(残り${remaining}回)"
                 } else {
-                    "復活にはフリーズが${freezesNeeded}回必要です。GOプレミアムなら毎月4回使えます。"
+                    "復活には保険チケットが${freezesNeeded}回必要です。GOプレミアムなら毎月4回使えます。"
                 }
                 Text(
                     text = body,
@@ -73,7 +73,7 @@ fun StreakRevivePopup(
                     onClick = onUseFreeze,
                     colors = ButtonDefaults.buttonColors(containerColor = icy),
                 ) {
-                    Text("フリーズを使う(${freezesNeeded}回)", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("保険チケットを使う(${freezesNeeded}回)", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(

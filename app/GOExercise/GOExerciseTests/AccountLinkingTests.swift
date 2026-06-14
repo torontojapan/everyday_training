@@ -9,12 +9,13 @@ final class AccountLinkingTests: XCTestCase {
     // MARK: - config gating (既定は無効 = 現挙動維持)
 
     func testLinkingConfigReflectsInfoPlist() {
-        // 本番 Info.plist で Apple 連携(機種変復旧)を有効化済み = `FriendsAppleLinkEnabled: true`。
-        // Google 連携キーは未設定なので false。Bundle.main = テスト host(本体アプリ)の Info.plist を読む。
-        // (旧 testLinkingDisabledByDefault は、Apple 復元キー導入前の前提で書かれていたため更新)
+        // 本番 Info.plist で Apple/Google 連携(機種変復旧)とも有効化済み
+        // (`FriendsAppleLinkEnabled: true` / `FriendsGoogleLinkEnabled: true`。3ba5ac1 で
+        // Google サインインを有効化)。Bundle.main = テスト host(本体アプリ)の Info.plist を読む。
+        // 注: xcodegen がキーを落とす再発バグがあると両方 false に転ぶ = この assert が検知器を兼ねる。
         XCTAssertTrue(SupabaseConfig.appleLinkEnabled, "FriendsAppleLinkEnabled=true(Apple復元)")
-        XCTAssertFalse(SupabaseConfig.googleLinkEnabled, "FriendsGoogleLinkEnabled は未設定")
-        XCTAssertTrue(SupabaseConfig.isAccountLinkingEnabled, "Apple のみで連携は有効")
+        XCTAssertTrue(SupabaseConfig.googleLinkEnabled, "FriendsGoogleLinkEnabled=true(Google復元)")
+        XCTAssertTrue(SupabaseConfig.isAccountLinkingEnabled, "Apple/Google 連携が有効")
     }
 
     // MARK: - エラー文言
@@ -231,6 +232,13 @@ private final class RestoreStubService: FriendsService {
     }
     func anonymousSessionHasData() async -> Bool { hasData }
 
+    // 記録バックアップ (テスト対象外: no-op 準拠)
+    func backupUpsert(_ records: [BackupRecord]) async throws {}
+    func backupFetchAll() async throws -> [BackupRecord] { [] }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {}
+    func backupWipeAll() async throws {}
+
+
     func signIn(displayName: String, username: String) async throws {}
     func signOut() async {}
     func refreshFriends() async throws -> [FriendProfile] { [] }
@@ -241,7 +249,7 @@ private final class RestoreStubService: FriendsService {
     func removeFriend(_ profile: FriendProfile) async throws {}
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
     func refreshBackupStatus() async {}
 }
 
@@ -258,6 +266,13 @@ private final class LinkStubService: FriendsService {
     }
 
     var myProfile: FriendProfile? { nil }
+
+    // 記録バックアップ (テスト対象外: no-op 準拠)
+    func backupUpsert(_ records: [BackupRecord]) async throws {}
+    func backupFetchAll() async throws -> [BackupRecord] { [] }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {}
+    func backupWipeAll() async throws {}
+
     func signIn(displayName: String, username: String) async throws {}
     func signOut() async {}
     func refreshFriends() async throws -> [FriendProfile] { [] }
@@ -268,7 +283,7 @@ private final class LinkStubService: FriendsService {
     func removeFriend(_ profile: FriendProfile) async throws {}
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
 
     func refreshBackupStatus() async {}
     func linkApple(idToken: String, nonce: String) async throws {

@@ -21,8 +21,8 @@ struct StreakRevivePopup: View {
                 .font(.system(.title3, design: .rounded, weight: .heavy))
                 .multilineTextAlignment(.center)
             Text(hasEnough
-                 ? "フリーズを使うと、お休みした日が埋まって連続記録が続きます(残り\(remaining)回)。"
-                 : "連続を守るにはフリーズが\(freezesNeeded)回必要です(残り\(remaining)回)。GOプレミアムなら毎月4回使えます。")
+                 ? "保険チケットを使うと、お休みした日が埋まって連続記録が続きます(残り\(remaining)回)。"
+                 : "連続を守るには保険チケットが\(freezesNeeded)回必要です(残り\(remaining)回)。GOプレミアムなら毎月4回使えます。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -30,7 +30,7 @@ struct StreakRevivePopup: View {
 
             if hasEnough {
                 Button(action: onUseFreeze) {
-                    Text("フリーズを使う(\(freezesNeeded)回)")
+                    Text("保険チケットを使う(\(freezesNeeded)回)")
                         .font(.system(.headline, design: .rounded, weight: .bold))
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }

@@ -53,6 +53,7 @@ class DataManagementRepositoryImpl @Inject constructor(
     private val rescue: RescueTicketRepository,
     private val health: HealthRepository,
     private val json: Json,
+    private val backupStore: com.goexercise.app.data.backup.RecordBackupStore,
 ) : DataManagementRepository {
 
     override suspend fun exportJson(now: Instant): String {
@@ -90,6 +91,8 @@ class DataManagementRepositoryImpl @Inject constructor(
         rescue.clearAll()
         // 体重ゴール/身長(健康個人データ)も消す。開始体重が孤児化するのも防ぐ。
         health.clearAll()
+        // クラウドバックアップも全削除予約(次回同期で user_records を物理 delete。iOS と同じ wipe フック)。
+        backupStore.noteWipe()
         return count
     }
 }

@@ -72,6 +72,8 @@ class MockFriendsServiceTest {
     @Test
     fun sendCheerIsNoOp() = runBlocking {
         val svc = signedIn()
-        svc.sendCheer(CheerKind.Fire, svc.refreshFriends().first().friendCode) // 例外が出ないこと
+        // 一言コメント付き / 無し どちらも例外が出ないこと。
+        svc.sendCheer(CheerKind.CatPunch, svc.refreshFriends().first().friendCode, "がんばれ！")
+        svc.sendCheer(CheerKind.Fight, svc.refreshFriends().first().friendCode)
     }
 }

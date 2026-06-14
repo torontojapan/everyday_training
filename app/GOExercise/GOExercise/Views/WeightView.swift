@@ -556,7 +556,35 @@ struct WeightView: View {
                         AxisValueLabel()
                     }
                 }
-                .chartXSelection(value: $chartSelectedDate)
+                // 旧 .chartXSelection は「押している間だけ選択」= 実質長押し操作だった。
+                // タップで選択(同じ点の再タップで解除)+なぞり(ドラッグ)でも選べる方式に変更
+                // (ユーザー要望 2026-06-13)。選択は指を離しても保持される。
+                .chartOverlay { proxy in
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                            .onTapGesture(coordinateSpace: .local) { location in
+                                guard let tapped = chartDate(at: location, proxy: proxy, geo: geo) else { return }
+                                let nearest = chartData.min(by: {
+                                    abs($0.date.timeIntervalSince(tapped)) < abs($1.date.timeIntervalSince(tapped))
+                                })
+                                guard let nearest else { return }
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    // 選択中の点を再タップ → 解除。別の場所 → 最寄りの点へ移動。
+                                    chartSelectedDate = (selectedEntry?.id == nearest.id) ? nil : nearest.date
+                                }
+                            }
+                            .gesture(
+                                DragGesture(minimumDistance: 8)
+                                    .onChanged { value in
+                                        if let date = chartDate(at: value.location, proxy: proxy, geo: geo) {
+                                            chartSelectedDate = date
+                                        }
+                                    }
+                            )
+                    }
+                }
                 .frame(height: 220)
                 .padding(16)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -564,6 +592,15 @@ struct WeightView: View {
                 cyclePhaseLegend(phaseSpans)
             }
         }
+    }
+
+    /// タップ/ドラッグ位置 (overlay ローカル座標) をチャートの日付に変換する。
+    /// y はプロット外でも許容し、x のみプロット範囲内へクランプする (指がはみ出ても選べる寛容さ)。
+    private func chartDate(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
+        guard let plotFrame = proxy.plotFrame else { return nil }
+        let frame = geo[plotFrame]
+        let x = min(max(location.x - frame.origin.x, 0), frame.width)
+        return proxy.value(atX: x)
     }
 
     private func chartSelectedEntry(in store: WeightStore) -> WeightEntry? {

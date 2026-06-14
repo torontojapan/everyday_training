@@ -21,15 +21,18 @@ enum StreakLevel {
         }
     }
 
+    /// 称賛の見出し。**具体的な日数には言及しない**(実日数は KPI、英称号はバッジが担う)。
+    /// 旧 "1年達成"(legend=365+ 全部で固定)は 500 日でも「1年達成」と出て過小に
+    /// 見える指摘があり廃止。絵文字 🎉✨ もブランド方針で除去。
     var headline: String {
         switch self {
         case .zero: return "今日から始めよう"
         case .sprout: return "いい調子！"
-        case .week: return "1週間達成 🎉"
-        case .twoWeeks: return "2週間達成、すごい！"
-        case .month: return "1ヶ月達成、本物！"
-        case .century: return "100日達成!! 偉業!"
-        case .legend: return "1年達成 ✨ LEGEND ✨"
+        case .week: return "1週間つづいた！"
+        case .twoWeeks: return "2週間つづいた！"
+        case .month: return "習慣になってきた！"
+        case .century: return "偉業の領域！"
+        case .legend: return "継続のレジェンド！"
         }
     }
 
@@ -80,18 +83,15 @@ enum StreakLevel {
     @MainActor
     var catStateAssetName: String {
         let breed = UserCatPreferences.shared.myCat
-        let state: CatState = switch self {
-        case .zero, .sprout, .week, .twoWeeks: .celebrating
-        case .month, .century, .legend: .streakExtended
-        }
+        // 全レベルで celebrating(喜ぶ猫)に統一。streakExtended(炎を背負う猫)は
+        // 「ダサい」というユーザー指摘で共有カードから廃止。祝祭感は紙吹雪で出す。
+        let state: CatState = .celebrating
         return state.assetName(breed: breed)
     }
 
     var fallbackEmoji: String {
         switch self {
-        case .zero, .sprout: return "😻"
-        case .week, .twoWeeks: return "😻"
-        case .month, .century, .legend: return "🐱🔥"
+        case .zero, .sprout, .week, .twoWeeks, .month, .century, .legend: return "😻"
         }
     }
 
@@ -109,15 +109,15 @@ enum StreakLevel {
     var shareMessage: String {
         switch self {
         case .zero:
-            return "GO エクササイズで運動を始めました🐱"
+            return "GO エクササイズで運動を始めました"
         case .sprout:
-            return "GO エクササイズで運動継続中🐱"
+            return "GO エクササイズで運動継続中"
         case .week, .twoWeeks:
-            return "GO エクササイズで運動続けてます🔥"
+            return "GO エクササイズで運動続けてます"
         case .month, .century:
-            return "GO エクササイズで運動の習慣化に成功🔥🔥"
+            return "GO エクササイズで運動の習慣化に成功"
         case .legend:
-            return "GO エクササイズで1年連続達成しました✨ #LEGEND"
+            return "GO エクササイズで運動を継続中 #LEGEND"
         }
     }
 }

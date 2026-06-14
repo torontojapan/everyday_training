@@ -1,6 +1,8 @@
 package com.goexercise.app.data.friends
 
 import com.goexercise.app.domain.friends.CheerKind
+import com.goexercise.app.domain.friends.ReceivedCheer
+import io.github.jan.supabase.postgrest.query.Order
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
@@ -23,12 +25,21 @@ import io.github.jan.supabase.postgrest.from
  * (iOS と同じ。双方向の重複行を防ぎ、nested or フィルタも不要)。
  * **コンパイル = API 実在確認**。実通信での正本性検証は実機 PoC(キー所有者作業)で行う。
  */
-class SupabaseFriendsService(private val client: SupabaseClient) : FriendsService {
+class SupabaseFriendsService(
+    private val client: SupabaseClient,
+    private val cheerWatermark: CheerWatermarkStore? = null,
+) : FriendsService {
 
     override val isMock: Boolean = false
 
     private suspend fun ensureUid(): String {
+        // 起動直後はストレージからのセッション復元が未完のことがある。匿名作成前に初期化を待つ。
+        // ここを怠ると既存の連携アカウント(Apple/Google)が一時的に未ロードの隙に新規匿名アカウントを
+        // 作って上書きし、友達/星を喪失する(iOS の sessionMissing 限定ガードと対称)。
+        runCatching { client.auth.awaitInitialization() }
         client.auth.currentUserOrNull()?.id?.let { return it }
+        // 初期化後も user が無いが session は在る(リフレッシュ失敗等の一時障害)→ 匿名で上書きせずエラー。
+        if (client.auth.currentSessionOrNull() != null) throw FriendsError.NotSignedIn
         client.auth.signInAnonymously()
         return client.auth.currentUserOrNull()?.id ?: throw FriendsError.NotSignedIn
     }
@@ -49,8 +60,9 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         return FriendCode.generate()
     }
 
-    private fun orderedPair(a: String, b: String): Pair<String, String> =
-        if (a < b) a to b else b to a
+    // UUID 大小を正規化して friendships_check 違反(iOS UUID 大文字由来の ship-blocker)を防ぐ。
+    // ロジックは FriendshipPair に集約し回帰テスト([FriendshipPairTest])で担保。
+    private fun orderedPair(a: String, b: String): Pair<String, String> = FriendshipPair.ordered(a, b)
 
     override suspend fun myProfile(): FriendProfile? {
         val uid = client.auth.currentUserOrNull()?.id ?: return null
@@ -71,7 +83,20 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
     }
 
     override suspend fun signOut() {
+        // **匿名のときだけ**クラウドデータを削除する(=iOS「忘れる」セマンティクス)。連携済み
+        // (バックアップ)は保持=別端末/再サインインで復旧可能。ensureUid は呼ばない(サインアウト中に
+        // 新規匿名セッションを作らない)。uid 取得失敗時は不確実なので削除しない(安全側=誤削除より残留)。
+        // 各 delete は best-effort(runCatching): 一部失敗でも auth signOut まで到達させる。
+        val user = client.auth.currentUserOrNull()
+        if (user != null && user.isAnonymous == true) {
+            val uid = user.id
+            runCatching { client.from("profiles").delete { filter { eq("user_id", uid) } } }
+            runCatching { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
+            runCatching { client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
+            runCatching { client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } } }
+        }
         client.auth.signOut()
+        backup = AccountBackupStatus.Anonymous
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> {
@@ -139,10 +164,63 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("friendships").delete { filter { eq("user_a", a); eq("user_b", b) } }
     }
 
-    override suspend fun sendCheer(kind: CheerKind, toCode: String) {
+    override suspend fun sendCheer(kind: CheerKind, toCode: String, message: String?) {
         val uid = ensureUid()
         val toId = profileRowByCode(toCode)?.userId ?: throw FriendsError.CodeNotFound
-        client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue))
+        // 一言コメント: クライアント 30 字 + DB 60 字 check の二重ガード(送信前に最終クランプ)。
+        val clamped = message?.trim()?.takeIf { it.isNotEmpty() }?.take(30)
+        try {
+            client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue, message = clamped))
+        } catch (e: Exception) {
+            // 本番に message 列が未適用の環境では列エラーになるため、コメント無しで再送する
+            // (応援自体は届く。列適用後は自動的にコメント付きになる)。iOS と同型のフォールバック。
+            if (clamped != null && (e.message?.contains("message") == true)) {
+                client.from("cheers").insert(CheerWrite(fromUser = uid, toUser = toId, kind = kind.rawValue, message = null))
+            } else {
+                throw e
+            }
+        }
+    }
+
+    override suspend fun unseenReceivedCheers(): List<ReceivedCheer> {
+        val store = cheerWatermark ?: return emptyList()
+        val uid = client.auth.currentUserOrNull()?.id?.lowercase() ?: return emptyList()
+        val last = store.lastSeen(uid)
+        val now = System.currentTimeMillis()
+        if (last == null) {
+            // 初回は「今」を起点にして過去の蓄積を一気に出さない(前進ロジックは CheerWatermarkLogic に集約)。
+            store.setLastSeen(uid, CheerWatermarkLogic.evaluate(null, now, emptyList()).newWatermark)
+            return emptyList()
+        }
+        val sinceIso = backupTimestamp(java.time.Instant.ofEpochMilli(last))
+        val rows = client.from("cheers").select {
+            filter {
+                eq("to_user", uid)
+                gt("created_at", sinceIso)
+            }
+            order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+        }.decodeList<CheerRow>()
+        if (rows.isEmpty()) return emptyList()
+        val fromIds = rows.map { it.fromUser.lowercase() }.distinct()
+        val profs = client.from("profiles").select {
+            filter { isIn("user_id", fromIds) }
+        }.decodeList<ProfileRow>()
+        val nameById = profs.associate { it.userId.lowercase() to it.displayName }
+        val parsed = rows.map { row ->
+            ReceivedCheer(
+                id = row.id,
+                fromDisplayName = nameById[row.fromUser.lowercase()] ?: "ともだち",
+                kindRaw = row.kind,
+                message = row.message,
+                createdAtEpochMs = (com.goexercise.app.domain.friends.ReferralClock.parseTimestamp(row.createdAt)
+                    ?: java.time.Instant.now()).toEpochMilli(),
+            )
+        }
+        // watermark の前進と「より後だけ surface」は CheerWatermarkLogic に一本化する
+        // (サーバ側 gt フィルタが緩んでも二度出さない多層防御)。
+        val outcome = CheerWatermarkLogic.evaluate(last, now, parsed)
+        store.setLastSeen(uid, outcome.newWatermark)
+        return outcome.unseen
     }
 
     override suspend fun publishMyProfile(profile: FriendProfile) {
@@ -304,11 +382,22 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
     private suspend fun signInWithGoogle(idToken: String): RestoreOutcome {
         try {
             client.auth.signInWith(IDToken) { this.idToken = idToken; provider = Google }
-            return finishIdentitySwitch()
         } catch (e: Exception) {
             throw mapLinkError(e)
         }
+        return finishOrRollback()
     }
+
+    /** 認可成立後の profile ロード等で失敗したら、半端な切替状態を残さずローカルサインアウトで巻き戻す。
+     *  これが無いと、後続の ensureUid(自動既定名)が新 uid 上に他人の既存プロフィールを上書きしうる(iOS の
+     *  signOut(scope:.local) ロールバックと対称)。 */
+    private suspend fun finishOrRollback(): RestoreOutcome =
+        try {
+            finishIdentitySwitch()
+        } catch (e: Exception) {
+            runCatching { client.auth.signOut(SignOutScope.LOCAL) }
+            throw mapLinkError(e)
+        }
 
     // ---- Apple = web/PKCE(Custom Tabs。flow が認可 URL を開き callback を返す)----
 
@@ -337,10 +426,10 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
             val authUrl = client.auth.getOAuthUrl(Apple, redirectUrl = SupabaseConfig.googleRedirectUrl) {}
             val code = parseCallbackForCode(flow(authUrl))
             client.auth.exchangeCodeForSession(code)
-            return finishIdentitySwitch()
         } catch (e: Exception) {
             throw mapLinkError(e)
         }
+        return finishOrRollback()
     }
 
     /** サインイン(切替/復元)後: 既存プロフィールが有れば restored、無ければ既定で作成し created。 */
@@ -390,10 +479,68 @@ class SupabaseFriendsService(private val client: SupabaseClient) : FriendsServic
         client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
         client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } }
         client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } }
+        // user_records は体重・体調を含む機微データ。EF 不達時にサーバへ残留させない(iOS Codex 監査の是正と対称)。
+        client.from("user_records").delete { filter { eq("user_id", uid) } }
         client.from("profiles").delete { filter { eq("user_id", uid) } }
         runCatching { client.auth.signOut(SignOutScope.GLOBAL) } // best-effort(token 失効は EF の役目)
         backup = AccountBackupStatus.Anonymous
     }
+
+    // ================= 記録のクラウドバックアップ(user_records)=================
+    // 体重・体調を含む機微データ。RLS で本人のみ読み書き可(profiles と違い SELECT も本人限定)。
+    // payload は jsonb。クライアント間契約(キー名/日付形式)は RecordSyncCoordinator が正本。
+
+    override suspend fun backupUpsert(records: List<BackupRecord>) {
+        if (records.isEmpty()) return
+        val uid = ensureUid()
+        val rows = records.map { r ->
+            UserRecordRow(
+                userId = uid, recordId = r.id, kind = r.kind,
+                payload = r.payload,
+                updatedAt = backupTimestamp(r.updatedAt),
+                deleted = r.deleted,
+            )
+        }
+        client.from("user_records").upsert(rows) { onConflict = "user_id,record_id" }
+    }
+
+    override suspend fun backupFetchAll(): List<BackupRecord> {
+        // 未サインインで匿名アカウントを勝手に作らない(opt-in 厳守。iOS signedInSessionOrNil→[] と同型)。
+        val uid = client.auth.currentUserOrNull()?.id ?: return emptyList()
+        val rows = client.from("user_records").select { filter { eq("user_id", uid) } }
+            .decodeList<UserRecordRow>()
+        return rows.map { row ->
+            BackupRecord(
+                id = row.recordId, kind = row.kind, payload = row.payload,
+                updatedAt = com.goexercise.app.domain.friends.ReferralClock.parseTimestamp(row.updatedAt)
+                    ?: java.time.Instant.now(),
+                deleted = row.deleted,
+            )
+        }
+    }
+
+    override suspend fun backupMarkDeleted(recordIds: List<String>) {
+        if (recordIds.isEmpty()) return
+        val uid = ensureUid()
+        client.from("user_records").update(
+            UserRecordTombstoneUpdate(
+                deleted = true,
+                payload = kotlinx.serialization.json.JsonObject(emptyMap()),
+                updatedAt = backupTimestamp(java.time.Instant.now()),
+            ),
+        ) {
+            filter { eq("user_id", uid); isIn("record_id", recordIds) }
+        }
+    }
+
+    override suspend fun backupWipeAll() {
+        val uid = client.auth.currentUserOrNull()?.id ?: return
+        client.from("user_records").delete { filter { eq("user_id", uid) } }
+    }
+
+    /** ISO8601(秒精度・UTC)。iOS ISO8601DateFormatter 既定と同形("2026-06-11T05:00:00Z")。 */
+    private fun backupTimestamp(instant: java.time.Instant): String =
+        java.time.format.DateTimeFormatter.ISO_INSTANT.format(instant.truncatedTo(java.time.temporal.ChronoUnit.SECONDS))
 
     // ---- エラー写像(iOS mapLinkError / mapPKCECallback 相当の簡易版)----
 

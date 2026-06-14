@@ -28,15 +28,13 @@ struct FriendsView: View {
     @State private var cheerToastToken: UUID?
     @State private var pendingRemovalFriend: FriendProfile?
     @State private var isShowingMyQR = false
-    @State private var cheerTarget: FriendProfile?
     /// QR ディープリンクの pending code を監視するための共有ルーター (Codex監査#Major1)。
     @State private var router = DeepLinkRouter.shared
     /// QR ディープリンクから渡された、友達追加画面のプリフィル用コード。
     @State private var addInitialCode: String?
     /// Phase 7.0: 友達画面に「リスト / 公園」切替セグメント追加。
-    @State private var displayMode: DisplayMode = .park
+
     /// チア送信時の喜び演出 (絵文字が弾けて消える)。reduceMotion 時は無効。
-    @State private var cheerBurst: CheerBurst?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 初回の「表示名を決めてね」インライン入力を一度きりにするフラグ。
     @AppStorage("friends.didDismissNamePrompt") private var didDismissNamePrompt = false
@@ -68,9 +66,8 @@ struct FriendsView: View {
     struct ApplePendingSwitch: Identifiable { let id = UUID(); let idToken: String; let nonce: String }
     private let hapticFeedback: any HapticFeedbackProviding = HapticFeedback()
 
-    struct CheerBurst: Identifiable, Equatable { let id = UUID(); let emoji: String }
 
-    enum DisplayMode: String, CaseIterable { case park, list }
+
 
     var body: some View {
         Group {
@@ -98,6 +95,12 @@ struct FriendsView: View {
                 if SupabaseConfig.isAccountLinkingEnabled {
                     await friendsStore.refreshBackupStatus()
                 }
+            } else if !friendsStore.isSigningIn && !isLinkingAccount {
+                // タブを開いたら自動でアカウントを発行し、最初から友達コード画面を見せる
+                // (旧: welcome のボタンを押すまで作らない lazy 方式。ユーザー要望でワンステップ化)。
+                // 失敗時は welcome に留まり CTA が再試行を兼ねる(従来挙動)。
+                // 復元したい人は welcome/設定の Apple/Google 復元でアカウントを切替できる。
+                await friendsStore.ensureSignedIn()
             }
             handlePendingFriendCode()   // pending な deep link code がある時だけ lazy サインイン
             // --mock-open-* はスクショ / デモ専用の自動オープン。Release では無効化し、
@@ -134,18 +137,24 @@ struct FriendsView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: cheerToast)
-        .overlay {
-            // チア送信の喜び演出: 絵文字が中央で弾けて上へフェード (reduceMotion 時は出さない)。
-            if let burst = cheerBurst {
-                Text(burst.emoji)
-                    .font(.system(size: 96))
-                    .id(burst.id)
-                    .transition(.scale(scale: 0.3).combined(with: .opacity))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        // 自分宛てに届いた応援(refresh で取り込まれた未読分)をトースト表示する。
+        // 旧実装は送信のみで受信表示が無く、「送られた側に何も出ない」状態だった(ユーザー指摘)。
+        .onChange(of: friendsStore.receivedCheers) { _, cheers in
+            guard !cheers.isEmpty else { return }
+            let received = friendsStore.consumeReceivedCheers()
+            guard let latest = received.last else { return }
+            // 一言コメント(message)があればそれを、無ければ kind のラベルを表示する。
+            let body = latest.message ?? CheerKind.received(fromRaw: latest.kindRaw).label
+            let suffix = received.count > 1 ? "(ほか\(received.count - 1)件)" : ""
+            let token = UUID()
+            cheerToastToken = token
+            cheerToast = "\(latest.fromDisplayName) から「\(body)」が届きました!\(suffix)"
+            hapticFeedback.success()
+            Task {
+                try? await Task.sleep(for: .seconds(3.0))
+                if cheerToastToken == token { cheerToast = nil }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: cheerBurst)
         .sheet(isPresented: $isShowingAdd, onDismiss: {
             addInitialCode = nil          // プリフィルを破棄
             tryPresentPendingAdd()        // 保留中の deep link code があれば再開
@@ -184,14 +193,6 @@ struct FriendsView: View {
             }
         } message: { _ in
             Text("再度つながるには友達コードで申請が必要です。")
-        }
-        .sheet(item: $cheerTarget, onDismiss: { tryPresentPendingAdd() }) { friend in
-            CheerPickerSheet(friend: friend) { kind in
-                cheerTarget = nil
-                Task { await sendCheer(kind, to: friend) }
-            }
-            .presentationDetents([.height(280)])
-            .presentationDragIndicator(.visible)
         }
     }
 
@@ -260,39 +261,14 @@ struct FriendsView: View {
                 .accessibilityIdentifier("friends-connect-button")
                 .disabled(isLinkingAccount)
 
-                if SupabaseConfig.isAccountLinkingEnabled {
-                    restoreSection
-                }
+                // バックアップ/復元(Apple/Google サインイン)はオンボーディングと
+                // 設定「アカウントとバックアップ」に集約。友達タブからは撤去(ユーザー要望)。
                 shareAppCard
             }
             .frame(maxWidth: .infinity)
             .padding(20)
         }
         .accessibilityIdentifier("friends-welcome")
-        // 残存匿名データありの復元は、上書き前に確認を挟む (Codex#3)。
-        .alert(
-            "この端末のデータが置き換わることがあります",
-            isPresented: $isConfirmingRestore
-        ) {
-            Button("Apple で復元する", role: .destructive) {
-                Task { await performAppleRestore() }
-            }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
-        }
-        // 残存匿名データありの Google 復元も、上書き前に確認を挟む (Apple と対称)。
-        .alert(
-            "この端末のデータが置き換わることがあります",
-            isPresented: $isConfirmingGoogleRestore
-        ) {
-            Button("Google で復元する", role: .destructive) {
-                Task { await performGoogleRestore() }
-            }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("この端末で進めている友達やコードは、復元するアカウントの内容に置き換わることがあります。")
-        }
     }
 
     /// いずれかの連携が有効なときだけ匿名 CTA を「この端末で始める」に改称する。
@@ -462,10 +438,8 @@ struct FriendsView: View {
                     namePromptCard
                 }
 
-                // 任意: 機種変でも友達を引き継ぐ「バックアップ」促し (消せる/設定でも可)。
-                if showBackupCard(for: profile) {
-                    backupCard
-                }
+                // バックアップ促しカードは撤去(ユーザー要望)。バックアップ/復元の導線は
+                // オンボーディングと設定「アカウントとバックアップ」に集約した。
 
                 // アプリ自体を友達に紹介する導線 (友達コードの共有とは別物)。
                 // 友達コード = 既にアプリを入れている人を friend に追加するためのコード。
@@ -763,6 +737,9 @@ struct FriendsView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        // container 化: UI test が otherElements として frame を取れるようにする
+        // (shareAppCard との隣接検証で、初回のみ正当に挟まるこのカードを anchor にするため)。
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("friends-name-prompt")
     }
 
@@ -806,7 +783,7 @@ struct FriendsView: View {
                     Text("@\(profile.username)")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
-                    Text("🔥 \(profile.currentStreak) 日連続")
+                    Label("\(profile.currentStreak) 日連続", systemImage: "pawprint.fill")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.primaryDeep)
                 }
@@ -827,6 +804,20 @@ struct FriendsView: View {
                             .foregroundStyle(Palette.primaryDeep)
                     }
                     Spacer()
+                    // ワンタップでコードをコピー(ユーザー要望)。共有シートより手軽。
+                    Button {
+                        UIPasteboard.general.string = profile.friendCode
+                        hapticFeedback.success()
+                        showCopyToast()
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Palette.primaryDeep)
+                            .frame(width: 44, height: 44)
+                            .background(Palette.chipBackground, in: Circle())
+                    }
+                    .accessibilityLabel("友達コードをコピー")
+                    .accessibilityIdentifier("copy-friend-code")
                     ShareLink(item: shareText(for: profile)) {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 16, weight: .semibold))
@@ -848,8 +839,7 @@ struct FriendsView: View {
                     .accessibilityIdentifier("toggle-my-qr")
                 }
                 if isShowingMyQR, let qr = qrImage(text: friendInviteURL(profile.friendCode)) {
-                    HStack {
-                        Spacer()
+                    VStack(spacing: 6) {
                         Image(uiImage: qr)
                             .interpolation(.none)
                             .resizable()
@@ -857,8 +847,15 @@ struct FriendsView: View {
                             .frame(width: 140, height: 140)
                             .padding(8)
                             .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        Spacer()
+                        // このQRは「友達追加用」。相手のアプリの 友達 → ＋ →「QRコードを読み取る」で
+                        // 読むと、そのコードで友達追加できる(アプリ内スキャナ。両者ともアプリ必須)。
+                        Text("相手のアプリの 友達 → ＋ →「QRコードを読み取る」で読んでもらうと追加できます。")
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity)
                     .transition(.opacity.combined(with: .scale))
                 }
             }
@@ -887,7 +884,7 @@ struct FriendsView: View {
                 Text(request.fromProfile.displayName)
                     .font(Typography.body)
                     .foregroundStyle(Palette.textPrimary)
-                Text("@\(request.fromProfile.username) · 🔥 \(request.fromProfile.currentStreak) 日連続")
+                Text("@\(request.fromProfile.username) · \(Image(systemName: "pawprint.fill")) \(request.fromProfile.currentStreak) 日連続")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }
@@ -925,7 +922,7 @@ struct FriendsView: View {
             Text("まだ友達がいません")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
-            Text("右上の + から、友達コードや QR でつながろう。\n猫があなたの友達を待っています。")
+            Text("右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -946,16 +943,6 @@ struct FriendsView: View {
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
-                if !friendsStore.friends.isEmpty {
-                    // Phase 7.0 公園 / リスト切替
-                    Picker("表示", selection: $displayMode) {
-                        Image(systemName: "square.grid.2x2").tag(DisplayMode.park)
-                        Image(systemName: "list.bullet").tag(DisplayMode.list)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 90)
-                    .accessibilityIdentifier("friends-display-mode")
-                }
                 if !friendsStore.friends.isEmpty {
                     // 「ランキング」をテキストつき chip に。アイコンだけだと
                     // 何が起きるか分かりにくいので、視認性を優先。
@@ -988,16 +975,14 @@ struct FriendsView: View {
                 .accessibilityIdentifier("friends-loading")
             } else if friendsStore.friends.isEmpty {
                 friendsEmptyState
-            } else if displayMode == .park {
+            } else {
+                // 公園(猫グリッド)表示に一本化(ユーザー要望: カードリストを廃止)。
+                // 詳細・応援はアバタータップ → FriendDetailView で行う。
                 FriendsParkView(friends: sortedFriends) { friend in
                     detailFriend = friend
                     hapticFeedback.tap()
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            } else {
-                ForEach(sortedFriends) { friend in
-                    friendCard(friend)
-                }
             }
         }
     }
@@ -1024,127 +1009,6 @@ struct FriendsView: View {
 
     private var sortedFriends: [FriendProfile] {
         FriendSorter.sort(friendsStore.friends, by: sortOrder)
-    }
-
-    private func friendCard(_ friend: FriendProfile) -> some View {
-        // カードは「装飾 + 名前 + 連続 + 今日達成 + 更新」に絞る。
-        Button {
-            detailFriend = friend
-            hapticFeedback.tap()
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 12) {
-                    FriendAvatarView(friend: friend, size: 56, showsDecorationBorder: true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(friend.displayName)
-                            .font(Typography.headline)
-                            .foregroundStyle(Palette.textPrimary)
-                        Text("@\(friend.username)")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                        // F1: リスト行に称号テキスト(compact)も出す。グリッド(パーク)は
-                        // セルが狭いのでメタルリングのまま、ここで称号名を補う。
-                        if friend.rank.rank > 0 {
-                            RankBadge(rank: friend.rank, compact: true)
-                                .padding(.top, 2)
-                        }
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("🔥 \(friend.currentStreak)")
-                            .font(.system(.title3, design: .rounded, weight: .heavy))
-                            .foregroundStyle(Palette.primaryDeep)
-                            .monospacedDigit()
-                        Text("累計 \(friend.totalAchievedDays)日")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    if friend.todayAchieved {
-                        Label("今日達成", systemImage: "checkmark.seal.fill")
-                            .font(Typography.caption)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Palette.success.opacity(0.15), in: Capsule())
-                            .foregroundStyle(Palette.success)
-                        if let cat = friend.todayCategoryName {
-                            Text(cat)
-                                .font(Typography.caption)
-                                .padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Palette.chipBackground, in: Capsule())
-                                .foregroundStyle(Palette.primaryDeep)
-                        }
-                    } else {
-                        Label("今日はまだ未達成", systemImage: "hourglass")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                    Spacer()
-                    Text(relativeUpdated(friend.lastUpdated))
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(Palette.textSecondary)
-                }
-
-                // クイック応援: 主要 emoji を 1 タップで送信できる。
-                // 「..」は CheerPickerSheet を開いて 4 種から選ぶ既存導線を残す。
-                // 2 タップ必要だった応援を、1 タップで完了するショートカット。
-                HStack(spacing: 6) {
-                    ForEach([CheerKind.fight, .great, .clap, .fire], id: \.self) { kind in
-                        Button {
-                            Task { await sendCheer(kind, to: friend) }
-                        } label: {
-                            Text(kind.emoji)
-                                .font(.system(size: 20))
-                                .frame(minWidth: 44, minHeight: 44)
-                                .background(Palette.primary.opacity(0.10), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        // 送信中は無効化して連打多重送信を防ぐ (Store 側でも guard 済み)。
-                        .disabled(friendsStore.cheeringCodes.contains(friend.friendCode))
-                        .accessibilityLabel("\(friend.displayName) に \(kind.label) を送る")
-                        .accessibilityIdentifier("quick-cheer-\(kind.rawValue)-\(friend.friendCode)")
-                    }
-                    Spacer()
-                    Button {
-                        cheerTarget = friend
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .heavy))
-                            .frame(minWidth: 44, minHeight: 44)
-                            .background(Palette.chipBackground, in: Circle())
-                            .foregroundStyle(Palette.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(friend.displayName) への応援を選んで送る")
-                    .accessibilityIdentifier("open-cheer-sheet-\(friend.friendCode)")
-                }
-            }
-            .padding(14)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(alignment: .topTrailing) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Palette.textSecondary.opacity(0.5))
-                    .padding(.top, 14).padding(.trailing, 12)
-                    .accessibilityHidden(true)
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("friend-card-\(friend.friendCode)")
-        .accessibilityHint("タップで詳細を表示")
-        .contextMenu {
-            Button { detailFriend = friend } label: {
-                Label("詳細を見る", systemImage: "person.crop.circle.fill")
-            }
-            Button(role: .destructive) {
-                // 即実行ではなく confirmation dialog 経由に変える。
-                // 誤タップで「友達解除」が起きると Undo できない。
-                pendingRemovalFriend = friend
-            } label: {
-                Label("友達を解除", systemImage: "person.crop.circle.badge.minus")
-            }
-        }
     }
 
     /// QR ディープリンクの pending code を消費して友達追加画面を開く。
@@ -1174,7 +1038,7 @@ struct FriendsView: View {
         guard let code = router.pendingFriendCode, friendsStore.isSignedIn,
               !friendsStore.isDeletingAccount,
               !isShowingAdd,
-              detailFriend == nil, cheerTarget == nil, pendingRemovalFriend == nil
+              detailFriend == nil, pendingRemovalFriend == nil
         else { return }
         router.pendingFriendCode = nil
         addInitialCode = code
@@ -1211,33 +1075,6 @@ struct FriendsView: View {
         }
     }
 
-    private func sendCheer(_ kind: CheerKind, to friend: FriendProfile) async {
-        hapticFeedback.success()
-        // 喜び演出: 絵文字が中央で弾ける (reduceMotion 時はスキップ)。
-        if !reduceMotion {
-            let burst = CheerBurst(emoji: kind.emoji)
-            cheerBurst = burst
-            Task {
-                try? await Task.sleep(for: .milliseconds(650))
-                // 連続送信で別 burst に置き換わっていたら消さない (id で同一性を判定)。
-                if cheerBurst?.id == burst.id { cheerBurst = nil }
-            }
-        }
-        await friendsStore.cheer(kind, to: friend.friendCode)
-        let token = UUID()
-        cheerToastToken = token
-        cheerToast = "\(kind.emoji) \(friend.displayName) に \(kind.label) を送りました"
-        try? await Task.sleep(for: .seconds(2.0))
-        // Only clear the toast if no newer cheer has replaced ours. Using a
-        // token avoids the substring race (two friends with overlapping
-        // displayName like "あき" / "あきら" would otherwise dismiss each
-        // other's toasts).
-        if cheerToastToken == token {
-            cheerToast = nil
-            cheerToastToken = nil
-        }
-    }
-
     private var todayWeekdayIndex: Int {
         let wd = Calendar.mondayFirst.component(.weekday, from: Date())
         return (wd + 5) % 7
@@ -1271,8 +1108,8 @@ struct FriendsView: View {
         }
     }
 
-    /// QR にエンコードする招待ディープリンク。相手が標準カメラで読むと
-    /// `goexercise://friends?code=XXX` で本アプリが開き、追加画面がプリフィルされる。
+    /// 友達追加用 QR にエンコードする招待リンク。アプリ内スキャナ(QRScannerView)が
+    /// この `goexercise://friends?code=XXX` から友達コードを取り出して追加する。
     private func friendInviteURL(_ code: String) -> String {
         "goexercise://friends?code=\(code)"
     }
@@ -1290,47 +1127,22 @@ struct FriendsView: View {
     }
 
     private func shareText(for profile: FriendProfile) -> String {
-        "GO エクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n@\(profile.username) (🔥 \(profile.currentStreak)日連続)"
+        // 連続日数は載せない(ユーザー要望)。コードと導線だけのシンプルな招待文。
+        "GO エクササイズで一緒に運動しよう！\n友達コード: \(profile.friendCode)\n\(AppSharingConfig.shareURL.absoluteString)"
     }
-}
 
-// MARK: - Cheer picker sheet
-
-struct CheerPickerSheet: View {
-    let friend: FriendProfile
-    let onSend: (CheerKind) -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("\(friend.displayName) に応援を送る")
-                .font(Typography.headline)
-                .foregroundStyle(Palette.textPrimary)
-                .padding(.top, 24)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(CheerKind.allCases, id: \.self) { kind in
-                    Button {
-                        onSend(kind)
-                    } label: {
-                        VStack(spacing: 4) {
-                            Text(kind.emoji).font(.system(size: 28))
-                            Text(kind.label)
-                                .font(Typography.body)
-                                .foregroundStyle(Palette.textPrimary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Palette.chipBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(PressableScaleButtonStyle())
-                    .accessibilityIdentifier("cheer-sheet-\(kind.rawValue)")
-                }
+    /// コピー完了を既存の下部トースト(cheerToast)で 2 秒だけ表示する。
+    private func showCopyToast() {
+        let token = UUID()
+        cheerToastToken = token
+        cheerToast = "招待コードをコピーしました"
+        Task {
+            try? await Task.sleep(for: .seconds(2.0))
+            if cheerToastToken == token {
+                cheerToast = nil
+                cheerToastToken = nil
             }
-            .padding(.horizontal, 20)
-
-            Spacer(minLength: 0)
         }
-        .background(Palette.background)
     }
 }
 

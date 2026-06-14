@@ -16,7 +16,8 @@ struct CatLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
-                        Text("🔥")
+                        Image(systemName: "pawprint.fill")
+                            .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
                         Text("\(context.state.currentStreak)")
                             .font(.system(.headline, design: .rounded, weight: .heavy))
                             .monospacedDigit()
@@ -36,19 +37,20 @@ struct CatLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
                         Text(context.state.todayAchieved
-                             ? "今日も達成 ✨ お疲れさま"
+                             ? "今日も達成、お疲れさま"
                              : "1分だけでも運動しよう")
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         Spacer()
                         if !context.state.todayAchieved {
-                            Button(intent: QuickRecordIntent()) {
+                            // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
+                            Link(destination: URL(string: "goexercise://home")!) {
                                 Text("運動を記録")
                                     .font(.system(.caption, design: .rounded, weight: .heavy))
                                     .lineLimit(1)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Color(red: 1.00, green: 0.55, blue: 0.42), in: Capsule())
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color(red: 1.00, green: 0.55, blue: 0.42))
-                            .controlSize(.small)
                         }
                     }
                 }
@@ -61,7 +63,8 @@ struct CatLiveActivity: Widget {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                 } else {
-                    Text("🔥\(context.state.currentStreak)")
+                    // compactLeading に肉球があるので trailing は数字のみ(🔥は出さない)。
+                    Text("\(context.state.currentStreak)")
                         .font(.caption.weight(.heavy))
                         .monospacedDigit()
                 }
@@ -130,7 +133,9 @@ struct CatLockScreenView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text("🔥")
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                     Text("\(state.currentStreak) 日連続")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .monospacedDigit()
@@ -139,7 +144,7 @@ struct CatLockScreenView: View {
                         .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                 }
                 Text(state.todayAchieved
-                     ? "今日も達成 ✨"
+                     ? "今日も達成"
                      : "1分だけでも・残り \(state.hoursLeftToday) 時間")
                     .font(.caption)
                     .foregroundStyle(Color.black.opacity(0.58))
@@ -148,7 +153,8 @@ struct CatLockScreenView: View {
             Spacer()
 
             if !state.todayAchieved {
-                Button(intent: QuickRecordIntent()) {
+                // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
+                Link(destination: URL(string: "goexercise://home")!) {
                     Text("運動を記録")
                         .font(.system(.caption, design: .rounded, weight: .heavy))
                         .foregroundStyle(.white)
@@ -167,7 +173,6 @@ struct CatLockScreenView: View {
                             in: Capsule()
                         )
                 }
-                .buttonStyle(.plain)
             } else {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 28))

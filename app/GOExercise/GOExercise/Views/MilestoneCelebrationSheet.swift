@@ -83,16 +83,31 @@ struct MilestoneCelebrationSheet: View {
                                     .scaledToFit()
                                     .frame(width: 220, height: 220)
                             } else {
-                                Text(milestone.emoji)
+                                Text(milestone.fallbackEmoji)
                                     .font(.system(size: 112))
                             }
                         }
                         .shadow(color: .black.opacity(0.25), radius: 18, x: 0, y: 8)
-                        // milestone 種別 (✨🔥🏆🎉) を画像右上にバッジとして重ねる。
-                        Text(milestone.emoji)
-                            .font(.system(size: 44))
-                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                            .offset(x: 12, y: -8)
+                        // milestone 種別を金グラデの SF Symbol バッジで右上に重ねる
+                        // (絵文字 🎉✨🔥 は廃止。メダル/トロフィー/王冠で上質に)。
+                        Image(systemName: milestone.badgeSymbol)
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.92, blue: 0.55),
+                                             Color(red: 1.0, green: 0.74, blue: 0.24)],
+                                    startPoint: .top, endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+                            .overlay(
+                                Image(systemName: milestone.badgeSymbol)
+                                    .font(.system(size: 40, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.25))
+                                    .mask(LinearGradient(colors: [.white, .clear],
+                                                         startPoint: .top, endPoint: .center))
+                            )
+                            .offset(x: 14, y: -10)
                             .accessibilityHidden(true)
                     }
                     .scaleEffect(emojiScale)

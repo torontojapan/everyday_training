@@ -11,6 +11,7 @@
 --   2. friendships が 0 件                    … 誰ともつながっていない
 --   3. friend_requests が 0 件(送受信とも)    … 申請の途中でもない
 --   4. profiles.updated_at が 30 日以上前      … 直近アクティブでない
+--   5. referrals / user_records に行が無い     … 紹介・記録バックアップの利用者は消さない
 --   profiles 未作成の匿名ユーザー(=サインインだけして即離脱)も
 --   created_at 30 日超で対象に含める。
 --
@@ -61,6 +62,13 @@ begin
       and not exists (
         select 1 from public.referrals rf
         where rf.referrer_user_id = u.id or rf.referee_user_id = u.id
+      )
+      -- 記録のクラウドバックアップ(user_records)を持つアカウントは消さない。
+      -- バックアップだけ使い友達ゼロの匿名ユーザーは正当な利用者で、auth.users への
+      -- on delete cascade で体重・体調を含むバックアップごと静かに失われる(2026-06-11 監査)。
+      and not exists (
+        select 1 from public.user_records ur
+        where ur.user_id = u.id
       )
   )
   delete from auth.users u

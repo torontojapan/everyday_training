@@ -21,6 +21,8 @@ data class HealthPrefs(
     val heightCm: Double? = null,
     /** true=減量目標 / false=増量目標。weightLoss マイルストーンの発火条件。 */
     val isLossGoal: Boolean = true,
+    /** 生理周期トラッキングのオプトイン。既定 false(プライバシー優先=明示 ON まで生理日UIを出さない)。iOS CycleTrackingSettings.isEnabled 相当。 */
+    val cycleTrackingEnabled: Boolean = false,
 )
 
 interface HealthRepository {
@@ -29,6 +31,7 @@ interface HealthRepository {
     suspend fun setTargetKg(kg: Double?)
     suspend fun setHeightCm(cm: Double?)
     suspend fun setIsLossGoal(isLoss: Boolean)
+    suspend fun setCycleTrackingEnabled(enabled: Boolean)
     /** 体重ゴール/身長を全消去(データ全削除導線。体重記録と一緒に消す=開始体重の孤児化も防ぐ)。 */
     suspend fun clearAll()
 }
@@ -41,6 +44,7 @@ class HealthRepositoryImpl @Inject constructor(
     private val targetKey = doublePreferencesKey("health_target_kg")
     private val heightKey = doublePreferencesKey("health_height_cm")
     private val lossGoalKey = booleanPreferencesKey("health_is_loss_goal")
+    private val cycleKey = booleanPreferencesKey("health_cycle_tracking_enabled")
 
     override val prefs: Flow<HealthPrefs> = dataStore.data.map { p ->
         HealthPrefs(
@@ -48,6 +52,7 @@ class HealthRepositoryImpl @Inject constructor(
             targetKg = p[targetKey],
             heightCm = p[heightKey],
             isLossGoal = p[lossGoalKey] ?: true,
+            cycleTrackingEnabled = p[cycleKey] ?: false,
         )
     }
 
@@ -68,9 +73,13 @@ class HealthRepositoryImpl @Inject constructor(
         dataStore.edit { it[lossGoalKey] = isLoss }
     }
 
+    override suspend fun setCycleTrackingEnabled(enabled: Boolean) {
+        dataStore.edit { it[cycleKey] = enabled }
+    }
+
     override suspend fun clearAll() {
         dataStore.edit { prefs ->
-            listOf(startKey, targetKey, heightKey, lossGoalKey).forEach { prefs.remove(it) }
+            listOf(startKey, targetKey, heightKey, lossGoalKey, cycleKey).forEach { prefs.remove(it) }
         }
     }
 }

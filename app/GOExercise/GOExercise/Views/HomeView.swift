@@ -9,6 +9,7 @@ struct HomeView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(ReferralStore.self) private var referralStore
+    @Environment(RecordSyncCoordinator.self) private var recordSync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = HomeViewModel()
@@ -107,9 +108,9 @@ struct HomeView: View {
                 refreshHomeState()
             }
             .onChange(of: scenePhase) { _, newPhase in
-                // 前面復帰時の再計算。これが無いと、ウィジェットの QuickRecord で記録した後や、
-                // バックグラウンドで日付が変わった翌朝に、ホームが昨日の「達成済み」チップや
-                // 古い CTA を出したまま固まる(タブ切替で onAppear が走るまで直らない)。
+                // 前面復帰時の再計算。これが無いと、バックグラウンドで日付が変わった翌朝に、
+                // ホームが昨日の「達成済み」チップや古い CTA を出したまま固まる
+                // (タブ切替で onAppear が走るまで直らない)。
                 // WeightView は既に scenePhase を監視しており、ホームに同等が欠けていた(監査 P1)。
                 guard newPhase == .active else { return }
                 refreshHomeState()
@@ -130,13 +131,25 @@ struct HomeView: View {
                 // これが無いと星/今月フリーズ/⭐10猫解放が前アカウントの値のまま、または
                 // 新アカウントの正当な解放が次回起動まで反映されない(口座スコープ漏れ、監査 P2)。
                 Task { await referralStore.refresh() }
+                // 機種変更/再インストールの復元: まず前アカウント宛の削除キュー/同期時刻を
+                // 破棄してから(口座跨ぎ wipe 防止, Codex P1)、新アカウントのバックアップが
+                // あれば取り込み、バックアップ設定も自動で ON にする(Duolingo 型)。
+                recordSync.resetForIdentityChange()
+                Task { await recordSync.restoreAfterSignIn() }
             }
             .fullScreenCover(isPresented: $isShowingEntry, onDismiss: {
                 viewModel.refresh(records: store.records, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                 syncMyFriendProfile()
             }) {
                 RecordEntryView { record in
-                    viewModel.refresh(records: store.records, streakExtendedThisRun: true, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
+                    // 連続日数が「この記録で」伸びたのは今日 1 件目のときだけ。
+                    // 2 件目以降(もう一種目)でも true を渡すと完了画面に
+                    // 「きのうから +1 のばした!」が再表示される誤りがあった。
+                    // store.records はこの時点で新しい記録を含む。
+                    let isFirstRecordToday = store.records.filter {
+                        calendar.isDate($0.date, inSameDayAs: Date())
+                    }.count <= 1
+                    viewModel.refresh(records: store.records, streakExtendedThisRun: isFirstRecordToday, weightLoss: currentWeightSnapshot(), isPremium: storeKit.isPremiumActive, referralFreezeBonus: referralStore.currentAccountFreezeBonus)
                     // 記録直後に友達タブの自分の実績も更新する (Codex 指摘: 旧コードは
                     // onAppear/onChange のみで、記録後すぐは stale だった)。
                     syncMyFriendProfile()
@@ -297,25 +310,27 @@ struct HomeView: View {
         }
     }
 
+    /// 称号カプセル(RankBadge: footnote + 縦 padding 6)と同じ縦幅に揃える。
+    /// これで右列(称号+状態)が低くなり、fillHeight の連続チップも釣られて低くなる。
     @ViewBuilder
     private var statusChip: some View {
         if viewModel.todayStatus == .todayAchieved {
             Label("今日は達成済み", systemImage: "checkmark.seal.fill")
-                .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .font(.system(.footnote, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.success.opacity(0.18), in: Capsule())
                 .foregroundStyle(Palette.success)
         } else if viewModel.todayStatus == .rest {
             Label("今日は回復日", systemImage: "moon.zzz.fill")
-                .font(.system(.subheadline, design: .rounded, weight: .heavy))
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .font(.system(.footnote, design: .rounded, weight: .heavy))
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.restDay.opacity(0.30), in: Capsule())
                 .foregroundStyle(Palette.textPrimary)
         } else {
             Text(remainingTimeText)
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Palette.surface, in: Capsule())
         }
     }
@@ -407,7 +422,7 @@ struct HomeView: View {
     @ViewBuilder
     private var primaryActionButton: some View {
         if viewModel.todayStatus == .todayAchieved {
-            LargePrimaryCTA(title: "もう一種目する 🔥",
+            LargePrimaryCTA(title: "もう一種目する",
                             systemImage: "plus.circle.fill",
                             identifier: "primary-record-action",
                             pulsing: false) {
@@ -415,7 +430,7 @@ struct HomeView: View {
             }
         } else if viewModel.isComebackToday {
             // Codex UX #2: 復帰日は低圧コピーで踏み込ませる ("never miss twice")。
-            LargePrimaryCTA(title: "ただいま記録 ☕",
+            LargePrimaryCTA(title: "ただいま記録",
                             systemImage: "house.fill",
                             identifier: "primary-record-action",
                             pulsing: true) {

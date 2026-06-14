@@ -1,43 +1,78 @@
 import SwiftUI
 import UIKit
 
+/// 設定ルート。「アカウントとバックアップ」を最上位に置き(機種変更時の命綱)、
+/// 詳細設定・データ操作・情報は下層ページへ逃がして 1 画面に収める。
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-    @Environment(\.modelContext) private var modelContext
     @Environment(StoreKitManager.self) private var storeKit
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(ReferralStore.self) private var referralStore
+    @Environment(RecordSyncCoordinator.self) private var recordSync
+    /// 連携済み状態の表示文言(プロバイダ名があれば添える)。
+    private var linkedStatusText: String {
+        switch friendsStore.backupStatus.providerName {
+        case "apple": return "Apple アカウントでバックアップ中"
+        case "google": return "Google アカウントでバックアップ中"
+        default: return "アカウントでバックアップ中"
+        }
+    }
     @State private var showPremiumPaywall = false
     @State private var laterInviteCode = ""
     @State private var isSubmittingLater = false
     @State private var laterAccepted = false
     @State private var isShowingWidgetGuide = false
-    @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
-    @State private var celebrationPrefs = CelebrationPreferences.shared
-    @State private var sharingPrefs = FriendSharingPreferences.shared
-    @State private var isShowingUserCatPicker = false
-    @State private var isShowingDeleteConfirm = false
-    @State private var exportShareURL: URL?
-    @State private var dataActionMessage: String?
-    /// 匿名分析の共有 (既定 ON / opt-out)。UserDefaults "analyticsEnabled" = Analytics.isEnabled と同一キー。
-    @AppStorage(Analytics.analyticsEnabledKey) private var analyticsEnabled = true
-    private let cycleSettings = CycleTrackingSettings()
     var onClose: (() -> Void)? = nil
-
-    private var cycleEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { cycleEnabled },
-            set: { newValue in
-                cycleEnabled = newValue
-                cycleSettings.isEnabled = newValue
-            }
-        )
-    }
 
     var body: some View {
         List {
-            // ① プレミアム & 特典
+            // ① アカウントとバックアップ(最上位。機種変更/再インストールの命綱)
+            Section {
+                Toggle(isOn: Binding(
+                    get: { recordSync.isEnabled },
+                    set: { on in
+                        if on { Task { await recordSync.enableBackup() } } else { recordSync.disableBackup() }
+                    }
+                )) {
+                    Label("記録をクラウドにバックアップ", systemImage: "icloud.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("record-backup-toggle")
+                if recordSync.isEnabled {
+                    HStack {
+                        Label("今すぐバックアップ", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(Palette.textPrimary)
+                        Spacer()
+                        if recordSync.isSyncing { ProgressView() }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { Task { await recordSync.syncNow() } }
+                    if let err = recordSync.lastError {
+                        Text(err).font(Typography.caption).foregroundStyle(.red)
+                    }
+                }
+
+                // 機種変更で確実に復元するための「鍵」= Apple/Google サインイン。
+                if SupabaseConfig.isAccountLinkingEnabled {
+                    if friendsStore.backupStatus.isBackedUp {
+                        Label(linkedStatusText, systemImage: "checkmark.seal.fill")
+                            .font(Typography.body)
+                            .foregroundStyle(Palette.success)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Apple / Google でサインインすると、機種変更や再インストールでも確実に復元できます(メール・パスワード不要)。")
+                                .font(Typography.caption)
+                                .foregroundStyle(Palette.textSecondary)
+                            AccountBackupSignIn()
+                        }
+                    }
+                }
+            } header: {
+                Text("アカウントとバックアップ")
+            } footer: {
+                Text("運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(iPhone↔Android)や再インストールで復元できます。友達には共有されません。")
+            }
+
+            // ② プレミアム & 特典
             Section {
                 // 友達/SNS にアプリを共有する導線。
                 // ユーザーが「アプリを薦めたい」と思った瞬間に迷わない場所。
@@ -77,16 +112,14 @@ struct SettingsView: View {
                     .accessibilityIdentifier("premium-upsell-row")
                 }
 
-                PerkGuideSection()
-
-                // 称号一覧(連続で進化)。目標が見えると続けたくなる導線。既定は閉。
-                DisclosureGroup {
-                    CatRankGuideView(currentStreak: SharedSnapshotStore().read().currentStreak)
+                // 特典の内訳と称号の進化段はまとめて下層ページへ(ルートを短く保つ)。
+                NavigationLink {
+                    PerksAndTitlesPage()
                 } label: {
-                    Label("称号一覧（連続で進化）", systemImage: "rosette")
+                    Label("プレミアム特典・称号一覧", systemImage: "rosette")
                         .foregroundStyle(Palette.textPrimary)
                 }
-                .accessibilityIdentifier("rank-guide-disclosure")
+                .accessibilityIdentifier("perks-titles-link")
 
                 if AppFeatureFlags.isReferralActive {
                     // 共有(招待する)= friend_code + 文面を共有シートへ。
@@ -120,11 +153,140 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("プレミアム & 特典")
-            } footer: {
-                Text("体重タブの全機能・連続記録フリーズ月4回などを解放します。")
             }
 
-            // ② カスタマイズ
+            // ③ アプリ設定(詳細は下層ページへ)
+            Section("アプリ設定") {
+                NavigationLink {
+                    CustomizationSettingsPage()
+                } label: {
+                    Label("カスタマイズ", systemImage: "paintpalette.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("customization-link")
+                NavigationLink {
+                    RecordSharingSettingsPage()
+                } label: {
+                    Label("記録と共有", systemImage: "heart.text.square.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("record-sharing-link")
+                NavigationLink {
+                    NotificationSettingsView()
+                } label: {
+                    Label("通知設定", systemImage: "bell.badge.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                Button {
+                    isShowingWidgetGuide = true
+                } label: {
+                    Label("ウィジェットの追加方法を見る", systemImage: "rectangle.stack.badge.plus")
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .accessibilityIdentifier("widget-guide-button")
+            }
+
+            // ④ データ & 情報(破壊的操作・規約類は下層ページへ)
+            Section {
+                NavigationLink {
+                    DataPrivacySettingsPage()
+                } label: {
+                    Label("データ & プライバシー", systemImage: "lock.shield.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("data-privacy-link")
+                NavigationLink {
+                    InfoSupportSettingsPage()
+                } label: {
+                    Label("情報・サポート", systemImage: "questionmark.circle.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("info-support-link")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .task {
+            // 「アカウントとバックアップ」の連携済み表示を最新化(Apple/Google サインイン状態)。
+            if SupabaseConfig.isAccountLinkingEnabled {
+                await friendsStore.refreshBackupStatus()
+            }
+        }
+        .navigationTitle("設定")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(onClose != nil)
+        .toolbar {
+            // Phase 7.0: Tab 直下の root では「ホームへ戻る」が空振りするため、
+            // deep link 経由 (onClose 渡された場合) でのみ toolbar item を出す。
+            if let onClose {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: onClose) {
+                        Label("ホーム", systemImage: "chevron.left")
+                            .labelStyle(.titleAndIcon)
+                            .font(Typography.body)
+                    }
+                    .accessibilityLabel("ホームへ戻る")
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingWidgetGuide) {
+            WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
+        }
+        .sheet(isPresented: $showPremiumPaywall) {
+            PremiumPaywallSheet(store: storeKit, context: .general)
+        }
+    }
+
+    private func inviteMessage(code: String) -> String {
+        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いに保険チケットがもらえます → \(code)\nhttps://apps.apple.com/jp/app/id6774551663"
+    }
+
+    private func submitLaterInvite() {
+        isSubmittingLater = true
+        referralStore.lastError = nil
+        Task {
+            await friendsStore.ensureSignedIn()
+            let ok = await referralStore.submitCode(laterInviteCode)
+            isSubmittingLater = false
+            if ok { laterAccepted = true }
+            // 確定(confirmed)は新規の初運動記録が条件。ここでは pending を作るだけにし、
+            // 実際の確定は Home の syncMyFriendProfile フックが
+            // achievedDays>=1 を満たした時点で行う(幽霊インストール確定を防ぐ)。
+        }
+    }
+}
+
+// MARK: - 下層: プレミアム特典・称号一覧
+
+private struct PerksAndTitlesPage: View {
+    var body: some View {
+        List {
+            Section("プレミアム特典") {
+                PerkGuideSection()
+            }
+            Section("称号一覧（連続で進化）") {
+                CatRankGuideView(currentStreak: SharedSnapshotStore().read().currentStreak)
+                    .accessibilityIdentifier("rank-guide-disclosure")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .navigationTitle("特典・称号")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - 下層: カスタマイズ(テーマ・キャラ・振動)
+
+private struct CustomizationSettingsPage: View {
+    @Environment(StoreKitManager.self) private var storeKit
+    @Environment(FriendsStore.self) private var friendsStore
+    @Environment(ReferralStore.self) private var referralStore
+    @State private var celebrationPrefs = CelebrationPreferences.shared
+    @State private var isShowingUserCatPicker = false
+
+    var body: some View {
+        List {
             Section {
                 NavigationLink {
                     ThemeSettingsView()
@@ -154,20 +316,57 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .accessibilityIdentifier("haptic-toggle")
-            } header: {
-                Text("カスタマイズ")
             }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .navigationTitle("カスタマイズ")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingUserCatPicker) {
+            // sheet は親の .environment(_:) を取りこぼすことがある (SwiftUI の癖)。
+            // UserCatPickerView は storeKit / friendsStore / referralStore を環境から
+            // 読むため、ここで明示的に渡し直す (オンボの fullScreenCover と同じ対処)。
+            UserCatPickerView()
+                .environment(storeKit)
+                .environment(friendsStore)
+                .environment(referralStore)
+        }
+    }
+}
 
-            // ③ 記録 & 共有
+// MARK: - 下層: 記録と共有(周期・休養ルール・友達への共有範囲)
+
+private struct RecordSharingSettingsPage: View {
+    @State private var cycleEnabled: Bool = CycleTrackingSettings().isEnabled
+    @State private var sharingPrefs = FriendSharingPreferences.shared
+    private let cycleSettings = CycleTrackingSettings()
+
+    private var cycleEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { cycleEnabled },
+            set: { newValue in
+                cycleEnabled = newValue
+                cycleSettings.isEnabled = newValue
+            }
+        )
+    }
+
+    var body: some View {
+        List {
             Section {
                 Toggle("体調・周期を記録する", isOn: cycleEnabledBinding)
                     .accessibilityIdentifier("cycle-tracking-toggle")
+            } footer: {
+                Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に ★ で表示されます。")
+            }
+
+            Section {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 8) {
                         bulletRow("月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。")
                         bulletRow("3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。")
                         bulletRow("既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。")
-                        bulletRow("運動不可な日が増えそうな週は、連続記録フリーズ (無料は月1回 / GOプレミアムは月4回) で別途救済できます。")
+                        bulletRow("運動不可な日が増えそうな週は、保険チケット (無料は月1回 / GOプレミアムは月4回) で別途救済できます。")
                     }
                     .padding(.top, 4)
                 } label: {
@@ -175,8 +374,11 @@ struct SettingsView: View {
                         .font(Typography.body)
                         .foregroundStyle(Palette.textPrimary)
                 }
-                // 友達と共有する情報の設定は友達機能が有効なときだけ出す (v1 では非表示)。
-                if AppFeatureFlags.friendsEnabled {
+            }
+
+            // 友達と共有する情報の設定は友達機能が有効なときだけ出す (v1 では非表示)。
+            if AppFeatureFlags.friendsEnabled {
+                Section {
                     Toggle(isOn: Binding(
                         get: { sharingPrefs.includeExerciseDetail },
                         set: { sharingPrefs.includeExerciseDetail = $0 }
@@ -188,31 +390,42 @@ struct SettingsView: View {
                     Label("体重・体調は共有されません", systemImage: "lock.fill")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.success)
+                } header: {
+                    Text("友達への共有")
                 }
-            } header: {
-                Text("記録 & 共有")
-            } footer: {
-                Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に ★ で表示されます。")
             }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .navigationTitle("記録と共有")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 
-            // ④ 通知 & ウィジェット
-            Section("通知 & ウィジェット") {
-                NavigationLink {
-                    NotificationSettingsView()
-                } label: {
-                    Label("通知設定", systemImage: "bell.badge.fill")
-                        .foregroundStyle(Palette.textPrimary)
-                }
-                Button {
-                    isShowingWidgetGuide = true
-                } label: {
-                    Label("ウィジェットの追加方法を見る", systemImage: "rectangle.stack.badge.plus")
-                        .foregroundStyle(Palette.primaryDeep)
-                }
-                .accessibilityIdentifier("widget-guide-button")
-            }
+    private func bulletRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("•")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            Text(text)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 
-            // ⑤ データ & プライバシー
+// MARK: - 下層: データ & プライバシー(書き出し・全削除・分析)
+
+private struct DataPrivacySettingsPage: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var isShowingDeleteConfirm = false
+    @State private var exportShareURL: URL?
+    @State private var dataActionMessage: String?
+    /// 匿名分析の共有 (既定 ON / opt-out)。UserDefaults "analyticsEnabled" = Analytics.isEnabled と同一キー。
+    @AppStorage(Analytics.analyticsEnabledKey) private var analyticsEnabled = true
+
+    var body: some View {
+        List {
             Section {
                 Button {
                     exportData()
@@ -228,6 +441,11 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
                 .accessibilityIdentifier("data-delete-button")
+            } footer: {
+                Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
+            }
+
+            Section {
                 Toggle(isOn: $analyticsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("利用状況の分析を共有")
@@ -242,92 +460,12 @@ struct SettingsView: View {
                     // OFF で SDK 実体を即 Noop に戻す(セッション中の残留送信を止める)。ON で再有効化。
                     Analytics.setEnabled(newValue)
                 }
-            } header: {
-                Text("データ & プライバシー")
-            } footer: {
-                Text("書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。")
-            }
-
-            // ⑥ 情報・サポート(折りたたみ既定閉)
-            Section {
-                DisclosureGroup("情報・サポート") {
-                    Button {
-                        openSupportForm()
-                    } label: {
-                        Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("feedback-button")
-                    Button {
-                        openSupportForm()
-                    } label: {
-                        Label("不具合を報告する", systemImage: "ladybug.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("bug-report-button")
-                    LabeledContent("アプリ", value: "GO エクササイズ")
-                    LabeledContent("バージョン", value: appVersion)
-                    Button {
-                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                            openURL(url)
-                        }
-                    } label: {
-                        Label("サブスクリプションを管理", systemImage: "creditcard.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("manage-subscription-link")
-                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
-                        Label("プライバシーポリシー", systemImage: "hand.raised.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("privacy-policy-link")
-                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/terms")!) {
-                        Label("利用規約", systemImage: "doc.text.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("terms-link")
-                    Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/support")!) {
-                        Label("サポート", systemImage: "questionmark.circle.fill")
-                            .foregroundStyle(Palette.textPrimary)
-                    }
-                    .accessibilityIdentifier("support-link")
-                }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Palette.background)
-        .navigationTitle("設定")
+        .navigationTitle("データ & プライバシー")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(onClose != nil)
-        .toolbar {
-            // Phase 7.0: Tab 直下の root では「ホームへ戻る」が空振りするため、
-            // deep link 経由 (onClose 渡された場合) でのみ toolbar item を出す。
-            if let onClose {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: onClose) {
-                        Label("ホーム", systemImage: "chevron.left")
-                            .labelStyle(.titleAndIcon)
-                            .font(Typography.body)
-                    }
-                    .accessibilityLabel("ホームへ戻る")
-                }
-            }
-        }
-        .sheet(isPresented: $isShowingWidgetGuide) {
-            WidgetSetupGuideSheet(isPresented: $isShowingWidgetGuide)
-        }
-        .sheet(isPresented: $isShowingUserCatPicker) {
-            // sheet は親の .environment(_:) を取りこぼすことがある (SwiftUI の癖)。
-            // UserCatPickerView は storeKit / friendsStore / referralStore を環境から
-            // 読むため、ここで明示的に渡し直す (オンボの fullScreenCover と同じ対処)。
-            UserCatPickerView()
-                .environment(storeKit)
-                .environment(friendsStore)
-                .environment(referralStore)
-        }
-        .sheet(isPresented: $showPremiumPaywall) {
-            PremiumPaywallSheet(store: storeKit, context: .general)
-        }
         .sheet(isPresented: Binding(
             get: { exportShareURL != nil },
             set: { newValue in
@@ -365,32 +503,6 @@ struct SettingsView: View {
         }
     }
 
-    private func inviteMessage(code: String) -> String {
-        "GOエクササイズで一緒に運動しよう!オンボーディングでこの招待コードを入れると、お互いにフリーズがもらえます → \(code)\nhttps://apps.apple.com/jp/app/id6774551663"
-    }
-
-    private func submitLaterInvite() {
-        isSubmittingLater = true
-        referralStore.lastError = nil
-        Task {
-            await friendsStore.ensureSignedIn()
-            let ok = await referralStore.submitCode(laterInviteCode)
-            isSubmittingLater = false
-            if ok { laterAccepted = true }
-            // 確定(confirmed)は新規の初運動記録が条件。ここでは pending を作るだけにし、
-            // 実際の確定は Home の syncMyFriendProfile フックが
-            // achievedDays>=1 を満たした時点で行う(幽霊インストール確定を防ぐ)。
-        }
-    }
-
-    private func openSupportForm() {
-        openURL(FeedbackComposer.supportFormURL) { accepted in
-            if !accepted {
-                dataActionMessage = "お問い合わせフォームを開けませんでした。時間をおいて再度お試しください。"
-            }
-        }
-    }
-
     private func exportData() {
         // 前回の一時ファイルが残っていれば置き換え前に削除する。
         if let previous = exportShareURL {
@@ -423,16 +535,83 @@ struct SettingsView: View {
             dataActionMessage = "削除に失敗しました。"
         }
     }
+}
 
-    private func bulletRow(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text("•")
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-            Text(text)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+// MARK: - 下層: 情報・サポート
+
+private struct InfoSupportSettingsPage: View {
+    @Environment(\.openURL) private var openURL
+    @State private var dataActionMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                Button {
+                    openSupportForm()
+                } label: {
+                    Label("ご意見・ご要望を送る", systemImage: "bubble.left.and.bubble.right.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("feedback-button")
+                Button {
+                    openSupportForm()
+                } label: {
+                    Label("不具合を報告する", systemImage: "ladybug.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("bug-report-button")
+            }
+            Section {
+                LabeledContent("アプリ", value: "GO エクササイズ")
+                LabeledContent("バージョン", value: appVersion)
+                Button {
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        openURL(url)
+                    }
+                } label: {
+                    Label("サブスクリプションを管理", systemImage: "creditcard.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("manage-subscription-link")
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/privacy")!) {
+                    Label("プライバシーポリシー", systemImage: "hand.raised.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("privacy-policy-link")
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/terms")!) {
+                    Label("利用規約", systemImage: "doc.text.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("terms-link")
+                Link(destination: URL(string: "https://torontojapan.github.io/everyday_training/support")!) {
+                    Label("サポート", systemImage: "questionmark.circle.fill")
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .accessibilityIdentifier("support-link")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .navigationTitle("情報・サポート")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert(
+            "お知らせ",
+            isPresented: Binding(
+                get: { dataActionMessage != nil },
+                set: { if !$0 { dataActionMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(dataActionMessage ?? "")
+        }
+    }
+
+    private func openSupportForm() {
+        openURL(FeedbackComposer.supportFormURL) { accepted in
+            if !accepted {
+                dataActionMessage = "お問い合わせフォームを開けませんでした。時間をおいて再度お試しください。"
+            }
         }
     }
 

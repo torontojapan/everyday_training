@@ -17,7 +17,7 @@ struct PremiumPaywallSheet: View {
         var headline: String {
             switch self {
             case .weight:  return "体重タブの全機能を解放しよう"
-            case .freeze:  return "連続記録フリーズを月4回に"
+            case .freeze:  return "保険チケットを月4回に"
             case .general: return "GOプレミアムで全機能を解放"
             }
         }
@@ -85,9 +85,7 @@ struct PremiumPaywallSheet: View {
             Text(context.headline)
                 .font(.title2.weight(.heavy))
                 .multilineTextAlignment(.center)
-            Text(store.isEligibleForIntroOffer
-                 ? "14日間無料。いつでも解約できます。"
-                 : "いつでも解約できます。")
+            Text(PaywallCopy.strings(trialEligible: store.isEligibleForIntroOffer).subhead)
                 .font(.subheadline)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -101,7 +99,7 @@ struct PremiumPaywallSheet: View {
             benefitRow("chart.xyaxis.line", "週次 / 月次レポート + トレンドライン")
             benefitRow("calendar", "周期オーバーレイで体調と体重を重ねて可視化")
             benefitRow("target", "目標 / BMI / 達成リング / 進捗バー")
-            benefitRow("snowflake", "連続記録フリーズ 月4回 (無料は月1回)")
+            benefitRow("snowflake", "保険チケット 月4回 (無料は月1回)")
             benefitRow("sparkles", "減量ご褒美マイルストーン (-3 / -5 / -10 kg)")
             benefitRow("cat.fill", "全11種の猫から好きな子を選べる")
         }
@@ -202,8 +200,7 @@ struct PremiumPaywallSheet: View {
                 if isPurchasing { ProgressView().tint(.white) }
                 Text(isPurchasing ? "処理中..."
                      : !productLoaded ? "商品情報読込中..."
-                     : store.isEligibleForIntroOffer ? "14日間無料で始める"
-                     : "プレミアムを始める")
+                     : PaywallCopy.strings(trialEligible: store.isEligibleForIntroOffer).cta)
                     .font(.headline.weight(.heavy))
                     .foregroundStyle(.white)
             }
@@ -237,16 +234,13 @@ struct PremiumPaywallSheet: View {
             Text("サブスクリプションについて")
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(Palette.textPrimary)
-            if store.isEligibleForIntroOffer {
-                Text("・14日間の無料体験後、選択したプランで自動更新されます")
-            } else {
-                Text("・選択したプランで自動更新されます")
-            }
+            let copy = PaywallCopy.strings(trialEligible: store.isEligibleForIntroOffer)
+            Text(copy.autoRenewDisclosure)
             Text("・自動更新: 期間終了 24 時間前までに解約しない限り自動で更新されます")
             Text("・解約方法: 設定 > Apple ID > サブスクリプション からいつでも解約できます")
             Text("・料金は App Store アカウントに請求されます")
-            if store.isEligibleForIntroOffer {
-                Text("・無料体験中に解約すれば課金されません")
+            if let note = copy.freeTrialCancelNote {
+                Text(note)
             }
         }
         .font(.caption2)

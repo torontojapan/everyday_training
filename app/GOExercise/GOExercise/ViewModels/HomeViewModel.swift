@@ -89,6 +89,18 @@ final class HomeViewModel {
         // (3 LLM 監査 A-Major: 旧コードは rescue を渡さず内部矛盾していた)。
         let rescued = rescueTicketStore.rescuedDates()
         statuses = WeeklyProgressCalculator.statuses(forWeekContaining: today, records: records, today: today, rescuedDates: rescued, calendar: calendar)
+        // 履歴カレンダーと同じ表示ルール: 最初の記録(/救済日)より前の日は「休/×」でなく
+        // 中立の「-」(.future 流用)。今日のセルは対象外(todayPending が CTA/猫状態の正本のため)。
+        // progress は achieved 数のみ数えるので影響しない(表示層のみの振替)。
+        let firstActivityDay = (records.map { calendar.startOfDay(for: $0.date) }
+            + rescued.map { calendar.startOfDay(for: $0) }).min()
+        statuses = statuses.map { entry in
+            let day = calendar.startOfDay(for: entry.date)
+            guard !calendar.isDate(day, inSameDayAs: today), day < today else { return entry }
+            let beforeStart = firstActivityDay.map { day < $0 } ?? true
+            guard beforeStart else { return entry }
+            return DailyStatusEntry(date: entry.date, status: .future, recordIds: entry.recordIds)
+        }
         progress = WeeklyProgressCalculator.progress(from: statuses)
         streak = StreakCalculator.streakState(records: records, today: today, rescuedDates: rescued, calendar: calendar)
         todayStatus = statuses.first { calendar.isDate($0.date, inSameDayAs: today) }?.status ?? .todayPending
@@ -276,7 +288,7 @@ final class HomeViewModel {
                 for: cursor, records: records, restDays: restDays,
                 rescuedDates: hypothetical, today: today, calendar: calendar)
             switch status {
-            case .achieved, .todayAchieved:
+            case .achieved, .todayAchieved, .rescued:
                 count += 1
             case .rest:
                 break // skip — 連続は切らないが加算もしない

@@ -70,7 +70,7 @@ enum CatMessageProvider {
                 "連続記録更新！すごいよ",
                 "今日も続いたね。大成功！",
                 "いい流れ、ちゃんと守れたね",
-                "新記録おめでとう ✨",
+                "新記録おめでとう！",
                 "ここまで続いたの、ほんとにすごい",
                 "コツコツが力になってるね",
                 "今日のおかげでまた1日伸びたよ",
@@ -107,7 +107,9 @@ enum CatMessageProvider {
         let messages: [String]
 
         switch status {
-        case .todayAchieved, .achieved:
+        // rescued(フリーズ救済日)が「今日」のステータスになることは通常ないが、
+        // 達成扱いの日として同じ祝福系メッセージに寄せる。
+        case .todayAchieved, .achieved, .rescued:
             messages = [
                 "今日も達成！えらい！",
                 "1分でも続けたのがすごいよ",

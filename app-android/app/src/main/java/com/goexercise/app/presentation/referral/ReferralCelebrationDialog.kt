@@ -21,10 +21,10 @@ fun ReferralCelebrationDialog(confirmations: List<ReferralConfirmation>, onDismi
     val isWelcome = confirmations.first().role == ReferralConfirmation.Role.REFEREE
     val title = if (isWelcome) "友達とつながりました！" else "紹介した友達が参加しました！"
     val body = if (isWelcome) {
-        "${confirmations.first().friendDisplayName} さんの招待で参加\n❄️ ウェルカム・フリーズ +1(今月)"
+        "${confirmations.first().friendDisplayName} さんの招待で参加\n❄️ ウェルカム・保険チケット +1(今月)"
     } else {
         confirmations.joinToString("\n") { "${it.friendDisplayName} さんが参加！" } +
-            "\n❄️ フリーズ +1(今月・上限5)\n⭐ 星バッジ +${confirmations.size}"
+            "\n❄️ 保険チケット +1(今月・上限5)\n⭐ 星バッジ +${confirmations.size}"
     }
     AlertDialog(
         onDismissRequest = onDismiss,

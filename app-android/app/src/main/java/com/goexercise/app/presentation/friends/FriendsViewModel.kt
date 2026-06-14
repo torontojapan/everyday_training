@@ -82,6 +82,7 @@ class FriendsViewModel @Inject constructor(
     private val authCoordinator: AccountAuthCoordinator,
     private val settings: com.goexercise.app.data.settings.SettingsRepository,
     private val referralStore: com.goexercise.app.data.referral.ReferralStore,
+    private val recordSync: com.goexercise.app.data.backup.RecordSyncCoordinator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FriendsUiState())
@@ -111,13 +112,21 @@ class FriendsViewModel @Inject constructor(
     /** identity(サインイン中の uid)の世代。切替/復元/サインアウト/削除で進め、進行中の旧 load を無効化する
      *  (iOS identityGeneration。旧アカウントの友達/申請を新プロフィール上へ書かないため)。 */
     private var identityGeneration = 0
-    private fun bumpIdentity() {
+    private suspend fun bumpIdentity() {
         identityGeneration++
         // identity が変わったら紹介状態も取り直す。前アカウントの星/今月フリーズ/未消化ポップが
         // 新アカウントの文脈で漏れる口座スコープ漏れを防ぐ(iOS の friendCode 変化 → refresh に対応)。
         // まず同期で即リセットして stale を出さず、続けて新アカウントの値を非同期で取得する。
         referralStore.resetForIdentityChange()
         viewModelScope.launch { runCatching { referralStore.refresh() } }
+        // 記録バックアップ: 前アカウント宛の削除キュー/wipe/同期時刻を**同期的に**破棄してから戻る
+        // (口座跨ぎ wipe 防止, Codex P1。後続の restoreRecordBackup と順序を保証する)。
+        runCatching { recordSync.resetForIdentityChange() }
+    }
+
+    /** 切替/復元の成功後: 新アカウントのバックアップがあれば取り込み、自動で ON にする(iOS と同じ)。 */
+    private suspend fun restoreRecordBackup() {
+        runCatching { recordSync.restoreAfterSignIn() }
     }
 
     /** サインイン済みのときだけ最新化(未サインインは welcome のまま、クラウドへ書き込まない)。 */
@@ -134,11 +143,29 @@ class FriendsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 service.signIn(displayName = DEFAULT_DISPLAY_NAME, username = "")
+                // 再インストール後の既存セッション等にバックアップが残っていれば取り込む
+                // (新規匿名は空フェッチで no-op。iOS の friendCode 変化 → restoreAfterSignIn に対応)。
+                restoreRecordBackup()
                 load()
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {
                 _uiState.update { it.copy(isConnecting = false) }
+            }
+        }
+    }
+
+    /**
+     * タブを開いたら自動でアカウントを発行し、最初から友達コード画面を見せる(iOS と同じ
+     * ワンステップ化。旧: welcome のボタンを押すまで作らない lazy 方式)。失敗時は welcome に
+     * 留まり CTA が再試行を兼ねる。復元したい人は welcome/設定の Apple/Google 復元で切替できる。
+     */
+    fun ensureSignedIn() {
+        viewModelScope.launch {
+            if (service.myProfile() != null) {
+                load()
+            } else if (!_uiState.value.isConnecting && !_uiState.value.isLinkingAccount) {
+                connect()
             }
         }
     }
@@ -160,6 +187,8 @@ class FriendsViewModel @Inject constructor(
             // 自分が出したスピナーは残さない(isLoading をクリア。新世代の load/リセットが正状態を持つ)。
             if (gen == identityGeneration) {
                 _uiState.update { it.copy(profile = profile, friends = friends, requests = requests, backupStatus = service.backupStatus, isLoading = false) }
+                // サインイン済みなら未読の受信応援をチェックしてトースト表示(iOS の友達タブ受信トースト相当)。
+                fetchReceivedCheers()
             } else {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -220,20 +249,31 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
-    /** 応援スタンプ送信。連打は cheeringCodes で多重送信ガード。 */
-    fun cheer(kind: CheerKind, to: FriendProfile) {
+    /** 応援スタンプ送信。連打は cheeringCodes で多重送信ガード。一言コメント(message)は任意。 */
+    fun cheer(kind: CheerKind, to: FriendProfile, message: String? = null) {
         val code = to.friendCode
         if (_uiState.value.cheeringCodes.contains(code)) return
         _uiState.update { it.copy(cheeringCodes = it.cheeringCodes + code) }
         viewModelScope.launch {
             try {
-                service.sendCheer(kind, code)
-                _uiState.update { it.copy(toast = "${kind.emoji} ${to.displayName} に ${kind.label} を送りました") }
+                service.sendCheer(kind, code, message)
+                // 入力した一言があればそれを、無ければ kind ラベルを反映(iOS「『text』を送りました」相当)。
+                _uiState.update { it.copy(toast = CheerToast.sent(kind.emoji, kind.label, to.displayName, message)) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {
                 _uiState.update { it.copy(cheeringCodes = it.cheeringCodes - code) }
             }
+        }
+    }
+
+    /** 自分宛ての未読応援を取得し、最新1件をトーストで表示する(message 優先)。iOS の受信トースト相当。 */
+    fun fetchReceivedCheers() {
+        viewModelScope.launch {
+            val cheers = runCatching { service.unseenReceivedCheers() }.getOrDefault(emptyList())
+            val latest = cheers.maxByOrNull { it.createdAtEpochMs } ?: return@launch
+            val (emoji, label) = CheerKind.receivedFromRaw(latest.kindRaw)
+            _uiState.update { it.copy(toast = CheerToast.received(emoji, latest.fromDisplayName, label, latest.message, othersCount = cheers.size - 1)) }
         }
     }
 
@@ -286,6 +326,7 @@ class FriendsViewModel @Inject constructor(
             try {
                 op()
                 bumpIdentity() // identity 境界: 旧 refresh を無効化し旧友達/申請を持ち越さない。
+                restoreRecordBackup() // 切替先アカウントの記録バックアップがあれば取り込み+自動 ON
                 _uiState.update { it.copy(friends = emptyList(), requests = emptyList()) }
                 load()
                 _uiState.update { it.copy(backupStatus = service.backupStatus, toast = "既存のアカウントに切り替えました") }
@@ -322,6 +363,7 @@ class FriendsViewModel @Inject constructor(
             val result: RestoreResult = try {
                 val outcome = op()
                 bumpIdentity()
+                restoreRecordBackup() // 機種変更/再インストール: 記録バックアップがあれば取り込み+自動 ON
                 _uiState.update { it.copy(friends = emptyList(), requests = emptyList()) }
                 load()
                 _uiState.update { it.copy(backupStatus = service.backupStatus) }

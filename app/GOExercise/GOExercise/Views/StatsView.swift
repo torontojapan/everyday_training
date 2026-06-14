@@ -77,7 +77,7 @@ struct StatsView: View {
                         menstrualEntry(store: menstrualStore)
                     }
 
-                    // 保険チケット (設定から移動)。折りたたみで残枚数だけ subtitle 表示。
+                    // フリーズ (設定から移動)。折りたたみで残枚数だけ subtitle 表示。
                     CollapsibleSection(
                         persistenceKey: "stats.rescueTicket",
                         title: "保険チケット",
@@ -273,7 +273,7 @@ struct StatsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("rescue-use-link")
-            .accessibilityLabel("フリーズを使う日を選ぶ")
+            .accessibilityLabel("保険チケットを使う日を選ぶ")
 
             // 非加入者には「GOプレミアムで月4回」のアップセル (¥1,000 単発購入は廃止)。
             if !storeKit.isPremiumActive {
@@ -284,7 +284,7 @@ struct StatsView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 16, weight: .heavy))
-                        Text("GOプレミアムでフリーズが月4回に")
+                        Text("GOプレミアムで保険チケットが月4回に")
                             .font(Typography.body)
                             .fontWeight(.semibold)
                         Spacer()

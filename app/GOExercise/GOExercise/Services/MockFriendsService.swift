@@ -6,11 +6,17 @@ import Foundation
 final class MockFriendsService: FriendsService {
     /// `.v2` 以降は weeklyAchievements / connectedSince を含むため互換性確保のためキー bump。
     static let profileKey = "mock.friends.myProfile.v2"
+    /// シミュレータQAでアプリを再起動してもデモ友達が消えないよう、friends/requests も永続化する
+    /// (ユーザー要望「毎回友達がいなくなるのをやめて」)。テストは個別 defaults 注入なので影響しない。
+    static let friendsKey = "mock.friends.list.v1"
+    static let requestsKey = "mock.friends.requests.v1"
 
     private(set) var myProfile: FriendProfile?
     private var friends: [String: FriendProfile] = [:]   // friendCode → profile
     private var requests: [String: FriendRequest] = [:]  // id → request
     private(set) var sentCheers: [(kind: CheerKind, code: String, at: Date)] = []
+    /// テスト検証用: 直近に送った一言コメント。
+    private(set) var lastCheerMessage: String?
 
     /// referee 視点: 自分が入力した紹介(あれば1件)。(referrerCode, confirmed)。
     private var myReferral: (referrerCode: String, confirmed: Bool, confirmedAt: Date?)?
@@ -29,6 +35,18 @@ final class MockFriendsService: FriendsService {
             self.myProfile = decoded.profile
         }
         self.demoPool = Self.seedDemoPool(now: now())
+        // 永続化済みの friends/requests を復元(プロフィール同様、再起動を跨いで保つ)。
+        if let data = defaults.data(forKey: Self.friendsKey),
+           let decoded = try? JSONDecoder().decode([FriendProfile].self, from: data) {
+            for f in decoded { friends[f.friendCode] = f }
+        }
+        if let data = defaults.data(forKey: Self.requestsKey),
+           let decoded = try? JSONDecoder().decode([FriendRequest].self, from: data) {
+            for r in decoded { requests[r.id] = r }
+        }
+        // 復元済みの相手は demoPool から除外(検索/再シードで重複しないように)。
+        let known = Set(friends.keys).union(requests.values.map { $0.fromProfile.friendCode })
+        demoPool.removeAll { known.contains($0.friendCode) }
     }
 
     func signIn(displayName rawDisplayName: String, username rawUsername: String) async throws {
@@ -83,6 +101,7 @@ final class MockFriendsService: FriendsService {
                 friends[pre.friendCode] = pre
             }
         }
+        persistFriends()
     }
 
     func signOut() async {
@@ -93,6 +112,32 @@ final class MockFriendsService: FriendsService {
         myReferral = nil
         inboundConfirmations.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
+        defaults.removeObject(forKey: Self.friendsKey)
+        defaults.removeObject(forKey: Self.requestsKey)
+    }
+
+    // MARK: 記録バックアップ (in-memory モック。テスト/シミュ確認用)
+    private var backupRows: [String: BackupRecord] = [:]
+
+    func backupUpsert(_ records: [BackupRecord]) async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        for r in records { backupRows[r.id] = r }
+    }
+    func backupFetchAll() async throws -> [BackupRecord] {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        return Array(backupRows.values)
+    }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        for id in recordIDs {
+            if let r = backupRows[id] {
+                backupRows[id] = BackupRecord(id: r.id, kind: r.kind, payloadJSON: Data("{}".utf8), updatedAt: Date(), deleted: true)
+            }
+        }
+    }
+    func backupWipeAll() async throws {
+        guard myProfile != nil else { throw FriendsServiceError.notSignedIn }
+        backupRows.removeAll()
     }
 
     /// アカウント削除 (審査 5.1.1(v))。モックは in-memory 状態を全消去する (実 BE のデータ消去相当)。
@@ -104,6 +149,8 @@ final class MockFriendsService: FriendsService {
         myReferral = nil
         inboundConfirmations.removeAll()
         defaults.removeObject(forKey: Self.profileKey)
+        defaults.removeObject(forKey: Self.friendsKey)
+        defaults.removeObject(forKey: Self.requestsKey)
     }
 
     func refreshFriends() async throws -> [FriendProfile] {
@@ -133,6 +180,7 @@ final class MockFriendsService: FriendsService {
         newFriend.connectedSince = now()
         friends[match.friendCode] = newFriend
         demoPool.removeAll { $0.friendCode == match.friendCode }
+        persistFriends()
     }
 
     func acceptRequest(_ request: FriendRequest) async throws {
@@ -140,14 +188,17 @@ final class MockFriendsService: FriendsService {
         added.connectedSince = now()
         friends[request.fromProfile.friendCode] = added
         requests.removeValue(forKey: request.id)
+        persistFriends()
     }
 
     func declineRequest(_ request: FriendRequest) async throws {
         requests.removeValue(forKey: request.id)
+        persistFriends()
     }
 
     func removeFriend(_ profile: FriendProfile) async throws {
         friends.removeValue(forKey: profile.friendCode)
+        persistFriends()
     }
 
     func searchByUsername(_ query: String) async throws -> [FriendProfile] {
@@ -161,8 +212,9 @@ final class MockFriendsService: FriendsService {
         persistProfile()
     }
 
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String? = nil) async throws {
         sentCheers.append((kind, friendCode, now()))
+        lastCheerMessage = message
     }
 
     // MARK: - 友達紹介 (Mock)
@@ -234,6 +286,12 @@ final class MockFriendsService: FriendsService {
         guard let myProfile else { return }
         let data = try? JSONEncoder().encode(StoredProfile(profile: myProfile))
         defaults.set(data, forKey: Self.profileKey)
+    }
+
+    /// friends / requests の永続化。変異のたびに呼ぶ(シミュレータ再起動でも友達が残る)。
+    private func persistFriends() {
+        defaults.set(try? JSONEncoder().encode(Array(friends.values)), forKey: Self.friendsKey)
+        defaults.set(try? JSONEncoder().encode(Array(requests.values)), forKey: Self.requestsKey)
     }
 
     private static func seedDemoPool(now: Date) -> [FriendProfile] {

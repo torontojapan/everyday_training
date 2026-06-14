@@ -29,6 +29,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val dao: WorkoutDao,
     private val json: Json,
     private val clock: Clock,
+    private val backupStore: com.goexercise.app.data.backup.RecordBackupStore,
 ) : WorkoutRepository {
 
     // JSON デコードを collector スレッドから逃がす(履歴が増えても UI を塞がない)。
@@ -45,5 +46,9 @@ class WorkoutRepositoryImpl @Inject constructor(
         dao.upsert(record.toEntity(json, createdAtEpochMs = createdAt, updatedAtEpochMs = now))
     }
 
-    override suspend fun delete(id: String) = dao.deleteById(id)
+    override suspend fun delete(id: String) {
+        dao.deleteById(id)
+        // クラウドバックアップへ削除を伝播(現状 UI からの個別削除は無いが、導線追加時の漏れを防ぐ)。
+        backupStore.noteDeletion(id.lowercase())
+    }
 }

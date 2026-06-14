@@ -81,6 +81,8 @@ final class WeightStore {
     }
 
     func delete(_ entry: WeightEntry) {
+        // クラウドバックアップ有効時は削除をサーバへも伝播(次回同期で論理削除)。
+        RecordSyncTombstones.note(entry.id.uuidString.lowercased())
         context.delete(entry)
         _ = save()
     }

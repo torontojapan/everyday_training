@@ -25,6 +25,7 @@ class PremiumViewModel @Inject constructor(
 ) : ViewModel() {
 
     val isPremiumActive: StateFlow<Boolean> = premium.isPremiumActive
+    val isTrialEligible: StateFlow<Boolean> = premium.isTrialEligible
     val lastError: StateFlow<String?> = premium.lastError
 
     private val _isWorking = MutableStateFlow(false)

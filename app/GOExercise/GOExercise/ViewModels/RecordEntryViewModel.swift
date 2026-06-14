@@ -16,6 +16,8 @@ final class RecordEntryViewModel {
         /// セット数。プルダウン選択。0 = 未設定。
         var sets: Int
         var memo: String
+        /// 重さ(kg)。フリー入力(空=未設定)。
+        var loadText: String
 
         init(
             id: UUID = UUID(),
@@ -24,7 +26,8 @@ final class RecordEntryViewModel {
             minutes: Int = 0,
             reps: Int = 0,
             sets: Int = 0,
-            memo: String = ""
+            memo: String = "",
+            loadText: String = ""
         ) {
             self.id = id
             self.name = name
@@ -33,6 +36,7 @@ final class RecordEntryViewModel {
             self.reps = reps
             self.sets = sets
             self.memo = memo
+            self.loadText = loadText
         }
     }
 
@@ -90,14 +94,35 @@ final class RecordEntryViewModel {
                 reps: draft.reps > 0 ? draft.reps : nil,
                 sets: draft.sets > 0 ? draft.sets : nil,
                 memo: trimmedMemo.isEmpty ? nil : trimmedMemo,
+                loadKilograms: Self.parsedLoad(draft.loadText),
                 category: draft.category
             )
         }
     }
 
+    /// 重さ(kg)のフリー入力をパース。空/非数値/範囲外(0〜1000)は nil = 未設定。
+    static func parsedLoad(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let v = Double(trimmed), v > 0, v < 1000 else { return nil }
+        return v
+    }
+
     func addExercise() {
         // 直前の種目のカテゴリを引き継ぐ (同カテゴリを続けて足すことが多いため)。
         drafts.append(ExerciseDraft(category: drafts.last?.category ?? .strength))
+    }
+
+    /// 同じ種目でもう1セットぶんの行を直下に複製追加する(重さ・回数を変えて
+    /// 複数セットやる時に、種目を選び直す手間を無くすワンタップ導線)。
+    /// 名前・カテゴリ・重さを引き継ぎ、時間/回数/セット/メモは空で始める。
+    /// 戻り値 = 新しい行の id(呼び出し側がその行へ展開を切り替える)。nil = 元の行が見つからない。
+    @discardableResult
+    func addSet(after id: UUID) -> UUID? {
+        guard let index = drafts.firstIndex(where: { $0.id == id }) else { return nil }
+        let source = drafts[index]
+        let copy = ExerciseDraft(name: source.name, category: source.category, loadText: source.loadText)
+        drafts.insert(copy, at: index + 1)
+        return copy.id
     }
 
     /// 記録全体の代表カテゴリ (先頭種目)。履歴グルーピング・ウィジェット等の

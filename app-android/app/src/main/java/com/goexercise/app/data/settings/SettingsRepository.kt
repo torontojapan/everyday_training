@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.ShareCardGradient
 import com.goexercise.app.ui.theme.AppTheme
 import java.time.LocalDate
 import dagger.Binds
@@ -32,6 +33,10 @@ interface SettingsRepository {
     /** ユーザーが選んだ猫種。未選択は orange。iOS UserCatPreferences.myCat 相当。 */
     val catBreed: Flow<CatBreed>
     suspend fun setCatBreed(breed: CatBreed)
+
+    /** 共有カードの背景グラデーション選択(既定 Sunset)。永続化。 */
+    val shareGradient: Flow<ShareCardGradient>
+    suspend fun setShareGradient(gradient: ShareCardGradient)
 
     /** オンボーディング(初回の猫選択)を完了したか。iOS UserCatPreferences.hasCompletedOnboarding 相当。 */
     val onboardingComplete: Flow<Boolean>
@@ -84,6 +89,15 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setCatBreed(breed: CatBreed) {
         dataStore.edit { it[catBreedKey] = breed.rawValue }
+    }
+
+    private val shareGradientKey = stringPreferencesKey("share_gradient")
+    override val shareGradient: Flow<ShareCardGradient> = dataStore.data.map { prefs ->
+        ShareCardGradient.fromName(prefs[shareGradientKey])
+    }
+
+    override suspend fun setShareGradient(gradient: ShareCardGradient) {
+        dataStore.edit { it[shareGradientKey] = gradient.name }
     }
 
     // 明示フラグが無い既存インストール(アップグレード)は、初回利用日が既にあれば「オンボ済」とみなす

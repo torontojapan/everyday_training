@@ -16,5 +16,8 @@ data class ExerciseItem(
     val reps: Int? = null,
     val sets: Int? = null,
     val memo: String? = null,
+    /** 重さ(負荷 kg。ダンベル等)。iOS `loadKilograms` と同名キー。クラウドバックアップの
+     *  クロスOS往復でフィールドを落とさないため、入力 UI 未実装でも保持・再エンコードする。 */
+    val loadKilograms: Double? = null,
     val category: WorkoutCategory? = null,
 )

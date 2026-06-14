@@ -47,9 +47,16 @@ object HomeStateReducer {
 
         val yesterday = today.minusDays(1)
         val yesterdayRest = RestDayResolver.restDaySet(yesterday, records, today)
-        val yesterdayAchieved = AchievementEvaluator.dailyStatus(
+        val yesterdayStatus = AchievementEvaluator.dailyStatus(
             date = yesterday, records = records, restDays = yesterdayRest, rescuedDates = rescuedDates, today = today,
-        ).countsAsAchieved
+        )
+        val yesterdayAchieved = yesterdayStatus.countsAsAchieved
+
+        // 復帰日の歓迎カード(iOS isComebackToday): 昨日 missed・今日未達成・累計>=3日のとき
+        // 「おかえり」カードを出して再開のハードルを下げる(離脱対策)。
+        val isComebackToday = yesterdayStatus == DailyStatus.Missed &&
+            !todayStatus.countsAsAchieved &&
+            lifetime.achievedDays >= 3
 
         val catState = CatStateResolver.resolve(
             todayStatus = todayStatus,
@@ -81,6 +88,7 @@ object HomeStateReducer {
             weeklySummary = weeklySummary,
             monthlyTotalMinutes = monthlyTotalMinutes,
             monthlyAchievedDays = monthlyAchievedDays,
+            isComebackToday = isComebackToday,
         )
     }
 }

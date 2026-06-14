@@ -34,10 +34,10 @@ enum AchievementEvaluator {
             return .achieved
         }
 
-        // 保険チケット使用日は achieved と同等に扱う。連続記録にカウントされ、
-        // カレンダー上は ○ + チケットアイコンで表示される。
+        // 保険チケット使用日は達成扱い(連続記録にカウント)だが、表示は実運動(◎)と
+        // 区別する専用ステータス(○)にする。
         if rescuedDates.contains(day) {
-            return .achieved
+            return .rescued
         }
 
         if restDays.contains(day) {

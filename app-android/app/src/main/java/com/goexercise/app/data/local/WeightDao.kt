@@ -14,6 +14,13 @@ interface WeightDao {
     @Insert
     suspend fun insert(entry: WeightEntryEntity)
 
+    // クラウドバックアップの pull マージ用(updatedAt を保持したまま挿入/更新)。
+    @androidx.room.Upsert
+    suspend fun upsert(entry: WeightEntryEntity)
+
+    @Query("SELECT * FROM weight_entries WHERE id = :id")
+    suspend fun findById(id: String): WeightEntryEntity?
+
     @Query("DELETE FROM weight_entries WHERE id = :id")
     suspend fun deleteById(id: String)
 

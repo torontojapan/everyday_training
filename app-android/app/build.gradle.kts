@@ -150,6 +150,7 @@ dependencies {
 
     // QR コード生成 (友達コードの招待リンクを QR 化)。pure-Java で実通信不要。
     implementation(libs.zxing.core)
+    implementation(libs.zxing.embedded) // アプリ内QRスキャナ(ScanContract/CaptureActivity)
 
     // Google Play Billing(サブスク課金 / プレミアム エンタイトルメント)。
     implementation(libs.billing.ktx)
@@ -171,6 +172,7 @@ dependencies {
     implementation(libs.telemetrydeck.kotlin.sdk)
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     // 計装テスト(Room MigrationTestHelper で v1→v2 migration を実機/emu 検証)。
     androidTestImplementation(libs.junit)

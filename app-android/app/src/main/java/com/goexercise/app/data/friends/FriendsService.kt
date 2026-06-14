@@ -1,6 +1,7 @@
 package com.goexercise.app.data.friends
 
 import com.goexercise.app.domain.friends.CheerKind
+import com.goexercise.app.domain.friends.ReceivedCheer
 import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendCode
@@ -60,6 +61,18 @@ data class CheerWrite(
     @SerialName("from_user") val fromUser: String,
     @SerialName("to_user") val toUser: String,
     @SerialName("kind") val kind: String,
+    /** 任意の一言コメント(message 列。null なら従来どおりコメント無し)。 */
+    @SerialName("message") val message: String? = null,
+)
+
+/** cheers 行の読み取り用(受信表示)。 */
+@Serializable
+data class CheerRow(
+    @SerialName("id") val id: String,
+    @SerialName("from_user") val fromUser: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("message") val message: String? = null,
+    @SerialName("created_at") val createdAt: String,
 )
 
 @Serializable
@@ -86,6 +99,42 @@ data class ReferralConfirmUpdate(
 @Serializable
 data class ReferralSeenUpdate(
     @SerialName("seen_by_referrer") val seenByReferrer: Boolean,
+)
+
+/**
+ * Supabase `user_records` 行(記録のクラウドバックアップ)。iOS `UserRecordRow` と同形。
+ * payload は kind ごとの JSON(サーバは解釈しない同期ストア)。スキーマ正本 = supabase/schema.sql。
+ */
+@Serializable
+data class UserRecordRow(
+    @SerialName("user_id") val userId: String,
+    @SerialName("record_id") val recordId: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("payload") val payload: kotlinx.serialization.json.JsonObject,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("deleted") val deleted: Boolean = false,
+)
+
+/** 論理削除(tombstone)更新。payload は空に軽量化(iOS UserRecordTombstone と同形)。 */
+@Serializable
+data class UserRecordTombstoneUpdate(
+    @SerialName("deleted") val deleted: Boolean,
+    @SerialName("payload") val payload: kotlinx.serialization.json.JsonObject,
+    @SerialName("updated_at") val updatedAt: String,
+)
+
+/**
+ * クラウドバックアップ1行ぶんのニュートラル DTO。iOS `BackupRecord` の移植。
+ * payload のクロスOS契約(キー名/日付形式)は RecordSyncCoordinator が正本。
+ */
+data class BackupRecord(
+    /** record_id(workout/weight/menstrual は UUID 文字列, rescued_day は "rescued-YYYY-MM-DD")。 */
+    val id: String,
+    /** workout / weight / menstrual / rescued_day */
+    val kind: String,
+    val payload: kotlinx.serialization.json.JsonObject,
+    val updatedAt: java.time.Instant,
+    val deleted: Boolean,
 )
 
 internal fun ProfileRow.toProfile(): FriendProfile = FriendProfile(
@@ -130,8 +179,11 @@ interface FriendsService {
     suspend fun acceptRequest(request: FriendRequest)
     suspend fun declineRequest(request: FriendRequest)
     suspend fun removeFriend(profile: FriendProfile)
-    suspend fun sendCheer(kind: CheerKind, toCode: String)
+    suspend fun sendCheer(kind: CheerKind, toCode: String, message: String? = null)
     suspend fun publishMyProfile(profile: FriendProfile)
+
+    /** 自分宛ての未読応援(前回チェック以降)。既定は空。Supabase が watermark 付きで実装。 */
+    suspend fun unseenReceivedCheers(): List<ReceivedCheer> = emptyList()
 
     // ---- 友達紹介(リファラル)。既定は安全側 no-op。実装は Supabase/Mock が override ----
     suspend fun submitInviteCode(code: String) { throw FriendsError.NotSignedIn }
@@ -159,6 +211,17 @@ interface FriendsService {
     suspend fun linkAppleWeb(flow: WebAuthFlow) { throw AccountLinkError.ProviderUnavailable }
     suspend fun switchToAppleWeb(flow: WebAuthFlow) { throw AccountLinkError.ProviderUnavailable }
     suspend fun restoreWithAppleWeb(flow: WebAuthFlow): RestoreOutcome { throw AccountLinkError.ProviderUnavailable }
+
+    // ---- 記録のクラウドバックアップ(user_records, iOS/Android 共通スキーマ)----
+
+    /** 変更行をまとめて upsert(PK = user_id × record_id で冪等)。 */
+    suspend fun backupUpsert(records: List<BackupRecord>)
+    /** 本人の全行(tombstone 含む)を取得。復元・同期のプル側。未サインインは空。 */
+    suspend fun backupFetchAll(): List<BackupRecord>
+    /** 指定 record_id を論理削除(deleted=true, payload 空)。他端末へ削除を伝播。 */
+    suspend fun backupMarkDeleted(recordIds: List<String>)
+    /** 本人の全行を物理削除(設定「すべての記録を削除」用)。 */
+    suspend fun backupWipeAll()
 }
 
 /**
@@ -202,6 +265,7 @@ class MockFriendsService : FriendsService {
         backup = AccountBackupStatus.Anonymous
         myReferral = null
         inbound.clear()
+        backupRows.clear()
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> = friends.toList()
@@ -231,7 +295,7 @@ class MockFriendsService : FriendsService {
         friends.removeAll { it.friendCode == profile.friendCode }
     }
 
-    override suspend fun sendCheer(kind: CheerKind, toCode: String) {
+    override suspend fun sendCheer(kind: CheerKind, toCode: String, message: String?) {
         /* Mock: no-op(送信したことにする) */
     }
 
@@ -301,6 +365,7 @@ class MockFriendsService : FriendsService {
         backup = AccountBackupStatus.Anonymous
         myReferral = null
         inbound.clear()
+        backupRows.clear()
     }
 
     override suspend fun linkGoogleIdToken(idToken: String) {
@@ -347,6 +412,33 @@ class MockFriendsService : FriendsService {
             me = FriendProfile(friendCode = FriendCode.generate(), username = "you", displayName = "あなた", currentStreak = 0, totalAchievedDays = 0, todayAchieved = false)
         }
         backup = AccountBackupStatus(isBackedUp = true, providerName = provider)
+    }
+
+    // ---- 記録バックアップ(in-memory モック。テスト/エミュ確認用。iOS Mock と同セマンティクス)----
+    private val backupRows = mutableMapOf<String, BackupRecord>()
+
+    override suspend fun backupUpsert(records: List<BackupRecord>) {
+        if (me == null) throw FriendsError.NotSignedIn
+        records.forEach { backupRows[it.id] = it }
+    }
+
+    override suspend fun backupFetchAll(): List<BackupRecord> {
+        if (me == null) return emptyList()
+        return backupRows.values.toList()
+    }
+
+    override suspend fun backupMarkDeleted(recordIds: List<String>) {
+        if (me == null) throw FriendsError.NotSignedIn
+        recordIds.forEach { id ->
+            backupRows[id]?.let {
+                backupRows[id] = it.copy(payload = kotlinx.serialization.json.JsonObject(emptyMap()), deleted = true)
+            }
+        }
+    }
+
+    override suspend fun backupWipeAll() {
+        if (me == null) throw FriendsError.NotSignedIn
+        backupRows.clear()
     }
 
     private fun restoreMock(provider: String, asNew: Boolean): RestoreOutcome {

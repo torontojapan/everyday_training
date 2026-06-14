@@ -94,9 +94,13 @@ create table if not exists public.cheers (
   id uuid primary key default gen_random_uuid(),
   from_user uuid not null references auth.users(id) on delete cascade,
   to_user uuid not null references auth.users(id) on delete cascade,
-  kind text not null,                      -- fight / great / clap / fire
+  kind text not null,                      -- fight / wontlose / protein / catpunch / custom (旧: great/clap/fire)
   created_at timestamptz not null default now()
 );
+-- 応援の一言コメント(任意・2026-06-12)。クライアントは 30 字制限、DB は 60 字で最終ガード。
+-- 既存環境への適用も兼ねて alter で追加(本番は SQL Editor で再 Run)。
+alter table public.cheers add column if not exists message text
+  check (message is null or char_length(message) <= 60);
 create index if not exists cheers_to_user_idx on public.cheers (to_user, created_at desc);
 
 -- ============ referrals (友達紹介。referee 主キー = 1人1紹介者) ============
@@ -256,3 +260,45 @@ end$$;
 drop trigger if exists referrals_guard on public.referrals;
 create trigger referrals_guard before update on public.referrals
   for each row execute function public.referrals_guard_update();
+
+-- ============ user_records (記録のクラウドバックアップ。iOS/Android 共通) ============
+-- 運動・体重・体調(生理)・フリーズ救済日を「本人だけが読み書きできる」形で保存し、
+-- 機種変更(OS 跨ぎ含む)・再インストール時に復元する。Duolingo 型のアカウント紐付け。
+--  - オプトイン: クライアント側の「記録をクラウドにバックアップ」設定が ON の時だけ書く。
+--  - record_id はクライアント生成の安定キー(workout/weight/menstrual は UUID 文字列、
+--    rescued_day は "rescued-YYYY-MM-DD")。同一レコードの再 upsert は冪等。
+--  - payload は kind ごとの JSON(スキーマはクライアント側の RecordBackup DTO が正本)。
+--    サーバ側で中身は解釈しない(同期ストアに徹する)。体重・体調を含むため
+--    SELECT は本人のみ(profiles のような全認証ユーザー公開とは異なる)。
+--  - deleted: 論理削除(tombstone)。クライアントの削除を他端末へ伝播するため、物理削除
+--    ではなく deleted=true + payload='{}' で軽量化する。全削除(設定の「すべての記録を削除」)
+--    は物理 delete(本人 RLS で許可)。
+create table if not exists public.user_records (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  record_id  text not null,
+  kind       text not null,                       -- workout / weight / menstrual / rescued_day
+  payload    jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  deleted    boolean not null default false,
+  primary key (user_id, record_id)
+);
+create index if not exists user_records_kind_idx on public.user_records (user_id, kind);
+create index if not exists user_records_updated_idx on public.user_records (user_id, updated_at);
+
+grant select, insert, update, delete on public.user_records to authenticated;
+
+alter table public.user_records enable row level security;
+-- 本人のみ全操作可。体重・生理を含む機微データのため SELECT も本人限定
+-- (友達/第三者からは一切見えない)。
+drop policy if exists user_records_select on public.user_records;
+create policy user_records_select on public.user_records
+  for select to authenticated using (auth.uid() = user_id);
+drop policy if exists user_records_insert on public.user_records;
+create policy user_records_insert on public.user_records
+  for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists user_records_update on public.user_records;
+create policy user_records_update on public.user_records
+  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists user_records_delete on public.user_records;
+create policy user_records_delete on public.user_records
+  for delete to authenticated using (auth.uid() = user_id);

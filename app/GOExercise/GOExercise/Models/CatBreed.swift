@@ -90,6 +90,22 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         if exists(avatarAssetName) { return avatarAssetName }
         return "cat_orange_waitingMorning_shaker"
     }
+
+    /// 共有カード用のハッピーポーズ候補(celebrating + 追加ハッピーポーズ)。
+    /// 実在する asset だけを候補にするので、一部猫種で画像が欠けても安全。
+    static let happyPoseSuffixes = ["celebrating", "happy2", "happy3"]
+
+    /// 共有カードに出すハッピーポーズ asset 名を `seed` で決定的に1つ選ぶ。
+    /// シート提示ごとに seed を変えれば「毎回ランダムなポーズ」になり、
+    /// 同一提示内では seed 固定で再レンダリングしてもブレない。
+    /// 当該猫種で実在する候補のみから選び、皆無なら orange の celebrating にフォールバック。
+    func randomHappyPoseAsset(seed: Int, exists: (String) -> Bool) -> String {
+        let candidates = Self.happyPoseSuffixes
+            .map { "cat_\(rawValue)_\($0)" }
+            .filter(exists)
+        guard !candidates.isEmpty else { return "cat_orange_celebrating" }
+        return candidates[abs(seed) % candidates.count]
+    }
 }
 
 /// ユーザー自身が選んだ猫種を覚えておくシンプルなストア。

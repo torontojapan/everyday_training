@@ -1,6 +1,7 @@
 package com.goexercise.app.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,10 +66,20 @@ class StreakLevelTest {
     }
 
     @Test
-    fun catStateMapsLowToCelebratingHighToStreakExtended() {
+    fun catStateIsAlwaysCelebrating() {
+        // 炎を背負う StreakExtended は共有カードから廃止し全レベル Celebrating に統一
+        // (ポーズは randomHappyPoseAsset 側でランダム化)。iOS と一致。
         assertEquals(CatState.Celebrating, StreakLevel.of(1).catState)
-        assertEquals(CatState.Celebrating, StreakLevel.of(14).catState)
-        assertEquals(CatState.StreakExtended, StreakLevel.of(30).catState)
-        assertEquals(CatState.StreakExtended, StreakLevel.of(365).catState)
+        assertEquals(CatState.Celebrating, StreakLevel.of(30).catState)
+        assertEquals(CatState.Celebrating, StreakLevel.of(365).catState)
+        assertEquals(CatState.Celebrating, StreakLevel.of(500).catState)
+    }
+
+    @Test
+    fun legendHeadlineHasNoFixedYearClaim() {
+        // 500日でも「1年達成」と出ない(称号系の称賛文)。絵文字も無い。
+        val legend = StreakLevel.of(500).headline
+        assertFalse(legend.contains("1年"))
+        assertFalse(legend.contains("✨"))
     }
 }

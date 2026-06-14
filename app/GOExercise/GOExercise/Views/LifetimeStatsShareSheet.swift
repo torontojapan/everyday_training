@@ -11,6 +11,8 @@ struct LifetimeStatsShareSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    @AppStorage("shareCard.gradient.lifetime") private var gradientRaw = ShareCardGradient.daybreak.rawValue
+    @State private var poseSeed = Int.random(in: 0..<10_000)
 
     init(achievedDays: Int,
          usedDays: Int,
@@ -21,15 +23,12 @@ struct LifetimeStatsShareSheet: View {
     }
 
     private var appName: String { "GO エクササイズ" }
+    private var gradient: ShareCardGradient { ShareCardGradient(rawValue: gradientRaw) ?? .daybreak }
 
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                colors: [
-                    Color(red: 0.42, green: 0.70, blue: 0.95),
-                    Color(red: 0.45, green: 0.75, blue: 0.60),
-                    Color(red: 0.95, green: 0.78, blue: 0.45)
-                ],
+                colors: gradient.colors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
@@ -41,7 +40,9 @@ struct LifetimeStatsShareSheet: View {
                     LifetimeStatsShareCard(
                         achievedDays: achievedDays,
                         usedDays: usedDays,
-                        appName: appName
+                        appName: appName,
+                        gradientColors: gradient.colors,
+                        poseSeed: poseSeed
                     )
 
                     if let renderedImage {
@@ -72,6 +73,8 @@ struct LifetimeStatsShareSheet: View {
                         }
                     }
 
+                    ShareGradientPicker(selectionRaw: $gradientRaw)
+
                     if let saveBannerText {
                         Text(saveBannerText)
                             .font(Typography.caption)
@@ -87,6 +90,7 @@ struct LifetimeStatsShareSheet: View {
             closeButtonOverlay
         }
         .task { renderImage() }
+        .onChange(of: gradientRaw) { _, _ in renderImage() }
     }
 
     private var closeButtonOverlay: some View {
@@ -113,7 +117,8 @@ struct LifetimeStatsShareSheet: View {
     @MainActor
     private func renderImage() {
         let card = LifetimeStatsShareCard(
-            achievedDays: achievedDays, usedDays: usedDays, appName: appName
+            achievedDays: achievedDays, usedDays: usedDays, appName: appName,
+            gradientColors: gradient.colors, poseSeed: poseSeed
         ).frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -146,6 +151,8 @@ struct LifetimeStatsShareCard: View {
     let achievedDays: Int
     let usedDays: Int
     let appName: String
+    var gradientColors: [Color] = ShareCardGradient.daybreak.colors
+    var poseSeed: Int = 0
 
     /// 達成率 (使用日 0 のときは 0 で防御)。
     private var rate: Double {
@@ -218,11 +225,7 @@ struct LifetimeStatsShareCard: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [
-                    Color(red: 0.35, green: 0.62, blue: 0.95),
-                    Color(red: 0.42, green: 0.78, blue: 0.62),
-                    Color(red: 0.95, green: 0.75, blue: 0.40)
-                ],
+                colors: gradientColors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
             ),
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)
@@ -232,17 +235,15 @@ struct LifetimeStatsShareCard: View {
 
     private var catImage: some View {
         let breed = UserCatPreferences.shared.myCat
-        let primary = breed.assetName(for: .celebrating)
-        let resolved = UIImage(named: primary) != nil
-            ? primary
-            : CatBreed.fallbackAssetName(for: .celebrating)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
+        let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {
             if UIImage(named: resolved) != nil {
                 Image(resolved)
                     .resizable()
                     .scaledToFit()
             } else {
-                Text("🏆").font(.system(size: 120))
+                Text("😺").font(.system(size: 120))
             }
         }
     }

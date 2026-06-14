@@ -61,6 +61,7 @@ fun HomeRoute(
     val pendingMilestone by viewModel.pendingMilestone.collectAsStateWithLifecycle()
     val welcome by viewModel.pendingWelcome.collectAsStateWithLifecycle()
     val referrerPops by viewModel.pendingReferrerPops.collectAsStateWithLifecycle()
+    val breedUnlock by viewModel.pendingBreedUnlock.collectAsStateWithLifecycle()
     val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
     val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
 
@@ -97,6 +98,17 @@ fun HomeRoute(
     if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
         welcome?.let { com.goexercise.app.presentation.referral.ReferralCelebrationDialog(listOf(it)) { viewModel.consumeWelcome() } }
         if (referrerPops.isNotEmpty()) com.goexercise.app.presentation.referral.ReferralCelebrationDialog(referrerPops) { viewModel.consumeReferrerPops() }
+        // ⭐10 達成で全猫種解放の祝福(アカウント別 1 回限り)。
+        if (breedUnlock) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { viewModel.consumeBreedUnlock() },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { viewModel.consumeBreedUnlock() }) { Text("やった！") }
+                },
+                title = { Text("⭐10 達成！") },
+                text = { Text("友達紹介の星が10個に到達しました。すべての猫種が解放されました！設定からいつでも変更できます。") },
+            )
+        }
     }
 
     // 機能D: 復活ポップ。**launch ごとに 1 度だけ**、復活可能 かつ この途切れが未対応の時に出す。
@@ -171,6 +183,15 @@ fun HomeContent(
     onShareClick: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
+    // 達成の全画面紙吹雪ゲート: todayStatus が「未達成→達成」に遷移した瞬間(=記録完了→ホーム復帰)に
+    // 1 回だけ再生する。起動時に既に達成済みなら出さない(iOS celebratedDay と同趣旨)。
+    val achieved = state.todayStatus.countsAsAchieved
+    var prevAchieved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(achieved) }
+    var celebrate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(achieved) {
+        if (achieved && !prevAchieved) celebrate = true
+        prevAchieved = achieved
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。背景は backdrop が描くので Column 側の
         // .background(palette.background) は外す(付けると backdrop を覆って見えなくなる)。
@@ -183,6 +204,7 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             CatTheater(state)
+            if (state.isComebackToday) ComebackWelcomeCard()
             WeekStrip(state.weekStatuses)
             StatsRow(state)
             Button(
@@ -199,6 +221,32 @@ fun HomeContent(
                 ) {
                     Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
                 }
+            }
+        }
+        // 達成時の全画面紙吹雪(最前面)。iOS パリティ。
+        com.goexercise.app.ui.components.ConfettiOverlay(play = celebrate, onFinished = { celebrate = false })
+    }
+}
+
+/** 復帰日の歓迎カード(iOS comebackWelcomeCard パリティ)。再開のハードルを下げる。 */
+@Composable
+private fun ComebackWelcomeCard() {
+    val palette = LocalAppPalette.current
+    Surface(
+        color = palette.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("🚪", fontSize = 22.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("おかえり", fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("昨日はおやすみだったね。今日は30秒でも戻れたら100点。",
+                    fontSize = 12.sp, color = palette.textSecondary)
             }
         }
     }

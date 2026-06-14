@@ -6,6 +6,10 @@ import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -99,6 +104,8 @@ fun FriendsRoute(
     val myBreed by viewModel.myBreed.collectAsStateWithLifecycle()
     val backupSuppressed by viewModel.backupSuppressed.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // タブを開いたら自動でアカウントを発行(iOS と同じワンステップ化。失敗時は welcome+再試行)。
+    LaunchedEffect(Unit) { viewModel.ensureSignedIn() }
     // 追加/ランキングから戻る・アプリ復帰のたびに最新化(別 VM の add がサーバを変えるため)。
     LifecycleResumeEffect(Unit) {
         viewModel.refreshIfSignedIn()
@@ -152,7 +159,7 @@ fun FriendsContent(
     onAccept: (FriendRequest) -> Unit = {},
     onDecline: (FriendRequest) -> Unit = {},
     onRemove: (FriendProfile) -> Unit = {},
-    onCheer: (CheerKind, FriendProfile) -> Unit = { _, _ -> },
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit = { _, _, _ -> },
     onSetSort: (FriendSortOrder) -> Unit = {},
     onSignOut: () -> Unit = {},
     onOpenRanking: () -> Unit = {},
@@ -320,11 +327,73 @@ fun FriendsContent(
             onDismissRequest = { cheerTarget = null },
             containerColor = palette.background,
         ) {
-            CheerPickerSheet(friend, palette) { kind ->
-                onCheer(kind, friend)
-                cheerTarget = null
-            }
+            FriendDetailSheet(
+                friend = friend,
+                palette = palette,
+                onSend = { kind, message ->
+                    onCheer(kind, friend, message)
+                    cheerTarget = null
+                },
+                onRemove = {
+                    onRemove(friend)
+                    cheerTarget = null
+                },
+            )
         }
+    }
+}
+
+/**
+ * 友達詳細シート(iOS FriendDetailView 相当)。プロフィール/連続・通算・今日の状態を見せ、
+ * その場で応援を送る・友達を解除する。アバタータップの到達先=この詳細(送信経路は detail に統一)。
+ */
+@Composable
+private fun FriendDetailSheet(
+    friend: FriendProfile,
+    palette: AppTheme,
+    onSend: (CheerKind, String?) -> Unit,
+    onRemove: () -> Unit,
+) {
+    var confirmRemove by remember { mutableStateOf(false) }
+    val rank = com.goexercise.app.domain.CatRank.of(friend.currentStreak)
+    Column(
+        Modifier.padding(horizontal = 20.dp).padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(friend.displayName, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
+        if (friend.username.isNotBlank()) {
+            Text("@${friend.username}", fontSize = 13.sp, color = palette.textSecondary)
+        }
+        rank.title?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep) }
+        // 連続 / 通算 / 今日。
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            DetailStat("連続", "${friend.currentStreak}日", palette)
+            DetailStat("通算", "${friend.totalAchievedDays}日", palette)
+            DetailStat("今日", if (friend.todayAchieved) "達成" else "まだ", palette)
+        }
+        // 応援コンポーザ(プリセット + 一言 + 送信)。
+        CheerPickerSheet(friend, palette, onSend)
+        TextButton(onClick = { confirmRemove = true }) {
+            Text("友達を解除", color = palette.missed)
+        }
+    }
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("友達を解除しますか?") },
+            text = { Text("${friend.displayName} さんとの友達を解除します。再びつながるにはコードの交換が必要です。") },
+            confirmButton = { TextButton(onClick = { confirmRemove = false; onRemove() }) { Text("解除", color = palette.missed) } },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("キャンセル") } },
+        )
+    }
+}
+
+@Composable
+private fun DetailStat(label: String, value: String, palette: AppTheme) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        Text(label, fontSize = 11.sp, color = palette.textSecondary)
     }
 }
 
@@ -459,7 +528,7 @@ private fun SignedInBody(
     onRename: (String) -> Unit,
     onAccept: (FriendRequest) -> Unit,
     onDecline: (FriendRequest) -> Unit,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onSetSort: (FriendSortOrder) -> Unit,
     onSignOut: () -> Unit,
     onOpenRanking: () -> Unit,
@@ -715,7 +784,7 @@ private fun FriendsSection(
     palette: AppTheme,
     onSetSort: (FriendSortOrder) -> Unit,
     onOpenRanking: () -> Unit,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
+    onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
 ) {
@@ -735,16 +804,113 @@ private fun FriendsSection(
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator(color = palette.primary) }
             state.friends.isEmpty() -> FriendsEmptyState(palette)
-            else -> state.sortedFriends.forEach { friend ->
-                FriendCard(
-                    friend,
-                    palette,
-                    isCheering = state.cheeringCodes.contains(friend.friendCode),
-                    onCheer = onCheer,
-                    onRemove = onRemove,
-                    onOpenCheerPicker = onOpenCheerPicker,
-                )
+            // 公園(猫グリッド)表示に一本化(iOS FriendsParkView パリティ)。
+            // アバタータップ → 応援ピッカー / 長押し → 解除メニュー。
+            else -> FriendsParkGrid(
+                friends = state.sortedFriends,
+                palette = palette,
+                onTap = onOpenCheerPicker,
+                onRemove = onRemove,
+            )
+        }
+    }
+}
+
+/**
+ * 友達を猫アバターのグリッドで並べる「公園」表示。iOS `FriendsParkView` 移植。
+ * 今日達成は大きく濃く、未達成は小さく薄く。縦スクロール Column 内に置くため非 Lazy の
+ * chunked Row グリッドにする(LazyVerticalGrid は無限高さでクラッシュするため使わない)。
+ */
+@Composable
+private fun FriendsParkGrid(
+    friends: List<FriendProfile>,
+    palette: AppTheme,
+    onTap: (FriendProfile) -> Unit,
+    onRemove: (FriendProfile) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFFEFF6E6), // 公園らしい淡い緑
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            friends.chunked(3).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    row.forEach { friend ->
+                        Box(Modifier.weight(1f)) { ParkAvatar(friend, palette, onTap, onRemove) }
+                    }
+                    // 端数行は空セルで埋めて左寄せを保つ。
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun ParkAvatar(
+    friend: FriendProfile,
+    palette: AppTheme,
+    onTap: (FriendProfile) -> Unit,
+    onRemove: (FriendProfile) -> Unit,
+) {
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+    val breed = friend.myCatBreed ?: com.goexercise.app.domain.CatBreed.Default
+    val active = friend.todayAchieved
+    val resId = remember(breed) {
+        context.resources.getIdentifier(breed.avatarAssetName, "drawable", context.packageName)
+            .takeIf { it != 0 }
+            ?: context.resources.getIdentifier(com.goexercise.app.domain.CatBreed.FALLBACK_AVATAR, "drawable", context.packageName)
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.combinedClickable(
+            onClick = { onTap(friend) },
+            onLongClick = { showMenu = true },
+        ),
+    ) {
+        Box(contentAlignment = Alignment.TopEnd) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(Color(breed.tintArgb).copy(alpha = if (active) 0.30f else 0.18f)),
+            ) {
+                if (resId != 0) {
+                    Image(
+                        painter = painterResource(resId),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(if (active) 74.dp else 66.dp)
+                            .clip(CircleShape)
+                            .alpha(if (active) 1f else 0.72f),
+                    )
+                }
+            }
+            if (active) {
+                Text("✅", fontSize = 15.sp, modifier = Modifier.offset(x = 2.dp, y = (-2).dp))
+            }
+        }
+        Text(
+            friend.displayName,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = palette.textPrimary,
+            maxLines = 1,
+        )
+        Text("🐾 ${friend.currentStreak}", fontSize = 10.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(text = { Text("友達を解除") }, onClick = { showMenu = false; onRemove(friend) })
         }
     }
 }
@@ -779,87 +945,6 @@ private fun SortMenu(current: FriendSortOrder, palette: AppTheme, onSetSort: (Fr
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             FriendSortOrder.entries.forEach { order ->
                 DropdownMenuItem(text = { Text(order.label) }, onClick = { onSetSort(order); expanded = false })
-            }
-        }
-    }
-}
-
-@Composable
-private fun FriendCard(
-    friend: FriendProfile,
-    palette: AppTheme,
-    isCheering: Boolean,
-    onCheer: (CheerKind, FriendProfile) -> Unit,
-    onRemove: (FriendProfile) -> Unit,
-    onOpenCheerPicker: (FriendProfile) -> Unit,
-) {
-    var showMenu by remember { mutableStateOf(false) }
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 友達が猫種を共有していれば実猫アバター、未共有(旧クライアント等)は emoji フォールバック。
-                friend.myCatBreed?.let { breed ->
-                    // 連続記録ベースの CatRank をアバター外周のメタルリングで可視化(F機能, iOS 相当)。
-                    val ring = friend.rank.metalKind?.let { com.goexercise.app.ui.components.metalColor(it) }
-                    Box(
-                        modifier = if (ring != null)
-                            Modifier.size(56.dp).border(3.dp, ring, CircleShape).padding(2.dp)
-                        else Modifier.size(56.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        com.goexercise.app.ui.components.CatAvatar(breed = breed, size = if (ring != null) 52.dp else 56.dp)
-                    }
-                } ?: Avatar(palette, 56.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(friend.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
-                    if (friend.username.isNotBlank()) {
-                        Text("@${friend.username}", fontSize = 12.sp, color = palette.textSecondary)
-                    }
-                    // 連続ベースの称号メタルチップ(rank>0 のみ自動描画, iOS RankBadge 相当)。
-                    com.goexercise.app.ui.components.CatRankChip(rank = friend.rank, compact = true)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("🔥 ${friend.currentStreak}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
-                    Text("累計 ${friend.totalAchievedDays}日", fontSize = 12.sp, color = palette.textSecondary)
-                }
-                Box {
-                    Text("⋯", fontSize = 20.sp, color = palette.textSecondary, modifier = Modifier.clickable { showMenu = true })
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("友達を解除") }, onClick = { showMenu = false; onRemove(friend) })
-                    }
-                }
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (friend.todayAchieved) {
-                    Pill("✓ 今日達成", palette.success, palette.success.copy(alpha = 0.15f))
-                    friend.todayCategoryName?.let { Pill(it, palette.primaryDeep, palette.chipBackground) }
-                } else {
-                    Text("⏳ 今日はまだ未達成", fontSize = 12.sp, color = palette.textSecondary)
-                }
-            }
-
-            // クイック応援: 1 タップで送信(iOS の quick-cheer 行)。
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf(CheerKind.Fight, CheerKind.Great, CheerKind.Clap, CheerKind.Fire).forEach { kind ->
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(palette.primary.copy(alpha = 0.10f))
-                            .clickable(enabled = !isCheering) { onCheer(kind, friend) },
-                        contentAlignment = Alignment.Center,
-                    ) { Text(kind.emoji, fontSize = 18.sp) }
-                }
-                Spacer(Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(palette.chipBackground)
-                        .clickable { onOpenCheerPicker(friend) },
-                    contentAlignment = Alignment.Center,
-                ) { Text("⋯", fontSize = 16.sp, color = palette.textSecondary) }
             }
         }
     }
@@ -913,9 +998,26 @@ private fun ErrorBanner(message: String, palette: AppTheme, onClear: () -> Unit)
 
 // MARK: - Add friend sheet
 
+/** スキャンした文字列から友達コードを抽出。goexercise://friends?code=XXX または生6桁を受理(iOS QRScannerView パリティ)。 */
+private fun extractFriendCode(scanned: String): String? {
+    val raw = scanned.trim()
+    // 1) URL のクエリ code=
+    val fromQuery = raw.substringAfter("code=", "").substringBefore("&")
+    FriendCodeValidator.sanitize(fromQuery).let { if (FriendCodeValidator.isValid(it)) return it }
+    // 2) 生の6桁コード
+    FriendCodeValidator.sanitize(raw).let { if (FriendCodeValidator.isValid(it)) return it }
+    return null
+}
+
 @Composable
 private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (String) -> Unit) {
     var code by remember { mutableStateOf(initialCode ?: "") }
+    // アプリ内QRスキャナ(#8)。読み取った goexercise://friends?code=XXX または生6桁から友達コードを抽出。
+    val scanLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        com.journeyapps.barcodescanner.ScanContract(),
+    ) { result ->
+        result.contents?.let { extractFriendCode(it)?.let { c -> code = c } }
+    }
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("友達を追加", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         Text("友達コードで申請を送ります。", fontSize = 13.sp, color = palette.textSecondary)
@@ -927,6 +1029,19 @@ private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (Str
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
         )
+        OutlinedButton(
+            onClick = {
+                scanLauncher.launch(
+                    com.journeyapps.barcodescanner.ScanOptions().apply {
+                        setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                        setPrompt("友達のQRコードを枠に合わせてください")
+                        setBeepEnabled(false)
+                        setOrientationLocked(false)
+                    },
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("QRコードを読み取る") }
         if (code.isNotEmpty() && !FriendCodeValidator.isValid(code)) {
             Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)", fontSize = 12.sp, color = palette.textSecondary)
         }
@@ -943,7 +1058,9 @@ private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (Str
 // MARK: - Cheer picker
 
 @Composable
-private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (CheerKind) -> Unit) {
+private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (CheerKind, String?) -> Unit) {
+    // 一言コメント(任意・30字)。プリセットをタップすると欄に反映され、自由入力も可。
+    var message by rememberSaveable { mutableStateOf("") }
     Column(
         Modifier.padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -955,7 +1072,7 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
                 Surface(
                     color = palette.chipBackground,
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.weight(1f).clickable { onSend(kind) },
+                    modifier = Modifier.weight(1f).clickable { onSend(kind, message.trim().ifBlank { null }) },
                 ) {
                     Column(
                         Modifier.padding(vertical = 14.dp),
@@ -968,6 +1085,13 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
                 }
             }
         }
+        OutlinedTextField(
+            value = message,
+            onValueChange = { if (it.length <= 30) message = it },
+            placeholder = { Text("一言そえる(任意・30字)", fontSize = 13.sp) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(8.dp))
     }
 }

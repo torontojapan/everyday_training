@@ -11,8 +11,10 @@ struct StreakBadgeView: View {
             onTap?()
         } label: {
             HStack(spacing: 10) {
-                Text("🔥")
-                    .font(.system(size: 22))
+                // ブランド一貫性のため Live Activity / 称号バッジと同じ肉球マークに統一(旧 🔥)。
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Palette.primaryDeep)
                 Text("\(streak)日連続")
                     .font(.system(.title3, design: .rounded, weight: .heavy))
                     .monospacedDigit()

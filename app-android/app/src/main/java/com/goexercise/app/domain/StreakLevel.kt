@@ -24,15 +24,18 @@ enum class StreakLevel {
             Zero -> 0; Sprout -> 3; Week -> 6; TwoWeeks -> 10; Month -> 14; Century -> 20; Legend -> 28
         }
 
+    /** 称賛の見出し。具体的な日数には言及しない(実日数は KPI が担う)。
+     *  旧「1年達成」(Legend=365+ 全部で固定)は 500 日でも「1年達成」と出て過小だったため廃止。
+     *  絵文字 🎉✨ もブランド方針で除去。iOS StreakLevel.headline と一致。 */
     val headline: String
         get() = when (this) {
             Zero -> "今日から始めよう"
             Sprout -> "いい調子！"
-            Week -> "1週間達成 🎉"
-            TwoWeeks -> "2週間達成、すごい！"
-            Month -> "1ヶ月達成、本物！"
-            Century -> "100日達成!! 偉業!"
-            Legend -> "1年達成 ✨ LEGEND ✨"
+            Week -> "1週間つづいた！"
+            TwoWeeks -> "2週間つづいた！"
+            Month -> "習慣になってきた！"
+            Century -> "偉業の領域！"
+            Legend -> "継続のレジェンド！"
         }
 
     val badgeText: String?
@@ -45,27 +48,23 @@ enum class StreakLevel {
             Sprout, Zero -> null
         }
 
+    /** asset 欠損時のフォールバック文字(猫)。炎(🔥)は廃止。iOS と一致。 */
     val fallbackEmoji: String
-        get() = when (this) {
-            Zero, Sprout, Week, TwoWeeks -> "😻"
-            Month, Century, Legend -> "🐱🔥"
-        }
+        get() = "😻"
 
     val shareMessage: String
         get() = when (this) {
-            Zero -> "GO エクササイズで運動を始めました🐱"
-            Sprout -> "GO エクササイズで運動継続中🐱"
-            Week, TwoWeeks -> "GO エクササイズで運動続けてます🔥"
-            Month, Century -> "GO エクササイズで運動の習慣化に成功🔥🔥"
-            Legend -> "GO エクササイズで1年連続達成しました✨ #LEGEND"
+            Zero -> "GO エクササイズで運動を始めました"
+            Sprout -> "GO エクササイズで運動継続中"
+            Week, TwoWeeks -> "GO エクササイズで運動続けてます"
+            Month, Century -> "GO エクササイズで運動の習慣化に成功"
+            Legend -> "GO エクササイズで運動を継続中 #LEGEND"
         }
 
-    /** シェアカードに出す猫の状態(低レベル=達成 / 高レベル=連続更新)。breed と組み合わせ画像解決。 */
+    /** シェアカードに出す猫の状態。炎を背負う StreakExtended は廃止し全レベル Celebrating に統一
+     *  (シェアカードのポーズは randomHappyPoseAsset 側でランダム化)。iOS と一致。 */
     val catState: CatState
-        get() = when (this) {
-            Zero, Sprout, Week, TwoWeeks -> CatState.Celebrating
-            Month, Century, Legend -> CatState.StreakExtended
-        }
+        get() = CatState.Celebrating
 
     /** 背景グラデーション色(ARGB Int, 左上→右下)。iOS `gradientColors` の RGB と一致させる。 */
     val gradientColors: List<Int>

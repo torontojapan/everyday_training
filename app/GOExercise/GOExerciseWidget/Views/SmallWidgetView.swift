@@ -25,8 +25,8 @@ struct SmallWidgetView: View {
                     .minimumScaleFactor(0.8)
             }
 
-            // Phase 7.0 Step 3: 旧 status chip → 1-tap 記録ボタン or 達成済 chip
-            QuickRecordButtonView(snapshot: snapshot)
+            // CTA チップは未達成時のみ(達成/回復日は見出しが語るため重複チップを出さない)。
+            RecordPromptChipView(snapshot: snapshot)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -43,18 +43,12 @@ struct SmallWidgetView: View {
         return Color(red: 0.95, green: 0.42, blue: 0.30)
     }
 
+    /// 見出し(達成済み！/回復日/1分だけでも)と同義の繰り返しはせず、
+    /// 次への一言/残り時間を出す(ユーザー指摘の重複解消)。
     private var subText: String {
-        if snapshot.todayAchieved { return "今日もえらい！" }
+        if snapshot.todayAchieved { return "また明日も続けよう" }
         if snapshot.isRestDay { return "むりせず整えよう" }
         return "23:59まであと\(snapshot.nightDeadlineHoursLeft)時間"
-    }
-
-    private var statusText: String {
-        snapshot.todayAchieved ? "今日もえらい！" : "今日はこれから"
-    }
-
-    private var statusColor: Color {
-        snapshot.todayAchieved ? Color(red: 0.32, green: 0.58, blue: 0.34) : Color(red: 0.84, green: 0.33, blue: 0.30)
     }
 
     private var progressRing: some View {

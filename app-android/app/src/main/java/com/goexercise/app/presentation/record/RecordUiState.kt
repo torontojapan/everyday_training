@@ -22,6 +22,8 @@ data class ExerciseDraft(
     val minutes: String = "",
     val reps: String = "",
     val sets: String = "",
+    /** 重さ(負荷 kg。ダンベル等)。小数可のフリー入力。iOS ExerciseDraft.loadText 移植。 */
+    val loadText: String = "",
     val memo: String = "",
 )
 
@@ -31,7 +33,17 @@ data class RecordUiState(
     val memo: String = "",
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
+    /** 今日の体重(任意・kg のフリー入力)。iOS RecordEntryView「今日の体重 (任意)」パリティ。 */
+    val weightInput: String = "",
+    /** 直近の体重(入力欄下の「前回: X kg」ヒント用)。 */
+    val latestWeightKg: Double? = null,
+    /** 「今日は生理日」トグルの状態。周期トラッキング ON のときのみ表示・保存。 */
+    val menstrualToday: Boolean = false,
+    /** 周期トラッキングが有効か(設定)。OFF なら生理日トグルは出さず触らない(iOS cycleSettings.isEnabled)。 */
+    val cycleTrackingEnabled: Boolean = false,
 ) {
+    /** 今日の体重(正の値のみ。空/0/非数値は null)。 */
+    val parsedWeightKg: Double? get() = parseLoad(weightInput)
     /** 種目名が入っている下書きだけを ExerciseItem 化(iOS validExercises 相当)。 */
     fun validExercises(): List<ExerciseItem> =
         drafts.mapNotNull { d ->
@@ -43,6 +55,7 @@ data class RecordUiState(
                 durationSeconds = d.minutes.trim().toIntOrNull()?.takeIf { it > 0 }?.times(60),
                 reps = d.reps.trim().toIntOrNull()?.takeIf { it > 0 },
                 sets = d.sets.trim().toIntOrNull()?.takeIf { it > 0 },
+                loadKilograms = parseLoad(d.loadText),
                 memo = d.memo.trim().ifEmpty { null },
                 category = d.category,
             )
@@ -64,6 +77,21 @@ data class RecordUiState(
 
     companion object {
         fun clampDigits(input: String, max: Int): String = input.filter { it.isDigit() }.take(max)
+
+        /** 重さ入力のサニタイズ: 数字 + 小数点1つまで、整数部は4桁・小数部は1桁まで。 */
+        fun clampDecimal(input: String): String {
+            val cleaned = input.replace(',', '.').filter { it.isDigit() || it == '.' }
+            val dot = cleaned.indexOf('.')
+            if (dot < 0) return cleaned.take(4)
+            val intPart = cleaned.substring(0, dot).take(4)
+            val fracPart = cleaned.substring(dot + 1).filter { it.isDigit() }.take(1)
+            return "$intPart.$fracPart"
+        }
+
+        /** 重さ文字列 → kg(正の値のみ。空/0/非数値は null)。iOS parsedLoad 相当。 */
+        fun parseLoad(input: String): Double? =
+            input.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }
+
         const val minutesMaxDigits = MINUTES_MAX_DIGITS
         const val countMaxDigits = COUNT_MAX_DIGITS
     }

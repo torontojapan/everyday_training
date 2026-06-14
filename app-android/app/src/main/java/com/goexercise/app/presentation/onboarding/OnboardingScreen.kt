@@ -55,6 +55,8 @@ fun OnboardingScreen(
     // 回転/Activity 再生成でも選択を保持(rememberSaveable は enum 不可なので rawValue を保存)。
     var selectedRaw by rememberSaveable { mutableStateOf(initialBreed.rawValue) }
     val selected = CatBreed.fromRaw(selectedRaw)
+    // 2ステップ: 0=猫選択 / 1=サインイン(任意)。iOS の2ステップ ウィザード パリティ(#15)。
+    var step by rememberSaveable { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -65,13 +67,29 @@ fun OnboardingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Spacer(Modifier.height(8.dp))
-        Text("ようこそ 🐾", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
-        Text("一緒にがんばる猫を選ぼう", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        // ステップバッジ(iOS onboardingHeader「ステップ N/2」パリティ。Android は常に2ステップ)。
         Text(
-            "選んだ猫はホーム画面・達成演出・友達一覧で使われます。あとから設定でいつでも変更できます。",
+            "ステップ ${step + 1} / 2",
+            fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(palette.primary.copy(alpha = 0.14f))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+        Text("ようこそ 🐾", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
+        Text(
+            if (step == 0) "一緒にがんばる猫を選ぼう" else "記録をバックアップしよう",
+            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary,
+        )
+        Text(
+            // 猫種は「初回は全解放・以降の変更はプレミアム(or 紹介⭐10)」。オンボで「いつでも変更」と
+            // 誤誘導すると有料ゲートに不意打ちされるため、iOS UserCatPicker と同じく制限を明記する。
+            if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+            else "Apple か Google で連携すると、機種変更や再インストールでも記録が戻ります(あとで設定からでも可)。",
             fontSize = 13.sp, color = palette.textSecondary,
         )
 
+      if (step == 0) {
         // 選択中の猫の大プレビュー
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
@@ -120,12 +138,35 @@ fun OnboardingScreen(
 
         Spacer(Modifier.height(4.dp))
         Button(
-            onClick = { onFinish(selected) },
+            onClick = { step = 1 },
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
-            Text("この猫ではじめる", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("つぎへ", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
+      } else {
+        // ステップ2: サインイン→バックアップ自動ON(任意・スキップ可)。実機でのみ動作(emulator不可)。
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val linking = viewModel?.isLinkingAccount?.collectAsStateWithLifecycle()?.value ?: false
+        val linkErr = viewModel?.linkError?.collectAsStateWithLifecycle()?.value
+        Button(
+            onClick = { viewModel?.linkApple(context) { onFinish(selected) } },
+            enabled = !linking,
+            colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) { Text("Apple で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold) }
+        Button(
+            onClick = { viewModel?.linkGoogle(context) { onFinish(selected) } },
+            enabled = !linking,
+            colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) { Text("Google で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold) }
+        androidx.compose.material3.TextButton(
+            onClick = { onFinish(selected) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("あとで(スキップ)", color = palette.textSecondary) }
+        linkErr?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+      }
         Spacer(Modifier.height(8.dp))
     }
 }

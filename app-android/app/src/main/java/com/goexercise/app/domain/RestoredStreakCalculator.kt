@@ -50,7 +50,8 @@ object RestoredStreakCalculator {
                 today = today,
             )
             when (status) {
-                DailyStatus.Achieved, DailyStatus.TodayAchieved -> count += 1
+                // Rescued も達成同等(漏らすとフリーズ日で連続が切れる)。
+                DailyStatus.Achieved, DailyStatus.Rescued, DailyStatus.TodayAchieved -> count += 1
                 DailyStatus.Rest -> { /* skip — 連続は切れない、カウントもしない */ }
                 else -> break
             }

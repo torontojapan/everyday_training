@@ -57,6 +57,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSPhotoLibraryAddUsageDescription: 達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。
+        NSCameraUsageDescription: 友達のQRコードを読み取って友達追加するために使用します。
         NSSupportsLiveActivities: true
         # 輸出コンプライアンス: 本アプリは標準の HTTPS(TLS)のみで独自/非標準の暗号は使わない
         # = 適用除外。false を宣言して TestFlight/提出ごとの暗号コンプラ質問を省く
@@ -71,6 +72,9 @@ targets:
         # これが無いと SupabaseConfig.appleLinkEnabled=false → Apple バックアップ/復元UIが
         # 非表示。手動キーだと xcodegen 再生成で落ちるため project.yml で恒久宣言する。
         FriendsAppleLinkEnabled: true
+        # Google サインイン (web/PKCE) でのバックアップ/復元を有効にするか。Apple と対称に表示。
+        # Supabase の Google provider 有効化 + redirect 許可リスト (goexercise://auth-callback) が前提。
+        FriendsGoogleLinkEnabled: true
         # 友達バックエンド (Supabase)。値は Secrets.xcconfig 由来 (gitignore)。
         # 空の間は friends が Mock にフォールバック (Supabase 未接続)。
         SupabaseHost: "$(SUPABASE_HOST)"
@@ -110,7 +114,7 @@ targets:
       - path: GOExercise/Models/WorkoutRecord.swift
       - path: GOExercise/Models/ExerciseItem.swift
       - path: GOExercise/Models/WorkoutCategory.swift
-      # WeightEntry / MenstrualEntry は QuickRecordIntent が App Group 共有ストアを
+      # WeightEntry / MenstrualEntry はウィジェットが App Group 共有ストアを
       # メインアプリと同一 schema で開くために必要 (監査 B-Critical-1)。
       - path: GOExercise/Models/WeightEntry.swift
       - path: GOExercise/Models/MenstrualEntry.swift

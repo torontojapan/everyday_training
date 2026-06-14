@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.metalColor
@@ -59,13 +62,20 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
+    val cycleTrackingEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val linkedProvider by viewModel.linkedProvider.collectAsStateWithLifecycle()
+    val isLinkingAccount by viewModel.isLinkingAccount.collectAsStateWithLifecycle()
+    val linkError by viewModel.linkError.collectAsStateWithLifecycle()
     val myFriendCode by viewModel.myFriendCode.collectAsStateWithLifecycle()
-    val referralSummary by viewModel.referralSummary.collectAsStateWithLifecycle()
+    val referralStarBadges by viewModel.referralStarBadges.collectAsStateWithLifecycle()
     val laterCode by viewModel.laterCode.collectAsStateWithLifecycle()
     val laterSubmitting by viewModel.laterSubmitting.collectAsStateWithLifecycle()
     val laterAccepted by viewModel.laterAccepted.collectAsStateWithLifecycle()
     val referralError by viewModel.referralError.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
+    val backupEnabled by viewModel.backupEnabled.collectAsStateWithLifecycle()
+    val backupSyncing by viewModel.backupSyncing.collectAsStateWithLifecycle()
+    val backupError by viewModel.backupError.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     var deletedMsg by remember { mutableStateOf<String?>(null) }
 
@@ -103,10 +113,20 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
             }
         },
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
+        onSetEveningTime = viewModel::setEveningTime,
+        onSetReminderCount = viewModel::setReminderCount,
+        onSetReminderPersonality = viewModel::setReminderPersonality,
         analyticsEnabled = analyticsEnabled,
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
+        cycleTrackingEnabled = cycleTrackingEnabled,
+        onToggleCycleTracking = viewModel::setCycleTrackingEnabled,
+        linkedProvider = linkedProvider,
+        isLinkingAccount = isLinkingAccount,
+        linkError = linkError,
+        onLinkApple = { viewModel.linkApple(context) },
+        onLinkGoogle = { viewModel.linkGoogle(context) },
         myFriendCode = myFriendCode,
-        referralStarBadges = referralSummary.starBadges,
+        referralStarBadges = referralStarBadges,
         canEnterCodeLater = viewModel.canEnterCodeLater,
         onShareInvite = { code ->
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -122,6 +142,11 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onSubmitLaterInvite = viewModel::submitLaterInvite,
         referralError = referralError,
         currentStreak = currentStreak,
+        backupEnabled = backupEnabled,
+        backupSyncing = backupSyncing,
+        backupError = backupError,
+        onToggleBackup = viewModel::setBackupEnabled,
+        onBackupNow = viewModel::backupNow,
     )
 }
 
@@ -140,8 +165,13 @@ fun SettingsContent(
     reminder: com.goexercise.app.data.settings.ReminderPrefs = com.goexercise.app.data.settings.ReminderPrefs(),
     onToggleReminder: (Boolean) -> Unit = {},
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetEveningTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetReminderCount: (Int) -> Unit = {},
+    onSetReminderPersonality: (com.goexercise.app.domain.NotificationPersonality) -> Unit = {},
     analyticsEnabled: Boolean = true,
     onToggleAnalytics: (Boolean) -> Unit = {},
+    cycleTrackingEnabled: Boolean = false,
+    onToggleCycleTracking: (Boolean) -> Unit = {},
     myFriendCode: String? = null,
     referralStarBadges: Int = 0,
     canEnterCodeLater: Boolean = false,
@@ -153,6 +183,16 @@ fun SettingsContent(
     onSubmitLaterInvite: () -> Unit = {},
     referralError: String? = null,
     currentStreak: Int = 0,
+    backupEnabled: Boolean = false,
+    backupSyncing: Boolean = false,
+    backupError: String? = null,
+    onToggleBackup: (Boolean) -> Unit = {},
+    onBackupNow: () -> Unit = {},
+    linkedProvider: String? = null,
+    isLinkingAccount: Boolean = false,
+    linkError: String? = null,
+    onLinkApple: () -> Unit = {},
+    onLinkGoogle: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -165,16 +205,40 @@ fun SettingsContent(
     ) {
         Text("設定", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = palette.textPrimary)
 
+        // アカウントとバックアップは機種変更時の命綱なので最上位に置く(iOS 設定再構成パリティ)。
+        Text("アカウントとバックアップ", color = palette.textSecondary, fontSize = 13.sp)
+        BackupSection(
+            palette = palette,
+            enabled = backupEnabled,
+            syncing = backupSyncing,
+            error = backupError,
+            hasAccount = myFriendCode != null,
+            onToggle = onToggleBackup,
+            onBackupNow = onBackupNow,
+            linkedProvider = linkedProvider,
+            isLinking = isLinkingAccount,
+            linkError = linkError,
+            onLinkApple = onLinkApple,
+            onLinkGoogle = onLinkGoogle,
+        )
+
         PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
-        CatBreedPicker(selected = catBreed, palette = palette, onSelect = onSelectBreed)
+        CatBreedPicker(
+            selected = catBreed,
+            palette = palette,
+            isPremium = isPremium,
+            referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
+            onSelect = onSelectBreed,
+            onLockedTap = onOpenPremium,
+        )
 
         Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
         CatRankLadderSection(palette, currentStreak)
 
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
-        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
+        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime, onSetEveningTime, onSetReminderCount, onSetReminderPersonality)
 
         if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
             Text("友達を招待", color = palette.textSecondary, fontSize = 13.sp)
@@ -203,6 +267,88 @@ fun SettingsContent(
 
         Text("プライバシー", color = palette.textSecondary, fontSize = 13.sp)
         AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
+
+        // 生理周期トラッキングのオプトイン(既定 OFF・プライバシー優先)。ON で体重タブに生理日記録 UI を出す。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("生理周期トラッキング", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        "ON にすると体重タブに生理日の記録と周期オーバーレイが表示されます。端末内のみに保存。",
+                        color = palette.textSecondary, fontSize = 12.sp,
+                    )
+                }
+                Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
+            }
+        }
+    }
+}
+
+/**
+ * 記録のクラウドバックアップ(オプトイン)+ 機種変更復元の案内。iOS 設定の同セクション移植。
+ * Apple/Google 連携(復元の鍵)は友達タブの連携 UI と同じアカウントを共有する。
+ */
+@Composable
+private fun BackupSection(
+    palette: AppTheme,
+    enabled: Boolean,
+    syncing: Boolean,
+    error: String?,
+    hasAccount: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onBackupNow: () -> Unit,
+    linkedProvider: String? = null,
+    isLinking: Boolean = false,
+    linkError: String? = null,
+    onLinkApple: () -> Unit = {},
+    onLinkGoogle: () -> Unit = {},
+) {
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("記録をクラウドにバックアップ", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        "運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(Android↔iPhone)や再インストールで復元できます。友達には共有されません。",
+                        color = palette.textSecondary, fontSize = 12.sp,
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onToggle)
+            }
+            if (enabled) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !syncing) { onBackupNow() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("今すぐバックアップ", color = palette.textPrimary)
+                    Spacer(Modifier.weight(1f))
+                    if (syncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                }
+                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+            }
+            // 認証(Apple/Google でバックアップ)を設定に集約(#14)。未連携=サインインボタン / 連携済=状態表示。
+            if (linkedProvider != null) {
+                Text("✓ $linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
+                    color = palette.textSecondary, fontSize = 11.sp)
+            } else {
+                Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
+                    color = palette.textSecondary, fontSize = 11.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onLinkApple, enabled = !isLinking, modifier = Modifier.weight(1f)) {
+                        Text("Apple で連携")
+                    }
+                    OutlinedButton(onClick = onLinkGoogle, enabled = !isLinking, modifier = Modifier.weight(1f)) {
+                        Text("Google で連携")
+                    }
+                }
+                if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+            }
+        }
     }
 }
 
@@ -223,25 +369,40 @@ private fun AnalyticsSection(palette: AppTheme, enabled: Boolean, onToggle: (Boo
     }
 }
 
-/** 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。 */
+/**
+ * 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。
+ * 課金/紹介ゲート: 非プレミアムかつ紹介⭐<10 のとき「今の猫」以外はロック(淡色+🔒)、
+ * ロック猫タップはペイウォールへ誘導(iOS UserCatPickerView パリティ)。
+ */
 @Composable
-private fun CatBreedPicker(selected: CatBreed, palette: AppTheme, onSelect: (CatBreed) -> Unit) {
+private fun CatBreedPicker(
+    selected: CatBreed,
+    palette: AppTheme,
+    isPremium: Boolean,
+    referralUnlocked: Boolean,
+    onSelect: (CatBreed) -> Unit,
+    onLockedTap: () -> Unit,
+) {
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CatBreed.entries.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { breed ->
+                        val locked = CatBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
                                 .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
-                                .clickable { onSelect(breed) }
+                                .clickable { if (locked) onLockedTap() else onSelect(breed) }
                                 .padding(vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            CatAvatar(breed = breed, size = 52.dp)
+                            Box(contentAlignment = Alignment.Center) {
+                                CatAvatar(breed = breed, size = 52.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
+                                if (locked) Text("🔒", fontSize = 18.sp)
+                            }
                             Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
                         }
                     }
@@ -483,7 +644,7 @@ private fun ReferralSection(
                         Column(Modifier.weight(1f)) {
                             Text("友達を招待する", color = palette.textPrimary, fontWeight = FontWeight.Bold)
                             Text(
-                                "招待コードを共有すると、お互いにフリーズがもらえます。",
+                                "招待コードを共有すると、お互いに保険チケットがもらえます。",
                                 color = palette.textSecondary, fontSize = 12.sp,
                             )
                         }
@@ -537,8 +698,11 @@ private fun ReminderSection(
     reminder: com.goexercise.app.data.settings.ReminderPrefs,
     onToggle: (Boolean) -> Unit,
     onSetTime: (Int, Int) -> Unit,
+    onSetEveningTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetCount: (Int) -> Unit = {},
+    onSetPersonality: (com.goexercise.app.domain.NotificationPersonality) -> Unit = {},
 ) {
-    var showTimePicker by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<String?>(null) } // "morning" / "evening" / null
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -549,25 +713,75 @@ private fun ReminderSection(
                 Switch(checked = reminder.enabled, onCheckedChange = onToggle)
             }
             if (reminder.enabled) {
+                // 通知回数(1日1回=朝のみ / 2回=朝+夕)。
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("時刻", color = palette.textSecondary, fontSize = 13.sp)
+                    Text("通知回数", color = palette.textSecondary, fontSize = 13.sp)
                     androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { showTimePicker = true }) {
-                        Text("%02d:%02d".format(reminder.hour, reminder.minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+                    listOf(1 to "1日1回", 2 to "1日2回").forEach { (c, label) ->
+                        val sel = reminder.count == c
+                        Surface(
+                            color = if (sel) palette.primary else palette.chipBackground,
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.padding(start = 6.dp).clickable { onSetCount(c) },
+                        ) {
+                            Text(label, fontSize = 12.sp, color = if (sel) androidx.compose.ui.graphics.Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        }
                     }
                 }
+                // 朝(1本目)時刻。
+                ReminderTimeRow("通知時間1", reminder.hour, reminder.minute, palette) { picker = "morning" }
+                // 夕(2本目)時刻 — 2回のときのみ。
+                if (reminder.count > 1) {
+                    ReminderTimeRow("通知時間2", reminder.eveningHour, reminder.eveningMinute, palette) { picker = "evening" }
+                }
+                // 性格(quiet/voice/friendDriven)。
+                Text("通知の性格", color = palette.textSecondary, fontSize = 13.sp)
+                com.goexercise.app.domain.NotificationPersonality
+                    .visibleCases(com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED)
+                    .forEach { p ->
+                        val sel = reminder.personality == p
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { onSetPersonality(p) }.padding(vertical = 4.dp),
+                        ) {
+                            androidx.compose.material3.RadioButton(selected = sel, onClick = { onSetPersonality(p) })
+                            Column {
+                                Text(p.displayName, color = palette.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(p.hint, color = palette.textSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
             }
         }
     }
-    if (showTimePicker) {
-        val state = rememberTimePickerState(initialHour = reminder.hour, initialMinute = reminder.minute, is24Hour = true)
+    picker?.let { which ->
+        val isMorning = which == "morning"
+        val h = if (isMorning) reminder.hour else reminder.eveningHour
+        val m = if (isMorning) reminder.minute else reminder.eveningMinute
+        val state = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
         AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text("通知の時刻") },
+            onDismissRequest = { picker = null },
+            title = { Text(if (isMorning) "通知時間1" else "通知時間2") },
             text = { TimePicker(state = state) },
-            confirmButton = { TextButton(onClick = { onSetTime(state.hour, state.minute); showTimePicker = false }) { Text("設定", color = palette.primaryDeep) } },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("キャンセル") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (isMorning) onSetTime(state.hour, state.minute) else onSetEveningTime(state.hour, state.minute)
+                    picker = null
+                }) { Text("設定", color = palette.primaryDeep) }
+            },
+            dismissButton = { TextButton(onClick = { picker = null }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )
+    }
+}
+
+@Composable
+private fun ReminderTimeRow(label: String, hour: Int, minute: Int, palette: AppTheme, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = palette.textSecondary, fontSize = 13.sp)
+        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+        TextButton(onClick = onClick) {
+            Text("%02d:%02d".format(hour, minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+        }
     }
 }

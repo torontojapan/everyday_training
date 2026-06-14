@@ -44,6 +44,10 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
     private val _isPremiumActive = MutableStateFlow(false)
     override val isPremiumActive: StateFlow<Boolean> = _isPremiumActive.asStateFlow()
 
+    // 既定 false(商品ロード前は不明=控えめ)。loadProducts で無料トライアル offer の有無により確定。
+    private val _isTrialEligible = MutableStateFlow(false)
+    override val isTrialEligible: StateFlow<Boolean> = _isTrialEligible.asStateFlow()
+
     private val _lastError = MutableStateFlow<String?>(null)
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
@@ -103,6 +107,10 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
             ).build()
         val result = client.queryProductDetails(params)
         result.productDetailsList?.forEach { productDetailsCache[it.productId] = it }
+        // 無料トライアル offer が1商品でも返れば適格(Play は消化済みユーザーには trial offer を返さない)。
+        _isTrialEligible.value = ProductIds.all.any { id ->
+            productDetailsCache[id]?.let { trialOffer(it) != null } == true
+        }
     }
 
     private suspend fun refreshEntitlements() {
@@ -166,8 +174,13 @@ class PlayBillingPremiumRepository(context: Context) : PremiumRepository {
 
     /**
      * 購入に使う offer を選ぶ。**無料トライアル(priceAmountMicros==0 のフェーズ)を含む offer を優先**し、
-     * 無ければ先頭。paywall は常に「14日間無料」と表示するため、トライアル無し offer で課金開始して
-     * 表示と乖離するのを避ける。TODO(#10): Play の base-plan/offer タグで厳密に選ぶ(eligibility 含む)。
+     * 無ければ先頭。
+     *
+     * eligibility について: Play は **queryProductDetails の時点で、そのユーザーが適格な offer だけを返す**
+     * (トライアル消化済みなら無料トライアル offer は含まれない)。したがって「返ってきた offer の中から
+     * 無料フェーズ付きを選ぶ」=適格ユーザーにのみ無料トライアルで購入を開始する、で eligibility は満たされる
+     * (StoreKit の isEligibleForIntroOffer 相当を Play はサーバ側フィルタで担保。paywall 文言の出し分けも
+     * 同じ trialOffer 有無=[isTrialEligible] に基づく)。base-plan/offer タグでの厳密選択は将来の精緻化余地。
      */
     private fun trialOffer(details: ProductDetails): ProductDetails.SubscriptionOfferDetails? {
         val offers = details.subscriptionOfferDetails ?: return null

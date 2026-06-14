@@ -33,6 +33,9 @@ interface PremiumRepository {
     val isMock: Boolean
     /** 月額 or 年額が現在有効か。rescue 月4枚 / P1.x の体重・生理を gate する。 */
     val isPremiumActive: StateFlow<Boolean>
+    /** 無料トライアル適格状態。Play は無料トライアル offer が返るか(消化済みなら返らない)で判定。
+     *  false のとき paywall は「14日間無料」を出さない(誤無料表示=審査リスク回避)。iOS isEligibleForIntroOffer 相当。 */
+    val isTrialEligible: StateFlow<Boolean>
     /** 直近の購入/復元エラー(UI で軽く出す)。 */
     val lastError: StateFlow<String?>
 
@@ -52,11 +55,17 @@ interface PremiumRepository {
  * Play 未設定(dev/screenshot/テスト)用の Mock。実 Play なしで paywall とエンタイトルメント遷移を
  * 通せる。購入で isPremiumActive=true に遷移する(iOS の `--mock-premium` 相当の能動版)。
  */
-class MockPremiumRepository(initialPremium: Boolean = false) : PremiumRepository {
+class MockPremiumRepository(
+    initialPremium: Boolean = false,
+    initialTrialEligible: Boolean = true,
+) : PremiumRepository {
     override val isMock: Boolean = true
 
     private val _isPremiumActive = MutableStateFlow(initialPremium)
     override val isPremiumActive: StateFlow<Boolean> = _isPremiumActive.asStateFlow()
+
+    // Mock は既定で適格(dev/screenshot で「14日間無料」を表示)。
+    override val isTrialEligible: StateFlow<Boolean> = MutableStateFlow(initialTrialEligible).asStateFlow()
 
     private val _lastError = MutableStateFlow<String?>(null)
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()

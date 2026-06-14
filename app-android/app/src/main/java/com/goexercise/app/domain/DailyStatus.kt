@@ -9,7 +9,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 enum class DailyStatus(val symbol: String) {
-    @SerialName("achieved") Achieved("○"),
+    // ◎=実運動 / ○=保険チケット救済 / 休=休養日(iOS と一致)。
+    @SerialName("achieved") Achieved("◎"),
+    @SerialName("rescued") Rescued("○"),
     @SerialName("rest") Rest("休"),
     @SerialName("missed") Missed("×"),
     @SerialName("future") Future("-"),
@@ -17,7 +19,7 @@ enum class DailyStatus(val symbol: String) {
     @SerialName("todayAchieved") TodayAchieved("◎");
 
     val countsAsAchieved: Boolean
-        get() = this == Achieved || this == Rest || this == TodayAchieved
+        get() = this == Achieved || this == Rescued || this == Rest || this == TodayAchieved
 }
 
 /** 1 日分の状態エントリ(週/月カレンダー用)。iOS `DailyStatusEntry` の移植。 */

@@ -75,8 +75,10 @@ class HomeViewModel @Inject constructor(
     // 友達紹介ポップ(歓迎/被紹介者の初記録)を Home UI へ公開(Task 7 が消費)。
     val pendingWelcome = referralStore.pendingWelcome
     val pendingReferrerPops = referralStore.pendingReferrerPops
+    val pendingBreedUnlock = referralStore.pendingBreedUnlock
     fun consumeWelcome() = referralStore.consumeWelcome()
     fun consumeReferrerPops() = referralStore.consumeReferrerPops()
+    fun consumeBreedUnlock() = referralStore.consumeBreedUnlock()
 
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。
@@ -102,7 +104,11 @@ class HomeViewModel @Inject constructor(
     /** 未祝いの達成節目(あればホームでお祝いを表示)。acknowledged は DataStore で永続。
      *  migration 完了(`migrated`)を待ってから出すことで、閾値拡充時に silent-ack 前の節目が
      *  一瞬表示されるレースを防ぐ(ack とフラグは同一 edit で原子的に書かれる)。 */
-    val pendingMilestone: StateFlow<Milestone?> =
+    /** 記録完了(今日の記録が新規追加)で armed=true。節目演出を「記録後のみ」に限定するゲート。
+     *  iOS パリティ: 起動時に節目ダイアログを出さない(celebration after record only)。 */
+    private val _recordCompletedArmed = MutableStateFlow(false)
+
+    private val rawPendingMilestone: kotlinx.coroutines.flow.Flow<Milestone?> =
         combine(
             uiState,
             settings.firstUseDate,
@@ -127,9 +133,17 @@ class HomeViewModel @Inject constructor(
                 weightLoss = weightSnapshot,
             )
             MilestoneDetector.nextPending(candidates, milestoneState.acknowledged)
+        }
+
+    /** 「記録後のみ」ゲートを通した節目。armed でなければ(起動直後など)出さない。iOS パリティ。 */
+    val pendingMilestone: StateFlow<Milestone?> =
+        combine(rawPendingMilestone, _recordCompletedArmed) { milestone, armed ->
+            if (armed) milestone else null
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun acknowledgeMilestone(milestone: Milestone) {
+        // 1 記録完了につき 1 節目。ack で disarm し、次回記録までは出さない。
+        _recordCompletedArmed.value = false
         viewModelScope.launch { milestones.acknowledge(milestone) }
     }
 
@@ -185,6 +199,7 @@ class HomeViewModel @Inject constructor(
                     // revive(rescuedDates のみ変化・records 不変)では新 ID が出ず発火しない。
                     val newTodayRecord = records.any { it.date == today && it.id !in prevIds }
                     if (newTodayRecord) {
+                        _recordCompletedArmed.value = true // 記録完了 → 節目演出を解禁(起動時は出さない)
                         val streak = StreakCalculator.currentStreak(records, today, rescued)
                         if (reviewController.shouldRequestReview(streak, today)) {
                             reviewController.markRequested(streak, today)

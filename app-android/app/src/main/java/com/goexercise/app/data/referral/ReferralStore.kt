@@ -2,9 +2,11 @@ package com.goexercise.app.data.referral
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import com.goexercise.app.data.friends.FriendsService
+import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.ReferralConfirmation
 import com.goexercise.app.domain.friends.ReferralEntryPolicy
@@ -13,9 +15,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
@@ -41,9 +46,36 @@ class ReferralStore @Inject constructor(
     val pendingWelcome: StateFlow<ReferralConfirmation?> = _pendingWelcome.asStateFlow()
     private val _pendingReferrerPops = MutableStateFlow<List<ReferralConfirmation>>(emptyList())
     val pendingReferrerPops: StateFlow<List<ReferralConfirmation>> = _pendingReferrerPops.asStateFlow()
+    /** ⭐10 達成で全猫種解放したときの祝福(アカウント別 1 回限り)。iOS breedUnlockCelebrated 相当。 */
+    private val _pendingBreedUnlock = MutableStateFlow(false)
+    val pendingBreedUnlock: StateFlow<Boolean> = _pendingBreedUnlock.asStateFlow()
+    private fun breedUnlockCelebratedKey(account: String) =
+        booleanPreferencesKey("referral_breed_unlock_celebrated_$account")
     /** 現在の summary がどのアカウント(friend_code)由来かを記録し、口座跨ぎの stale を防ぐ
      *  (iOS summaryAccountCode 相当)。 */
     private val _summaryAccountCode = MutableStateFlow<String?>(null)
+    /** 現在サインイン中だと判明しているアカウント(friend_code)。refresh で**summary 取得前に**
+     *  先行更新し、resetForIdentityChange で null に戻す。Android では myProfile() が suspend で
+     *  iOS のような同期 getter ガードが組めないため、これを reactive な突き合わせ対象にする。 */
+    private val _currentAccountCode = MutableStateFlow<String?>(null)
+
+    /** 現アカウント由来のときだけ通す星バッジ数(口座跨ぎ stale 防止)。表示は必ずこの口座ガード経由
+     *  にする(iOS currentAccountStarBadges 相当)。直読み(summary.starBadges)は切替/復元直後に
+     *  前アカウントの星を新アカウント文脈で描いてしまう。 */
+    val currentAccountStarBadges: StateFlow<Int> =
+        combine(_summary, _summaryAccountCode, _currentAccountCode) { summary, summaryCode, currentCode ->
+            ReferralAccountScope.scoped(summary.starBadges, summaryCode, currentCode)
+        }.stateIn(scope, SharingStarted.Eagerly, 0)
+
+    /** 現アカウント由来のときだけ通す今月フリーズ加算(同じ口座ガード。iOS currentAccountFreezeBonus 相当)。 */
+    val currentAccountFreezeBonus: StateFlow<Int> =
+        combine(_summary, _summaryAccountCode, _currentAccountCode) { summary, summaryCode, currentCode ->
+            ReferralAccountScope.scoped(summary.freezeBonusThisMonth, summaryCode, currentCode)
+        }.stateIn(scope, SharingStarted.Eagerly, 0)
+
+    /** 現アカウント由来の星で猫種解放済みか(口座跨ぎ stale entitlement 防止。iOS isBreedUnlocked(forAccount:) 相当)。 */
+    fun isBreedUnlockedForCurrentAccount(): Boolean =
+        CatBreedAccess.referralUnlocked(currentAccountStarBadges.value)
     /** 非同期 refresh の世代。identity 変更(reset)で進め、フェッチ中に identity が
      *  変わった場合に前アカウントの結果を commit しないための stale ガード(Codex R1)。 */
     @Volatile private var identityGeneration = 0
@@ -82,7 +114,9 @@ class ReferralStore @Inject constructor(
         _hasReferrer.value = false
         _pendingWelcome.value = null
         _pendingReferrerPops.value = emptyList()
+        _pendingBreedUnlock.value = false
         _summaryAccountCode.value = null
+        _currentAccountCode.value = null // 口座ガードを即 0 に倒す(新アカウントの refresh が確定するまで)。
     }
 
     suspend fun refresh() {
@@ -97,6 +131,10 @@ class ReferralStore @Inject constructor(
             resetForIdentityChange()
             return
         }
+        // 現アカウントは summary 取得**前に**先行確定させる。これで取得待ちの間も口座ガードが
+        // 「summaryAccountCode(前) != currentAccountCode(新)」を検知して 0 を返せる(iOS の
+        // 読み取り時 friendCode 突き合わせに対応する reactive 版)。
+        _currentAccountCode.value = account
         val previousCode = _summaryAccountCode.value
         // **実際に別アカウントへ切り替わった時だけ**クリアする。previousCode==null は初回 refresh で
         // あり「切替」ではない(その場合 summary は既に EMPTY)。null を切替扱いすると、直前に
@@ -116,6 +154,11 @@ class ReferralStore @Inject constructor(
             _summary.value = summary
             _hasReferrer.value = hasReferrer
             _summaryAccountCode.value = account
+            // ⭐10 到達で全猫種解放。アカウント別に未祝いなら祝福ポップを一度だけ出す。
+            if (summary.starBadges >= CatBreedAccess.BREED_UNLOCK_STARS) {
+                val celebrated = dataStore.data.first()[breedUnlockCelebratedKey(account)] ?: false
+                if (!celebrated) _pendingBreedUnlock.value = true
+            }
         } catch (e: Exception) { _lastError.value = e.message }
     }
 
@@ -148,6 +191,11 @@ class ReferralStore @Inject constructor(
 
     fun consumeWelcome() { _pendingWelcome.value = null }
     fun consumeReferrerPops() { _pendingReferrerPops.value = emptyList() }
+    fun consumeBreedUnlock() {
+        _pendingBreedUnlock.value = false
+        val account = _summaryAccountCode.value ?: return
+        scope.launch { dataStore.edit { it[breedUnlockCelebratedKey(account)] = true } }
+    }
     fun clearError() { _lastError.value = null }
 
     private fun generatedUsername(): String =

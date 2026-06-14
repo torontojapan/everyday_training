@@ -25,12 +25,27 @@ object MonthlyCalendarCalculator {
         val leading = first.dayOfWeek.value - 1
         val blanks = List(leading) { MonthCell(null, null) }
 
+        // アプリを始める前(=最初の記録/救済日より前)は未達成でも休養でもなく「記録なし」。
+        // 表示層でのみ Future(中立「-」)へ振替える(streak 計算には影響させない)。iOS MonthlyCalendarView パリティ。
+        val firstActivityDay = listOfNotNull(
+            records.minOfOrNull { it.date },
+            rescuedDates.minOrNull(),
+        ).minOrNull()
+
         val days = (1..month.lengthOfMonth()).map { d ->
             val date = month.atDay(d)
-            val restDays = RestDayResolver.restDaySet(date, records, today, restLimit)
-            val status = AchievementEvaluator.dailyStatus(
-                date = date, records = records, restDays = restDays, rescuedDates = rescuedDates, today = today,
-            )
+            val status = when {
+                // 初活動日より前は中立。
+                firstActivityDay != null && date.isBefore(firstActivityDay) -> DailyStatus.Future
+                // 記録がまだ1件も無いユーザーの過去日も中立(× や 休 を出さない)。今日は除外。
+                firstActivityDay == null && date.isBefore(today) -> DailyStatus.Future
+                else -> {
+                    val restDays = RestDayResolver.restDaySet(date, records, today, restLimit)
+                    AchievementEvaluator.dailyStatus(
+                        date = date, records = records, restDays = restDays, rescuedDates = rescuedDates, today = today,
+                    )
+                }
+            }
             MonthCell(date, status)
         }
         // iOS と同様、末尾も 7 列の行が埋まるまで空白で詰める(MonthlyCalendarView)。
@@ -44,7 +59,9 @@ object MonthlyCalendarCalculator {
      * (Achieved/TodayAchieved のみ。MonthlyCalendarView.summaryText 参照)。
      */
     fun achievedDaysInMonth(cells: List<MonthCell>): Int =
-        cells.count { it.status == DailyStatus.Achieved || it.status == DailyStatus.TodayAchieved }
+        cells.count {
+            it.status == DailyStatus.Achieved || it.status == DailyStatus.Rescued || it.status == DailyStatus.TodayAchieved
+        }
 
     /** 当月の休養(Rest)日数。iOS は達成と分離表示する。 */
     fun restDaysInMonth(cells: List<MonthCell>): Int =

@@ -7,6 +7,8 @@ struct ExerciseItem: Codable, Identifiable, Hashable, Sendable {
     var reps: Int?
     var sets: Int?
     var memo: String?
+    /// 重さ(負荷 kg。ダンベル等)。任意・フリー入力。旧データは nil にデコードされる(後方互換)。
+    var loadKilograms: Double?
     /// この種目のカテゴリ。1 回の記録に複数カテゴリを混在できるよう種目ごとに保持する。
     /// 旧データ (フィールドなし) は nil にデコードされ、表示時は記録全体の category に
     /// フォールバックする (後方互換)。
@@ -19,6 +21,7 @@ struct ExerciseItem: Codable, Identifiable, Hashable, Sendable {
         reps: Int? = nil,
         sets: Int? = nil,
         memo: String? = nil,
+        loadKilograms: Double? = nil,
         category: WorkoutCategory? = nil
     ) {
         self.id = id
@@ -27,6 +30,7 @@ struct ExerciseItem: Codable, Identifiable, Hashable, Sendable {
         self.reps = reps
         self.sets = sets
         self.memo = memo
+        self.loadKilograms = loadKilograms
         self.category = category
     }
 }

@@ -7,6 +7,10 @@ struct StreakShareSheet: View {
     @State private var renderedImage: Image?
     @State private var renderedUIImage: UIImage?
     @State private var saveBannerText: String?
+    /// 提示ごとに固定のポーズ seed(再レンダリングでブレない / シート開き直しで変わる)。
+    @State private var poseSeed = Int.random(in: 0..<10_000)
+    /// 背景グラデの選択(端末ローカルに記憶。カード種別ごとのキー)。
+    @AppStorage("shareCard.gradient.streak") private var gradientRaw = ShareCardGradient.ocean.rawValue
 
     init(streak: Int, isPresented: Binding<Bool> = .constant(true)) {
         self.streak = streak
@@ -15,11 +19,13 @@ struct StreakShareSheet: View {
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     private var appName: String { "GO エクササイズ" }
+    private var gradient: ShareCardGradient { ShareCardGradient(rawValue: gradientRaw) ?? .ocean }
 
     var body: some View {
         ZStack(alignment: .top) {
+            // フルスクリーン背景はカードと同じ選択グラデ(既定 = 寒色オーシャン)。
             LinearGradient(
-                colors: level.gradientColors,
+                colors: gradient.colors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -29,7 +35,7 @@ struct StreakShareSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    StreakShareCard(streak: streak, appName: appName)
+                    StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
 
                     if let renderedImage {
                         ShareLink(
@@ -65,6 +71,9 @@ struct StreakShareSheet: View {
                         }
                     }
 
+                    // 背景グラデの選択(5種)。変更すると共有画像も再レンダリングされる。
+                    ShareGradientPicker(selectionRaw: $gradientRaw)
+
                     if let saveBannerText {
                         Text(saveBannerText)
                             .font(Typography.caption)
@@ -84,6 +93,7 @@ struct StreakShareSheet: View {
         .task {
             renderImage()
         }
+        .onChange(of: gradientRaw) { _, _ in renderImage() }
     }
 
     private var closeButtonOverlay: some View {
@@ -115,7 +125,7 @@ struct StreakShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = StreakShareCard(streak: streak, appName: appName)
+        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
             .frame(width: 600, height: 800)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -147,106 +157,138 @@ struct StreakShareSheet: View {
     }
 }
 
+/// ImageRenderer で書き出される静的ブランドカード。
+/// `WeeklyHighlightShareCard`(履歴タブのハイライト)とレイアウト言語を統一:
+/// バッジ → タイトル → 大きい猫 → 巨大 KPI → アプリ名。🔥/✨ の絵文字装飾は廃止。
+/// 背景はハイライト(暖色)と被らない寒色系グラデーション(ユーザー要望)。
 struct StreakShareCard: View {
     let streak: Int
     let appName: String
+    var gradientColors: [Color] = ShareCardGradient.ocean.colors
+    /// 提示ごとに固定のポーズ seed(0 = 既定の celebrating)。
+    var poseSeed: Int = 0
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
+    /// 連続日数に対応する称号ランク(背景進化・ホームの称号バッジと同一)。
+    private var rank: CatRank { CatRank(currentStreak: streak) }
+    /// シェアカードの猫はハッピーポーズ3種(celebrating/happy2/happy3)からランダム表示。
+    private var poseAsset: String {
+        UserCatPreferences.shared.myCat.randomHappyPoseAsset(
+            seed: poseSeed, exists: { UIImage(named: $0) != nil })
+    }
 
     var body: some View {
         VStack(spacing: 18) {
-            if let badge = level.badgeText {
-                Text(badge)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .tracking(2)
+            // 見出しは「称号バッジ」。期間表現(旧 "1週間つづいた!" 等)は 7〜13 日を
+            // 一律「1週間」と表すなど不正確なため廃止。ホームと同じメタリックな称号バッジ
+            // (rank のメタル色カプセル+肉球+称号)を大きく見せる(ユーザー要望 2026-06-13)。
+            // ImageRenderer は静止画なので shimmer アニメは off。
+            if rank.rank > 0 {
+                RankBadge(rank: rank, animateShimmer: false)
+                    .scaleEffect(1.2)
+                    .frame(height: 36)
+                    .padding(.top, 6)
+            } else {
+                Text("継続中！")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(.black.opacity(0.45), in: Capsule())
+                    .multilineTextAlignment(.center)
             }
 
-            Text(level.headline)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
+            // 猫キャラ (大きく。ハイライトカードと同じ扱い)。
+            // 旧「炎を背負う猫」を廃し、celebrating 猫の背面に紙吹雪を散らして祝祭感を出す
+            // (ユーザー要望 2026-06-13: 炎はダサい → 紙吹雪)。
+            catImage
+                .frame(width: 200, height: 200)
+                .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+                .padding(.top, 4)
+                .background(
+                    StaticConfettiView(count: max(level.sparkleCount, 12))
+                        .frame(width: 260, height: 230)
+                        .allowsHitTesting(false)
+                )
 
-            HStack(spacing: 4) {
-                Text(String(repeating: "🔥", count: level.fireCount))
-                    .font(.system(size: 28))
-            }
-
+            // メイン KPI: 連続日数
             HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text("\(streak)")
-                    .font(.system(size: 110, weight: .black, design: .rounded))
+                    .font(.system(size: 88, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
                 Text("日連続")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
             }
-
-            ZStack {
-                ForEach(0..<level.sparkleCount, id: \.self) { idx in
-                    sparkle(at: idx)
-                }
-                catImage
-                    .frame(width: 180, height: 180)
-            }
-            .frame(height: 220)
 
             Text(appName)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.92))
-                .padding(.top, 8)
-
-            Text("GO Exercise")
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.7))
-                .tracking(1.5)
+                .padding(.top, 10)
         }
         .padding(28)
         .frame(maxWidth: .infinity)
         .background(
-            ZStack {
-                LinearGradient(
-                    colors: level.gradientColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .opacity(0.85)
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .strokeBorder(.white.opacity(0.35), lineWidth: 2)
-            }
+            LinearGradient(
+                colors: gradientColors,
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 22, y: 10)
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
     }
 
     @ViewBuilder
     private var catImage: some View {
-        // Phase 6.3 の刷新後は被写体が画像全体に大きく入っているので、
-        // scale 1.0 + Circle clip で過不足なく収まる。
-        if UIImage(named: level.catStateAssetName) != nil {
-            Image(level.catStateAssetName)
+        // ハイライトカードと同じ scaledToFit(被写体が全面に入っている asset 前提)。
+        if UIImage(named: poseAsset) != nil {
+            Image(poseAsset)
                 .resizable()
-                .scaledToFill()
-                .clipShape(Circle())
-                .overlay(Circle().strokeBorder(.white.opacity(0.45), lineWidth: 3))
+                .scaledToFit()
         } else {
             Text(level.fallbackEmoji)
                 .font(.system(size: 100))
         }
     }
+}
 
-    private func sparkle(at index: Int) -> some View {
-        let angle = Double(index) / Double(max(1, level.sparkleCount)) * 360
-        let radius: CGFloat = 110 + CGFloat(index % 3) * 12
-        let size: CGFloat = 12 + CGFloat(index % 4) * 4
-        return Text("✨")
-            .font(.system(size: size))
-            .offset(
-                x: cos(angle * .pi / 180) * radius,
-                y: sin(angle * .pi / 180) * radius
-            )
+/// 静的な紙吹雪(ImageRenderer で書き出すカード用。アニメ無し)。
+/// 決定論的に配置・回転・配色するので、同じ count なら毎回同じ絵になる。
+struct StaticConfettiView: View {
+    let count: Int
+    var colors: [Color] = [
+        .white,
+        Color(red: 1.00, green: 0.85, blue: 0.30),
+        Color(red: 0.99, green: 0.55, blue: 0.45),
+        Color(red: 0.55, green: 0.80, blue: 0.95),
+        Color(red: 0.70, green: 0.55, blue: 0.95),
+    ]
+
+    private func h(_ v: Int) -> Double {
+        var x = UInt64(bitPattern: Int64(v)) &* 0x9E37_79B9_7F4A_7C15
+        x ^= x >> 33
+        x &*= 0xC2B2_AE3D_27D4_EB4F
+        x ^= x >> 29
+        return Double(x % 100_000) / 100_000.0
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ForEach(0..<count, id: \.self) { i in
+                let x = h(i * 3 + 1)
+                let y = h(i * 3 + 2)
+                let isCircle = (i % 4 == 0)
+                Group {
+                    if isCircle {
+                        Circle().frame(width: 9, height: 9)
+                    } else {
+                        RoundedRectangle(cornerRadius: 2)
+                            .frame(width: 9, height: 13)
+                    }
+                }
+                .foregroundStyle(colors[i % colors.count])
+                .rotationEffect(.degrees(h(i * 3) * 360))
+                .position(x: x * geo.size.width, y: y * geo.size.height)
+                .opacity(0.92)
+            }
+        }
     }
 }

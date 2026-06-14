@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,17 +41,22 @@ fun RecordRoute(
     viewModel: RecordViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val suggestions by viewModel.suggestionsByCategory.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.saved.collect { onSaved() }
     }
     RecordContent(
         state = state,
+        suggestionsByCategory = suggestions,
         onBack = onBack,
         onCategory = viewModel::setCategory,
         onMemo = viewModel::setMemo,
         onUpdateDraft = viewModel::updateDraft,
         onAddExercise = viewModel::addExercise,
         onRemoveExercise = viewModel::removeExercise,
+        onAddSet = viewModel::addSet,
+        onWeightInput = viewModel::setWeightInput,
+        onMenstrualToday = viewModel::setMenstrualToday,
         onSave = viewModel::save,
     )
 }
@@ -58,12 +64,16 @@ fun RecordRoute(
 @Composable
 fun RecordContent(
     state: RecordUiState,
+    suggestionsByCategory: Map<WorkoutCategory, List<String>> = emptyMap(),
     onBack: () -> Unit = {},
     onCategory: (String, WorkoutCategory) -> Unit = { _, _ -> },
     onMemo: (String) -> Unit = {},
     onUpdateDraft: (String, (ExerciseDraft) -> ExerciseDraft) -> Unit = { _, _ -> },
     onAddExercise: () -> Unit = {},
     onRemoveExercise: (String) -> Unit = {},
+    onAddSet: (String) -> Unit = {},
+    onWeightInput: (String) -> Unit = {},
+    onMenstrualToday: (Boolean) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
@@ -84,13 +94,41 @@ fun RecordContent(
             ExerciseDraftCard(
                 draft = draft,
                 canRemove = state.drafts.size > 1,
+                suggestions = suggestionsByCategory[draft.category].orEmpty(),
                 onCategory = { cat -> onCategory(draft.id, cat) },
                 onChange = { updated -> onUpdateDraft(draft.id) { updated } },
                 onRemove = { onRemoveExercise(draft.id) },
+                onAddSet = { onAddSet(draft.id) },
             )
         }
 
         TextButton(onClick = onAddExercise) { Text("＋ 種目を追加") }
+
+        // 今日の体重(任意)+ 生理日トグル。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                OutlinedTextField(
+                    value = state.weightInput,
+                    onValueChange = onWeightInput,
+                    label = { Text("体重 (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    state.latestWeightKg?.let { "前回: ${"%.1f".format(it)} kg" }
+                        ?: "体重を入れるとグラフに反映されます",
+                    color = palette.textSecondary, fontSize = 12.sp,
+                )
+                if (state.cycleTrackingEnabled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("今日は生理日", color = palette.textPrimary, modifier = Modifier.weight(1f))
+                        Switch(checked = state.menstrualToday, onCheckedChange = onMenstrualToday)
+                    }
+                }
+            }
+        }
 
         OutlinedTextField(
             value = state.memo,
@@ -117,9 +155,11 @@ fun RecordContent(
 private fun ExerciseDraftCard(
     draft: ExerciseDraft,
     canRemove: Boolean,
+    suggestions: List<String> = emptyList(),
     onCategory: (WorkoutCategory) -> Unit,
     onChange: (ExerciseDraft) -> Unit,
     onRemove: () -> Unit,
+    onAddSet: () -> Unit,
 ) {
     val palette = LocalAppPalette.current
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -140,13 +180,40 @@ private fun ExerciseDraftCard(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            // よく使う種目チップ(最終使用日順)。タップで種目名に反映(iOS パリティ)。
+            if (suggestions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { name ->
+                        FilterChip(
+                            selected = draft.name == name,
+                            onClick = { onChange(draft.copy(name = name)) },
+                            label = { Text(name) },
+                        )
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NumberField("分", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
                 NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
                 NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
             }
-            if (canRemove) {
-                TextButton(onClick = onRemove) { Text("この種目を削除") }
+            // 重さ(kg)フリー入力(ダンベル等の負荷。小数可)。iOS パリティ。
+            OutlinedTextField(
+                value = draft.loadText,
+                onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
+                label = { Text("重さ (kg)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onAddSet) { Text("＋ 同じ種目でセットを追加") }
+                if (canRemove) {
+                    TextButton(onClick = onRemove) { Text("削除") }
+                }
             }
         }
     }

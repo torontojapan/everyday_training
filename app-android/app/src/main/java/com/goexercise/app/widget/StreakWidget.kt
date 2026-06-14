@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.appwidget.GlanceAppWidget
@@ -86,7 +88,9 @@ private fun WidgetBody(context: Context, breed: CatBreed, catState: CatState, st
             .fillMaxSize()
             .background(StreakWidget.bgProvider)
             .cornerRadius(16.dp)
-            .padding(8.dp),
+            .padding(8.dp)
+            // タップでアプリ(ホーム)を開く。
+            .clickable(actionStartActivity(android.content.Intent(context, com.goexercise.app.MainActivity::class.java))),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -55,7 +55,7 @@ fun RescueContent(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("戻る") }
-            Text("連続記録フリーズ", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
+            Text("保険チケット", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
         }
         Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp)) {
@@ -72,7 +72,7 @@ fun RescueContent(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onUpgrade),
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("👑 プレミアムでフリーズを月4回に", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text("👑 プレミアムで保険チケットを月4回に", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     Text("›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }

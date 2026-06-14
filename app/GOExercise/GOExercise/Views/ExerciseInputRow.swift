@@ -7,6 +7,8 @@ struct ExerciseInputRow: View {
     let isExpanded: Bool
     let onToggleExpand: () -> Void
     let onRemove: () -> Void
+    /// 「同じ種目でセットを追加」。この行を複製して直下に挿入する(重さ違いの複数セット用)。
+    let onAddSet: () -> Void
 
     var body: some View {
         if isExpanded {
@@ -50,6 +52,9 @@ struct ExerciseInputRow: View {
         if draft.minutes > 0 { parts.append("\(draft.minutes)分") }
         if draft.reps > 0 { parts.append("\(draft.reps)回") }
         if draft.sets > 0 { parts.append("\(draft.sets)セット") }
+        if let kg = RecordEntryViewModel.parsedLoad(draft.loadText) {
+            parts.append(kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))kg" : "\(kg)kg")
+        }
         return parts.joined(separator: "・")
     }
 
@@ -59,7 +64,9 @@ struct ExerciseInputRow: View {
         VStack(alignment: .leading, spacing: 12) {
             // この種目のカテゴリ選択 + 削除 + 最小化。カテゴリを種目ごとに持てる。
             HStack(spacing: 8) {
-                categoryMenu
+                Text("種類")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.textSecondary)
                 Spacer(minLength: 4)
                 if canRemove {
                     Button(role: .destructive, action: onRemove) {
@@ -76,6 +83,9 @@ struct ExerciseInputRow: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("最小化")
             }
+            // 全カテゴリを横スクロールで常時表示し、タップ選択(旧プルダウンは
+            // 「押すと選べる」ことが分かりづらかった、というユーザー指摘の解消)。
+            categorySelector
 
             // 種目名は入力の主役。ラベル + 枠線付きフィールドで埋もれないようにする。
             VStack(alignment: .leading, spacing: 4) {
@@ -101,8 +111,26 @@ struct ExerciseInputRow: View {
                     Text("よく使う種目")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(Palette.textSecondary)
-                    SuggestionFlow(suggestions: suggestions) { suggestion in
-                        draft.name = suggestion
+                    // 種類と同じ横スクロールのチップ。前回使った種目が先頭に来る
+                    // (ExerciseHistoryProvider が最終使用日の新しい順で返す)。
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                Button { draft.name = suggestion } label: {
+                                    Text(suggestion)
+                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                        .fixedSize()
+                                        .foregroundStyle(Palette.textPrimary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(Palette.chipBackground.opacity(0.6), in: Capsule())
+                                        .overlay(Capsule().strokeBorder(Palette.primary.opacity(0.25), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 1)
                     }
                 }
             } else {
@@ -117,6 +145,35 @@ struct ExerciseInputRow: View {
                 labeledPicker("時間 (分)", selection: $draft.minutes, options: Self.minuteOptions, unit: "分", accessibility: "時間 分単位")
                 labeledPicker("回数", selection: $draft.reps, options: Self.repOptions, unit: "回", accessibility: "回数")
                 labeledPicker("セット", selection: $draft.sets, options: Self.setOptions, unit: "", accessibility: "セット数")
+                // 重さ(kg)はフリー入力(器具の重量は刻みが多様なためプルダウンにしない)。
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("重さ (kg)")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.textSecondary)
+                    TextField("0", text: $draft.loadText)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity)
+                        .background(Palette.chipBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .accessibilityLabel("重さ キログラム")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // 同じ種目で重さ・回数を変えて複数セットやる時のワンタップ導線。
+            // 名前・種類・重さを引き継いだ行が直下に増え、回数(や重さ)だけ入れればよい。
+            if !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button(action: onAddSet) {
+                    Label("同じ種目でセットを追加", systemImage: "plus.circle")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.primaryDeep)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("add-set-button")
+                .accessibilityHint("この種目の名前と重さを引き継いだ行を下に追加します")
             }
 
             TextField("種目メモ (例: 体調メモ、回数アップ等)", text: $draft.memo)
@@ -130,30 +187,45 @@ struct ExerciseInputRow: View {
         .padding(.vertical, 6)
     }
 
-    private var categoryMenu: some View {
-        Menu {
-            Picker("カテゴリ", selection: $draft.category) {
+    /// 全カテゴリを横スクロールのチップで常時表示。選択中は塗り、その他は枠線。
+    private var categorySelector: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
                 ForEach(WorkoutCategory.allCases) { category in
-                    Label(category.displayName, systemImage: category.symbolName).tag(category)
+                    let isSelected = draft.category == category
+                    Button {
+                        draft.category = category
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: category.symbolName)
+                                .font(.system(size: 14, weight: .bold))
+                            Text(category.displayName)
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .fixedSize()
+                        }
+                        .foregroundStyle(isSelected ? .white : Palette.textPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(
+                            isSelected ? Palette.primary : Palette.chipBackground.opacity(0.6),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(
+                                isSelected ? Color.clear : Palette.primary.opacity(0.35),
+                                lineWidth: 1.2
+                            )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(category.displayName)
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                 }
             }
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: draft.category.symbolName)
-                    .font(.system(size: 17, weight: .bold))
-                Text(draft.category.displayName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .bold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Palette.primary, in: Capsule())
-            .shadow(color: Palette.primary.opacity(0.30), radius: 6, x: 0, y: 2)
+            .padding(.vertical, 2)
+            .padding(.horizontal, 1)
         }
-        .accessibilityLabel("カテゴリ: \(draft.category.displayName)")
-        .accessibilityIdentifier("exercise-category-menu")
+        .accessibilityIdentifier("exercise-category-selector")
     }
 
     // 0 = 未設定。時間は 5 分刻みで最大 100 分、回数は最大 50、セットは最大 10。

@@ -12,7 +12,7 @@ struct InviteCodeField: View {
             Text("招待コードをお持ちですか?(任意)")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
-            Text("友達のコードを入れると、お互いにフリーズが増えます。")
+            Text("友達のコードを入れると、お互いに保険チケットが増えます。")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
             HStack(spacing: 8) {

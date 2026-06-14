@@ -15,7 +15,7 @@ enum CatState: String, Codable, CaseIterable, Sendable {
         case .worriedNoon: "😿"
         case .beggingNight: "🙀"
         case .celebrating: "😸"
-        case .streakExtended: "😻🔥"
+        case .streakExtended: "😻"
         case .resting: "😽"
         case .encouraging: "🐱"
         }

@@ -116,7 +116,7 @@ struct WeeklyRankingView: View {
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
                 HStack(spacing: 12) {
-                    Label("\(me.profile.currentStreak) 日連続", systemImage: "flame.fill")
+                    Label("\(me.profile.currentStreak) 日連続", systemImage: "pawprint.fill")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.primaryDeep)
                     Label("\(me.totalMinutes) 分", systemImage: "clock.fill")
@@ -163,7 +163,7 @@ struct WeeklyRankingView: View {
                 // ★ 順位の根拠を毎行に表示。連続日数と運動時間が
                 //   一目で比較でき、「なぜこの順位か」が読み取れる。
                 HStack(spacing: 10) {
-                    Label("\(entry.profile.currentStreak)", systemImage: "flame.fill")
+                    Label("\(entry.profile.currentStreak)", systemImage: "pawprint.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Palette.primaryDeep)
                         .monospacedDigit()
@@ -195,26 +195,23 @@ struct WeeklyRankingView: View {
     }
 
     private func rankBadge(_ rank: Int) -> some View {
-        let (emoji, label, bg): (String?, String?, Color) = {
+        // 1-3 位はメダルカラーの円 + 順位数字(絵文字メダルを廃止しクリーンに)。
+        let (fill, fg): (Color, Color) = {
             switch rank {
-            case 1: return ("🥇", nil, Color(red: 1.00, green: 0.84, blue: 0.30).opacity(0.30))
-            case 2: return ("🥈", nil, Color(red: 0.75, green: 0.75, blue: 0.78).opacity(0.32))
-            case 3: return ("🥉", nil, Color(red: 0.80, green: 0.55, blue: 0.30).opacity(0.32))
-            default: return (nil, "\(rank)", Palette.chipBackground)
+            case 1: return (Color(red: 1.00, green: 0.84, blue: 0.30).opacity(0.85), Color(red: 0.42, green: 0.30, blue: 0.0))
+            case 2: return (Color(red: 0.78, green: 0.78, blue: 0.82).opacity(0.90), Color(red: 0.28, green: 0.28, blue: 0.32))
+            case 3: return (Color(red: 0.82, green: 0.55, blue: 0.32).opacity(0.85), Color(red: 0.38, green: 0.22, blue: 0.08))
+            default: return (Palette.chipBackground, Palette.textPrimary)
             }
         }()
         return ZStack {
             Circle()
-                .fill(bg)
+                .fill(fill)
                 .frame(width: 40, height: 40)
-            if let emoji {
-                Text(emoji).font(.system(size: 22))
-            } else if let label {
-                Text(label)
-                    .font(.system(.headline, design: .rounded, weight: .heavy))
-                    .foregroundStyle(Palette.textPrimary)
-                    .monospacedDigit()
-            }
+            Text("\(rank)")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(fg)
+                .monospacedDigit()
         }
         .accessibilityLabel("\(rank) 位")
     }

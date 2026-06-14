@@ -1,6 +1,6 @@
 import Foundation
 
-/// 連続記録フリーズ (旧「保険チケット」) の使用状況を管理する。
+/// 保険チケット (連続記録の救済。コード上は rescue ticket / freeze) の使用状況を管理する。
 /// 月次の付与枠 (allowance) に対し、使った日付 (start-of-day) を記録する。
 /// 付与枠は GOプレミアムなら月 4、無料なら月 1 ([[RescueTicketAllowance]])。
 /// IAP の追加購入は廃止 (¥1,000 消耗型を撤廃) したため、残数は月次枠のみ。
@@ -69,6 +69,16 @@ final class RescueTicketStore {
         guard usedDates.insert(dayStart).inserted else { return false }
         defaults.set(usedDates.map { Self.dayKey(for: $0, calendar: calendar) }, forKey: Self.usedDatesKey)
         return true
+    }
+
+    /// クラウドバックアップ復元用: 救済日を allowance を消費せずに取り込む(過去に正規に
+    /// 消費済みの日の復元なので再課金しない)。冪等(既存日との union)。
+    func importRescuedDays(_ days: Set<Date>) {
+        let normalized = Set(days.map { calendar.startOfDay(for: $0) })
+        let merged = usedDates.union(normalized)
+        guard merged != usedDates else { return }
+        usedDates = merged
+        defaults.set(usedDates.map { Self.dayKey(for: $0, calendar: calendar) }, forKey: Self.usedDatesKey)
     }
 
     func clear() {

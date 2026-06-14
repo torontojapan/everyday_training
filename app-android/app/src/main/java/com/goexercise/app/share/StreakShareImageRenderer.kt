@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatRank
+import com.goexercise.app.domain.MetalKind
 import com.goexercise.app.domain.StreakLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,15 +34,25 @@ object StreakShareImageRenderer {
     private const val W = 1080
     private const val H = 1440
 
-    /** 連続日数 + 猫種からシェアカードの Bitmap を描く。 */
-    fun render(context: Context, streak: Int, breed: CatBreed): Bitmap {
+    /**
+     * 連続日数 + 猫種からシェアカードの Bitmap を描く。
+     * `poseSeed` で猫のハッピーポーズ(celebrating/happy2/happy3)を決定的に選ぶ
+     * (iOS の poseSeed 相当。同 seed なら再描画でブレない)。
+     */
+    fun render(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ): Bitmap {
         val level = StreakLevel.of(streak)
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val cx = W / 2f
 
-        // 背景グラデーション(左上→右下)。
-        val colors = level.gradientColors.toIntArray()
+        // 背景グラデーション(左上→右下)。ユーザー選択があればそれを、無ければ称号レベル既定色を使う。
+        val colors = (gradient?.colors ?: level.gradientColors).toIntArray()
         canvas.drawRect(
             0f, 0f, W.toFloat(), H.toFloat(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -50,25 +62,17 @@ object StreakShareImageRenderer {
 
         var top = 96f
 
-        // バッジ(任意)。
-        level.badgeText?.let { badge ->
-            val tp = textPaint(40f, bold = true)
-            val tw = tp.measureText(badge)
-            val fm = tp.fontMetrics
-            val padH = 34f
-            val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 16f)
-            canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x73000000 })
-            canvas.drawText(badge, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
-            top = rect.bottom + 28f
+        // 見出しは「称号バッジ」: 連続日数で決まる CatRank 称号(みならいネコ〜ぬしネコ)を
+        // メタル色カプセル+肉球で描く(iOS の RankBadge パリティ)。rank0(7日未満)は称賛文を出す。
+        val rank = CatRank.of(streak)
+        val rankTitle = rank.title
+        if (rankTitle != null && rank.metalKind != null) {
+            top = drawRankBadge(canvas, cx, top, rankTitle, rank.metalKind!!)
+        } else {
+            top = canvas.drawCentered(level.headline, cx, top, textPaint(56f, bold = true), gap = 24f)
         }
 
-        // 見出し。
-        top = canvas.drawCentered(level.headline, cx, top, textPaint(60f, bold = true), gap = 24f)
-
-        // 🔥 行。
-        if (level.fireCount > 0) {
-            top = canvas.drawCentered("🔥".repeat(level.fireCount), cx, top, textPaint(64f), gap = 24f)
-        }
+        // 🔥 行は廃止(iOS 同様、絵文字装飾をやめる)。
 
         // 大きな連続日数 + 「日連続」。
         top = canvas.drawCentered(
@@ -81,8 +85,9 @@ object StreakShareImageRenderer {
         // 猫(円形クリップ + 白枠)+ きらめき。欠損時は絵文字フォールバック。
         val diameter = 360f
         val centerY = top + diameter / 2
-        drawSparkles(canvas, cx, centerY, level.sparkleCount)
-        drawCat(context, canvas, cx, centerY, diameter, breed, level)
+        // ✨ 絵文字きらめきは廃止(iOS は紙吹雪。安っぽい絵文字をやめる)。
+        drawConfetti(canvas, cx, centerY, diameter)
+        drawCat(context, canvas, cx, centerY, diameter, breed, level, poseSeed)
         top = centerY + diameter / 2 + 40f
 
         // アプリ名。
@@ -97,7 +102,13 @@ object StreakShareImageRenderer {
      * 描画(1080×1440)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
      * (重い処理を UI スレッドから外す)。呼び出し側のコルーチン(VM/Compose scope)から呼ぶこと。
      */
-    suspend fun share(context: Context, streak: Int, breed: CatBreed) {
+    suspend fun share(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ) {
         val app = context.applicationContext
         val level = StreakLevel.of(streak)
         val uri = withContext(Dispatchers.IO) {
@@ -105,7 +116,7 @@ object StreakShareImageRenderer {
             // 過去のシェア画像を溜めない(書き出し前に古い分を消す)。
             dir.listFiles { f -> f.name.startsWith("goexercise-streak-") }?.forEach { it.delete() }
             val file = File(dir, "goexercise-streak-${System.currentTimeMillis()}.png")
-            file.outputStream().use { render(app, streak, breed).compress(Bitmap.CompressFormat.PNG, 100, it) }
+            file.outputStream().use { render(app, streak, breed, poseSeed, gradient).compress(Bitmap.CompressFormat.PNG, 100, it) }
             FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
         }
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -119,6 +130,39 @@ object StreakShareImageRenderer {
         withContext(Dispatchers.Main) {
             // chooser は元の Activity context から開く(applicationContext だと NEW_TASK が要る)。
             context.startActivity(Intent.createChooser(intent, "連続記録をシェア"))
+        }
+    }
+
+    /**
+     * シェアカードを端末のギャラリー(Pictures/GOExercise)に PNG 保存する。iOS の「写真に保存」相当。
+     * MediaStore 経由なので Android 10+ では実行時ストレージ権限が不要。成功なら true。
+     */
+    suspend fun saveToGallery(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ): Boolean {
+        val app = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val bitmap = render(app, streak, breed, poseSeed, gradient)
+                val name = "goexercise-streak-${System.currentTimeMillis()}.png"
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/GOExercise")
+                    }
+                }
+                val resolver = app.contentResolver
+                val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return@runCatching false
+                resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    ?: return@runCatching false
+                true
+            }.getOrDefault(false)
         }
     }
 
@@ -143,30 +187,88 @@ object StreakShareImageRenderer {
         return top + (fm.descent - fm.ascent) + gap
     }
 
-    private fun drawSparkles(canvas: Canvas, cx: Float, cy: Float, count: Int) {
+    /** 猫の周りに紙吹雪(色付き矩形)を散らす。iOS の StaticConfettiView 相当。
+     *  決定論的配置(再描画でブレない)。絵文字きらめきの置き換え。 */
+    private fun drawConfetti(canvas: Canvas, cx: Float, cy: Float, diameter: Float) {
+        val colors = intArrayOf(
+            0xFFFFFFFF.toInt(), 0xFFFFD94D.toInt(), 0xFFFC8C73.toInt(),
+            0xFF8CCCF2.toInt(), 0xFFB38CF2.toInt(),
+        )
+        val count = 18
         for (i in 0 until count) {
-            val angle = i.toDouble() / maxOf(1, count) * 360.0
-            val radius = 230f + (i % 3) * 24f
-            val size = 24f + (i % 4) * 8f
+            val angle = i * 137.5 // 黄金角で偏りなく散らす
+            val radius = 200f + (i % 5) * 26f
             val x = cx + (cos(Math.toRadians(angle)) * radius).toFloat()
-            val y = cy + (sin(Math.toRadians(angle)) * radius).toFloat()
-            canvas.drawText("✨", x, y, textPaint(size).apply { textAlign = Paint.Align.CENTER })
+            val y = cy + (sin(Math.toRadians(angle)) * radius).toFloat() - 30f
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors[i % colors.size] }
+            canvas.save()
+            canvas.rotate((i * 47 % 360).toFloat(), x, y)
+            if (i % 4 == 0) {
+                canvas.drawCircle(x, y, 9f, paint)
+            } else {
+                canvas.drawRoundRect(RectF(x - 7f, y - 11f, x + 7f, y + 11f), 3f, 3f, paint)
+            }
+            canvas.restore()
         }
     }
 
-    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel) {
+    /** メタル種別 → 代表色(CatRankChip と同じ RGB 値)。Rainbow はゴールド寄り。 */
+    private fun metalColor(kind: MetalKind): Int {
+        val (r, g, b, delta) = when (kind) {
+            MetalKind.Bronze -> listOf(0.74, 0.45, 0.20, 0.0)
+            MetalKind.BronzePlus -> listOf(0.74, 0.45, 0.20, 0.08)
+            MetalKind.Silver -> listOf(0.62, 0.66, 0.71, 0.0)
+            MetalKind.SilverPlus -> listOf(0.62, 0.66, 0.71, 0.08)
+            MetalKind.GoldMinus -> listOf(1.0, 0.76, 0.24, -0.06)
+            MetalKind.Gold -> listOf(1.0, 0.76, 0.24, 0.0)
+            MetalKind.GoldPlus -> listOf(1.0, 0.76, 0.24, 0.08)
+            MetalKind.Platinum -> listOf(0.72, 0.80, 0.94, 0.0)
+            MetalKind.Rainbow -> listOf(1.0, 0.76, 0.24, 0.0)
+        }
+        fun ch(v: Double) = ((v + delta).coerceIn(0.0, 1.0) * 255).toInt()
+        return android.graphics.Color.rgb(ch(r), ch(g), ch(b))
+    }
+
+    /** 称号バッジ(メタル色カプセル + 🐾 + 称号)を中央に描き、次要素の上端 Y を返す。 */
+    private fun drawRankBadge(canvas: Canvas, cx: Float, top: Float, title: String, kind: MetalKind): Float {
+        val label = "🐾 $title"
+        val tp = textPaint(46f, bold = true).apply { color = 0xFF1A1A1A.toInt() } // メタル地に黒文字(コントラスト)
+        val tw = tp.measureText(label)
+        val fm = tp.fontMetrics
+        val padH = 40f
+        val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 22f)
+        val rad = rect.height() / 2
+        // メタル地: 上→下で明→暗の簡易グラデで金属らしさを出す。
+        val base = metalColor(kind)
+        val lighter = android.graphics.Color.rgb(
+            (android.graphics.Color.red(base) + 40).coerceAtMost(255),
+            (android.graphics.Color.green(base) + 40).coerceAtMost(255),
+            (android.graphics.Color.blue(base) + 40).coerceAtMost(255),
+        )
+        canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, rect.top, 0f, rect.bottom, lighter, base, Shader.TileMode.CLAMP)
+        })
+        canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = 3f; color = 0x66FFFFFF
+        })
+        canvas.drawText(label, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
+        return rect.bottom + 28f
+    }
+
+    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel, poseSeed: Int) {
         val r = diameter / 2
-        val resId = context.resources.getIdentifier(breed.assetName(level.catState), "drawable", context.packageName)
+        // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で決定的に選ぶ。
+        // 実在チェックは drawable リソース ID の有無で行う(欠損は orange celebrating に縮退)。
+        val poseAsset = breed.randomHappyPoseAsset(poseSeed) { name ->
+            context.resources.getIdentifier(name, "drawable", context.packageName) != 0
+        }
+        val resId = context.resources.getIdentifier(poseAsset, "drawable", context.packageName)
         val drawable = if (resId != 0) ContextCompat.getDrawable(context, resId) else null
         if (drawable != null) {
+            // 円クリップを廃止し全身ポーズをそのまま描く(happy2/happy3 は全身なので円だと手足が切れる)。
+            // 透過 PNG をそのまま中央に配置。背面の紙吹雪が周囲に見える。
             val src = drawable.toBitmap(diameter.toInt(), diameter.toInt())
-            val shader = android.graphics.BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
-                setLocalMatrix(android.graphics.Matrix().apply { postTranslate(cx - r, cy - r) })
-            }
-            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader })
-            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = 6f; color = 0x73FFFFFF
-            })
+            canvas.drawBitmap(src, cx - r, cy - r, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         } else {
             // アセット欠損時は絵文字。中央寄せのため上下中心に合わせる。
             val p = textPaint(min(diameter, 200f))

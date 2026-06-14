@@ -91,25 +91,56 @@ struct MilestoneBackdrop: View {
         .accessibilityHidden(true)
     }
 
-    // 決定論的な粒子位置(再描画でちらつかない)
+    // 決定論的な粒子位置(再描画でちらつかない)。
+    // 全画面ランダムだと大半が猫・カード・下部ボタンの裏に隠れて「粒子が見えない」
+    // (ユーザー指摘 2026-06-13)ため、中央域に落ちた粒子は左右マージンへ寄せ、
+    // 下端 18% (ボタン+タブバー) には置かない。
+    // 注: 旧 `(i * 2654435761) % 997` は 2654435761 mod 997 = 30 のため x = 30i/997 の
+    // 等差数列に退化し、全粒子が左側へ一列に固まっていた → splitmix64 系で分散させる。
+    private func sparkleHash01(_ v: UInt64) -> Double {
+        var x = v &* 0x9E37_79B9_7F4A_7C15
+        x ^= x >> 33
+        x &*= 0xC2B2_AE3D_27D4_EB4F
+        x ^= x >> 29
+        return Double(x % 100_000) / 100_000.0
+    }
     private func sparklePosition(_ i: Int, size: CGSize) -> CGPoint {
-        let x = Double((i &* 2_654_435_761) % 997) / 997.0
-        let y = Double((i &* 40_503 &+ 12_345) % 991) / 991.0
+        // ホームで確実に背景が見えるのは「猫の左右の帯」だけ
+        // (上 0.28 まではカード列、下 0.78 からは吹き出し+ボタン+タブバー)。
+        // 左右は i の偶奇で交互に割り当てて偏りを防ぐ(ハッシュ任せだと
+        // 片側に寄る — ユーザー指摘 2026-06-13「左半分に無い」)。
+        let inset = 0.03 + sparkleHash01(UInt64(i) * 2 + 1) * 0.13   // 端から 3〜16%
+        let x = (i % 2 == 0) ? inset : 1.0 - inset
+        let y = 0.28 + sparkleHash01(UInt64(i) * 2 + 2) * 0.50       // 0.28〜0.78
         return CGPoint(x: x * size.width, y: y * size.height)
     }
     private func sparkle(_ i: Int, t: TimeInterval, size: CGSize) -> some View {
-        let pos = sparklePosition(i, size: size)
         let phase = Double(i) * 0.7
-        let op = 0.28 + 0.42 * (0.5 + 0.5 * sin(t * 1.1 + phase))
-        let s = CGFloat(6 + (i % 4) * 3)
-        return Image(systemName: "sparkle")
-            .font(.system(size: s)).foregroundStyle(bandColor.opacity(op)).position(pos)
+        let op = 0.55 + 0.35 * (0.5 + 0.5 * sin(t * 1.1 + phase))
+        return sparkleGlyph(i, op: op, size: size)
     }
     private func staticSparkle(_ i: Int, size: CGSize) -> some View {
+        sparkleGlyph(i, op: 0.75, size: size)
+    }
+    /// メタル色の濃い縁 + 白いコアの2枚重ね。帯と同系色の背景(下部の黄など)でも
+    /// 縁のコントラストで形が出て、白コアで「光っている」質感を出す
+    /// (単色だと背景同化して見えない問題の根治。ユーザー指摘 2026-06-13)。
+    private func sparkleGlyph(_ i: Int, op: Double, size: CGSize) -> some View {
         let pos = sparklePosition(i, size: size)
-        let s = CGFloat(6 + (i % 4) * 3)
-        return Image(systemName: "sparkle")
-            .font(.system(size: s)).foregroundStyle(bandColor.opacity(0.45)).position(pos)
+        let s = CGFloat(10 + (i % 4) * 4)
+        return ZStack {
+            // 縁(やや大きく・メタル色を暗めにしてどの背景でも輪郭が立つ)
+            Image(systemName: "sparkle")
+                .font(.system(size: s * 1.25, weight: .semibold))
+                .foregroundStyle(bandColor.opacity(op))
+                .brightness(-0.38)
+            // コア(白く抜いて発光感)
+            Image(systemName: "sparkle")
+                .font(.system(size: s, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(op * 0.95))
+        }
+        .shadow(color: bandColor.opacity(op * 0.6), radius: 3)
+        .position(pos)
     }
     private func movingBand(t: TimeInterval, size: CGSize) -> some View {
         let period = 26.0

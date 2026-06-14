@@ -27,6 +27,7 @@ interface WeightRepository {
 class WeightRepositoryImpl @Inject constructor(
     private val dao: WeightDao,
     private val clock: Clock,
+    private val backupStore: com.goexercise.app.data.backup.RecordBackupStore,
 ) : WeightRepository {
 
     override fun observeEntries(): Flow<List<WeightEntry>> =
@@ -38,7 +39,11 @@ class WeightRepositoryImpl @Inject constructor(
         dao.insert(entry.toEntity(createdAt = now, updatedAt = now))
     }
 
-    override suspend fun delete(id: String) = dao.deleteById(id)
+    override suspend fun delete(id: String) {
+        dao.deleteById(id)
+        // クラウドバックアップへ削除を伝播(OFF 中は note 側で no-op。iOS WeightStore.delete と同じフック)。
+        backupStore.noteDeletion(id.lowercase())
+    }
 }
 
 @Module

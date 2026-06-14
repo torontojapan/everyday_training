@@ -196,10 +196,10 @@ final class FriendsStoreTests: XCTestCase {
         await store.signIn(displayName: "Jun", username: "jun")
         let firstFriend = store.friends.first!
 
-        await store.cheer(.fire, to: firstFriend.friendCode)
+        await store.cheer(.catPunch, to: firstFriend.friendCode)
 
         XCTAssertEqual(service.sentCheers.count, 1)
-        XCTAssertEqual(service.sentCheers.first?.kind, .fire)
+        XCTAssertEqual(service.sentCheers.first?.kind, .catPunch)
         XCTAssertEqual(service.sentCheers.first?.code, firstFriend.friendCode)
     }
 
@@ -300,7 +300,7 @@ final class FriendsStoreTests: XCTestCase {
     func testCheerClearsCheeringCodes() async {
         let stub = StubFriendsService()
         let s = FriendsStore(service: stub)
-        await s.cheer(.fire, to: "ABC234")
+        await s.cheer(.catPunch, to: "ABC234")
         XCTAssertTrue(s.cheeringCodes.isEmpty, "送信完了後は cheeringCodes から除去される")
     }
 }
@@ -314,6 +314,13 @@ enum StubFriendsError: Error, LocalizedError {
 @MainActor
 final class StubFriendsService: FriendsService {
     var myProfile: FriendProfile?
+
+    // 記録バックアップ (テスト対象外: no-op 準拠)
+    func backupUpsert(_ records: [BackupRecord]) async throws {}
+    func backupFetchAll() async throws -> [BackupRecord] { [] }
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {}
+    func backupWipeAll() async throws {}
+
     var refreshError: Error?
     var refreshCount = 0
     var useGate = false
@@ -346,7 +353,7 @@ final class StubFriendsService: FriendsService {
     func removeFriend(_ profile: FriendProfile) async throws {}
     func searchByUsername(_ query: String) async throws -> [FriendProfile] { [] }
     func publishMyProfile(_ profile: FriendProfile) async throws {}
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {}
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String?) async throws {}
 
     func releaseGate() { gate?.resume(); gate = nil }
 }

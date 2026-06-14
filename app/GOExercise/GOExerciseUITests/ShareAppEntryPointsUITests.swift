@@ -1,9 +1,9 @@
 import XCTest
 
 /// `AppSharingConfig` を経由する「アプリを友達にシェア」導線が、ユーザー要望どおりの
-/// 位置 (設定画面の最上位 / 友達画面の自分のコード直下) に **必ず存在する** ことを
-/// UI レベルで保証する。位置取りの regression (誰かが誤って section を入れ替えた等)
-/// を早期に検知するのが目的。
+/// 位置 (設定画面でスクロール無しに見える / 友達画面の自分のコード直下) に **必ず存在する**
+/// ことを UI レベルで保証する。あわせて設定リスト最上位が「アカウントとバックアップ」で
+/// あることも検証する (ユーザー要望 2026-06-13)。位置取りの regression を早期検知する。
 @MainActor
 final class ShareAppEntryPointsUITests: XCTestCase {
     override func setUp() {
@@ -27,25 +27,34 @@ final class ShareAppEntryPointsUITests: XCTestCase {
         return app
     }
 
-    /// 設定画面: 「アプリを友達にシェア」が **リスト全体の最上位** にあること。
-    /// 同レベルのセクション/セルの中で minY が最小であることを確認することで、
-    /// 別の section を上に挿入する regression も検知できる (Codex round1)。
-    func testSettings_shareRow_isAtTopOfSettingsList() {
+    /// 設定画面: 「アカウントとバックアップ」(クラウドバックアップのトグル) が
+    /// 他の機能行 (シェア/プレミアム) より **上** にあり、「アプリを友達にシェア」が
+    /// スクロール無しで見える位置に残っていること(ユーザー要望 2026-06-13:
+    /// バックアップ最優先。シェア導線の存在保証は維持)。
+    /// 注: 「全 cell の最小 minY」比較は List のヘッダ等が cell として数えられる
+    /// 環境差で偽陽性になるため、既知の機能行との順序比較で検証する。
+    func testSettings_backupSection_isAtTop_andShareRowVisible() {
         let app = launch(initialTab: "settings")
+        let backupRow = app.cells.containing(
+            NSPredicate(format: "label CONTAINS 'クラウドにバックアップ'")).firstMatch
+        XCTAssertTrue(backupRow.waitForExistence(timeout: 5),
+                       "「記録をクラウドにバックアップ」行が設定画面に存在しなければならない")
+
         let shareRow = app.buttons["settings-share-app"]
         XCTAssertTrue(shareRow.waitForExistence(timeout: 5),
                        "「アプリを友達にシェア」行が設定画面に存在しなければならない")
+        XCTAssertTrue(shareRow.isHittable, "シェア行は初期表示でスクロール無しに見えること")
 
-        // 設定リストの全 cell を縦軸で並べる。
-        // 設定画面の他の行が見えていることをまず確認 (= 設定画面が描画完了)。
-        let notifRow = app.cells.containing(NSPredicate(format: "label CONTAINS '通知設定'")).firstMatch
-        XCTAssertTrue(notifRow.waitForExistence(timeout: 3))
-
-        // 画面上に見えている cell の中で **最小 minY** が share 行のはず。
-        let visibleCells = app.cells.allElementsBoundByIndex.filter { $0.exists && $0.frame.height > 0 }
-        let minMinY = visibleCells.map(\.frame.minY).min() ?? .greatestFiniteMagnitude
-        XCTAssertEqual(shareRow.frame.minY, minMinY, accuracy: 1.0,
-                       "アプリ共有行は設定リストの最上位 cell でなければならない (got minY=\(shareRow.frame.minY), top=\(minMinY))")
+        // バックアップ行は、後続セクションの先頭行 (シェア) と
+        // プレミアム行のどちらよりも上に位置すること。
+        XCTAssertLessThan(backupRow.frame.minY, shareRow.frame.minY,
+                          "アカウントとバックアップはシェア行より上 (最上位セクション) でなければならない")
+        let premiumRow = app.cells.containing(
+            NSPredicate(format: "label CONTAINS 'GOプレミアム'")).firstMatch
+        if premiumRow.exists {
+            XCTAssertLessThan(backupRow.frame.minY, premiumRow.frame.minY,
+                              "アカウントとバックアップはプレミアム行より上でなければならない")
+        }
     }
 
     /// 友達画面: 「このアプリを友達にシェア」が **友達コード行の直下** にあること。
@@ -80,11 +89,15 @@ final class ShareAppEntryPointsUITests: XCTestCase {
         let profileSection = app.otherElements["friends-profile-section"]
         XCTAssertTrue(profileSection.waitForExistence(timeout: 3),
                        "profile section accessibility id が見つからない (regression もしくは a11y wrap 漏れ)")
-        let gap = shareCard.frame.minY - profileSection.frame.maxY
+        // 初回のみ「表示名を決めましょう」カードが profile と share の間に正当に挟まる
+        // (新規シミュレータ等のクリーン環境)。その場合は名前カードを anchor にする。
+        let namePrompt = app.otherElements["friends-name-prompt"]
+        let anchorMaxY = namePrompt.exists ? namePrompt.frame.maxY : profileSection.frame.maxY
+        let gap = shareCard.frame.minY - anchorMaxY
         XCTAssertGreaterThanOrEqual(gap, 0,
-                                     "share card は profile section より下にあるべき")
+                                     "share card は profile section (または名前カード) より下にあるべき")
         XCTAssertLessThanOrEqual(gap, 40,
-                                  "profile section と share card の間に余計な要素が挟まっていてはいけない (gap=\(gap)pt)")
+                                  "profile/名前カード と share card の間に余計な要素が挟まっていてはいけない (gap=\(gap)pt)")
     }
 
     /// 設定画面の ShareLink がクラッシュせずタップできること。

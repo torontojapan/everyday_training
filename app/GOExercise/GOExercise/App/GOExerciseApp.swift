@@ -16,6 +16,8 @@ struct GOExerciseApp: App {
         service: GOExerciseApp.sharedFriendsService,
         isSignedIn: { GOExerciseApp.sharedFriendsService.myProfile != nil }
     )
+    /// 記録のクラウドバックアップ(オプトイン)。friends と同一サービス(=同一セッション)を共有。
+    @State private var recordSync = RecordSyncCoordinator(service: GOExerciseApp.sharedFriendsService)
     @State private var routeState = RouteState()
     @State private var router = DeepLinkRouter.shared
     @State private var userCatPrefs = UserCatPreferences.shared
@@ -55,6 +57,7 @@ struct GOExerciseApp: App {
                 .environment(storeKit)
                 .environment(rescueTicketStore)
                 .environment(referralStore)
+                .environment(recordSync)
                 .preferredColorScheme(themeStore.theme.preferredColorScheme)
                 .tint(themeStore.theme.primary)
                 .fullScreenCover(isPresented: $isShowingOnboarding) {
@@ -68,6 +71,7 @@ struct GOExerciseApp: App {
                         .environment(storeKit)
                         .environment(rescueTicketStore)
                         .environment(referralStore)
+                        .environment(recordSync)
                 }
                 .onAppear {
                     // 初回起動なら自分の猫キャラ選択 onboarding を出す。
@@ -96,6 +100,10 @@ struct GOExerciseApp: App {
                         await referralStore.refresh()
                         await referralStore.pollReferrerPops()
                     }
+
+                    // 記録のクラウドバックアップ: 共有コンテナの context を渡し、ON なら起動時同期。
+                    recordSync.attach(modelContext: ModelContext(sharedModelContainer))
+                    await recordSync.syncNow()
 
                     // 以下の mock 系起動引数は UI テスト / スクショ専用。Release では
                     // コンパイル除外し、本番で偽の友達データ生成やサインアウトが
@@ -145,13 +153,17 @@ struct GOExerciseApp: App {
                     // アプリが数日間プレミアム表示のまま固着する(iOS は長時間サスペンド)(監査 P2)。
                     // entitlement だけでなくトライアル対象も更新しないと、失効後に「14日間無料」が
                     // 残って即課金になる(Codex R1)。
+                    if newPhase == .background {
+                        // バックグラウンド移行時にバックアップ同期(ON のときだけ。短時間で完了する量)。
+                        Task { await recordSync.syncNow() }
+                    }
                     guard newPhase == .active else { return }
                     Task { await storeKit.refreshPurchaseState() }
                 }
         }
-        // Widget / QuickRecordIntent と同じ App Group 共有ストアを使う。
+        // Widget と同じ App Group 共有ストアを使う。
         // 旧 `.modelContainer(for:)` はデフォルトのローカルストアを使っており、
-        // ウィジェットのクイック記録がメインアプリに反映されなかった (監査 B-Critical-1)。
+        // ウィジェットとメインアプリで見るストアが分かれていた (監査 B-Critical-1)。
         .modelContainer(sharedModelContainer)
     }
 }

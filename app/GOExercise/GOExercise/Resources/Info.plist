@@ -33,8 +33,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>FriendsAppleLinkEnabled</key>
 	<true/>
+	<key>FriendsGoogleLinkEnabled</key>
+	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>友達のQRコードを読み取って友達追加するために使用します。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>達成記念カードや連続記録カードを写真ライブラリに保存するために使用します。</string>
 	<key>NSSupportsLiveActivities</key>

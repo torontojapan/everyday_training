@@ -466,6 +466,10 @@ final class SupabaseFriendsService: FriendsService {
         // 2) フォールバック: 本人データをクライアント側で削除し審査要件を満たす。
         //    FK は全て auth.users を参照 (表間 FK 無し) のため削除順は任意。冪等。
         //    セッション有効中なので失敗は throw 伝播 = 再試行可能。
+        // 機微データ(運動・体重・体調のバックアップ)も本人 RLS で削除する。EF 成功時は
+        // auth.users cascade で消えるが、この fallback 経路では明示しないと残る(Codex P2)。
+        try await client.from("user_records").delete()
+            .eq("user_id", value: uid).execute()
         try await client.from("cheers").delete()
             .or("from_user.eq.\(uid),to_user.eq.\(uid)").execute()
         try await client.from("friend_requests").delete()
@@ -615,15 +619,28 @@ final class SupabaseFriendsService: FriendsService {
         return rows.map { profile(from: $0) }.filter { $0.friendCode != myCode }
     }
 
-    func sendCheer(_ kind: CheerKind, to friendCode: String) async throws {
+    func sendCheer(_ kind: CheerKind, to friendCode: String, message: String? = nil) async throws {
         let client = try requireClient()
         let uid = try await ensureUID()
         let rows: [ProfileRow] = try await client.from("profiles")
             .select().eq("friend_code", value: friendCode).limit(1).execute().value
         guard let toID = rows.first?.user_id else { throw FriendsServiceError.codeNotFound }
-        try await client.from("cheers")
-            .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue))
-            .execute()
+        // 一言コメント: クライアント 30 字制限 + DB 60 字 check の二重ガード(送信前に最終クランプ)。
+        let clamped = message.flatMap { msg -> String? in
+            let trimmed = msg.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : String(trimmed.prefix(30))
+        }
+        do {
+            try await client.from("cheers")
+                .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue, message: clamped))
+                .execute()
+        } catch where clamped != nil && "\(error)".contains("message") {
+            // 本番に message 列が未適用の環境では列エラーになるため、コメント無しで再送する
+            // (応援自体は届く。列適用後は自動的にコメント付きになる)。
+            try await client.from("cheers")
+                .insert(CheerWrite(from_user: uid.uuidString, to_user: toID, kind: kind.rawValue, message: nil))
+                .execute()
+        }
     }
 
     // MARK: - 友達紹介 (リファラル)
@@ -739,6 +756,104 @@ final class SupabaseFriendsService: FriendsService {
             .select().eq("referee_user_id", value: session.user.id.uuidString).limit(1).execute().value
         return !rows.isEmpty
     }
+
+    // MARK: - 応援の受信 (cheers)
+
+    /// 前回チェック以降に自分宛てへ届いた応援を返す(友達タブを開いた時に呼ぶ)。
+    /// watermark は端末ローカル(UserDefaults, uid 別キー)。初回は「今」を起点にして
+    /// 過去の蓄積を一気に出さない。取得成功後にのみ watermark を進める(失敗時は次回再表示)。
+    func unseenReceivedCheers() async throws -> [ReceivedCheer] {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return [] }
+        let uid = session.user.id.uuidString.lowercased()
+        let key = "cheers.lastSeenAt.\(uid)"
+        let now = Date()
+        guard let last = defaults.object(forKey: key) as? Double else {
+            // 初回は「今」を起点にして過去の蓄積を一気に出さない(前進ロジックは CheerWatermarkLogic に集約)。
+            defaults.set(CheerWatermarkLogic.evaluate(lastSeen: nil, now: now, candidates: []).newWatermark.timeIntervalSince1970, forKey: key)
+            return []
+        }
+        let since = Date(timeIntervalSince1970: last)
+        let rows: [CheerRow] = try await client.from("cheers")
+            .select()
+            .eq("to_user", value: uid)
+            .gt("created_at", value: Self.backupDateFormatter.string(from: since))
+            .order("created_at", ascending: true)
+            .execute().value
+        guard !rows.isEmpty else { return [] }
+        let fromIds = Array(Set(rows.map { $0.from_user.lowercased() }))
+        let profs: [ProfileRow] = try await client.from("profiles")
+            .select().in("user_id", values: fromIds).execute().value
+        let nameByID = Dictionary(uniqueKeysWithValues: profs.map { ($0.user_id.lowercased(), $0.display_name) })
+        let parsed = rows.map { row in
+            ReceivedCheer(
+                id: row.id,
+                fromDisplayName: nameByID[row.from_user.lowercased()] ?? "ともだち",
+                kindRaw: row.kind,
+                message: row.message,
+                createdAt: ReferralClock.parseTimestamp(row.created_at) ?? Date()
+            )
+        }
+        // watermark の前進と「より後だけ surface」は CheerWatermarkLogic に一本化する
+        // (サーバ側 gt フィルタが緩んでも二度出さない多層防御)。
+        let outcome = CheerWatermarkLogic.evaluate(lastSeen: since, now: now, candidates: parsed)
+        defaults.set(outcome.newWatermark.timeIntervalSince1970, forKey: key)
+        return outcome.unseen
+    }
+
+    // MARK: - 記録のクラウドバックアップ (user_records)
+    // 体重・体調を含む機微データ。RLS で本人のみ読み書き可(profiles と違い SELECT も本人限定)。
+    // payload は jsonb。クライアント間契約(キー名/日付形式)は RecordSyncCoordinator が正本。
+
+    func backupUpsert(_ records: [BackupRecord]) async throws {
+        guard !records.isEmpty else { return }
+        let client = try requireClient()
+        let uid = try await ensureUID().uuidString.lowercased()
+        let rows = try records.map { r in
+            UserRecordRow(
+                user_id: uid, record_id: r.id, kind: r.kind,
+                payload: try JSONDecoder().decode(AnyJSON.self, from: r.payloadJSON),
+                updated_at: Self.backupDateFormatter.string(from: r.updatedAt),
+                deleted: r.deleted)
+        }
+        try await client.from("user_records").upsert(rows, onConflict: "user_id,record_id").execute()
+    }
+
+    func backupFetchAll() async throws -> [BackupRecord] {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return [] }
+        let uid = session.user.id.uuidString.lowercased()
+        let rows: [UserRecordRow] = try await client.from("user_records")
+            .select().eq("user_id", value: uid).execute().value
+        return try rows.map { row in
+            BackupRecord(
+                id: row.record_id, kind: row.kind,
+                payloadJSON: try JSONEncoder().encode(row.payload),
+                updatedAt: ReferralClock.parseTimestamp(row.updated_at) ?? Date(),
+                deleted: row.deleted)
+        }
+    }
+
+    func backupMarkDeleted(_ recordIDs: [String]) async throws {
+        guard !recordIDs.isEmpty else { return }
+        let client = try requireClient()
+        let uid = try await ensureUID().uuidString.lowercased()
+        try await client.from("user_records")
+            .update(UserRecordTombstone(deleted: true, payload: .object([:]),
+                                        updated_at: Self.backupDateFormatter.string(from: Date())))
+            .eq("user_id", value: uid)
+            .in("record_id", values: recordIDs)
+            .execute()
+    }
+
+    func backupWipeAll() async throws {
+        let client = try requireClient()
+        guard let session = try await signedInSessionOrNil() else { return }
+        let uid = session.user.id.uuidString.lowercased()
+        try await client.from("user_records").delete().eq("user_id", value: uid).execute()
+    }
+
+    private static let backupDateFormatter = ISO8601DateFormatter()
 
     // MARK: - Helpers
 
@@ -899,10 +1014,19 @@ private struct RequestWrite: Encodable {
     let to_user: String
     let status: String
 }
+private struct CheerRow: Decodable {
+    let id: String
+    let from_user: String
+    let kind: String
+    var message: String?
+    let created_at: String
+}
+
 private struct CheerWrite: Encodable {
     let from_user: String
     let to_user: String
     let kind: String
+    var message: String?
 }
 private struct ReferralRow: Decodable {
     let referrer_user_id: String
@@ -918,6 +1042,19 @@ private struct ReferralInsert: Encodable {
 private struct ReferralConfirmUpdate: Encodable {
     let status: String
     let confirmed_at: String
+}
+private struct UserRecordRow: Codable {
+    let user_id: String
+    let record_id: String
+    let kind: String
+    let payload: AnyJSON
+    let updated_at: String
+    let deleted: Bool
+}
+private struct UserRecordTombstone: Encodable {
+    let deleted: Bool
+    let payload: AnyJSON
+    let updated_at: String
 }
 private struct ReferralSeenUpdate: Encodable {
     let seen_by_referrer: Bool

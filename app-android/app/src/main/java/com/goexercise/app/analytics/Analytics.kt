@@ -93,6 +93,23 @@ object Analytics {
      */
     @Volatile
     var consentGranted: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            // オプトアウト時は実体を Noop へ退避して残留送信経路を断ち(track ガードに加えた多層防御)、
+            // 再オプトインで元の実体へ戻す。iOS が直した「opt-out しても起動済み SDK が残る」問題への追従。
+            if (!value) {
+                suppressedService = service
+                service = NoopAnalytics
+            } else {
+                suppressedService?.let { service = it }
+                suppressedService = null
+            }
+        }
+
+    /** オプトアウト中に退避した送信実体(再オプトインで service へ戻す)。 */
+    @Volatile
+    private var suppressedService: AnalyticsService? = null
 
     fun track(event: AnalyticsEvent) {
         if (!consentGranted) return
@@ -110,7 +127,9 @@ object Analytics {
         if (appId.isBlank()) return
         runCatching {
             TelemetryDeck.start(context.applicationContext, TelemetryDeck.Builder().appID(appId))
-            service = TelemetryDeckAnalytics()
+            val backend = TelemetryDeckAnalytics()
+            // オプトイン中だけアクティブ化。オプトアウト中は退避して Noop のまま(復帰時に戻す)。
+            if (consentGranted) service = backend else suppressedService = backend
         }.onFailure { Log.w(TAG, "TelemetryDeck init skipped: ${it.message}") }
     }
 }
