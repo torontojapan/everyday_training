@@ -327,11 +327,73 @@ fun FriendsContent(
             onDismissRequest = { cheerTarget = null },
             containerColor = palette.background,
         ) {
-            CheerPickerSheet(friend, palette) { kind, message ->
-                onCheer(kind, friend, message)
-                cheerTarget = null
-            }
+            FriendDetailSheet(
+                friend = friend,
+                palette = palette,
+                onSend = { kind, message ->
+                    onCheer(kind, friend, message)
+                    cheerTarget = null
+                },
+                onRemove = {
+                    onRemove(friend)
+                    cheerTarget = null
+                },
+            )
         }
+    }
+}
+
+/**
+ * 友達詳細シート(iOS FriendDetailView 相当)。プロフィール/連続・通算・今日の状態を見せ、
+ * その場で応援を送る・友達を解除する。アバタータップの到達先=この詳細(送信経路は detail に統一)。
+ */
+@Composable
+private fun FriendDetailSheet(
+    friend: FriendProfile,
+    palette: AppTheme,
+    onSend: (CheerKind, String?) -> Unit,
+    onRemove: () -> Unit,
+) {
+    var confirmRemove by remember { mutableStateOf(false) }
+    val rank = com.goexercise.app.domain.CatRank.of(friend.currentStreak)
+    Column(
+        Modifier.padding(horizontal = 20.dp).padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(friend.displayName, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
+        if (friend.username.isNotBlank()) {
+            Text("@${friend.username}", fontSize = 13.sp, color = palette.textSecondary)
+        }
+        rank.title?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep) }
+        // 連続 / 通算 / 今日。
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            DetailStat("連続", "${friend.currentStreak}日", palette)
+            DetailStat("通算", "${friend.totalAchievedDays}日", palette)
+            DetailStat("今日", if (friend.todayAchieved) "達成" else "まだ", palette)
+        }
+        // 応援コンポーザ(プリセット + 一言 + 送信)。
+        CheerPickerSheet(friend, palette, onSend)
+        TextButton(onClick = { confirmRemove = true }) {
+            Text("友達を解除", color = palette.missed)
+        }
+    }
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("友達を解除しますか?") },
+            text = { Text("${friend.displayName} さんとの友達を解除します。再びつながるにはコードの交換が必要です。") },
+            confirmButton = { TextButton(onClick = { confirmRemove = false; onRemove() }) { Text("解除", color = palette.missed) } },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("キャンセル") } },
+        )
+    }
+}
+
+@Composable
+private fun DetailStat(label: String, value: String, palette: AppTheme) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        Text(label, fontSize = 11.sp, color = palette.textSecondary)
     }
 }
 
