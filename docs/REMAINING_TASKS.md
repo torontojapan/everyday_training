@@ -10,8 +10,8 @@ MEDIUM worklist 全6カテゴリ + 2LLM(Claude+Codex)監査是正まで完了後
 - [User] P1 **iOS 実機/TF E2E**: サインイン #14/#15・カメラQR #8・課金 Sandbox(build5)。
 
 ## B. インフラ/ハイジーン
-- ✅[Me] P0 **リポジトリを iCloud 同期外へ移動 完了(2026-06-14)**: 実体を `~/Developer/serial_training` へ移動、旧 Documents パスは symlink(セッション cwd/メモリキー不変)。以後 git 操作で重複が湧かない=根治を実証([[gotcha-icloud-duplicate-files]])。
-- ⏳[Me] P1 **Codex 最終ゲート(R6)**: usage limit リセット(2026-06-14 15:43)後に1パス。**15:48 に自走 cron(a6c11487)を予約済**(セッション継続が条件)。
+- ✅[Me] P0 **リポジトリを iCloud 同期外へ移動 完了(2026-06-14)**: 正本=`~/Developer/serial_training`(iCloud圏外)。symlink 案は iCloud が拒否し旧コピーを復活させたため断念→**~/Developer 正本化**(旧 Documents 重複は削除済・メモリキーは ~/Developer へ移行済)。**今後 Claude Code は ~/Developer/serial_training から開く**。
+- ⏸️[Me] P1 **Codex 最終ゲート(R6)= 保留**: Android 後回し方針で自走 cron は取消。R6 は主に Android 変更の監査だったため不要に。B-3 リファクタは iOS 414 + Android 305 のテスト緑+Claude精読で担保。Android 再開時に必要なら実施。
 - ✅[Me] P2 **通知スケジューラのテスト 完了(2026-06-14, e0c1ce6)**: `ReminderScheduler.apply` と `ReminderReceiver` 発火時抑制を `ReminderSchedulePlan`/`ReminderFireDecision` に純粋関数化し JVM テスト14本(schedule5+fire9)。Android unit 305 green。
 - [Me] P2 **anti-resurrection ネットワーク経路テスト**: fake Supabase client harness を作り signOut 匿名削除 / deleteAccount EF を結合テスト(現状ロジックのみ単体化済)。
 - [Me] P3 hiltViewModel 非推奨 import の移行(`androidx.hilt.lifecycle.viewmodel.compose`)。
