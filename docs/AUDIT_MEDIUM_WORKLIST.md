@@ -1,12 +1,14 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件(17件完了)
+# MEDIUM 所見 worklist (2026-06-14) — 140件(34件完了 / 3件は5_UXへ集約 / 1件保留)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
+凡例: [x]=完了 / [~]=部分(保留理由付記) / [ ]=未着手 or 他カテゴリへ集約。
 
 進捗(2026-06-14):
 - 1_correctness 残2件 完了(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)。
 - 4_審査/コンプラ 5件 完了(復元キーボタン=HIGH#14既済 / QR導線=HIGH#8既済 / paywall eligibilityテスト両OS / 記録での体重・生理日同時入力)。
 - 2_課金 10件 完了(オンボ誤誘導文修正 + eligibility設計明文化。他8件はHIGH/PaywallCopyで既済を確認)。
-- 次=3_privacy21 → 5_UX97 → 6_テスト1。
+- 3_privacy/削除 21件: 17件完了(signOut忘れる/応援トースト一言/全削除後widget更新/分析teardownテスト等)、3件は friends 詳細画面として **5_UX に集約**、1件(anti-resurrection ネットワーク経路の単体テスト)は fake-client harness 不在で保留。
+- 次=5_UX97(friends詳細画面を含む)→ 6_テスト1。
 
 
 ## 1_correctness/データ (6件)
@@ -33,27 +35,27 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 
 ## 3_privacy/削除 (21件)
 
-- [ ] **account** | Android signOut が匿名ユーザーのサーバ行を削除しない(iOSの『忘れる』セマンティクス欠落)→ 孤児プロフィール/友達行が残存
-- [ ] **account** | アンチresurrection中核(ensureUID transient分岐 / deleteAccount EF fail-closed / signOut匿名削除)に両OSでユニットテストが無い
-- [ ] **account** | サインアウトボタン (friends-signout / 「サインアウト」) (mismatch)
-- [ ] **account** | parity: signOut の匿名データ削除(『忘れる』)
-- [ ] **cheers** | Android 送信完了トーストが入力した一言を反映しない
-- [ ] **cheers** | Android に友達詳細画面が無く、応援UXの操作モデルが iOS と反転
-- [ ] **cheers** | 友達アバター/カードのタップ (mismatch)
-- [ ] **cheers** | 送信完了トースト (mismatch)
-- [ ] **cheers** | parity: 送信経路(detail vs picker)とプリセットの意味
-- [ ] **cheers** | parity: 送信完了トーストの内容
-- [ ] **cycle** | parity: 生理日記録の opt-in(プライバシー ON/OFF)
-- [ ] **friends** | parity: 招待共有テキストの内容
-- [ ] **settings** | Android: 全記録削除後にホーム画面ウィジェットが古い連続日数/今日達成を表示し続ける
-- [ ] **settings** | Android: 設定が情報・サポート/記録と共有/自動休養説明を欠き、規約・プライバシー・サブスク管理への導線が設定に無い
-- [ ] **settings** | parity: 認証/バックアップUIの設定集約(友達タブから撤去)
-- [ ] **settings** | parity: 全削除後のウィジェット/Live Activity 即リフレッシュ
-- [ ] **settings** | parity: 設定の情報構成(下層ページへの逃がし)
-- [ ] **share** | parity: 見出し=称号バッジ(期間表現の廃止)
-- [ ] **分析opt-out** | iOS: analytics opt-out のgate/teardownに回帰テストが無い
-- [ ] **分析opt-out** | 設定「利用状況の分析を共有」トグル → OFF (Android) (mismatch)
-- [ ] **分析opt-out** | parity: opt-out時のSDK teardown(セッション中の残留送信停止)
+- [x] **account** | Android signOut が匿名ユーザーのサーバ行を削除しない(iOSの『忘れる』セマンティクス欠落) — 匿名時のみ profiles/friendships/friend_requests/referrals 削除(1cdda76)
+- [~] **account** | アンチresurrection中核に両OSでユニットテストが無い — signOut匿名削除を実装。iOS は FriendsStoreTests(deleteAccount 2)有。SupabaseFriendsService のネットワーク経路は fake-client harness が無く単体テスト保留(実機/実弾で検証する領域)
+- [x] **account** | サインアウトボタン (friends-signout / 「サインアウト」) (mismatch) — 友達タブに実装済(FriendsScreen→VM.signOut)
+- [x] **account** | parity: signOut の匿名データ削除(『忘れる』) — 1cdda76
+- [x] **cheers** | Android 送信完了トーストが入力した一言を反映しない — CheerToast.sent で message 反映(1cdda76)
+- [ ] **cheers** | Android に友達詳細画面が無く、応援UXの操作モデルが iOS と反転 → **5_UX の friends 詳細画面でまとめて対応**
+- [ ] **cheers** | 友達アバター/カードのタップ (mismatch) → **5_UX の friends 詳細画面でまとめて対応**
+- [x] **cheers** | 送信完了トースト (mismatch) — CheerToast.sent(1cdda76)
+- [ ] **cheers** | parity: 送信経路(detail vs picker)とプリセットの意味 → **5_UX の friends 詳細画面でまとめて対応**
+- [x] **cheers** | parity: 送信完了トーストの内容 — CheerToast(1cdda76)+ CheerToastTest
+- [x] **cycle** | parity: 生理日記録の opt-in(プライバシー ON/OFF) — HealthRepository.cycleTrackingEnabled(既定OFF)+設定トグル実装済
+- [x] **friends** | parity: 招待共有テキストの内容 — inviteMessage 本文一致(ストアURLのみ各OS)
+- [x] **settings** | Android: 全記録削除後にホーム画面ウィジェットが古い連続日数/今日達成を表示し続ける — deleteAllRecords後 updateAll(1cdda76)
+- [x] **settings** | Android: 設定が情報・サポート/記録と共有/自動休養説明を欠き… — 設定再構成で実装済(SettingsScreen 情報構成)
+- [x] **settings** | parity: 認証/バックアップUIの設定集約(友達タブから撤去) — HIGH#14 で集約済
+- [x] **settings** | parity: 全削除後のウィジェット/Live Activity 即リフレッシュ — 1cdda76(Android に Live Activity は無く widget のみ)
+- [x] **settings** | parity: 設定の情報構成(下層ページへの逃がし) — 設定再構成で実装済
+- [x] **share** | parity: 見出し=称号バッジ(期間表現の廃止) — 共有カード称号バッジ化で実装済
+- [x] **分析opt-out** | iOS: analytics opt-out のgate/teardownに回帰テストが無い — AnalyticsOptOutTests(2)(82009c5)
+- [x] **分析opt-out** | 設定「利用状況の分析を共有」トグル → OFF (Android) (mismatch) — setAnalyticsEnabled+consentGranted 実装済
+- [x] **分析opt-out** | parity: opt-out時のSDK teardown(セッション中の残留送信停止) — 両OS実装済(iOS Noop置換/Android suppressedService)
 
 ## 4_審査/コンプラ (5件)
 
