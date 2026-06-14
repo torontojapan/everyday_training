@@ -113,6 +113,9 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
             }
         },
         onSetReminderTime = { h, m -> viewModel.setReminder(reminder.enabled, h, m) },
+        onSetEveningTime = viewModel::setEveningTime,
+        onSetReminderCount = viewModel::setReminderCount,
+        onSetReminderPersonality = viewModel::setReminderPersonality,
         analyticsEnabled = analyticsEnabled,
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
         cycleTrackingEnabled = cycleTrackingEnabled,
@@ -162,6 +165,9 @@ fun SettingsContent(
     reminder: com.goexercise.app.data.settings.ReminderPrefs = com.goexercise.app.data.settings.ReminderPrefs(),
     onToggleReminder: (Boolean) -> Unit = {},
     onSetReminderTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetEveningTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetReminderCount: (Int) -> Unit = {},
+    onSetReminderPersonality: (com.goexercise.app.domain.NotificationPersonality) -> Unit = {},
     analyticsEnabled: Boolean = true,
     onToggleAnalytics: (Boolean) -> Unit = {},
     cycleTrackingEnabled: Boolean = false,
@@ -232,7 +238,7 @@ fun SettingsContent(
         CatRankLadderSection(palette, currentStreak)
 
         Text("通知", color = palette.textSecondary, fontSize = 13.sp)
-        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime)
+        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime, onSetEveningTime, onSetReminderCount, onSetReminderPersonality)
 
         if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
             Text("友達を招待", color = palette.textSecondary, fontSize = 13.sp)
@@ -692,8 +698,11 @@ private fun ReminderSection(
     reminder: com.goexercise.app.data.settings.ReminderPrefs,
     onToggle: (Boolean) -> Unit,
     onSetTime: (Int, Int) -> Unit,
+    onSetEveningTime: (Int, Int) -> Unit = { _, _ -> },
+    onSetCount: (Int) -> Unit = {},
+    onSetPersonality: (com.goexercise.app.domain.NotificationPersonality) -> Unit = {},
 ) {
-    var showTimePicker by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<String?>(null) } // "morning" / "evening" / null
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -704,25 +713,75 @@ private fun ReminderSection(
                 Switch(checked = reminder.enabled, onCheckedChange = onToggle)
             }
             if (reminder.enabled) {
+                // 通知回数(1日1回=朝のみ / 2回=朝+夕)。
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("時刻", color = palette.textSecondary, fontSize = 13.sp)
+                    Text("通知回数", color = palette.textSecondary, fontSize = 13.sp)
                     androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { showTimePicker = true }) {
-                        Text("%02d:%02d".format(reminder.hour, reminder.minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+                    listOf(1 to "1日1回", 2 to "1日2回").forEach { (c, label) ->
+                        val sel = reminder.count == c
+                        Surface(
+                            color = if (sel) palette.primary else palette.chipBackground,
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.padding(start = 6.dp).clickable { onSetCount(c) },
+                        ) {
+                            Text(label, fontSize = 12.sp, color = if (sel) androidx.compose.ui.graphics.Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        }
                     }
                 }
+                // 朝(1本目)時刻。
+                ReminderTimeRow("通知時間1", reminder.hour, reminder.minute, palette) { picker = "morning" }
+                // 夕(2本目)時刻 — 2回のときのみ。
+                if (reminder.count > 1) {
+                    ReminderTimeRow("通知時間2", reminder.eveningHour, reminder.eveningMinute, palette) { picker = "evening" }
+                }
+                // 性格(quiet/voice/friendDriven)。
+                Text("通知の性格", color = palette.textSecondary, fontSize = 13.sp)
+                com.goexercise.app.domain.NotificationPersonality
+                    .visibleCases(com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED)
+                    .forEach { p ->
+                        val sel = reminder.personality == p
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { onSetPersonality(p) }.padding(vertical = 4.dp),
+                        ) {
+                            androidx.compose.material3.RadioButton(selected = sel, onClick = { onSetPersonality(p) })
+                            Column {
+                                Text(p.displayName, color = palette.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(p.hint, color = palette.textSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
             }
         }
     }
-    if (showTimePicker) {
-        val state = rememberTimePickerState(initialHour = reminder.hour, initialMinute = reminder.minute, is24Hour = true)
+    picker?.let { which ->
+        val isMorning = which == "morning"
+        val h = if (isMorning) reminder.hour else reminder.eveningHour
+        val m = if (isMorning) reminder.minute else reminder.eveningMinute
+        val state = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
         AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text("通知の時刻") },
+            onDismissRequest = { picker = null },
+            title = { Text(if (isMorning) "通知時間1" else "通知時間2") },
             text = { TimePicker(state = state) },
-            confirmButton = { TextButton(onClick = { onSetTime(state.hour, state.minute); showTimePicker = false }) { Text("設定", color = palette.primaryDeep) } },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("キャンセル") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (isMorning) onSetTime(state.hour, state.minute) else onSetEveningTime(state.hour, state.minute)
+                    picker = null
+                }) { Text("設定", color = palette.primaryDeep) }
+            },
+            dismissButton = { TextButton(onClick = { picker = null }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )
+    }
+}
+
+@Composable
+private fun ReminderTimeRow(label: String, hour: Int, minute: Int, palette: AppTheme, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = palette.textSecondary, fontSize = 13.sp)
+        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+        TextButton(onClick = onClick) {
+            Text("%02d:%02d".format(hour, minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+        }
     }
 }

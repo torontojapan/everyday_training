@@ -131,17 +131,33 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { repository.setCatBreed(breed) }
     }
 
-    /** 毎日のリマインダー設定(ON/OFF + 時刻)。 */
+    /** 毎日のリマインダー設定(ON/OFF + 朝/夕時刻 + 回数 + 性格)。 */
     val reminder: StateFlow<ReminderPrefs> = notificationPrefs.prefs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReminderPrefs())
 
-    /** リマインダーを設定(保存 + AlarmManager 予約/解除)。enabled=true は通知権限取得後に呼ぶこと。 */
-    fun setReminder(enabled: Boolean, hour: Int, minute: Int) {
+    /** 永続化 + AlarmManager 反映(朝常時/夕は count>1)。性格/回数変更でも即 reschedule。 */
+    private fun applyReminder(prefs: ReminderPrefs) {
         viewModelScope.launch {
-            notificationPrefs.set(enabled, hour, minute)
-            if (enabled) reminderScheduler.schedule(hour, minute) else reminderScheduler.cancel()
+            notificationPrefs.update(prefs)
+            reminderScheduler.apply(prefs)
         }
     }
+
+    /** ON/OFF + 朝(1本目)時刻。enabled=true は通知権限取得後に呼ぶこと(後方互換シグネチャ)。 */
+    fun setReminder(enabled: Boolean, hour: Int, minute: Int) =
+        applyReminder(reminder.value.copy(enabled = enabled, hour = hour, minute = minute))
+
+    /** 夕(2本目)時刻。 */
+    fun setEveningTime(hour: Int, minute: Int) =
+        applyReminder(reminder.value.copy(eveningHour = hour, eveningMinute = minute))
+
+    /** 1日の通知回数(1=朝のみ / 2=朝+夕)。 */
+    fun setReminderCount(count: Int) =
+        applyReminder(reminder.value.copy(count = count.coerceIn(1, 2)))
+
+    /** 通知の性格(quiet/voice/friendDriven)。 */
+    fun setReminderPersonality(personality: com.goexercise.app.domain.NotificationPersonality) =
+        applyReminder(reminder.value.copy(personality = personality))
 
     /** 匿名の利用状況分析(TelemetryDeck)を共有するか。既定 true(匿名 ON)。設定でオプトアウト可。 */
     val analyticsEnabled: StateFlow<Boolean> = repository.analyticsEnabled

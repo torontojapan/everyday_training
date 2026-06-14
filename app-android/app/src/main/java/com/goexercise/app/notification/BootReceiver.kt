@@ -27,7 +27,7 @@ class BootReceiver : BroadcastReceiver() {
             // DataStore 読込/AlarmManager 失敗で**起動時にプロセスを落とさない**よう全例外を飲み込む。
             runCatching {
                 val p = prefs.get()
-                if (p.enabled) scheduler.schedule(p.hour, p.minute)
+                if (p.enabled) scheduler.apply(p) // 朝+夕(count>1)を再予約
             }
             pending.finish()
         }
