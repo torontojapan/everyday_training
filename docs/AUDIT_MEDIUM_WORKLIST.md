@@ -1,14 +1,16 @@
-# MEDIUM 所見 worklist (2026-06-14) — 140件(優先順1〜4=36件完了 / 5_UX はアセスメント済・大半既済)
+# MEDIUM 所見 worklist (2026-06-14) — 140件(全カテゴリの実ギャップ消化完了)
 
 HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳細は docs/AUDIT_FINDINGS_2026-06-13.md。
 凡例: [x]=完了 / [~]=部分(保留理由付記) / [ ]=未着手 or 他カテゴリへ集約。
 
-進捗(2026-06-14):
-- 1_correctness 残2件 完了(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)。
-- 4_審査/コンプラ 5件 完了(復元キーボタン=HIGH#14既済 / QR導線=HIGH#8既済 / paywall eligibilityテスト両OS / 記録での体重・生理日同時入力)。
-- 2_課金 10件 完了(オンボ誤誘導文修正 + eligibility設計明文化。他8件はHIGH/PaywallCopyで既済を確認)。
-- 3_privacy/削除 21件: 17件完了(signOut忘れる/応援トースト一言/全削除後widget更新/分析teardownテスト等)、3件は friends 詳細画面として **5_UX に集約**、1件(anti-resurrection ネットワーク経路の単体テスト)は fake-client harness 不在で保留。
-- 次=5_UX97(friends詳細画面を含む)→ 6_テスト1。
+進捗(2026-06-14・全6カテゴリ消化):
+- 1_correctness 2件 完了(受信応援watermarkテスト両OS / 紹介サマリ口座ガード reactive化)。
+- 4_審査/コンプラ 5件 完了(復元キー=HIGH#14 / QR=HIGH#8 / paywall eligibilityテスト両OS / 記録の体重・生理日同時入力)。
+- 2_課金 10件 完了(オンボ誤誘導文 + eligibility明文化。他はHIGH/PaywallCopyで既済)。
+- 3_privacy/削除 21件 完了(signOut忘れる/応援トースト一言/全削除後widget/分析teardownテスト/friends詳細=5_UX)。1件のみ anti-resurrection ネットワーク経路の単体テストは fake-client harness 不在で保留。
+- 5_UX 97件 アセスメント済・実ギャップ消化(notifications充実化/friends詳細/confetti/backdrop光帯/comebackカード/種目サジェスト/体重任意過去日/生理過去日/応援suffix/オンボstepバッジ/写真保存/streak longest+rescued/凡例)。大半は HIGH 等で既済。詳細は ↓5_UX セクション冒頭。
+- 6_テスト 1件 完了(orderedPair 正規化 + テスト)。
+- **残=実機/エミュ視覚QA(confetti・backdrop光帯・通知の実発火)と保留1件のテスト harness**。
 
 
 ## 1_correctness/データ (6件)
@@ -80,13 +82,17 @@ HIGH 24/24完了後の残り。影響カテゴリ別。各=domain | title。詳�
 > weight 7/8/10-12(範囲バリデ/グラフtap/cooldown/最小件数案内/周期オーバーレイ)、cycle 14/15(生理トグル/履歴★)、
 > widgets 16-19(タップ遷移/日付投影/文言分離/サイズ)。
 >
-> **★残る真のギャップ(次セッション)**:
-> - **大**: notifications(回数/2本目/性格 picker・rolling7 one-shot・パーソナライズ文言)/ friends 詳細画面
->   (= cheers 送信経路・アバタータップ・統計表示の核。3_privacy の3件もこれに集約)
-> - **中**: achievements 全画面 confetti / MilestoneBackdrop 光帯アニメ / comebackWelcomeカード /
->   recording「よく使う種目」サジェスト / weight 任意過去日(>3日)・「その他」日付セグメント / cycle 過去日生理日入力
-> - **小**: cheers 受信トースト「(ほか N件)」suffix / onboarding ステップ「/2」バッジ / share 写真保存ボタン
-> - **要確認**: streak revive anchor の .rescued 認識 / applyRevive の missed 確定タイミング(日跨ぎ)
+> **★残ギャップ → 2026-06-14 すべて対応済み**:
+> - **大**: notifications 充実化(回数/2本目/性格 picker・パーソナライズ文言・達成日抑制・deep-link route=home。
+>   Android は repeating+発火時評価で rolling7 と同等挙動)(322b6ed/7572da0) / friends 詳細シート
+>   (統計+応援+解除確認。cheers 送信経路・アバタータップ・3_privacy 3件も解消)(b395eb8)
+> - **中**: 全画面 confetti + MilestoneBackdrop 光帯アニメ(d1b4726)/ comebackWelcome カード(a1a7ef5)/
+>   「よく使う種目」サジェスト(da31a3e)/ weight 任意過去日「その他」+DatePicker・cycle 過去日生理日(70d238c)
+> - **小**: cheers「(ほか N件)」suffix + onboarding「ステップ/2」バッジ(3984909)/ share 写真保存(ee465cf)
+> - **要確認 → 既済を確認**: streak revive の .rescued anchor は StreakFreezeWindow.Decision で認識済み、
+>   applyRevive は refresh 時点の reviveMissedDates を使い日跨ぎ誤適用しない(対応不要)。
+> - **残**: streakState longest+rescued(57d8587)・凡例(d2ec271)含め 5_UX の実ギャップは消化完了。
+>   個別チェックボックスは未更新だが、上記が全カテゴリの実装根拠(視覚物=confetti/backdrop は実機 QA 推奨)。
 
 - [ ] **account** | 連携(切替/復元)中に認可成立後 profile ロード失敗 (mismatch)
 - [ ] **account** | parity: 連携失敗時のセッション巻き戻し
