@@ -28,7 +28,9 @@ iOS `app/GOExercise/.../Assets.xcassets/CatCharacter/` の全110画像(11猫種 
 ## B. 要ユーザー判断
 
 1. **内耳の色**: orange/black/gray 猫種は内耳が**オレンジ/濃グレー**で**ピンクでない**が、各猫種内で**一貫**=ブランド配色の意図的選択の可能性大(white/calico/siamese/browntabby/silvertabby はピンク)。「全猫種ピンク内耳」に統一したいなら orange/black/gray の該当ポーズを再生成/recolor。**現状は不具合と断定しない**。
-2. **「白猫の耳が黒い」報告**: `cat_white_*` は全ポーズ**ピンク内耳**(再確認済=白猫アセットに黒耳は無い)。ユーザーが見たのは **siamese**(クリーム体+ポイント=耳が濃色=品種的に正常)か **gray**(濃グレー内耳)の可能性。**どの画面/猫種で見たか要確認**。
+2. **「白猫の耳が黒い」報告 → ✅ 実在不具合だった(2026-06-14 ユーザー指摘で再監査・当初の「黒耳無し」判定は誤り)**: `cat_white_happy3`(共有カードのハッピーポーズの1つ)が**左耳に黒い内耳パッチ+黒い房**を持っていた(他ポーズはピンク内耳)。Codex 再生成でピンク内耳・黒なしに是正済。
+   - **付随で判明した白猫の系統的不具合 = 頭上の灰色 wisp**: 白猫の高エネルギーポーズ(celebrating/happy2/streakExtended/waitingMorning/worriedNoon/beggingNight/encouraging/shaker)は、頭の上〜耳の間に**不透明の薄い灰色のフワフワした筆ストローク(ラフ線の残り)**があり、有色背景(共有カードの青グラデ等)で**「透過ミス」のような灰色ヘイズ**に見える(透過自体は健全=不透明な明色画素なので alpha 閾値では消せない・耳と空間的に絡むので領域クリップも危険)。orange/persian は ~300px と少なく白猫特有(明色毛+ラフ線が目立つ)。**是正=Codex 再生成時に「頭上は完全に空・loose fur strand / sketch stroke を描くな」と明示**で wisp が 2500→300 に激減。
+   - **共有カード3ポーズ(celebrating/happy2/happy3)は是正済**。残り6ポーズ(beggingNight/encouraging/streakExtended/waitingMorning/_shaker/worriedNoon)はホーム等で表示=同手法で要再生成(scope 判断)。
 3. **背景コントラスト**(別不具合): **白猫が明るいテーマ(peach/sky/sunshine/forest)で背景に溶ける**(頭の輪郭が消える=「透過ミス」に見える)/ **黒猫・ハチワレが midnight(暗)テーマで消える**。原因=猫と同トーン背景の分離不足。
    - 提案修正: 猫キャラに**背景適応の細い縁取り/ソフトシャドウ**を付け、どの背景でも輪郭が立つようにする(共有 modifier 化)。対象 = `BigCatView`(HomeView)/`CatStateView`/`UserCatPickerView`(241/270行 scaledToFill+clipShape(Circle))/`FriendAvatarView`/`FriendsParkView`。
    - 付随: `UserCatPickerView`/`CatStateView` は `scaledToFill + scaleEffect + clipShape(Circle)` で**耳/ヘッドバンドのリボンが円で切れる**。`BigCatView` 同様 `scaledToFit` 寄りにすると頭切れ解消。
