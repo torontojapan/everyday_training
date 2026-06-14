@@ -2,6 +2,7 @@ package com.goexercise.app.presentation.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -87,6 +89,13 @@ fun HistoryContent(
                 repeat(7 - week.size) { Box(Modifier.weight(1f)) } // 末週の埋め
             }
         }
+        // 凡例 + 休養ルール説明(記号だけだと意味が伝わらないため。iOS footerSummary パリティ)。
+        CalendarLegend(hasPeriod = state.periodDays.isNotEmpty())
+        Text(
+            "休養日は週2日まで自動でカウントされ、連続記録は途切れません。最初の記録より前の日は集計されません。",
+            color = palette.textSecondary, fontSize = 11.sp,
+        )
+
         TextButton(onClick = onUseRescue) { Text("保険チケットを使う") }
 
         // 日セルタップ → その日の詳細(記録一覧 or 状態別メッセージ)。iOS DayDetailSheet パリティ。
@@ -99,6 +108,37 @@ fun HistoryContent(
                 onDismiss = { selected = null },
             )
         }
+    }
+}
+
+/** カレンダー凡例。セルと同じ色(colorForStatus)で「色=状態」を一目で読めるようにする。iOS legendRow パリティ。 */
+@Composable
+private fun CalendarLegend(hasPeriod: Boolean) {
+    val palette = LocalAppPalette.current
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LegendSwatch(colorForStatus(DailyStatus.Achieved), "運動した日")
+        LegendSwatch(colorForStatus(DailyStatus.Rest), "休養日")
+        LegendSwatch(colorForStatus(DailyStatus.Rescued), "保険チケット")
+        LegendSwatch(colorForStatus(DailyStatus.Missed), "未達成")
+        if (hasPeriod) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("★", fontSize = 10.sp, color = Color(0xFFE05A8A))
+                Text("生理日", color = palette.textSecondary, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendSwatch(color: Color, label: String) {
+    val palette = LocalAppPalette.current
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(color))
+        Text(label, color = palette.textSecondary, fontSize = 11.sp)
     }
 }
 
