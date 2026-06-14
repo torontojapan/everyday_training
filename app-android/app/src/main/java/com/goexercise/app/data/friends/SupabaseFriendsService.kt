@@ -469,10 +469,11 @@ class SupabaseFriendsService(
         } catch (e: Exception) {
             throw AccountLinkError.BackendUnavailable // 401/405/500 等 → fail closed
         }
-        when {
-            efStatus in 200..299 -> { runCatching { client.auth.signOut(SignOutScope.LOCAL) }; backup = AccountBackupStatus.Anonymous; return }
-            efStatus == 404 || efStatus == -1 -> Unit // フォールバックへ
-            else -> throw AccountLinkError.BackendUnavailable // 非throw で非2xx が返った場合も fail closed
+        // fail-closed の判定は DeleteAccountDecision に集約(回帰テストで担保)。
+        when (DeleteAccountDecision.fromStatus(efStatus)) {
+            DeleteAccountDecision.Success -> { runCatching { client.auth.signOut(SignOutScope.LOCAL) }; backup = AccountBackupStatus.Anonymous; return }
+            DeleteAccountDecision.Fallback -> Unit // Stage2 フォールバックへ
+            DeleteAccountDecision.FailClosed -> throw AccountLinkError.BackendUnavailable // 復活防止(success 誤報告しない)
         }
         // Stage2: クライアント RLS フォールバック(本人 uid のデータのみ削除)。
         client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
