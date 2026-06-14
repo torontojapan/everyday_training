@@ -35,6 +35,16 @@ iOS `app/GOExercise/.../Assets.xcassets/CatCharacter/` の全110画像(11猫種 
    - 提案修正: 猫キャラに**背景適応の細い縁取り/ソフトシャドウ**を付け、どの背景でも輪郭が立つようにする(共有 modifier 化)。対象 = `BigCatView`(HomeView)/`CatStateView`/`UserCatPickerView`(241/270行 scaledToFill+clipShape(Circle))/`FriendAvatarView`/`FriendsParkView`。
    - 付随: `UserCatPickerView`/`CatStateView` は `scaledToFill + scaleEffect + clipShape(Circle)` で**耳/ヘッドバンドのリボンが円で切れる**。`BigCatView` 同様 `scaledToFit` 寄りにすると頭切れ解消。
 
+## A2. 全11猫種 2LLM 再監査(2026-06-14・Claude+Codex)= 新規確定不具合なし
+
+白猫の見落とし反省を受け、全11猫種×10ポーズを**実背景(midnight)合成コンタクトシート**で Claude+Codex の二者が独立監査。Codex の round-1 指摘はすべて Claude が拡大/マゼンタ/明背景で交差検証し是非を確定:
+- `white_resting`(Codex: 黒耳/wisp high)→ **誤検知**(丸まった頭の隣の**黒パーカー**を耳パッチと誤読。耳は白+ピンク・透過健全)。
+- `*_waitingMorning_shaker`(Codex: 残留矩形背景 med×4)→ **誤検知**(隅 alpha~10 の残渣・マゼンタ/明背景とも不可視)。
+- `silvertabby_beggingNight`/`scottish_resting`/`browntabby_resting`(Codex: wisp)→ **自然なフサフサ毛**で白猫型の浮遊ラフ線ではない=非不具合。
+- `tuxedo_resting`(Codex: 暗背景で埋没)→ 黒猫固有・in-app `catSilhouetteContrast()` の白グローで緩和済=アセット変更不要。
+- `persian`=CLEAN(琥珀 recolor 確認)。siamese/white の青目=品種正常・dark ears(siamese)も品種正常。
+**結論: 白猫10ポーズ+persian+§A6件の是正後、全猫種クリーン。** 検証法=全アセットを実背景に合成して目視(metric だけだと灰/銀/白毛で誤判定)。
+
 ## C. 軽微(様子見)
 
 - `cat_orange_celebrating` 前腕に他ポーズに無いリストバンド+袖に余分な肉球(低)
