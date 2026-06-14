@@ -4,6 +4,8 @@
     <!-- 毎日のリマインダー通知(#A-2-3)。exact alarm は使わない(inexact=権限不要)。 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 共有カードの「写真に保存」(API 28-)。Q+ は MediaStore RELATIVE_PATH で権限不要。 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <!-- アプリ内QRスキャナ(友達コード読み取り, #8)。任意機能なので features は optional。 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />

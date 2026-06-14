@@ -149,15 +149,31 @@ fun StreakShareContent(
 
         // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。
         if (streak > 0) {
+            fun doSave() {
+                scope.launch {
+                    val ok = StreakShareImageRenderer.saveToGallery(context, streak, breed, poseSeed, gradient)
+                    android.widget.Toast.makeText(
+                        context,
+                        if (ok) "写真に保存しました" else "保存に失敗しました",
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+            // API 28- は MediaStore への書き込みに WRITE_EXTERNAL_STORAGE が要る(Codex 指摘)。Q+ は権限不要。
+            val saveLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                if (granted) doSave()
+                else android.widget.Toast.makeText(context, "保存には写真へのアクセス許可が必要です", android.widget.Toast.LENGTH_SHORT).show()
+            }
             TextButton(
                 onClick = {
-                    scope.launch {
-                        val ok = StreakShareImageRenderer.saveToGallery(context, streak, breed, poseSeed, gradient)
-                        android.widget.Toast.makeText(
-                            context,
-                            if (ok) "写真に保存しました" else "保存に失敗しました",
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ||
+                        context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        doSave()
+                    } else {
+                        saveLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.goexercise.app.data.settings.ReminderPrefs
+import com.goexercise.app.domain.NotificationPersonality
 import com.goexercise.app.domain.NotificationSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
@@ -32,9 +33,19 @@ class ReminderScheduler @Inject constructor(
         cancelSlot(NotificationSlot.Evening)
     }
 
-    /** prefs に従って朝(常時)+夕(count>1)を予約。OFF や count<2 の側は解除する。 */
+    /**
+     * prefs と**性格**に従って予約(iOS scheduleDaily の性格分岐パリティ。Codex R3 是正)。
+     * - friendDriven: 日常 push 抑制 → 全解除。
+     * - quiet: 静かに → **夕のみ**(朝は出さない)。発火時に「連続が危うい時だけ」へさらに絞る。
+     * - voice: 朝(常時)+ 夕(count>1)。
+     */
     fun apply(prefs: ReminderPrefs) {
-        if (!prefs.enabled) { cancel(); return }
+        if (!prefs.enabled || prefs.personality == NotificationPersonality.FriendDriven) { cancel(); return }
+        if (prefs.personality == NotificationPersonality.Quiet) {
+            cancelSlot(NotificationSlot.Morning)
+            scheduleSlot(NotificationSlot.Evening, prefs.eveningHour, prefs.eveningMinute)
+            return
+        }
         scheduleSlot(NotificationSlot.Morning, prefs.hour, prefs.minute)
         if (prefs.count > 1) scheduleSlot(NotificationSlot.Evening, prefs.eveningHour, prefs.eveningMinute)
         else cancelSlot(NotificationSlot.Evening)

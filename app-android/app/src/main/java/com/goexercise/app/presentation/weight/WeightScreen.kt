@@ -85,7 +85,7 @@ fun WeightRoute(onOpenPremium: () -> Unit = {}, viewModel: WeightViewModel = hil
             blurred = !state.isPremium,
         )
         if (!state.isPremium) {
-            LockedOverlay(palette, onOpenPremium)
+            LockedOverlay(palette, state.isTrialEligible, onOpenPremium)
         }
     }
 }
@@ -126,7 +126,7 @@ private fun WeightContent(
 }
 
 @Composable
-private fun LockedOverlay(palette: AppTheme, onOpenPremium: () -> Unit) {
+private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremium: () -> Unit) {
     // 全画面で**タップを消費**し、ぼかした下層フォームへ非加入ユーザーが触れて
     // 体重/目標/生理日を変更できないようにする(iOS .disabled(!isUnlocked) 相当)。
     Box(
@@ -144,7 +144,12 @@ private fun LockedOverlay(palette: AppTheme, onOpenPremium: () -> Unit) {
             ) {
                 Text("👑", fontSize = 44.sp)
                 Text("体重タブは GOプレミアム機能です", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center)
-                Text("14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。", fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+                Text(
+                    // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
+                    if (trialEligible) "14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。"
+                    else "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。",
+                    fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                )
                 Button(onClick = onOpenPremium, colors = ButtonDefaults.buttonColors(containerColor = palette.primary)) {
                     Text("GOプレミアムを見る", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
@@ -225,8 +230,8 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
     var mode by remember { mutableStateOf(0) } // 0=今日, 1=昨日, 2=その他(任意過去日)
     var customDate by remember { mutableStateOf(LocalDate.now().minusDays(2)) }
     var showPicker by remember { mutableStateOf(false) }
-    val today = LocalDate.now()
-    val effectiveDate = when (mode) { 0 -> today; 1 -> today.minusDays(1); else -> customDate }
+    // 保存日は**保存タップ時**に算出(日跨ぎで画面を開いたまま「今日」が前日になる回帰を防ぐ。Codex 指摘)。
+    fun effectiveDate(): LocalDate = when (mode) { 0 -> LocalDate.now(); 1 -> LocalDate.now().minusDays(1); else -> customDate }
 
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -256,7 +261,7 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
             OutlinedTextField(value = memo, onValueChange = { memo = it }, label = { Text("メモ (任意)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = {
-                    weight.toDoubleOrNull()?.let { onAdd(effectiveDate, it, memo.ifBlank { null }); weight = ""; memo = "" }
+                    weight.toDoubleOrNull()?.let { onAdd(effectiveDate(), it, memo.ifBlank { null }); weight = ""; memo = "" }
                 },
                 enabled = weight.toDoubleOrNull() != null,
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
@@ -266,7 +271,7 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
     }
 
     if (showPicker) {
-        val todayMillis = today.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        val todayMillis = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
         val dpState = rememberDatePickerState(
             initialSelectedDateMillis = customDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
             selectableDates = object : SelectableDates {

@@ -75,8 +75,15 @@ fun HomeRoute(
         }
     }
 
+    val celebrateConfetti by viewModel.celebrateConfetti.collectAsStateWithLifecycle()
     Box(modifier = Modifier.fillMaxSize()) {
-        HomeContent(state = state, onRecordClick = onRecordClick, onShareClick = onShareClick)
+        HomeContent(
+            state = state,
+            onRecordClick = onRecordClick,
+            onShareClick = onShareClick,
+            celebrate = celebrateConfetti,
+            onCelebrateConsumed = viewModel::consumeCelebrateConfetti,
+        )
         // 機能B: 小節目の軽量トースト(HomeContent の上に重ねる。自動消滅で操作は遮らない)。
         // 大節目ダイアログ提示中(pendingMilestone != null)は二重演出を避けて出さない(VM の guard と二重化)。
         if (pendingMilestone == null) pendingRankEvent?.let { event ->
@@ -181,17 +188,12 @@ fun HomeContent(
     state: HomeUiState,
     onRecordClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    // 紙吹雪は VM が「記録完了(今日の新規記録)」でのみ true にする one-shot 信号で駆動する。
+    // 起動時の状態ロード遷移や revive では発火しない([[celebration_after_record_only]] パリティ)。
+    celebrate: Boolean = false,
+    onCelebrateConsumed: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
-    // 達成の全画面紙吹雪ゲート: todayStatus が「未達成→達成」に遷移した瞬間(=記録完了→ホーム復帰)に
-    // 1 回だけ再生する。起動時に既に達成済みなら出さない(iOS celebratedDay と同趣旨)。
-    val achieved = state.todayStatus.countsAsAchieved
-    var prevAchieved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(achieved) }
-    var celebrate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(achieved) {
-        if (achieved && !prevAchieved) celebrate = true
-        prevAchieved = achieved
-    }
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。背景は backdrop が描くので Column 側の
         // .background(palette.background) は外す(付けると backdrop を覆って見えなくなる)。
@@ -223,8 +225,8 @@ fun HomeContent(
                 }
             }
         }
-        // 達成時の全画面紙吹雪(最前面)。iOS パリティ。
-        com.goexercise.app.ui.components.ConfettiOverlay(play = celebrate, onFinished = { celebrate = false })
+        // 達成時の全画面紙吹雪(最前面)。記録完了でのみ VM が点火、終了で consume。iOS パリティ。
+        com.goexercise.app.ui.components.ConfettiOverlay(play = celebrate, onFinished = onCelebrateConsumed)
     }
 }
 

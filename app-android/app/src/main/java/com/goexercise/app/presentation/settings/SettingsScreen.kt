@@ -58,6 +58,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
+    val trialEligible by viewModel.isTrialEligible.collectAsStateWithLifecycle()
     val catBreed by viewModel.catBreed.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
@@ -88,6 +89,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         selected = theme,
         onSelect = viewModel::setTheme,
         isPremium = isPremium,
+        trialEligible = trialEligible,
         onOpenPremium = onOpenPremium,
         catBreed = catBreed,
         onSelectBreed = viewModel::setCatBreed,
@@ -155,6 +157,7 @@ fun SettingsContent(
     selected: AppTheme,
     onSelect: (AppTheme) -> Unit = {},
     isPremium: Boolean = false,
+    trialEligible: Boolean = false,
     onOpenPremium: () -> Unit = {},
     catBreed: CatBreed = CatBreed.Default,
     onSelectBreed: (CatBreed) -> Unit = {},
@@ -222,7 +225,7 @@ fun SettingsContent(
             onLinkGoogle = onLinkGoogle,
         )
 
-        PremiumCard(isPremium = isPremium, palette = palette, onClick = onOpenPremium)
+        PremiumCard(isPremium = isPremium, trialEligible = trialEligible, palette = palette, onClick = onOpenPremium)
 
         Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
         CatBreedPicker(
@@ -493,7 +496,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
 }
 
 @Composable
-private fun PremiumCard(isPremium: Boolean, palette: AppTheme, onClick: () -> Unit) {
+private fun PremiumCard(isPremium: Boolean, trialEligible: Boolean, palette: AppTheme, onClick: () -> Unit) {
     Surface(
         color = palette.surface,
         shape = RoundedCornerShape(16.dp),
@@ -511,7 +514,12 @@ private fun PremiumCard(isPremium: Boolean, palette: AppTheme, onClick: () -> Un
             Column(Modifier.weight(1f)) {
                 Text("GOプレミアム", color = palette.textPrimary, fontWeight = FontWeight.Bold)
                 Text(
-                    if (isPremium) "加入済み・全機能が使えます" else "14日間無料で全機能を解放",
+                    // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
+                    when {
+                        isPremium -> "加入済み・全機能が使えます"
+                        trialEligible -> "14日間無料で全機能を解放"
+                        else -> "全機能を解放"
+                    },
                     color = palette.textSecondary,
                     fontSize = 12.sp,
                 )

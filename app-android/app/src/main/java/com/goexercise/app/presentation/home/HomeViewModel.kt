@@ -108,6 +108,12 @@ class HomeViewModel @Inject constructor(
      *  iOS パリティ: 起動時に節目ダイアログを出さない(celebration after record only)。 */
     private val _recordCompletedArmed = MutableStateFlow(false)
 
+    /** 達成時の全画面紙吹雪トリガ。記録完了(今日の新規記録)でのみ true。起動時/revive では出さない
+     *  ([[celebration_after_record_only]] パリティ。cold-start の状態遷移では誤発火しない)。 */
+    private val _celebrateConfetti = MutableStateFlow(false)
+    val celebrateConfetti: StateFlow<Boolean> = _celebrateConfetti.asStateFlow()
+    fun consumeCelebrateConfetti() { _celebrateConfetti.value = false }
+
     private val rawPendingMilestone: kotlinx.coroutines.flow.Flow<Milestone?> =
         combine(
             uiState,
@@ -200,6 +206,7 @@ class HomeViewModel @Inject constructor(
                     val newTodayRecord = records.any { it.date == today && it.id !in prevIds }
                     if (newTodayRecord) {
                         _recordCompletedArmed.value = true // 記録完了 → 節目演出を解禁(起動時は出さない)
+                        _celebrateConfetti.value = true // 記録完了→ホーム復帰で全画面紙吹雪(起動時/revive では出さない)
                         val streak = StreakCalculator.currentStreak(records, today, rescued)
                         if (reviewController.shouldRequestReview(streak, today)) {
                             reviewController.markRequested(streak, today)

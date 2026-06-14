@@ -27,8 +27,9 @@ data class ReminderPrefs(
     val minute: Int = 30,
     val eveningHour: Int = 20,
     val eveningMinute: Int = 0,
-    /** 1日の通知回数(1=朝のみ / 2=朝+夕)。 */
-    val count: Int = 2,
+    /** 1日の通知回数(1=朝のみ / 2=朝+夕)。既定 1=既存ユーザー(reminder_count 未保存)の単発通知を
+     *  維持し、移行で勝手に2本化・同時刻の重複配信になるのを防ぐ(Codex R3)。2本目は明示オプトイン。 */
+    val count: Int = 1,
     val personality: NotificationPersonality = NotificationPersonality.Default,
 )
 
@@ -60,7 +61,7 @@ class NotificationPrefsRepositoryImpl @Inject constructor(
             minute = (p[minuteKey] ?: 30).coerceIn(0, 59),
             eveningHour = (p[eveningHourKey] ?: 20).coerceIn(0, 23),
             eveningMinute = (p[eveningMinuteKey] ?: 0).coerceIn(0, 59),
-            count = (p[countKey] ?: 2).coerceIn(1, 2),
+            count = (p[countKey] ?: 1).coerceIn(1, 2), // 未保存(既存ユーザー)は単発=移行で2本化しない
             personality = NotificationPersonality.fromRaw(p[personalityKey]),
         )
     }
