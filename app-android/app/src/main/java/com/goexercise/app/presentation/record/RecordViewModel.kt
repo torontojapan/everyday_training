@@ -45,6 +45,10 @@ class RecordViewModel @Inject constructor(
     private val _saved = Channel<Unit>(Channel.BUFFERED)
     val saved = _saved.receiveAsFlow()
 
+    /** 生理日トグル初期値を読んだ日付。save 時にこの日付と一致するときだけトグルを適用する
+     *  (日跨ぎで画面を開いたまま保存すると、昨日の状態を今日へ誤適用するのを防ぐ。Codex R2)。 */
+    private var menstrualInitDate: LocalDate? = null
+
     /** カテゴリ別「よく使う種目」候補(最終使用日順)。記録入力の横スクロールチップ用(iOS パリティ)。 */
     val suggestionsByCategory: StateFlow<Map<WorkoutCategory, List<String>>> =
         repository.observeRecords()
@@ -71,6 +75,7 @@ class RecordViewModel @Inject constructor(
         viewModelScope.launch {
             val today = LocalDate.now(clock)
             val marked = runCatching { menstrualRepository.periodDays.first().contains(today) }.getOrDefault(false)
+            menstrualInitDate = today
             _state.update { it.copy(menstrualToday = marked) }
         }
     }
@@ -124,12 +129,15 @@ class RecordViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 repository.save(record)
-                // 同じ保存操作で体重・生理日も永続化(iOS RecordEntryView パリティ)。日付は上で固定した today。
-                current.parsedWeightKg?.let { weightRepository.add(now, it, null) }
-                if (current.cycleTrackingEnabled) {
-                    // トグルの状態に合わせて冪等に設定(差があるときだけ toggle=iOS set(_:on:) 相当)。
-                    val marked = menstrualRepository.periodDays.first().contains(today)
-                    if (current.menstrualToday != marked) menstrualRepository.toggle(today)
+                // 運動記録の保存が source of truth。体重・生理日は**付随**なので各々 best-effort にし、
+                // ここでの失敗で「保存失敗」を報告→再記録で WorkoutRecord が重複するのを防ぐ(Codex R2)。
+                current.parsedWeightKg?.let { kg -> runCatching { weightRepository.add(now, kg, null) } }
+                // 生理日トグルは「初期値を読んだ日」と保存日が一致するときだけ適用(日跨ぎ誤適用防止, Codex R2)。
+                if (current.cycleTrackingEnabled && menstrualInitDate == today) {
+                    runCatching {
+                        val marked = menstrualRepository.periodDays.first().contains(today)
+                        if (current.menstrualToday != marked) menstrualRepository.toggle(today)
+                    }
                 }
             }
                 .onSuccess {
