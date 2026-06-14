@@ -133,6 +133,39 @@ object StreakShareImageRenderer {
         }
     }
 
+    /**
+     * シェアカードを端末のギャラリー(Pictures/GOExercise)に PNG 保存する。iOS の「写真に保存」相当。
+     * MediaStore 経由なので Android 10+ では実行時ストレージ権限が不要。成功なら true。
+     */
+    suspend fun saveToGallery(
+        context: Context,
+        streak: Int,
+        breed: CatBreed,
+        poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    ): Boolean {
+        val app = context.applicationContext
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val bitmap = render(app, streak, breed, poseSeed, gradient)
+                val name = "goexercise-streak-${System.currentTimeMillis()}.png"
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/GOExercise")
+                    }
+                }
+                val resolver = app.contentResolver
+                val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return@runCatching false
+                resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    ?: return@runCatching false
+                true
+            }.getOrDefault(false)
+        }
+    }
+
     // ---- 描画ヘルパ ----
 
     private fun textPaint(size: Float, bold: Boolean = false, black: Boolean = false, mono: Boolean = false): Paint =

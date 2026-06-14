@@ -147,6 +147,23 @@ fun StreakShareContent(
             Text(if (streak > 0) "SNSでシェア" else "まず1日記録してみよう")
         }
 
+        // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。
+        if (streak > 0) {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        val ok = StreakShareImageRenderer.saveToGallery(context, streak, breed, poseSeed, gradient)
+                        android.widget.Toast.makeText(
+                            context,
+                            if (ok) "写真に保存しました" else "保存に失敗しました",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("写真に保存", color = palette.primaryDeep) }
+        }
+
         TextButton(onClick = onBack) {
             Text("閉じる", color = palette.textSecondary)
         }
