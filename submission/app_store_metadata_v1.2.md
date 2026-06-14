@@ -20,7 +20,7 @@
 | 項目 | 値 |
 |---|---|
 | バージョン | **1.2** |
-| ビルド | **8** (アーカイブ済 = `~/Library/Developer/Xcode/Archives/2026-06-15/GOExercise-1.2-8.xcarchive`) |
+| ビルド | **9** (build 8 は受信応援トースト不発のため差し替え。build 9 = 修正版) |
 | Bundle Identifier | com.goexercise.app (+ widget `com.goexercise.app.widget`) |
 
 その他(アプリ名/サブタイトル/カテゴリ/年齢区分/配信地域=日本のみ/価格=無料/IAP=GOプレミアム 月¥500・年¥3,800 各14日無料)は **v1.1 と同一**。`app_store_metadata_v1.1.md` を参照。
@@ -87,11 +87,11 @@ v1.1 のセット(home / streak_share / record / history / settings / paywall + 
 
 ## v1.2 提出前チェックリスト
 - [ ] **ASC の v1.1 状態を確認**(上記「提出前に確認」)。1.2 を新規バージョンとして作成できる状態にする
-- [ ] アーカイブ(1.2/build 8)を Organizer から App Store Connect へアップロード
+- [ ] アーカイブ(1.2/**build 9** = トースト修正版)を App Store Connect へアップロード(build 8 は提出しない)
 - [ ] アップロード済ビルドをバージョン 1.2 に紐付け
 - [ ] What's New を上記いずれかで設定
 - [ ] App Review 情報のアカウント削除導線を新場所に更新
 - [ ] **App Privacy: TelemetryDeck(Usage Data)を申告するか送信停止か確定**(現ビルドは AppID 設定済)
 - [ ] サブスク(`premium_monthly`/`yearly`)が「提出可能」状態
-- [ ] 受信応援トーストの実機/シミュレータ目視確認(build 8 の主目的。`/tmp/cheer_send_setup.py`)
+- [x] 受信応援トーストの不発バグ修正済(build 9)。シミュレータ E2E で friend-cheer-toast 表示を実証 + 回帰ユニットテスト追加
 - [ ] 審査提出

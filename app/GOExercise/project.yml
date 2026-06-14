@@ -18,8 +18,10 @@ settings:
     #   設定「アカウントとバックアップ」へ移設(審査5.1.1(v)導線は維持)。
     # build 8 = 受信応援トーストの可視性強化(タブバー被り対策で bottom padding 24→64・
     #   表示3秒→5秒)。実機で配信は成功(友達化+応援201)もトーストが下端で見落とされた対策。
+    # build 9 = 受信応援トースト不発の根因修正(unseenReceivedCheers が protocol 要件でなく
+    #   静的ディスパッチで extension 既定[]を呼んでいた)。build 8 は同機能が壊れたまま=提出不可。
     MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "8"
+    CURRENT_PROJECT_VERSION: "9"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
