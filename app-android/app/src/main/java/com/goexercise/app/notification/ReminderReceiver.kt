@@ -15,6 +15,7 @@ import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.NotificationPrefsRepository
 import com.goexercise.app.domain.AchievementEvaluator
 import com.goexercise.app.domain.NotificationMessageProvider
+import com.goexercise.app.domain.NotificationPersonality
 import com.goexercise.app.domain.NotificationSlot
 import com.goexercise.app.domain.RestDayResolver
 import com.goexercise.app.domain.StreakCalculator
@@ -49,8 +50,8 @@ class ReminderReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.Default).launch {
             runCatching {
                 val p = prefs.get()
-                if (!p.enabled) return@runCatching
-                if (p.personality == com.goexercise.app.domain.NotificationPersonality.FriendDriven) return@runCatching // v1 は日常 push 抑制
+                // DB 読み込み前の早期離脱(コスト回避)。完全な抑制判定は [ReminderFireDecision] が正本。
+                if (!p.enabled || p.personality == NotificationPersonality.FriendDriven) return@runCatching
                 val today = LocalDate.now()
                 val records = workoutRepository.observeRecords().first()
                 val rescued = rescueTickets.rescuedDates.first()
@@ -58,14 +59,15 @@ class ReminderReceiver : BroadcastReceiver() {
                 // 当日達成済みなら鳴らさない(達成日に追い立てない。iOS の当日 cancel と同じ体験)。
                 val restDays = RestDayResolver.restDaySet(today, records, today)
                 val todayAchieved = AchievementEvaluator.dailyStatus(today, records, restDays, rescued, today).countsAsAchieved
-                if (todayAchieved) return@runCatching
 
                 val streak = StreakCalculator.currentStreak(records, today, rescued)
                 val weekStatuses = WeeklyProgressCalculator.statuses(today, records, today, rescued)
                 val progress = WeeklyProgressCalculator.progress(weekStatuses)
                 val rate = if (progress.totalDays > 0) progress.achievedCount.toDouble() / progress.totalDays else 0.0
-                // quiet は連続が危ういとき(連続中 or 週進捗あり)だけ鳴らす。
-                if (p.personality == com.goexercise.app.domain.NotificationPersonality.Quiet && streak == 0 && rate == 0.0) return@runCatching
+                // 発火時抑制(当日達成 / quiet で連続なし 等)を純粋関数で判定。
+                if (ReminderFireDecision.suppressReason(p.enabled, p.personality, todayAchieved, streak, rate) != null) {
+                    return@runCatching
+                }
 
                 val body = NotificationMessageProvider.message(slot, p.personality, streak, rate, today)
                 ensureChannel(context)

@@ -12,8 +12,9 @@ settings:
     # TestFlight 再アップロードのたびに CURRENT_PROJECT_VERSION を +1 する。
     # 1.0(1)却下 / 1.0(2) / 1.0(3)=承認済み(友達+UUID修正)。
     # 1.1 = v1.2機能群(達成装飾A〜F/紹介スター/設定リデザイン/polish)の初の機能更新。build は通し番号で 4。
-    MARKETING_VERSION: "1.1"
-    CURRENT_PROJECT_VERSION: "5"
+    # 1.2 = friends-polish群(アカウント堅牢化/anti-resurrection/クラウドバックアップ/友達公園/猫アート是正/コントラスト)。build 通し番号 6。
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "6"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。

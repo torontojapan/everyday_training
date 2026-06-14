@@ -57,6 +57,7 @@ struct FriendsParkView: View {
                         .opacity(isActive ? 1.0 : 0.72)       // 未達成は薄め
                         .frame(width: 80, height: 80)
                         .clipShape(Circle())
+                        .catSilhouetteContrast()
                         .background(
                             Circle()
                                 .fill(breed.tintColor.opacity(isActive ? 0.30 : 0.18))

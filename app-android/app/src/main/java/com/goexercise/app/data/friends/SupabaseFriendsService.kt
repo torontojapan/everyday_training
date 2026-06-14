@@ -83,24 +83,21 @@ class SupabaseFriendsService(
     }
 
     override suspend fun signOut() {
+        // anti-resurrection の手順判断は AccountDeletionFlow に集約(回帰テストで担保)。
         // **匿名のときだけ**クラウドデータを削除する(=iOS「忘れる」セマンティクス)。連携済み
         // (バックアップ)は保持=別端末/再サインインで復旧可能。ensureUid は呼ばない(サインアウト中に
         // 新規匿名セッションを作らない)。uid 取得失敗時は不確実なので削除しない(安全側=誤削除より残留)。
-        // 各 delete は best-effort(runCatching): 一部失敗でも auth signOut まで到達させる。
         val user = client.auth.currentUserOrNull()
-        if (user != null && user.isAnonymous == true) {
-            val uid = user.id
-            // 匿名は signOut=auth 削除されない(cascade 不発)ため、本人スコープの機微行も明示削除する
-            // (Codex 指摘: cheers / user_records が残ると「忘れる」にならない。deleteAccount fallback と同集合)。
-            runCatching { client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
-            runCatching { client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
-            runCatching { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
-            runCatching { client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } } }
-            runCatching { client.from("user_records").delete { filter { eq("user_id", uid) } } }
-            runCatching { client.from("profiles").delete { filter { eq("user_id", uid) } } }
-        }
-        client.auth.signOut()
-        backup = AccountBackupStatus.Anonymous
+        AccountDeletionFlow.signOut(
+            user = user?.let { AccountDeletionFlow.SessionUser(isAnonymous = it.isAnonymous == true) },
+            // 匿名は signOut=auth 削除されない(cascade 不発)ため、本人スコープの機微行も明示削除する。
+            // best-effort(各テーブル独立): 一部失敗でも auth signOut まで到達させる。
+            deleteOwnedData = { user?.id?.let { uid -> deleteOwnedRows(uid, bestEffort = true) } },
+            signOut = {
+                client.auth.signOut()
+                backup = AccountBackupStatus.Anonymous
+            },
+        )
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> {
@@ -454,41 +451,58 @@ class SupabaseFriendsService(
 
     override suspend fun deleteAccount() {
         val uid = client.auth.currentUserOrNull()?.id ?: throw FriendsError.NotSignedIn
+        // 二段構えの手順と fail-closed 判断は AccountDeletionFlow + DeleteAccountDecision に集約(回帰テストで担保)。
         // Stage1: Edge Function `delete-account`(service_role で auth ごと cascade 削除 + 全セッション失効)。
-        // デプロイ済みで **非404 失敗(500/401/405)は fail closed**(success と誤報告せず再試行させる。
-        // auth 行+refresh token が生き残ると復活するため)。404/ネット断/不確定のみ Stage2 へ。
-        // TODO(#10 PoC): supabase-kt の functions.invoke は HttpResponse を返し HTTP エラーで throw しない
-        // 前提。実機で 404/500 の挙動(throw か status か)を確定し、必要なら例外の status 抽出を足す。
-        // supabase-kt は非2xx を typed RestException で投げる。404(未デプロイ)/ネット断のみ Stage2 へ。
-        // 401/405/500 等(EF に到達した上での失敗)は **fail closed**(success 誤報告で auth 行/
-        // refresh token が生き残り復活するのを防ぐ)。
-        val efStatus = try {
-            client.functions.invoke("delete-account").status.value
-        } catch (e: NotFoundRestException) {
-            404 // EF 未デプロイ → Stage2 フォールバック
-        } catch (e: HttpRequestException) {
-            -1 // ネット断/到達不可 → Stage2 フォールバック(RLS も落ちれば throw され再試行可)
-        } catch (e: java.io.IOException) {
-            -1
-        } catch (e: Exception) {
-            throw AccountLinkError.BackendUnavailable // 401/405/500 等 → fail closed
+        // 404(未デプロイ)/ネット断/不確定のみ Stage2 へ。401/405/500 等(EF 到達後の失敗)は **fail closed**
+        // (success 誤報告で auth 行/refresh token が生き残り復活するのを防ぐ)。
+        AccountDeletionFlow.deleteAccount(
+            invokeEdgeFunction = {
+                // supabase-kt は非2xx を typed RestException で投げる前提。例外を status へ写像し、
+                // fail-closed 相当(401/405/500 等)は throw して伝播(success 誤報告防止)。
+                try {
+                    client.functions.invoke("delete-account").status.value
+                } catch (e: NotFoundRestException) {
+                    404 // EF 未デプロイ → Stage2 フォールバック
+                } catch (e: HttpRequestException) {
+                    -1 // ネット断/到達不可 → Stage2 フォールバック(RLS も落ちれば throw され再試行可)
+                } catch (e: java.io.IOException) {
+                    -1
+                } catch (e: Exception) {
+                    throw AccountLinkError.BackendUnavailable // 401/405/500 等 → fail closed(伝播)
+                }
+            },
+            // Success: EF が cascade 削除済 → ローカル signOut のみ(クライアント削除はしない)。
+            signOutLocal = {
+                backup = AccountBackupStatus.Anonymous
+                client.auth.signOut(SignOutScope.LOCAL)
+            },
+            // Fallback Stage2: クライアント RLS で本人 uid のデータのみ削除。失敗は伝播(再試行=復活防止)。
+            // user_records は体重・体調を含む機微データ。EF 不達時もサーバへ残留させない(iOS 監査是正と対称)。
+            deleteOwnedData = { deleteOwnedRows(uid, bestEffort = false) },
+            signOutGlobal = {
+                backup = AccountBackupStatus.Anonymous
+                client.auth.signOut(SignOutScope.GLOBAL) // best-effort(token 失効は EF の役目)
+            },
+            failClosed = { AccountLinkError.BackendUnavailable }, // 復活防止(success 誤報告しない)
+        )
+    }
+
+    /**
+     * 本人スコープの機微行を6テーブルから削除(cheers / friend_requests / friendships / referrals /
+     * user_records / profiles)。signOut「忘れる」と deleteAccount Stage2 フォールバックで共有。
+     * @param bestEffort true=各テーブル独立 best-effort(一部失敗でも残りを試行=「忘れる」を可能な限り完遂)/
+     *   false=最初の失敗を伝播(削除未完了なら呼び出し側で再試行=復活防止)。
+     */
+    private suspend fun deleteOwnedRows(uid: String, bestEffort: Boolean) {
+        suspend fun step(block: suspend () -> Unit) {
+            if (bestEffort) runCatching { block() } else block()
         }
-        // fail-closed の判定は DeleteAccountDecision に集約(回帰テストで担保)。
-        when (DeleteAccountDecision.fromStatus(efStatus)) {
-            DeleteAccountDecision.Success -> { runCatching { client.auth.signOut(SignOutScope.LOCAL) }; backup = AccountBackupStatus.Anonymous; return }
-            DeleteAccountDecision.Fallback -> Unit // Stage2 フォールバックへ
-            DeleteAccountDecision.FailClosed -> throw AccountLinkError.BackendUnavailable // 復活防止(success 誤報告しない)
-        }
-        // Stage2: クライアント RLS フォールバック(本人 uid のデータのみ削除)。
-        client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
-        client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } }
-        client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } }
-        client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } }
-        // user_records は体重・体調を含む機微データ。EF 不達時にサーバへ残留させない(iOS Codex 監査の是正と対称)。
-        client.from("user_records").delete { filter { eq("user_id", uid) } }
-        client.from("profiles").delete { filter { eq("user_id", uid) } }
-        runCatching { client.auth.signOut(SignOutScope.GLOBAL) } // best-effort(token 失効は EF の役目)
-        backup = AccountBackupStatus.Anonymous
+        step { client.from("cheers").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
+        step { client.from("friend_requests").delete { filter { or { eq("from_user", uid); eq("to_user", uid) } } } }
+        step { client.from("friendships").delete { filter { or { eq("user_a", uid); eq("user_b", uid) } } } }
+        step { client.from("referrals").delete { filter { or { eq("referrer_user_id", uid); eq("referee_user_id", uid) } } } }
+        step { client.from("user_records").delete { filter { eq("user_id", uid) } } }
+        step { client.from("profiles").delete { filter { eq("user_id", uid) } } }
     }
 
     // ================= 記録のクラウドバックアップ(user_records)=================

@@ -67,7 +67,7 @@ Workflow({ name: "goexercise-full-audit" })
 
 **intent-compliance** = 各操作要素について「こう押したらこうなって欲しい(SPEC正本)」→
 「コード実挙動」→ match / mismatch / dead-control(死にボタン) / unclear。
-intent の正本 = `docs/SPEC_iOS.md` / `specs/requirements_v1.md` / `docs/QA_CHECKLIST.md`。iOSがパリティ基準。
+intent の正本 = `docs/SPEC_iOS.md` / `specs/requirements_v1.md`。iOSがパリティ基準。
 
 **再発バグ型6+1**(各所で必ず確認): 口座スコープ漏れ / 月境界UTC vs local / シートdismiss未acknowledge /
 rescuedDates渡し忘れ / 連続×自動休養の橋渡し / UUID大小 / RLSはBEFORE trigger。
@@ -106,7 +106,7 @@ Phase A が出す `needs-info`(実機/動的確認要)を重点的に消化。
 
 ## Phase D — 正本マトリクス生成 + ギャップ閉鎖
 
-1. Phase A の `matrixMarkdown` を `docs/QA_CHECKLIST.md` に反映(機能×プラットフォーム×層、各セルに担当/証拠/最終検証コミット)。
+1. Phase A の `matrixMarkdown` を `docs/AUDIT_MATRIX_2026-06-13.md`(マトリクス正本)に反映(機能×プラットフォーム×層、各セルに担当/証拠/最終検証コミット)。
 2. confirmed 所見を修正。
 3. テストギャップに iOS/Android のユニット/UIテストを追加 → Phase 0 を再実行して緑を確認。
 4. 実機限定セル(IAP/Sandbox・プッシュ・QRカメラ・サインイン往復・ハプティク・iOS↔Android実機バックアップ往復)は

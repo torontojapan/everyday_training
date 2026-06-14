@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.goexercise.app.data.settings.ReminderPrefs
-import com.goexercise.app.domain.NotificationPersonality
 import com.goexercise.app.domain.NotificationSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
@@ -40,15 +39,13 @@ class ReminderScheduler @Inject constructor(
      * - voice: 朝(常時)+ 夕(count>1)。
      */
     fun apply(prefs: ReminderPrefs) {
-        if (!prefs.enabled || prefs.personality == NotificationPersonality.FriendDriven) { cancel(); return }
-        if (prefs.personality == NotificationPersonality.Quiet) {
-            cancelSlot(NotificationSlot.Morning)
-            scheduleSlot(NotificationSlot.Evening, prefs.eveningHour, prefs.eveningMinute)
-            return
+        // 分岐は [ReminderSchedulePlan] に純粋関数として切り出し済み(テスト可能)。ここは副作用の適用のみ。
+        ReminderSchedulePlan.plan(prefs).forEach { action ->
+            when (action) {
+                is SlotAction.Schedule -> scheduleSlot(action.slot, action.hour, action.minute)
+                is SlotAction.Cancel -> cancelSlot(action.slot)
+            }
         }
-        scheduleSlot(NotificationSlot.Morning, prefs.hour, prefs.minute)
-        if (prefs.count > 1) scheduleSlot(NotificationSlot.Evening, prefs.eveningHour, prefs.eveningMinute)
-        else cancelSlot(NotificationSlot.Evening)
     }
 
     fun cancel() {

@@ -238,10 +238,10 @@ struct UserCatPickerView: View {
                     .frame(width: 160, height: 160)
                 Image(selected.avatarAssetName)
                     .resizable()
-                    .scaledToFill()
-                    .scaleEffect(1.05)
+                    .scaledToFit() // 耳/リボンが円で切れないよう fill+overscale から fit へ
                     .frame(width: 160, height: 160)
                     .clipShape(Circle())
+                    .catSilhouetteContrast()
             }
             Text(selected.displayName)
                 .font(Typography.headline)
@@ -267,10 +267,10 @@ struct UserCatPickerView: View {
                         .frame(width: 64, height: 64)
                     Image(breed.avatarAssetName)
                         .resizable()
-                        .scaledToFill()
-                        .scaleEffect(1.10)
+                        .scaledToFit() // 耳/リボンが円で切れないよう fill+overscale から fit へ
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
+                        .catSilhouetteContrast()
                         .opacity(locked ? 0.45 : 1)
                     if locked {
                         Image(systemName: "lock.fill")

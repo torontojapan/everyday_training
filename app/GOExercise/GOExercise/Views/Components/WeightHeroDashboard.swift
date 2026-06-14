@@ -226,7 +226,16 @@ struct WeightHeroDashboard: View {
             }
         }
         .frame(width: ringSize + 12, height: ringSize + 12)
-        .accessibilityHidden(true)
+        // リング中央の進捗% は視覚的に主役なので VoiceOver にも読ませる(装飾の猫画像は内包して無視)。
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ringAccessibilityLabel)
+    }
+
+    /// 体重リングの VoiceOver ラベル(目標達成率)。視覚的に主役の % を音声でも届ける。
+    private var ringAccessibilityLabel: String {
+        guard let progress else { return "目標の進捗はまだありません" }
+        let pct = Int((max(0, min(1, progress)) * 100).rounded())
+        return "目標達成 \(pct) パーセント"
     }
 
     @ViewBuilder
