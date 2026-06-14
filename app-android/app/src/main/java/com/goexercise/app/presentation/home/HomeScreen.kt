@@ -195,6 +195,7 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             CatTheater(state)
+            if (state.isComebackToday) ComebackWelcomeCard()
             WeekStrip(state.weekStatuses)
             StatsRow(state)
             Button(
@@ -211,6 +212,30 @@ fun HomeContent(
                 ) {
                     Text("🔥 ${state.streak.currentStreak}日連続をシェア", color = palette.primaryDeep)
                 }
+            }
+        }
+    }
+}
+
+/** 復帰日の歓迎カード(iOS comebackWelcomeCard パリティ)。再開のハードルを下げる。 */
+@Composable
+private fun ComebackWelcomeCard() {
+    val palette = LocalAppPalette.current
+    Surface(
+        color = palette.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("🚪", fontSize = 22.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("おかえり", fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("昨日はおやすみだったね。今日は30秒でも戻れたら100点。",
+                    fontSize = 12.sp, color = palette.textSecondary)
             }
         }
     }

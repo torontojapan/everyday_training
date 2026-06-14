@@ -53,6 +53,37 @@ class HomeStateReducerTest {
         assertEquals(CatState.WaitingMorning, state.catState)
     }
 
+    // 2026-05-24 は日曜。週(月18..日24)で 5/18,19 が自動休養枠(先頭2日)、5/20-23 は missed に
+    // なるため、昨日(土 5/23)は確実に missed。これで復帰条件を曖昧さ無く再現する。
+    @Test
+    fun comebackToday_whenYesterdayMissedAndStreakBrokenWith3PlusAchieved() {
+        val now = LocalDateTime.of(2026, 5, 24, 9, 0)
+        val records = listOf(record(1), record(2), record(3)) // 累計3日達成 → 以降ずっと欠け
+        val state = HomeStateReducer.reduce(records = records, now = now, firstUseDate = LocalDate.of(2026, 5, 1))
+
+        assertTrue(state.isComebackToday)
+    }
+
+    @Test
+    fun notComeback_whenFewerThan3Achieved() {
+        // 累計2日では復帰カードを出さない(三日坊主の閾値=3)。
+        val now = LocalDateTime.of(2026, 5, 24, 9, 0)
+        val records = listOf(record(1), record(2))
+        val state = HomeStateReducer.reduce(records = records, now = now, firstUseDate = LocalDate.of(2026, 5, 1))
+
+        assertEquals(false, state.isComebackToday)
+    }
+
+    @Test
+    fun notComeback_whenTodayAchieved() {
+        // 今日記録済みなら復帰カードは出さない。
+        val now = LocalDateTime.of(2026, 5, 24, 9, 0)
+        val records = listOf(record(1), record(2), record(3), record(24))
+        val state = HomeStateReducer.reduce(records = records, now = now, firstUseDate = LocalDate.of(2026, 5, 1))
+
+        assertEquals(false, state.isComebackToday)
+    }
+
     @Test
     fun lifetimeAchievedDaysDriveDecoration() {
         // 7 ユニーク達成日 → Bandana(7..29)
