@@ -40,10 +40,10 @@ struct CatStateView: View {
             if UIImage(named: resolved) != nil {
                 Image(resolved)
                     .resizable()
-                    .scaledToFill()
-                    .scaleEffect(1.05)
+                    .scaledToFit() // scaledToFill+overscale だと耳/ヘッドバンドが円で切れる → fit で頭切れ解消
                     .frame(width: 72, height: 72)
                     .clipShape(Circle())
+                    .catSilhouetteContrast()
             } else {
                 Text(state.emoji)
                     .font(.system(size: state == .streakExtended ? 40 : 46))

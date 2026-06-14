@@ -28,6 +28,7 @@ struct FriendAvatarView: View {
                 .scaleEffect(1.10)
                 .frame(width: size, height: size)
                 .clipShape(Circle())
+                .catSilhouetteContrast()
         }
         .overlay {
             if showsDecorationBorder {

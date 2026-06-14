@@ -740,6 +740,7 @@ struct BigCatView: View {
                     // 画像領域を Circle より少しだけ広く取り、しっぽ・手・装飾の
                     // 飛び出しを clip しない。
                     .padding(2)
+                    .catSilhouetteContrast() // 明/暗テーマ背景に溶けないよう輪郭を立てる
             } else {
                 Text(state.emoji)
                     .font(.system(size: 120))
