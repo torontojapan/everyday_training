@@ -60,8 +60,9 @@ class SupabaseFriendsService(
         return FriendCode.generate()
     }
 
-    private fun orderedPair(a: String, b: String): Pair<String, String> =
-        if (a < b) a to b else b to a
+    // UUID 大小を正規化して friendships_check 違反(iOS UUID 大文字由来の ship-blocker)を防ぐ。
+    // ロジックは FriendshipPair に集約し回帰テスト([FriendshipPairTest])で担保。
+    private fun orderedPair(a: String, b: String): Pair<String, String> = FriendshipPair.ordered(a, b)
 
     override suspend fun myProfile(): FriendProfile? {
         val uid = client.auth.currentUserOrNull()?.id ?: return null
