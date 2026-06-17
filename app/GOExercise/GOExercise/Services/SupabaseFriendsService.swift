@@ -118,8 +118,14 @@ final class SupabaseFriendsService: FriendsService {
         guard let client else { backupStatus = .anonymous; return }
         guard let session = try? await client.auth.session else { backupStatus = .anonymous; return }
         let user = session.user
-        let provider = user.identities?.first(where: { $0.provider != "anonymous" })?.provider
-        backupStatus = AccountBackupStatus(isBackedUp: !user.isAnonymous, providerName: provider)
+        // 連携済みプロバイダを **全部** 取得する(anonymous 除外・重複は順序保持で除去)。
+        // 旧実装は .first で1つだけ拾っていたため、Apple/Google 両方連携時に
+        // 配列順次第で「Apple なのに Google でバックアップ中」と誤表示していた。
+        var providers: [String] = []
+        for id in user.identities ?? [] where id.provider != "anonymous" {
+            if !providers.contains(id.provider) { providers.append(id.provider) }
+        }
+        backupStatus = AccountBackupStatus(isBackedUp: !user.isAnonymous, providerNames: providers)
     }
 
     func linkApple(idToken: String, nonce: String) async throws {

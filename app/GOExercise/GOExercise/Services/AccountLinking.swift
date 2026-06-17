@@ -65,8 +65,41 @@ typealias WebAuthFlow = @MainActor (_ url: URL) async throws -> URL
 struct AccountBackupStatus: Equatable, Sendable {
     /// 永続アカウントに連携済み (= 匿名でない)。
     var isBackedUp: Bool
-    /// 連携済みプロバイダ名 (表示用、任意)。
-    var providerName: String?
+    /// 連携済みプロバイダ名の一覧 (例: ["apple", "google"])。表示用。
+    /// **複数連携時に1つだけ拾うと並び順依存で誤表示になる**(Apple なのに Google 等)ため、
+    /// 全プロバイダを保持して表示側で結合する。
+    var providerNames: [String]
 
-    static let anonymous = AccountBackupStatus(isBackedUp: false, providerName: nil)
+    /// 後方互換アクセサ: 単一プロバイダ前提だった旧コード/テスト用 (先頭を返す)。
+    var providerName: String? { providerNames.first }
+
+    init(isBackedUp: Bool, providerNames: [String]) {
+        self.isBackedUp = isBackedUp
+        self.providerNames = providerNames
+    }
+
+    /// 後方互換イニシャライザ (単一プロバイダ指定)。
+    init(isBackedUp: Bool, providerName: String?) {
+        self.isBackedUp = isBackedUp
+        self.providerNames = providerName.map { [$0] } ?? []
+    }
+
+    static let anonymous = AccountBackupStatus(isBackedUp: false, providerNames: [])
+
+    /// 設定「アカウントとバックアップ」の状態文言。連携済みプロバイダを **全部** 列挙する
+    /// (Apple/Google 両方連携なら「Apple・Google アカウントでバックアップ中」)。
+    /// 1つだけ拾うと並び順依存で誤表示(Apple なのに Google 等)になるため。
+    var backupStatusText: String {
+        let names = providerNames.map(Self.providerDisplayName)
+        guard !names.isEmpty else { return "アカウントでバックアップ中" }
+        return "\(names.joined(separator: "・")) アカウントでバックアップ中"
+    }
+
+    static func providerDisplayName(_ provider: String) -> String {
+        switch provider {
+        case "apple": return "Apple"
+        case "google": return "Google"
+        default: return provider.capitalized
+        }
+    }
 }

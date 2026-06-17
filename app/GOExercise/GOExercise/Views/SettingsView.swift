@@ -8,13 +8,9 @@ struct SettingsView: View {
     @Environment(FriendsStore.self) private var friendsStore
     @Environment(ReferralStore.self) private var referralStore
     @Environment(RecordSyncCoordinator.self) private var recordSync
-    /// 連携済み状態の表示文言(プロバイダ名があれば添える)。
+    /// 連携済み状態の表示文言(ロジックは AccountBackupStatus.backupStatusText に集約)。
     private var linkedStatusText: String {
-        switch friendsStore.backupStatus.providerName {
-        case "apple": return "Apple アカウントでバックアップ中"
-        case "google": return "Google アカウントでバックアップ中"
-        default: return "アカウントでバックアップ中"
-        }
+        friendsStore.backupStatus.backupStatusText
     }
     @State private var showPremiumPaywall = false
     @State private var isConfirmingDelete = false

@@ -31,6 +31,24 @@ final class AccountLinkingTests: XCTestCase {
     func testBackupStatusDefaultsAnonymous() {
         XCTAssertFalse(AccountBackupStatus.anonymous.isBackedUp)
         XCTAssertNil(AccountBackupStatus.anonymous.providerName)
+        XCTAssertEqual(AccountBackupStatus.anonymous.providerNames, [])
+    }
+
+    // 回帰: Apple/Google 両方連携時に1つだけ拾うと並び順依存で誤表示になっていた
+    // (Apple なのに「Google アカウントでバックアップ中」)。全プロバイダを列挙する。
+    func testBackupStatusTextListsAllLinkedProviders() {
+        // 配列順が google 先頭でも Apple が必ず含まれる(旧バグは google だけ表示)。
+        let both = AccountBackupStatus(isBackedUp: true, providerNames: ["google", "apple"])
+        XCTAssertEqual(both.backupStatusText, "Google・Apple アカウントでバックアップ中")
+
+        let apple = AccountBackupStatus(isBackedUp: true, providerName: "apple")
+        XCTAssertEqual(apple.backupStatusText, "Apple アカウントでバックアップ中")
+
+        let google = AccountBackupStatus(isBackedUp: true, providerName: "google")
+        XCTAssertEqual(google.backupStatusText, "Google アカウントでバックアップ中")
+
+        // 連携なし(匿名)はプロバイダ名を出さない。
+        XCTAssertEqual(AccountBackupStatus.anonymous.backupStatusText, "アカウントでバックアップ中")
     }
 
     // MARK: - FriendsStore のマッピング
