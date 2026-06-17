@@ -2,21 +2,16 @@ package com.goexercise.app.presentation.share
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -36,55 +31,45 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
-import com.goexercise.app.domain.StreakLevel
-import com.goexercise.app.share.StreakShareImageRenderer
+import com.goexercise.app.domain.MonthlyReviewBuilder
+import com.goexercise.app.share.HighlightShareImageRenderer
 import com.goexercise.app.ui.theme.LocalAppPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** シェア画面のエントリ。VM から連続日数/猫種を購読して [StreakShareContent] に渡す。 */
+/** ハイライト共有画面のエントリ。VM から集計済み Review/猫種を購読して本体に渡す。 */
 @Composable
-fun StreakShareRoute(
+fun HighlightShareRoute(
     onBack: () -> Unit = {},
-    viewModel: StreakShareViewModel = hiltViewModel(),
+    viewModel: HighlightShareViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    StreakShareContent(
-        streak = state.streak,
+    HighlightShareContent(
+        review = state.review,
+        kind = state.kind,
         breed = state.breed,
-        gradient = state.gradient,
-        onSelectGradient = viewModel::setGradient,
+        streakLabel = state.streakLabel,
         onBack = onBack,
     )
 }
 
-/** ステートレスなシェア本体。カード画像をプレビューし、共有 chooser を開く。 */
+/** ステートレス本体。カード画像をプレビューし、共有 chooser / 写真に保存を提供する。 */
 @Composable
-fun StreakShareContent(
-    streak: Int,
+fun HighlightShareContent(
+    review: MonthlyReviewBuilder.Review?,
+    kind: HighlightShareImageRenderer.Kind,
     breed: CatBreed,
-    gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Default,
-    onSelectGradient: (com.goexercise.app.domain.ShareCardGradient) -> Unit = {},
+    streakLabel: String,
     onBack: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val level = StreakLevel.of(streak)
-    // 提示ごとに固定のポーズ seed(プレビューと実シェアで同じハッピーポーズが出るよう共有)。
     val poseSeed = rememberSaveable { (0..9999).random() }
-
-    // プレビューは共有と同一の Canvas レンダラから生成(WYSIWYG)。1080×2340 の描画は重いので
-    // Default ディスパッチャで生成し、完了まで null(スピナー表示)。streak/breed 変化時のみ再生成。
-    val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed, poseSeed, gradient) {
-        value = withContext(Dispatchers.Default) {
-            StreakShareImageRenderer.render(context, streak, breed, poseSeed, gradient).asImageBitmap()
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -96,62 +81,54 @@ fun StreakShareContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text(
-            level.headline,
+            kind.title,
             color = palette.textPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
             modifier = Modifier.padding(top = 12.dp),
         )
 
+        // プレビュー(共有と同一の Canvas レンダラから生成。WYSIWYG)。review 確定後のみ描画。
+        val preview by produceState<ImageBitmap?>(initialValue = null, review, breed, poseSeed) {
+            val r = review
+            value = if (r == null) {
+                null
+            } else {
+                withContext(Dispatchers.Default) {
+                    HighlightShareImageRenderer.render(context, r, kind, breed, streakLabel, poseSeed).asImageBitmap()
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1080f / 2340f) // 生成前もカードの場所を確保(レイアウトのガタつき防止)。スマホ全画面比。
+                .aspectRatio(1080f / 2340f) // スマホ全画面比。生成前もカードの場所を確保。
                 .clip(RoundedCornerShape(24.dp)),
             contentAlignment = Alignment.Center,
         ) {
             preview?.let { bmp ->
                 Image(
                     bitmap = bmp,
-                    contentDescription = "${streak}日連続のシェア画像",
+                    contentDescription = "${kind.title}のシェア画像",
                     contentScale = ContentScale.FillWidth,
                     modifier = Modifier.fillMaxWidth(),
                 )
             } ?: CircularProgressIndicator(color = palette.primaryDeep)
         }
 
-        // 背景グラデーション ピッカー(5種・選択は永続化)。iOS パリティ。
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            androidx.compose.ui.graphics.Brush.linearGradient(g.colors.map { androidx.compose.ui.graphics.Color(it) }),
-                        )
-                        .then(
-                            if (g == gradient) Modifier.border(3.dp, palette.primaryDeep, CircleShape)
-                            else Modifier.border(1.dp, palette.textSecondary.copy(alpha = 0.3f), CircleShape),
-                        )
-                        .clickable { onSelectGradient(g) },
-                )
+        if (review != null) {
+            Button(
+                onClick = { scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed) } },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("SNSでシェア")
             }
-        }
 
-        Button(
-            onClick = { scope.launch { StreakShareImageRenderer.share(context, streak, breed, poseSeed, gradient) } },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = streak > 0,
-        ) {
-            Text(if (streak > 0) "SNSでシェア" else "まず1日記録してみよう")
-        }
-
-        // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。
-        if (streak > 0) {
+            // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。
             fun doSave() {
                 scope.launch {
-                    val ok = StreakShareImageRenderer.saveToGallery(context, streak, breed, poseSeed, gradient)
+                    val ok = HighlightShareImageRenderer.saveToGallery(context, review, kind, breed, streakLabel, poseSeed)
                     android.widget.Toast.makeText(
                         context,
                         if (ok) "写真に保存しました" else "保存に失敗しました",
@@ -159,7 +136,7 @@ fun StreakShareContent(
                     ).show()
                 }
             }
-            // API 28- は MediaStore への書き込みに WRITE_EXTERNAL_STORAGE が要る(Codex 指摘)。Q+ は権限不要。
+            // API 28- は MediaStore 書き込みに WRITE_EXTERNAL_STORAGE が要る。Q+ は権限不要(StreakShare と同方針)。
             val saveLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                 androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
             ) { granted ->

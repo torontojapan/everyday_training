@@ -53,8 +53,8 @@ class SettingsViewModel @Inject constructor(
 
     // --- 認証(Apple/Google でバックアップ)を設定に集約(#14。iOS は設定に集約・友達タブから撤去) ---
 
-    /** 連携済みプロバイダ名(null=匿名)。設定で「未連携=サインインボタン/連携済=状態表示」に使う。 */
-    private val _linkedProvider = MutableStateFlow<String?>(friendsService.backupStatus.providerName)
+    /** 連携済みプロバイダ表示名(複数連携は「Apple・Google」/null=匿名)。設定で「未連携=サインインボタン/連携済=状態表示」に使う。 */
+    private val _linkedProvider = MutableStateFlow<String?>(friendsService.backupStatus.linkedProvidersDisplay)
     val linkedProvider: StateFlow<String?> = _linkedProvider.asStateFlow()
     private val _isLinkingAccount = MutableStateFlow(false)
     val isLinkingAccount: StateFlow<Boolean> = _isLinkingAccount.asStateFlow()
@@ -78,7 +78,7 @@ class SettingsViewModel @Inject constructor(
                 op()
                 // 連携は匿名 uid をそのまま Apple/Google に紐付ける(identity 不変)。続けてバックアップを自動 ON。
                 recordSync.enableBackup()
-                _linkedProvider.value = friendsService.backupStatus.providerName
+                _linkedProvider.value = friendsService.backupStatus.linkedProvidersDisplay
             } catch (e: com.goexercise.app.data.friends.AccountLinkError.Cancelled) {
                 // ユーザーキャンセルは無言で戻す。
             } catch (e: Exception) {

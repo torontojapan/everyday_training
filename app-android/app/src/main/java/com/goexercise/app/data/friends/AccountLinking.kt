@@ -44,10 +44,43 @@ typealias WebAuthFlow = suspend (authUrl: String) -> String
 data class AccountBackupStatus(
     /** 永続アカウントに連携済み(= 匿名でない)。 */
     val isBackedUp: Boolean,
-    /** 連携済みプロバイダ名(表示用、任意)。 */
-    val providerName: String? = null,
+    /**
+     * 連携済みプロバイダ名の一覧(例: ["apple", "google"])。表示用。
+     * **複数連携時に1つだけ拾うと並び順依存で誤表示になる**(Apple なのに Google 等)ため、
+     * 全プロバイダを保持して表示側で結合する(iOS 1.3 パリティ)。
+     */
+    val providerNames: List<String> = emptyList(),
 ) {
+    /** 後方互換アクセサ: 単一プロバイダ前提だった旧コード/テスト用(先頭を返す)。 */
+    val providerName: String? get() = providerNames.firstOrNull()
+
+    /** 単一プロバイダ指定の後方互換コンストラクタ。 */
+    constructor(isBackedUp: Boolean, providerName: String?) :
+        this(isBackedUp, providerName?.let { listOf(it) } ?: emptyList())
+
+    /**
+     * 設定「アカウントとバックアップ」の状態文言。連携済みプロバイダを **全部** 列挙する
+     * (Apple/Google 両方連携なら「Apple・Google アカウントでバックアップ中」)。
+     * 1つだけ拾うと並び順依存で誤表示(Apple なのに Google 等)になるため。
+     */
+    val backupStatusText: String
+        get() {
+            val names = providerNames.map { providerDisplayName(it) }
+            return if (names.isEmpty()) "アカウントでバックアップ中"
+            else "${names.joinToString("・")} アカウントでバックアップ中"
+        }
+
+    /** 連携済みプロバイダの表示名を「・」で結合(未連携は null)。設定の「✓ X で連携済み」用。 */
+    val linkedProvidersDisplay: String?
+        get() = providerNames.takeIf { it.isNotEmpty() }?.joinToString("・") { providerDisplayName(it) }
+
     companion object {
-        val Anonymous = AccountBackupStatus(isBackedUp = false, providerName = null)
+        val Anonymous = AccountBackupStatus(isBackedUp = false, providerNames = emptyList())
+
+        fun providerDisplayName(provider: String): String = when (provider) {
+            "apple" -> "Apple"
+            "google" -> "Google"
+            else -> provider.replaceFirstChar { it.uppercase() }
+        }
     }
 }

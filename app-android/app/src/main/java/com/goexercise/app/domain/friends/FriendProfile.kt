@@ -15,6 +15,12 @@ data class FriendProfile(
     val todayExerciseNames: List<String> = emptyList(),
     val decorationTier: Int = 0,
     val weeklyAchievements: List<Boolean>? = null,
+    /**
+     * 7 要素(月→日)の **日ごとの状態**(運動/休養/フリーズ/未達/今日/未来)。友達詳細の
+     * 「今週の達成」を本人ホーム週ストリップと同じ状態別表示にするための正本(iOS 1.3 パリティ)。
+     * null = 旧データ/旧クライアント → weeklyAchievements(Bool)から近似復元する。
+     */
+    val weeklyStatuses: List<com.goexercise.app.domain.DailyStatus>? = null,
     val weeklyTotalMinutes: Int? = null,
     val monthlyTotalMinutes: Int? = null,
     val monthlyAchievedDays: Int? = null,
@@ -31,6 +37,26 @@ data class FriendProfile(
                 raw.size == 7 -> raw
                 raw.size > 7 -> raw.take(7)
                 else -> raw + List(7 - raw.size) { false }
+            }
+        }
+
+    /**
+     * 友達ストリップ描画用の 7 状態(月→日)。weeklyStatuses があればそれを使い、無い(旧データ/
+     * 旧クライアント)場合は Bool 配列から近似復元(true→achieved / false→missed)。長さは常に 7。
+     * iOS weeklyStatusesOrEmpty 相当。
+     */
+    val weeklyStatusesOrEmpty: List<com.goexercise.app.domain.DailyStatus>
+        get() {
+            val raw = weeklyStatuses
+            if (raw != null && raw.isNotEmpty()) {
+                return when {
+                    raw.size == 7 -> raw
+                    raw.size > 7 -> raw.take(7)
+                    else -> raw + List(7 - raw.size) { com.goexercise.app.domain.DailyStatus.Future }
+                }
+            }
+            return weeklyAchievementsOrEmpty.map {
+                if (it) com.goexercise.app.domain.DailyStatus.Achieved else com.goexercise.app.domain.DailyStatus.Missed
             }
         }
 }

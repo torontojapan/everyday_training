@@ -372,6 +372,22 @@ private fun FriendDetailSheet(
             DetailStat("通算", "${friend.totalAchievedDays}日", palette)
             DetailStat("今日", if (friend.todayAchieved) "達成" else "まだ", palette)
         }
+        // 今週の達成: 本人ホームの週ストリップと同じ状態別表示(運動◎/休養休/フリーズ○/未達×/未来-/今日)。
+        // Bool で潰すと休養/フリーズ/実運動を区別できず「全部緑✓」に見えた不具合を解消(iOS 1.3 パリティ)。
+        val weekStatuses = friend.weeklyStatusesOrEmpty
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("今週の達成", fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("${weekStatuses.count { it.countsAsAchieved }} / 7 日", fontSize = 12.sp, color = palette.textSecondary)
+            }
+            FriendWeekStrip(weekStatuses)
+        }
         // 応援コンポーザ(プリセット + 一言 + 送信)。
         CheerPickerSheet(friend, palette, onSend)
         TextButton(onClick = { confirmRemove = true }) {
@@ -394,6 +410,40 @@ private fun DetailStat(label: String, value: String, palette: AppTheme) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         Text(label, fontSize = 11.sp, color = palette.textSecondary)
+    }
+}
+
+/**
+ * 友達詳細の「今週の達成」週ストリップ(月→日)。本人ホーム [WeekStrip] と同じ
+ * 記号(◎/○/休/×/-/・)+ [colorForStatus] の状態別配色で描画する(iOS 1.3 FriendWeekStripView パリティ)。
+ * 入力は 7 要素の DailyStatus(FriendProfile.weeklyStatusesOrEmpty)。
+ */
+@Composable
+private fun FriendWeekStrip(statuses: List<com.goexercise.app.domain.DailyStatus>) {
+    val palette = LocalAppPalette.current
+    val labels = listOf("月", "火", "水", "木", "金", "土", "日")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        statuses.take(7).forEachIndexed { i, status ->
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(labels.getOrElse(i) { "" }, color = palette.textSecondary, fontSize = 11.sp)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(com.goexercise.app.ui.theme.colorForStatus(status)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = status.symbol, fontSize = 14.sp)
+                }
+            }
+        }
     }
 }
 
