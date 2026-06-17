@@ -14,7 +14,7 @@ struct LifetimeStatsCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "calendar.badge.checkmark")
                     .foregroundStyle(Palette.primaryDeep)
-                Text("これまでのハイライト")
+                Text("All-timeハイライト")
                     .font(Typography.headline)
                     .foregroundStyle(Palette.textPrimary)
             }

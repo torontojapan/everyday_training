@@ -14,7 +14,14 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     var lastUpdated: Date
 
     /// 7 要素 (月→日)。未達成日は false。`Codable` 互換のため optional。
+    /// ランキング集計 ([[WeeklyRankingCalculator]]) と旧クライアント互換のため維持。
     var weeklyAchievements: [Bool]?
+    /// 7 要素 (月→日) の **日ごとの状態** (運動/休養/フリーズ/未達/今日/未来)。
+    /// 友達詳細の「今週の達成」を本人のホーム週ストリップ ([[WeeklyCalendarView]]) と
+    /// 同じ状態別表示にするための正本。`countsAsAchieved` で潰した Bool では
+    /// 休養日 (休) と実運動 (◎) を区別できず、全部が緑✓に見えていた不具合を解消する。
+    /// nil = 旧データ/旧クライアント (この場合は weeklyAchievements から近似復元)。
+    var weeklyStatuses: [DailyStatus]? = nil
     /// 友達になった日。Mock では signIn 直後に設定。
     var connectedSince: Date?
     /// 詳細共有 ON の友達のみセットされる。回数/時間/セット数を含む。
@@ -38,6 +45,20 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
         var padded = raw
         while padded.count < 7 { padded.append(false) }
         return Array(padded.prefix(7))
+    }
+
+    /// 友達ストリップ描画用の 7 状態 (月→日)。`weeklyStatuses` があればそれを使い、
+    /// 無い (旧データ/旧クライアント) 場合は Bool 配列から近似復元する
+    /// (true→achieved / false→missed)。長さは常に 7 に正規化する。
+    var weeklyStatusesOrEmpty: [DailyStatus] {
+        if let raw = weeklyStatuses, !raw.isEmpty {
+            var padded = raw
+            while padded.count < 7 { padded.append(.future) }
+            return Array(padded.prefix(7))
+        }
+        // フォールバック: Bool しか持たない旧 payload は状態を区別できないため
+        // 達成日のみ ◎、それ以外は × で近似する。
+        return weeklyAchievementsOrEmpty.map { $0 ? .achieved : .missed }
     }
 
     /// 友達の称号 = 現在の連続から算出(バックエンド変更なし。spec F)。

@@ -658,7 +658,8 @@ struct HomeView: View {
         let streak = viewModel.streak.currentStreak
         let achieved = viewModel.lifetimeStats.achievedDays
         let todayDone = viewModel.todayStatus.countsAsAchieved
-        let weekly = viewModel.statuses.map { $0.status.countsAsAchieved }
+        let weeklyStatuses = viewModel.statuses.map { $0.status }
+        let weekly = weeklyStatuses.map { $0.countsAsAchieved }
         let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
         let tier = CatRank(currentStreak: streak).rank
         let breed = UserCatPreferences.shared.myCat
@@ -673,6 +674,7 @@ struct HomeView: View {
            current.totalAchievedDays == achieved,
            current.todayAchieved == todayDone,
            current.weeklyAchievements == weekly,
+           current.weeklyStatuses == weeklyStatuses,
            current.weeklyTotalMinutes == minutes,
            current.decorationTier == tier,
            current.myCatBreed == breed,
@@ -688,6 +690,7 @@ struct HomeView: View {
         updated.totalAchievedDays = achieved
         updated.todayAchieved = todayDone
         updated.weeklyAchievements = weekly
+        updated.weeklyStatuses = weeklyStatuses
         updated.weeklyTotalMinutes = minutes
         updated.decorationTier = tier
         updated.myCatBreed = breed

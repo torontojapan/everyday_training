@@ -5,7 +5,7 @@ struct WeeklyHighlightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("今週のハイライト", systemImage: "sparkles")
+            Label("Weeklyハイライト", systemImage: "sparkles")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.historyAccent)
 
@@ -51,7 +51,7 @@ struct WeeklyHighlightCard: View {
         .padding(16)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("今週のハイライト")
+        .accessibilityLabel("Weeklyハイライト")
         .accessibilityValue(accessibilityValue)
     }
 

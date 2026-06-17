@@ -125,11 +125,11 @@ struct StreakShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
-            .frame(width: 600, height: 800)
+        let card = StreakShareCard(streak: streak, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed, fillFrame: true)
+            .frame(width: ShareCardLayout.canvas.width, height: ShareCardLayout.canvas.height)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
-        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
+        renderer.proposedSize = ProposedViewSize(ShareCardLayout.canvas)
         if let uiImage = renderer.uiImage {
             renderedUIImage = uiImage
             renderedImage = Image(uiImage: uiImage)
@@ -167,6 +167,9 @@ struct StreakShareCard: View {
     var gradientColors: [Color] = ShareCardGradient.ocean.colors
     /// 提示ごとに固定のポーズ seed(0 = 既定の celebrating)。
     var poseSeed: Int = 0
+    /// ImageRenderer でスマホ全画面比のキャンバス (ShareCardLayout.canvas = 600×1300) に書き出すとき true。フレーム全面をグラデで塗り、
+    /// 角丸カードを中央に置くと上下に出る白余白を消す(ユーザー要望)。
+    var fillFrame: Bool = false
 
     private var level: StreakLevel { StreakLevel(streak: streak) }
     /// 連続日数に対応する称号ランク(背景進化・ホームの称号バッジと同一)。
@@ -225,15 +228,19 @@ struct StreakShareCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
+        .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
+        .background {
+            let gradient = LinearGradient(
                 colors: gradientColors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+            )
+            if fillFrame {
+                gradient  // フルブリード: 隅まで塗って白余白を消す
+            } else {
+                gradient.clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            }
+        }
+        .shadow(color: .black.opacity(fillFrame ? 0 : 0.18), radius: fillFrame ? 0 : 24, y: fillFrame ? 0 : 10)
     }
 
     @ViewBuilder

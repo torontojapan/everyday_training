@@ -23,7 +23,7 @@ struct StatsView: View {
     private struct HighlightPresentation: Identifiable {
         let review: MonthlyReviewBuilder.Review
         let title: String
-        let badge: String
+        let icon: String
         let streakLabel: String
         let gradient: [Color]
         var id: String { title + review.monthLabel }
@@ -70,7 +70,7 @@ struct StatsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // ユーザー指定の並び順:
                     // 1. カレンダー → 2. 生理日入力 → 3. 保険チケット →
-                    // 4. 今週のハイライト → 5. 先月のレビュー → 6. これまでの記録
+                    // 4. Weeklyハイライト → 5. Monthlyハイライト → 6. All-timeハイライト
                     monthlyCalendarCard
 
                     if cycleSettings.isEnabled, let menstrualStore {
@@ -134,7 +134,7 @@ struct StatsView: View {
             .sheet(item: $presentedHighlight) { highlight in
                 MonthlyReviewSheet(
                     review: highlight.review,
-                    badge: highlight.badge,
+                    icon: highlight.icon,
                     title: highlight.title,
                     streakLabel: highlight.streakLabel,
                     gradient: highlight.gradient
@@ -394,8 +394,8 @@ struct StatsView: View {
             // 「先月のハイライト」と同じ項目・カードで今週を表示する。
             presentedHighlight = HighlightPresentation(
                 review: MonthlyReviewBuilder.weekly(records: store.records, weekContaining: day, today: day, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar),
-                title: "今週のハイライト",
-                badge: "WEEKLY HIGHLIGHT",
+                title: "Weeklyハイライト",
+                icon: "sparkles",
                 streakLabel: "今週の最長連続",
                 gradient: MonthlyReviewSheet.weeklyGradient
             )
@@ -405,7 +405,7 @@ struct StatsView: View {
                     .font(.system(size: 22))
                     .foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("今週のハイライト")
+                    Text("Weeklyハイライト")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.textPrimary)
                     Text(weeklyHighlightSubtitle)
@@ -421,7 +421,7 @@ struct StatsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("weekly-highlight-entry")
-        .accessibilityLabel("今週のハイライトを共有カードで開く")
+        .accessibilityLabel("Weeklyハイライトを共有カードで開く")
     }
 
     /// これまでの記録 entry-row。tap → `LifetimeStatsShareSheet`。
@@ -434,8 +434,8 @@ struct StatsView: View {
             // 「先月のハイライト」と同じ項目・カードで累計を表示する。
             presentedHighlight = HighlightPresentation(
                 review: MonthlyReviewBuilder.lifetime(records: store.records, today: day, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar),
-                title: "これまでのハイライト",
-                badge: "ALL-TIME HIGHLIGHT",
+                title: "All-timeハイライト",
+                icon: "trophy.fill",
                 streakLabel: "最長連続",
                 gradient: MonthlyReviewSheet.lifetimeGradient
             )
@@ -445,7 +445,7 @@ struct StatsView: View {
                     .font(.system(size: 22))
                     .foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("これまでのハイライト")
+                    Text("All-timeハイライト")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.textPrimary)
                     Text(lifetimeStatsSubtitle)
@@ -461,7 +461,7 @@ struct StatsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("lifetime-stats-entry")
-        .accessibilityLabel("これまでのハイライトを共有カードで開く")
+        .accessibilityLabel("All-timeハイライトを共有カードで開く")
     }
 
     /// これまでの記録 entry-row の subtitle。
@@ -476,29 +476,28 @@ struct StatsView: View {
     }
 
     private var monthlyReviewEntry: some View {
-        let hasPrevious = viewModel.previousMonthHasRecords
+        let hasCurrent = viewModel.currentMonthHasRecords
         return Button {
             let today = store.today
-            let previousMonth = calendar.date(byAdding: .month, value: -1, to: today) ?? today
-            let review = MonthlyReviewBuilder.build(records: store.records, month: previousMonth, today: today, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar)
+            let review = MonthlyReviewBuilder.build(records: store.records, month: today, today: today, rescuedDates: rescueTicketStore.rescuedDates(), calendar: calendar)
             presentedReview = PresentedReview(review: review)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "doc.text.image")
                     .font(.system(size: 22))
-                    .foregroundStyle(hasPrevious ? Palette.primaryDeep : Palette.textSecondary)
+                    .foregroundStyle(hasCurrent ? Palette.primaryDeep : Palette.textSecondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("先月のハイライト")
+                    Text("Monthlyハイライト")
                         .font(Typography.headline)
-                        .foregroundStyle(hasPrevious ? Palette.textPrimary : Palette.textSecondary)
-                    Text(hasPrevious
-                        ? "一ヶ月のがんばりをカードでサマリー"
-                        : "先月の記録はまだありません")
+                        .foregroundStyle(hasCurrent ? Palette.textPrimary : Palette.textSecondary)
+                    Text(hasCurrent
+                        ? "今月のがんばりをカードでサマリー"
+                        : "今月の記録はまだありません")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                 }
                 Spacer()
-                if hasPrevious {
+                if hasCurrent {
                     Image(systemName: "chevron.right")
                         .foregroundStyle(Palette.textSecondary)
                 }
@@ -507,7 +506,7 @@ struct StatsView: View {
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!hasPrevious)
+        .disabled(!hasCurrent)
         .accessibilityIdentifier("monthly-review-stats-button")
     }
 

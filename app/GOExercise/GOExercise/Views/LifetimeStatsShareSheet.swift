@@ -118,11 +118,11 @@ struct LifetimeStatsShareSheet: View {
     private func renderImage() {
         let card = LifetimeStatsShareCard(
             achievedDays: achievedDays, usedDays: usedDays, appName: appName,
-            gradientColors: gradient.colors, poseSeed: poseSeed
-        ).frame(width: 600, height: 800)
+            gradientColors: gradient.colors, poseSeed: poseSeed, fillFrame: true
+        ).frame(width: ShareCardLayout.canvas.width, height: ShareCardLayout.canvas.height)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
-        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
+        renderer.proposedSize = ProposedViewSize(ShareCardLayout.canvas)
         if let uiImage = renderer.uiImage {
             renderedUIImage = uiImage
             renderedImage = Image(uiImage: uiImage)
@@ -153,6 +153,8 @@ struct LifetimeStatsShareCard: View {
     let appName: String
     var gradientColors: [Color] = ShareCardGradient.daybreak.colors
     var poseSeed: Int = 0
+    /// ImageRenderer で書き出すとき true。フレーム全面をグラデで塗り、上下の白余白を消す。
+    var fillFrame: Bool = false
 
     /// 達成率 (使用日 0 のときは 0 で防御)。
     private var rate: Double {
@@ -222,15 +224,19 @@ struct LifetimeStatsShareCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
+        .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
+        .background {
+            let g = LinearGradient(
                 colors: gradientColors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+            )
+            if fillFrame {
+                g  // フルブリード: 隅まで塗って白余白を消す
+            } else {
+                g.clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            }
+        }
+        .shadow(color: .black.opacity(fillFrame ? 0 : 0.18), radius: fillFrame ? 0 : 24, y: fillFrame ? 0 : 10)
     }
 
     private var catImage: some View {

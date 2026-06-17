@@ -305,6 +305,8 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 0,
                           lastUpdated: now.addingTimeInterval(-4 * minute),
                           weeklyAchievements: [true, true, false, true, true, true, true],
+                          // ホームと同じ状態別表示の確認用: 運動◎ / 休養休 / フリーズ○ / 今日 / 未来-。
+                          weeklyStatuses: [.achieved, .rest, .rescued, .achieved, .todayAchieved, .future, .future],
                           connectedSince: nil,
                           todayExerciseDetails: [
                               SharedExerciseDetail(name: "スクワット", reps: 20, sets: 3),
@@ -462,6 +464,8 @@ final class MockFriendsService: FriendsService {
                           decorationTier: 10,
                           lastUpdated: now.addingTimeInterval(-1 * minute),
                           weeklyAchievements: [true, true, true, true, true, true, true],
+                          // ホームと同じ状態別表示の確認用: 運動◎ / 休養休 / フリーズ○ / 未達×。
+                          weeklyStatuses: [.achieved, .rest, .achieved, .rescued, .achieved, .achieved, .missed],
                           connectedSince: nil,
                           todayExerciseDetails: [
                               SharedExerciseDetail(name: "懸垂", reps: 12, sets: 4),
