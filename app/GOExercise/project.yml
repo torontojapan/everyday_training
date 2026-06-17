@@ -23,9 +23,11 @@ settings:
     # 1.2(10) = build 9 と同一バイナリを Organizer 再アップ(Xcode 自動繰上げ)。これを審査提出→公開済み。
     # 1.3 = 共有カード刷新(白余白解消/スマホ全画面比/英字バッジ重複解消)+履歴ハイライト名称
     #   (Weekly/Monthly/All-time)+今月化+友達「今週の達成」をホームと状態別連動(weekly_statuses)。
-    #   build は通し番号で 11(提出済み 10 の次)。
+    # build 11 = 上記までを Upload 済み(ただしバックアップ表示バグ修正は未含)。
+    # build 12 = バックアップ中プロバイダ表示が並び順依存で誤表示するバグ修正(c6893b8)を含めた版。
+    #   build 11 は ASC にアップ済みのため番号を 12 に上げて差し替える(同番号は ASC が拒否)。
     MARKETING_VERSION: "1.3"
-    CURRENT_PROJECT_VERSION: "11"
+    CURRENT_PROJECT_VERSION: "12"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
