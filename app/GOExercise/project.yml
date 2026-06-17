@@ -20,8 +20,12 @@ settings:
     #   表示3秒→5秒)。実機で配信は成功(友達化+応援201)もトーストが下端で見落とされた対策。
     # build 9 = 受信応援トースト不発の根因修正(unseenReceivedCheers が protocol 要件でなく
     #   静的ディスパッチで extension 既定[]を呼んでいた)。build 8 は同機能が壊れたまま=提出不可。
-    MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "9"
+    # 1.2(10) = build 9 と同一バイナリを Organizer 再アップ(Xcode 自動繰上げ)。これを審査提出→公開済み。
+    # 1.3 = 共有カード刷新(白余白解消/スマホ全画面比/英字バッジ重複解消)+履歴ハイライト名称
+    #   (Weekly/Monthly/All-time)+今月化+友達「今週の達成」をホームと状態別連動(weekly_statuses)。
+    #   build は通し番号で 11(提出済み 10 の次)。
+    MARKETING_VERSION: "1.3"
+    CURRENT_PROJECT_VERSION: "11"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
