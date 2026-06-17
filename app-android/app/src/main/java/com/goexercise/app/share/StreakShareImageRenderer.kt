@@ -27,12 +27,17 @@ import kotlin.math.sin
  * マイルストーン(連続日数)のシェア画像を Canvas で描く。iOS `StreakShareCard` + `ImageRenderer`
  * (StreakShareSheet.swift)の移植。SwiftUI の ImageRenderer 相当を Android Canvas で再現する。
  *
- * 連続日数 × 猫種から 1080×1440 の PNG を生成し、cache/shared に書き出して FileProvider 共有する。
+ * 連続日数 × 猫種から 1080×2340 の PNG を生成し、cache/shared に書き出して FileProvider 共有する。
  */
 object StreakShareImageRenderer {
 
+    // スマホ全画面比(9:19.5)。iOS 1.3 と同じ縦長で、保存画像が端末でフルサイズ表示される
+    // (上下に黒帯が出ない)。Canvas はグラデを全面に塗るので白余白は元から無い。
     private const val W = 1080
-    private const val H = 1440
+    private const val H = 2340
+    // 内容ブロックのおおよその高さ(称号→日数→猫→アプリ名)。これを使って縦中央寄せにする
+    // (iOS は VStack が縦長フレーム内で中央寄せ。上下対称マージンで構図を合わせる)。
+    private const val CONTENT_HEIGHT = 1040f
 
     /**
      * 連続日数 + 猫種からシェアカードの Bitmap を描く。
@@ -60,7 +65,8 @@ object StreakShareImageRenderer {
             },
         )
 
-        var top = 96f
+        // 内容を縦中央寄せ(上下対称マージン)。iOS の縦長カードの構図に合わせる。
+        var top = ((H - CONTENT_HEIGHT) / 2f).coerceAtLeast(96f)
 
         // 見出しは「称号バッジ」: 連続日数で決まる CatRank 称号(みならいネコ〜ぬしネコ)を
         // メタル色カプセル+肉球で描く(iOS の RankBadge パリティ)。rank0(7日未満)は称賛文を出す。
@@ -99,7 +105,7 @@ object StreakShareImageRenderer {
 
     /**
      * Bitmap を cache/shared に PNG で書き出し、FileProvider 経由で共有 chooser を開く。
-     * 描画(1080×1440)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
+     * 描画(1080×2340)と PNG 圧縮・ファイル I/O は **Default/IO** で行い、startActivity だけ Main へ戻す
      * (重い処理を UI スレッドから外す)。呼び出し側のコルーチン(VM/Compose scope)から呼ぶこと。
      */
     suspend fun share(

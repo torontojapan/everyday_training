@@ -240,6 +240,7 @@ class SupabaseFriendsService(
             todayCategoryName = profile.todayCategoryName,
             decorationTier = profile.decorationTier,
             weeklyAchievements = profile.weeklyAchievementsOrEmpty,
+            weeklyStatuses = profile.weeklyStatuses?.map { it.rawValue },
             weeklyTotalMinutes = profile.weeklyTotalMinutes,
             monthlyTotalMinutes = profile.monthlyTotalMinutes,
             monthlyAchievedDays = profile.monthlyAchievedDays,
@@ -338,8 +339,14 @@ class SupabaseFriendsService(
         backup = if (user == null) {
             AccountBackupStatus.Anonymous
         } else {
-            val provider = user.identities?.firstOrNull { it.provider != "anonymous" }?.provider
-            AccountBackupStatus(isBackedUp = user.isAnonymous != true, providerName = provider)
+            // 連携済みプロバイダを **全部** 取得する(anonymous 除外・重複は順序保持で除去)。
+            // 旧実装は firstOrNull で1つだけ拾っていたため、Apple/Google 両方連携時に
+            // 並び順次第で「Apple なのに Google でバックアップ中」と誤表示していた(iOS 1.3 パリティ)。
+            val providers = user.identities.orEmpty()
+                .map { it.provider }
+                .filter { it != "anonymous" }
+                .distinct()
+            AccountBackupStatus(isBackedUp = user.isAnonymous != true, providerNames = providers)
         }
     }
 

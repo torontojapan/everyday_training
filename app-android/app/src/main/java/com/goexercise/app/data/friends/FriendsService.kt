@@ -28,6 +28,8 @@ data class ProfileRow(
     @SerialName("today_category_name") val todayCategoryName: String? = null,
     @SerialName("decoration_tier") val decorationTier: Int = 0,
     @SerialName("weekly_achievements") val weeklyAchievements: List<Boolean>? = null,
+    /** 日ごとの状態(DailyStatus.rawValue 文字列)の 7 要素配列。jsonb 列。iOS 1.3 パリティ。 */
+    @SerialName("weekly_statuses") val weeklyStatuses: List<String>? = null,
     @SerialName("weekly_total_minutes") val weeklyTotalMinutes: Int? = null,
     @SerialName("monthly_total_minutes") val monthlyTotalMinutes: Int? = null,
     @SerialName("monthly_achieved_days") val monthlyAchievedDays: Int? = null,
@@ -147,6 +149,8 @@ internal fun ProfileRow.toProfile(): FriendProfile = FriendProfile(
     todayCategoryName = todayCategoryName,
     decorationTier = decorationTier,
     weeklyAchievements = weeklyAchievements,
+    // rawValue → DailyStatus(未知値は Future フォールバックで 7 要素長を保持。iOS 1.3 と同じ防御)。
+    weeklyStatuses = weeklyStatuses?.map { com.goexercise.app.domain.DailyStatus.fromRaw(it) },
     weeklyTotalMinutes = weeklyTotalMinutes,
     monthlyTotalMinutes = monthlyTotalMinutes,
     monthlyAchievedDays = monthlyAchievedDays,
@@ -453,8 +457,8 @@ class MockFriendsService : FriendsService {
 
     private fun seedDemo() {
         if (friends.isEmpty()) {
-            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false), myCatBreed = com.goexercise.app.domain.CatBreed.Black))
-            friends.add(FriendProfile("XYZ789", "kenta", "けんた", currentStreak = 3, totalAchievedDays = 8, todayAchieved = false, weeklyTotalMinutes = 45, weeklyAchievements = listOf(true, false, false, true, false, false, false), myCatBreed = com.goexercise.app.domain.CatBreed.Gray))
+            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false), weeklyStatuses = listOf(com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.Rest, com.goexercise.app.domain.DailyStatus.Rescued, com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.TodayAchieved, com.goexercise.app.domain.DailyStatus.Future, com.goexercise.app.domain.DailyStatus.Future), myCatBreed = com.goexercise.app.domain.CatBreed.Black))
+            friends.add(FriendProfile("XYZ789", "kenta", "けんた", currentStreak = 3, totalAchievedDays = 8, todayAchieved = false, weeklyTotalMinutes = 45, weeklyAchievements = listOf(true, false, false, true, false, false, false), weeklyStatuses = listOf(com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.Missed, com.goexercise.app.domain.DailyStatus.Rest, com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.TodayPending, com.goexercise.app.domain.DailyStatus.Future, com.goexercise.app.domain.DailyStatus.Future), myCatBreed = com.goexercise.app.domain.CatBreed.Gray))
         }
         if (incoming.isEmpty()) {
             incoming.add(FriendRequest(id = UUID.randomUUID().toString(), fromProfile = FriendProfile("REQ456", "mei", "めい", currentStreak = 5, totalAchievedDays = 15, todayAchieved = true)))

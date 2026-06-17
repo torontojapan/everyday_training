@@ -78,7 +78,7 @@ fun StreakShareContent(
     // 提示ごとに固定のポーズ seed(プレビューと実シェアで同じハッピーポーズが出るよう共有)。
     val poseSeed = rememberSaveable { (0..9999).random() }
 
-    // プレビューは共有と同一の Canvas レンダラから生成(WYSIWYG)。1080×1440 の描画は重いので
+    // プレビューは共有と同一の Canvas レンダラから生成(WYSIWYG)。1080×2340 の描画は重いので
     // Default ディスパッチャで生成し、完了まで null(スピナー表示)。streak/breed 変化時のみ再生成。
     val preview by produceState<ImageBitmap?>(initialValue = null, streak, breed, poseSeed, gradient) {
         value = withContext(Dispatchers.Default) {
@@ -106,7 +106,7 @@ fun StreakShareContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1080f / 1440f) // 生成前もカードの場所を確保(レイアウトのガタつき防止)。
+                .aspectRatio(1080f / 2340f) // 生成前もカードの場所を確保(レイアウトのガタつき防止)。スマホ全画面比。
                 .clip(RoundedCornerShape(24.dp)),
             contentAlignment = Alignment.Center,
         ) {

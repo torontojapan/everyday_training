@@ -25,6 +25,8 @@ object MyFriendProfileBuilder {
             // プラットフォーム間で異なる値を書き分けるのを防ぐ。友達表示は FriendProfile.rank を別途使うので影響なし。
             decorationTier = CatRank.of(state.streak.currentStreak).rank,
             weeklyAchievements = state.weekStatuses.map { it.status.countsAsAchieved },
+            // 日ごとの状態も publish(友達詳細の状態別週ストリップ用。iOS 1.3 パリティ)。
+            weeklyStatuses = state.weekStatuses.map { it.status },
             weeklyTotalMinutes = state.weeklySummary.totalMinutes,
             monthlyTotalMinutes = state.monthlyTotalMinutes,
             monthlyAchievedDays = state.monthlyAchievedDays,
@@ -41,6 +43,8 @@ object MyFriendProfileBuilder {
         state.lifetimeStats.achievedDays,
         state.todayStatus.countsAsAchieved,
         state.weekStatuses.map { it.status.countsAsAchieved },
+        // weeklyStatuses も再 publish 判定に含める(状態が変われば友達表示も更新する)。
+        state.weekStatuses.map { it.status },
         state.weeklySummary.totalMinutes,
         state.monthlyTotalMinutes,
         state.monthlyAchievedDays,

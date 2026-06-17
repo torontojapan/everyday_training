@@ -80,6 +80,14 @@ class MyFriendProfileBuilderTest {
             listOf(true, true, false, true, false, false, false),
             p.weeklyAchievements,
         )
+        // weekly_statuses は日ごとの状態をそのまま publish(友達の状態別週ストリップ用。iOS 1.3 パリティ)
+        assertEquals(
+            listOf(
+                DailyStatus.Achieved, DailyStatus.Rest, DailyStatus.Missed,
+                DailyStatus.TodayAchieved, DailyStatus.Future, DailyStatus.Future, DailyStatus.Future,
+            ),
+            p.weeklyStatuses,
+        )
         // today カテゴリは最多カウントの displayName(筋トレ)
         assertEquals(WorkoutCategory.Strength.displayName, p.todayCategoryName)
     }
@@ -93,6 +101,26 @@ class MyFriendProfileBuilderTest {
         // streak が変わるとシグネチャが変わる
         val changed = s.copy(streak = s.streak.copy(currentStreak = 6))
         assertNotEquals(base, MyFriendProfileBuilder.statsSignature(changed))
+    }
+
+    @Test
+    fun `statsSignature changes when a day's status changes even if achieved-bool is unchanged`() {
+        // Achieved→Rescued は countsAsAchieved が両方 true なので weekly_achievements(Bool)は不変。
+        // だが状態が変わるので friends 表示を更新すべき → weekly_statuses 由来でシグネチャは変わる。
+        val s = state()
+        val base = MyFriendProfileBuilder.statsSignature(s)
+        val flipped = s.copy(
+            weekStatuses = s.weekStatuses.toMutableList().also {
+                it[0] = it[0].copy(status = DailyStatus.Rescued) // 月: Achieved → Rescued
+            },
+        )
+        // Bool 列は不変であることを確認(旧シグネチャだけなら検知漏れだった)
+        assertEquals(
+            MyFriendProfileBuilder.build(s, identity).weeklyAchievements,
+            MyFriendProfileBuilder.build(flipped, identity).weeklyAchievements,
+        )
+        // 状態列を含むシグネチャは変わる
+        assertNotEquals(base, MyFriendProfileBuilder.statsSignature(flipped))
     }
 
     @Test
