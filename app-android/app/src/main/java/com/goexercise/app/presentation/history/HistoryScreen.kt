@@ -39,9 +39,13 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 import com.goexercise.app.ui.theme.colorForStatus
 
 @Composable
-fun HistoryRoute(onUseRescue: () -> Unit = {}, viewModel: HistoryViewModel = hiltViewModel()) {
+fun HistoryRoute(
+    onUseRescue: () -> Unit = {},
+    onOpenHighlight: (String) -> Unit = {},
+    viewModel: HistoryViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual)
+    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual, onOpenHighlight)
 }
 
 @Composable
@@ -51,6 +55,7 @@ fun HistoryContent(
     onNext: () -> Unit = {},
     onUseRescue: () -> Unit = {},
     onToggleMenstrual: (java.time.LocalDate) -> Unit = {},
+    onOpenHighlight: (String) -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     Column(
@@ -98,6 +103,11 @@ fun HistoryContent(
         )
 
         TextButton(onClick = onUseRescue) { Text("保険チケットを使う") }
+
+        // ハイライト共有カードの導線(Weekly/Monthly/All-time)。iOS StatsView の 3 エントリ相当。
+        HighlightEntryRow("✨", "Weeklyハイライト", "今週のがんばりをカードでサマリー") { onOpenHighlight("weekly") }
+        HighlightEntryRow("🗂", "Monthlyハイライト", "今月のがんばりをカードでサマリー") { onOpenHighlight("monthly") }
+        HighlightEntryRow("🏆", "All-timeハイライト", "これまでの記録をカードでサマリー") { onOpenHighlight("alltime") }
 
         // 日セルタップ → その日の詳細(記録一覧 or 状態別メッセージ)。iOS DayDetailSheet パリティ。
         val sel = selected
@@ -154,6 +164,29 @@ private fun WeekdayHeader() {
             Text(d, modifier = Modifier.weight(1f), color = palette.textSecondary, fontSize = 11.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
+    }
+}
+
+/** ハイライト共有カードへの導線 1 行(アイコン + タイトル + サブタイトル + ›)。iOS StatsView エントリ相当。 */
+@Composable
+private fun HighlightEntryRow(emoji: String, title: String, subtitle: String, onClick: () -> Unit) {
+    val palette = LocalAppPalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(palette.surface)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(emoji, fontSize = 22.sp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = palette.textPrimary)
+            Text(subtitle, fontSize = 12.sp, color = palette.textSecondary)
+        }
+        Text("›", fontSize = 20.sp, color = palette.textSecondary)
     }
 }
 

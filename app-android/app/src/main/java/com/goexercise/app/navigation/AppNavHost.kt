@@ -33,12 +33,14 @@ import com.goexercise.app.presentation.premium.PremiumPaywallRoute
 import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.presentation.rescue.RescueRoute
 import com.goexercise.app.presentation.share.StreakShareRoute
+import com.goexercise.app.presentation.share.HighlightShareRoute
 import com.goexercise.app.presentation.settings.SettingsRoute
 import com.goexercise.app.presentation.weight.WeightRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
 private const val RESCUE_ROUTE = "rescue" // フリーズ使用(履歴から遷移する詳細画面)
+private const val HIGHLIGHT_ROUTE = "highlight-share" // ハイライト共有(履歴から weekly/monthly/alltime で遷移)
 private const val PREMIUM_ROUTE = "premium" // GOプレミアム ペイウォール(#6)。?ctx= で文脈を渡す
 
 /**
@@ -117,6 +119,7 @@ fun AppNavHost(
                         )
                         AppRoute.History -> HistoryRoute(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
+                            onOpenHighlight = { kind -> navController.navigate("$HIGHLIGHT_ROUTE/$kind") },
                         )
                         AppRoute.Friends -> FriendsRoute(
                             onOpenRanking = { navController.navigate(AppRoute.WeeklyRanking.path) },
@@ -140,6 +143,10 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     onUpgrade = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.Freeze.name}") },
                 )
+            }
+            // ハイライト共有カード(履歴から weekly/monthly/alltime。VM が kind を SavedStateHandle で受ける)。
+            composable("$HIGHLIGHT_ROUTE/{kind}") {
+                HighlightShareRoute(onBack = { navController.popBackStack() })
             }
             // GOプレミアム ペイウォール(#6)。ctx で見出しを出し分ける。
             composable("$PREMIUM_ROUTE/{ctx}") { entry ->
