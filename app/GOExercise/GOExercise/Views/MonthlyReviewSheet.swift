@@ -1,14 +1,15 @@
 import SwiftUI
 import UIKit
 
-/// 先月のハイライトを SNS シェアできるブランドカードに整形して表示するシート。
+/// 今月のハイライトを SNS シェアできるブランドカードに整形して表示するシート。
 /// `WeeklyHighlightShareSheet` / `LifetimeStatsShareSheet` と同じ ImageRenderer
 /// ベースのパターン (3 色グラデ背景 + 大きな猫キャラ + 写真に保存)。
 struct MonthlyReviewSheet: View {
     let review: MonthlyReviewBuilder.Review
     /// 期間に応じた表示。デフォルトは月次 (既存呼び出しはそのまま動く)。
-    var badge: String = "MONTHLY HIGHLIGHT"
-    var title: String = "先月のハイライト"
+    /// 英字バッジは廃止し、タイトルに付ける SF Symbol アイコンに置き換え。
+    var icon: String = "doc.text.image"
+    var title: String = "Monthlyハイライト"
     var streakLabel: String = "今月の最長連続"
     var gradient: [Color] = MonthlyReviewSheet.monthlyGradient
     @Environment(\.dismiss) private var dismiss
@@ -54,7 +55,7 @@ struct MonthlyReviewSheet: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 56)
 
-                    MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed)
+                    MonthlyReviewCard(review: review, appName: appName, icon: icon, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed)
 
                     if let renderedImage {
                         ShareLink(
@@ -125,11 +126,11 @@ struct MonthlyReviewSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = MonthlyReviewCard(review: review, appName: appName, badge: badge, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed)
-            .frame(width: 600, height: 800)
+        let card = MonthlyReviewCard(review: review, appName: appName, icon: icon, title: title, streakLabel: streakLabel, gradient: activeGradient, poseSeed: poseSeed, fillFrame: true)
+            .frame(width: ShareCardLayout.canvas.width, height: ShareCardLayout.canvas.height)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
-        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
+        renderer.proposedSize = ProposedViewSize(ShareCardLayout.canvas)
         if let uiImage = renderer.uiImage {
             renderedUIImage = uiImage
             renderedImage = Image(uiImage: uiImage)
@@ -161,25 +162,26 @@ struct MonthlyReviewCard: View {
     let review: MonthlyReviewBuilder.Review
     var appName: String = "GO エクササイズ"
     /// 期間に応じて差し替える表示。デフォルトは月次。
-    var badge: String = "MONTHLY HIGHLIGHT"
-    var title: String = "先月のハイライト"
+    /// バッジは英字テキストを廃止し、タイトル(日本語)にこの SF Symbol アイコンを付けた
+    /// ピルに統合する(英字「MONTHLY HIGHLIGHT」とタイトル「Monthlyハイライト」の重複解消)。
+    /// アイコンは履歴エントリ行と同一対応 (Weekly=sparkles / Monthly=doc.text.image / All-time=trophy.fill)。
+    var icon: String = "doc.text.image"
+    var title: String = "Monthlyハイライト"
     var streakLabel: String = "今月の最長連続"
     var gradient: [Color] = MonthlyReviewSheet.monthlyGradient
     var poseSeed: Int = 0
+    /// ImageRenderer でスマホ全画面比のキャンバス (ShareCardLayout.canvas = 600×1300) に書き出すとき true。フレーム全面をグラデで塗り、
+    /// 上下の白余白を消す(ユーザー要望)。
+    var fillFrame: Bool = false
 
     var body: some View {
         VStack(spacing: 18) {
-            Text(badge)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .tracking(3)
+            // 英字バッジ + 日本語タイトルの重複を解消: アイコン付きの日本語バッジ 1 つに統合。
+            Label(title, systemImage: icon)
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 14).padding(.vertical, 5)
+                .padding(.horizontal, 18).padding(.vertical, 8)
                 .background(.black.opacity(0.45), in: Capsule())
-
-            Text(title)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
 
             Text(review.monthLabel)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -222,15 +224,19 @@ struct MonthlyReviewCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
+        .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
+        .background {
+            let g = LinearGradient(
                 colors: gradient,
                 startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+            )
+            if fillFrame {
+                g  // フルブリード: 隅まで塗って白余白を消す
+            } else {
+                g.clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            }
+        }
+        .shadow(color: .black.opacity(fillFrame ? 0 : 0.18), radius: fillFrame ? 0 : 24, y: fillFrame ? 0 : 10)
     }
 
     /// 選択中の猫キャラ (celebrating ポーズ。asset 欠落時は orange fallback、それも

@@ -41,12 +41,18 @@ create table if not exists public.profiles (
   today_exercise_details jsonb,
   decoration_tier int not null default 0,
   weekly_achievements jsonb,
+  -- 日ごとの状態 (DailyStatus.rawValue: achieved/rest/rescued/missed/future/todayPending/todayAchieved)
+  -- の 7 要素配列。友達詳細の「今週の達成」を本人ホームと同じ状態別表示にするための正本。
+  -- weekly_achievements (Bool) では休養/フリーズ/実運動を区別できなかった不具合の解消用。
+  weekly_statuses jsonb,
   weekly_total_minutes int,
   monthly_total_minutes int,
   monthly_achieved_days int,
   my_cat_breed text,
   updated_at timestamptz not null default now()
 );
+-- 既存DB (create table if not exists が既存テーブルを変更しない) 向けに後付けで列を足す。
+alter table public.profiles add column if not exists weekly_statuses jsonb;
 create index if not exists profiles_friend_code_idx on public.profiles (friend_code);
 create index if not exists profiles_username_idx on public.profiles (lower(username));
 

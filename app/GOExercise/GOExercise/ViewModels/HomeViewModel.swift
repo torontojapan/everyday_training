@@ -23,6 +23,9 @@ final class HomeViewModel {
     /// 「先月のレビュー」ボタンを active / disabled で出し分けるために、
     /// 前月にいずれかの記録があるかどうかを保持する。
     var previousMonthHasRecords = false
+    /// 「今月のハイライト」ボタンの active / disabled 判定。今月にいずれかの
+    /// 記録があるかどうか。
+    var currentMonthHasRecords = false
 
     /// 「復帰ファーストホーム」を出すかどうか (Codex UX 提案 #2)。
     /// 判定条件 (3 つすべて true):
@@ -137,6 +140,7 @@ final class HomeViewModel {
             weightLoss: weightLoss
         )
         previousMonthHasRecords = Self.hasPreviousMonthRecords(records: records, today: today, calendar: calendar)
+        currentMonthHasRecords = Self.hasCurrentMonthRecords(records: records, today: today, calendar: calendar)
         isComebackToday = yesterdayStatus(records: records, today: today) == .missed
             && !todayStatus.countsAsAchieved
             && lifetimeStats.achievedDays >= 3
@@ -192,6 +196,12 @@ final class HomeViewModel {
         }
         // DateInterval.contains は終端(=今月1日 0:00)を含むため、今月1日付の record が
         // 先月扱いになる off-by-one を避け、半開区間 [start, end) で判定する(監査 P2)。
+        return records.contains { interval.start <= $0.date && $0.date < interval.end }
+    }
+
+    private static func hasCurrentMonthRecords(records: [WorkoutRecord], today: Date, calendar: Calendar) -> Bool {
+        guard let interval = calendar.dateInterval(of: .month, for: today) else { return false }
+        // 半開区間 [start, end) で今月の record 有無を判定(翌月1日 0:00 を含めない)。
         return records.contains { interval.start <= $0.date && $0.date < interval.end }
     }
 

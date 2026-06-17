@@ -51,7 +51,7 @@ struct WeeklyHighlightShareSheet: View {
                     if let renderedImage {
                         ShareLink(
                             item: renderedImage,
-                            preview: SharePreview("今週のハイライト · \(appName)",
+                            preview: SharePreview("Weeklyハイライト · \(appName)",
                                                    image: renderedImage)
                         ) {
                             Label("SNSで共有", systemImage: "square.and.arrow.up")
@@ -119,11 +119,11 @@ struct WeeklyHighlightShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed)
-            .frame(width: 600, height: 800)
+        let card = WeeklyHighlightShareCard(summary: summary, weekLabel: weekLabel, appName: appName, gradientColors: gradient.colors, poseSeed: poseSeed, fillFrame: true)
+            .frame(width: ShareCardLayout.canvas.width, height: ShareCardLayout.canvas.height)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
-        renderer.proposedSize = ProposedViewSize(width: 600, height: 800)
+        renderer.proposedSize = ProposedViewSize(ShareCardLayout.canvas)
         if let uiImage = renderer.uiImage {
             renderedUIImage = uiImage
             renderedImage = Image(uiImage: uiImage)
@@ -149,13 +149,16 @@ struct WeeklyHighlightShareSheet: View {
 }
 
 /// ImageRenderer で書き出される静的ブランドカード。
-/// 600x800 pt を想定し、SNS プレビューに乗りやすい縦長比率。
+/// ShareCardLayout.canvas (600×1300, スマホ全画面比) で書き出す、SNS プレビューに乗りやすい縦長比率。
 struct WeeklyHighlightShareCard: View {
     let summary: ExerciseTrendSummary.WeeklySummary
     let weekLabel: String
     let appName: String
     var gradientColors: [Color] = ShareCardGradient.sunset.colors
     var poseSeed: Int = 0
+    /// ImageRenderer でスマホ全画面比のキャンバス (ShareCardLayout.canvas = 600×1300) に書き出すとき true。フレーム全面をグラデで塗り、
+    /// 上下の白余白を消す(ユーザー要望)。
+    var fillFrame: Bool = false
 
     var body: some View {
         VStack(spacing: 18) {
@@ -167,7 +170,7 @@ struct WeeklyHighlightShareCard: View {
                 .padding(.horizontal, 14).padding(.vertical, 5)
                 .background(.black.opacity(0.45), in: Capsule())
 
-            Text("今週のハイライト")
+            Text("Weeklyハイライト")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
@@ -226,15 +229,19 @@ struct WeeklyHighlightShareCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
+        .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
+        .background {
+            let gradient = LinearGradient(
                 colors: gradientColors,
                 startPoint: .topLeading, endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+            )
+            if fillFrame {
+                gradient  // フルブリード: 隅まで塗って白余白を消す
+            } else {
+                gradient.clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            }
+        }
+        .shadow(color: .black.opacity(fillFrame ? 0 : 0.18), radius: fillFrame ? 0 : 24, y: fillFrame ? 0 : 10)
     }
 
     /// 選択中の猫キャラ (celebrating ポーズ。asset 欠落時は orange fallback、それも

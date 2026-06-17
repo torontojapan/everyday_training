@@ -370,6 +370,7 @@ final class SupabaseFriendsService: FriendsService {
             today_exercise_details: existing.first?.today_exercise_details,
             decoration_tier: existing.first?.decoration_tier ?? 0,
             weekly_achievements: existing.first?.weekly_achievements,
+            weekly_statuses: existing.first?.weekly_statuses,
             weekly_total_minutes: existing.first?.weekly_total_minutes,
             monthly_total_minutes: existing.first?.monthly_total_minutes,
             monthly_achieved_days: existing.first?.monthly_achieved_days,
@@ -895,6 +896,9 @@ final class SupabaseFriendsService: FriendsService {
             todayExerciseNames: r.today_exercise_names ?? [],
             decorationTier: r.decoration_tier, lastUpdated: Date(),
             weeklyAchievements: r.weekly_achievements,
+            // map + フォールバックで 7 要素長を保つ。compactMap だと未知の rawValue を
+            // 落として後続の曜日が左にズレる (月→日のインデックス対応が崩れる)。
+            weeklyStatuses: r.weekly_statuses?.map { DailyStatus(rawValue: $0) ?? .future },
             connectedSince: nil,
             todayExerciseDetails: r.today_exercise_details,
             weeklyTotalMinutes: r.weekly_total_minutes,
@@ -913,6 +917,7 @@ final class SupabaseFriendsService: FriendsService {
             todayExerciseNames: w.today_exercise_names ?? [],
             decorationTier: w.decoration_tier, lastUpdated: Date(),
             weeklyAchievements: w.weekly_achievements,
+            weeklyStatuses: w.weekly_statuses?.map { DailyStatus(rawValue: $0) ?? .future },
             connectedSince: nil,
             todayExerciseDetails: w.today_exercise_details,
             weeklyTotalMinutes: w.weekly_total_minutes,
@@ -938,6 +943,8 @@ private struct ProfileRow: Decodable {
     var today_exercise_details: [SharedExerciseDetail]?
     var decoration_tier: Int = 0
     var weekly_achievements: [Bool]?
+    /// 日ごとの状態 (DailyStatus.rawValue 文字列) の 7 要素配列。jsonb 列。
+    var weekly_statuses: [String]?
     var weekly_total_minutes: Int?
     var monthly_total_minutes: Int?
     var monthly_achieved_days: Int?
@@ -957,6 +964,7 @@ private struct ProfileWrite: Encodable {
     let today_exercise_details: [SharedExerciseDetail]?
     let decoration_tier: Int
     let weekly_achievements: [Bool]?
+    let weekly_statuses: [String]?
     let weekly_total_minutes: Int?
     let monthly_total_minutes: Int?
     let monthly_achieved_days: Int?
@@ -975,6 +983,7 @@ private struct ProfileWrite: Encodable {
         today_exercise_details = p.todayExerciseDetails
         decoration_tier = p.decorationTier
         weekly_achievements = p.weeklyAchievementsOrEmpty
+        weekly_statuses = p.weeklyStatuses?.map { $0.rawValue }
         weekly_total_minutes = p.weeklyTotalMinutes
         monthly_total_minutes = p.monthlyTotalMinutes
         monthly_achieved_days = p.monthlyAchievedDays
@@ -985,14 +994,15 @@ private struct ProfileWrite: Encodable {
          current_streak: Int, total_achieved_days: Int, today_achieved: Bool,
          today_category_name: String?, today_exercise_names: [String]?,
          today_exercise_details: [SharedExerciseDetail]?, decoration_tier: Int,
-         weekly_achievements: [Bool]?, weekly_total_minutes: Int?,
+         weekly_achievements: [Bool]?, weekly_statuses: [String]?, weekly_total_minutes: Int?,
          monthly_total_minutes: Int?, monthly_achieved_days: Int?, my_cat_breed: String?) {
         self.user_id = user_id; self.friend_code = friend_code; self.username = username
         self.display_name = display_name; self.current_streak = current_streak
         self.total_achieved_days = total_achieved_days; self.today_achieved = today_achieved
         self.today_category_name = today_category_name; self.today_exercise_names = today_exercise_names
         self.today_exercise_details = today_exercise_details; self.decoration_tier = decoration_tier
-        self.weekly_achievements = weekly_achievements; self.weekly_total_minutes = weekly_total_minutes
+        self.weekly_achievements = weekly_achievements; self.weekly_statuses = weekly_statuses
+        self.weekly_total_minutes = weekly_total_minutes
         self.monthly_total_minutes = monthly_total_minutes; self.monthly_achieved_days = monthly_achieved_days
         self.my_cat_breed = my_cat_breed
     }

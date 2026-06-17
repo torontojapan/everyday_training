@@ -207,8 +207,11 @@ struct FriendDetailView: View {
     // MARK: - Weekly
 
     private var weeklySection: some View {
-        let weekly = friend.weeklyAchievementsOrEmpty
-        let achievedCount = weekly.filter { $0 }.count
+        // 本人のホーム週ストリップ ([[WeeklyCalendarView]]) と同じ状態別表示にする。
+        // countsAsAchieved で潰した Bool では休養 (休)・フリーズ (○)・実運動 (◎) を
+        // 区別できず「全部緑✓」に見えていたため、日ごとの状態配列で描画する。
+        let statuses = friend.weeklyStatusesOrEmpty
+        let achievedCount = statuses.filter { $0.countsAsAchieved }.count
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("今週の達成")
@@ -219,7 +222,7 @@ struct FriendDetailView: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }
-            FriendWeekStripView(weekly: weekly, today: today)
+            FriendWeekStripView(statuses: statuses, today: today)
         }
         .padding(16)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -431,7 +434,8 @@ struct FriendDetailView: View {
 // MARK: - Weekly strip
 
 struct FriendWeekStripView: View {
-    let weekly: [Bool]
+    /// 7 要素 (月→日) の日ごとの状態。本人のホーム週ストリップと同じ正本。
+    let statuses: [DailyStatus]
     let today: Int   // Mon=0..Sun=6
     private let labels = ["月", "火", "水", "木", "金", "土", "日"]
 
@@ -444,35 +448,45 @@ struct FriendWeekStripView: View {
     }
 
     private func cell(idx: Int) -> some View {
-        let achieved = weekly.indices.contains(idx) ? weekly[idx] : false
+        let status = statuses.indices.contains(idx) ? statuses[idx] : .future
         let isToday = idx == today
         return VStack(spacing: 6) {
             Text(labels[idx])
                 .font(Typography.caption)
                 .foregroundStyle(isToday ? Palette.primaryDeep : Palette.textSecondary)
-            ZStack {
-                Circle()
-                    .fill(background(achieved: achieved, isToday: isToday))
-                    .frame(width: 34, height: 34)
-                if achieved {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(.white)
-                } else if isToday {
-                    Circle()
-                        .strokeBorder(Palette.primary, lineWidth: 2)
-                        .frame(width: 34, height: 34)
-                }
-            }
+            // ホーム ([[WeeklyCalendarView]]) と同一の記号 (◎/○/休/×/-/・) + 状態別配色。
+            Text(status.symbol)
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(Palette.textPrimary)
+                .frame(width: 34, height: 34)
+                .background(background(status: status, isToday: isToday), in: Circle())
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(labels[idx])曜日 \(achieved ? "達成" : "未達成")\(isToday ? " 今日" : "")")
+        .accessibilityLabel("\(labels[idx])曜日 \(accessibilityValue(for: status))\(isToday ? " 今日" : "")")
     }
 
-    private func background(achieved: Bool, isToday: Bool) -> Color {
-        if achieved { return Palette.success.opacity(0.75) }
-        if isToday { return Palette.primary.opacity(0.15) }
-        return Palette.chipBackground.opacity(0.6)
+    /// ホーム週ストリップ ([[WeeklyCalendarView]].background) と同一の配色ルール。
+    /// 今日はオレンジ強調 / 運動=赤 / 休養・フリーズ=緑系 / 未達=青 / 未来=薄。
+    private func background(status: DailyStatus, isToday: Bool) -> Color {
+        if isToday { return Palette.primary.opacity(0.95) }
+        switch status {
+        case .achieved, .todayAchieved: return Color(red: 0.93, green: 0.33, blue: 0.30).opacity(0.65)
+        case .rest: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.60)
+        case .rescued: return Color(red: 0.36, green: 0.65, blue: 0.40).opacity(0.35)
+        case .missed: return Color(red: 0.38, green: 0.55, blue: 0.90).opacity(0.32)
+        case .future, .todayPending: return Palette.secondary.opacity(0.45)
+        }
+    }
+
+    private func accessibilityValue(for status: DailyStatus) -> String {
+        switch status {
+        case .achieved, .todayAchieved: return "達成済み"
+        case .rescued: return "保険チケットで継続"
+        case .rest: return "休養日"
+        case .missed: return "未達成"
+        case .future: return "未来"
+        case .todayPending: return "未達成"
+        }
     }
 }
