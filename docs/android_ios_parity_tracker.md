@@ -15,6 +15,24 @@
 > SUPABASE_HOST/ANON_KEY を一時空にして Mock 強制(seedDemo で友達2名)→検証後に復元**、という手順を使う(今回実施・復元済)。
 > 友達詳細はまだコンパクト bottom sheet(差し替え対象)= §F の full-screen 化が最大の残作業。
 
+## ★ 2026-06-18 セッション4: iOS golden 実比較による 2LLM 検証ループ（初の本格 golden 照合）
+**重要な前進**: これまでは「Android スクショ vs iOS ソース読解」だったが、今回**初めて iOS build 12 を sim に
+ビルドして golden スクショを取得**し、Android 実スクショと横並び比較した(CLAUDE.md ★7 の本来の手順)。
+- **golden 取得手順**(再現用): `xcodebuild -project app/GOExercise/GOExercise.xcodeproj -scheme GOExercise -configuration Debug
+  -destination 'platform=iOS Simulator,id=<booted>' -derivedDataPath /tmp/goex_dd build` → `simctl install` → CFBundleVersion=12 を PlistBuddy 確認 →
+  `simctl launch ... --seed-demo-data --skip-onboarding --mock-seed-friends --no-notification-prompt --skip-milestones --no-review-prompt --initial-route <route>` → `simctl io screenshot`。
+  Android は Mock(SUPABASE 空)+ sqlite で 12 日連続記録を注入して populated 状態を揃えた。
+- **2LLM ループ**: Claude 並列6エージェント(home/history/settings/friends/ranking/record の視覚 diff)→ 敵対的に裏取り
+  (誤検知排除)→ Codex でソース照合 → 改善 → Codex で **全 MATCH 収束**を確認。
+- **誤検知だったもの**(裏取りで排除): ホーム連続バッジ「炎」(実は pawprint で一致)/ 記録入力 4列欄の「混在」(既に
+  chipBackground 塗りで統一済)/ タブバー有無・閉じる vs 戻る(`--initial-route` が単独 push する deep-link 由来の表示文脈差)/
+  Apple「Sign in with Apple」(sim が英語ロケールなだけ。実機 JP は公式ボタンが「Appleでサインイン」)。
+- **実差分として是正(Codex MATCH 確認済・commit d864385)**: ①ランキング期間ピッカー(coral 塗り→iOS `.segmented` グレー軌道+白選択ピル)
+  ②設定 Google「サインイン」→「続ける」 ③友達プロフィール名 20sp→`AppType.title`(iOS `.largeTitle`)
+  ④アバター tint 0.30→0.22(iOS `FriendAvatarView`)⑤猫メッセージ「新記録おめでとう ✨」→「！」(絵文字除去+文言一致)。
+- **受容済み差分**: 設定 Apple ボタン= iOS 公式 `ASAuthorizationAppleIDButton` vs Android 自作(プラットフォーム制約)。
+  バックアップ説明文の文言/配置に軽微差(認証セクションは config-gated・低優先)。中核 chrome(ホーム/履歴/記録入力)は golden 一致。
+
 ## 0. 完全一致のための手順（毎回これを守る = 再発防止）
 1. **正本 = iOS build 12**。シミュレータに build 12 を確実に install(derivedDataPath 固定→CFBundleVersion=12 確認)。
    手順は memory `android_ios_ui_parity`。
