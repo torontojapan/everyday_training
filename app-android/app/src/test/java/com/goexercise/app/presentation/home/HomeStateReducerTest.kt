@@ -85,6 +85,36 @@ class HomeStateReducerTest {
     }
 
     @Test
+    fun daysBeforeFirstActivity_shownAsFutureNotRestOrMissed() {
+        // 新規ユーザー: 今日(水 5/20)だけ記録。週頭(月18/火19)は「休/×」でなく中立「-」(Future)で
+        // 表示する(履歴タブ・凡例「最初の記録より前の日は集計されません」と一致)。
+        // iOS HomeViewModel.refresh の表示層振替の移植。これが無いと週頭が休(=達成扱い)になり、
+        // 今週の達成数が水増しされる Android のみの欠落バグになる。
+        val now = LocalDateTime.of(2026, 5, 20, 9, 0)
+        val state = HomeStateReducer.reduce(records = listOf(record(20)), now = now)
+
+        val byDate = state.weekStatuses.associate { it.date to it.status }
+        assertEquals(DailyStatus.Future, byDate[LocalDate.of(2026, 5, 18)])
+        assertEquals(DailyStatus.Future, byDate[LocalDate.of(2026, 5, 19)])
+        assertEquals(DailyStatus.TodayAchieved, byDate[LocalDate.of(2026, 5, 20)])
+        // 今週の達成は今日の 1 日のみ(振替前の休が達成に混入しない)。
+        assertEquals(1, state.weeklyProgress.achievedCount)
+    }
+
+    @Test
+    fun pastDaysOnOrAfterFirstActivity_keepRestAndMissed() {
+        // 最初の記録(月18)以降の過去日は振替しない: 火19=休(自動休養), 水20(今日)未達成。
+        // 18 を達成済にすると 19 は週の自動休養枠に入る(restLimit=2 の先頭)。
+        val now = LocalDateTime.of(2026, 5, 20, 9, 0)
+        val state = HomeStateReducer.reduce(records = listOf(record(18)), now = now)
+
+        val byDate = state.weekStatuses.associate { it.date to it.status }
+        assertEquals(DailyStatus.Achieved, byDate[LocalDate.of(2026, 5, 18)])
+        // 19 は休または×(自動休養の有無に依らず Future への振替対象ではない)。
+        assertTrue(byDate[LocalDate.of(2026, 5, 19)] != DailyStatus.Future)
+    }
+
+    @Test
     fun lifetimeAchievedDaysDriveDecoration() {
         // 7 ユニーク達成日 → Bandana(7..29)
         val now = LocalDateTime.of(2026, 5, 31, 10, 0)

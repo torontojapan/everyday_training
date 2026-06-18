@@ -19,8 +19,8 @@ import java.time.LocalDateTime
  * 移植済みドメインロジック(streak / 週次 / 達成 / 猫状態 / lifetime / 装飾)を 1 箇所に束ねる。
  * 純粋に保つことで coroutine 無しで単体テストでき、iOS HomeViewModel.refresh の集計と対応づく。
  *
- * 未対応(後続フェーズ): rescuedDates(保険チケット), streakExtendedThisRun, マイルストーン。
- * 現状 rescuedDates は空で計算する。運動トレンド集計(today/week)と初回利用日は実装済み。
+ * rescuedDates(保険チケット)・初回利用日・運動トレンド集計(today/week)は実装済み。
+ * 未対応(後続フェーズ): streakExtendedThisRun(起動中に streak が伸びた瞬間の判定)。
  */
 object HomeStateReducer {
 
@@ -32,9 +32,21 @@ object HomeStateReducer {
     ): HomeUiState {
         val today = now.toLocalDate()
 
-        val weekStatuses = WeeklyProgressCalculator.statuses(
+        val rawWeekStatuses = WeeklyProgressCalculator.statuses(
             weekContaining = today, records = records, today = today, rescuedDates = rescuedDates,
         )
+        // 履歴(月次)カレンダーと同じ表示ルール: 最初の記録(/救済日)より前の日は「休/×」でなく
+        // 中立の「-」(Future 流用)。今日のセルは対象外(todayPending が CTA/猫状態の正本)。
+        // iOS HomeViewModel.refresh の表示層振替の 1:1 移植。progress / todayStatus は振替後の
+        // statuses から算出する(iOS と同順)。これが無いと新規ユーザーの週ストリップが
+        // 履歴タブ・凡例「最初の記録より前の日は集計されません」と食い違う(Android のみの欠落バグ)。
+        val firstActivityDay = (records.map { it.date } + rescuedDates).minOrNull()
+        val weekStatuses = rawWeekStatuses.map { entry ->
+            val day = entry.date
+            if (!day.isBefore(today)) return@map entry
+            val beforeStart = firstActivityDay?.let { day.isBefore(it) } ?: true
+            if (beforeStart) entry.copy(status = DailyStatus.Future) else entry
+        }
         val weeklyProgress = WeeklyProgressCalculator.progress(weekStatuses)
         val streak = StreakCalculator.streakState(records, today, rescuedDates)
         val todayStatus = weekStatuses.firstOrNull { it.date == today }?.status ?: DailyStatus.TodayPending
