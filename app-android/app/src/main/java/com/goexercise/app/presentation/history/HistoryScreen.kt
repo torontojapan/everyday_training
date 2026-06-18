@@ -153,29 +153,25 @@ fun HistoryContent(
             val first = state.records.minOfOrNull { it.date } ?: today
             LifetimeStatsCalculator.calculate(state.records, first, today)
         }
-        // iOS は今週に記録がある時だけ Weekly ハイライトを出す。
+        // iOS build 12: ラベルは Weekly/Monthly/All-time ハイライト。Weekly は今週に記録がある時だけ。
         if (weekly.hasExerciseData) {
             EntryCard(
                 icon = Icons.Filled.AutoAwesome, iconTint = palette.primaryDeep,
-                title = "今週のハイライト",
+                title = "Weeklyハイライト",
                 subtitle = "合計 ${weekly.totalMinutes} 分 / ${weekly.usedCategories.size} カテゴリ",
                 onClick = { onOpenHighlight("weekly") },
             )
         }
-        val lastMonth = remember(today) { YearMonth.from(today).minusMonths(1) }
-        val lastMonthHasRecords = remember(state.records) {
-            state.records.any { YearMonth.from(it.date) == lastMonth }
-        }
+        // Monthly = 今月(常時活性。遷移先 HighlightShareViewModel も month=today で当月レビューを作る)。
         EntryCard(
             icon = Icons.Filled.Description, iconTint = palette.primaryDeep,
-            title = "先月のハイライト",
-            subtitle = if (lastMonthHasRecords) "先月のがんばりをカードでサマリー" else "先月の記録はまだありません",
-            dimmed = !lastMonthHasRecords,
-            onClick = { if (lastMonthHasRecords) onOpenHighlight("monthly") },
+            title = "Monthlyハイライト",
+            subtitle = "今月のがんばりをカードでサマリー",
+            onClick = { onOpenHighlight("monthly") },
         )
         EntryCard(
             icon = Icons.Filled.EmojiEvents, iconTint = palette.primaryDeep,
-            title = "これまでのハイライト",
+            title = "All-timeハイライト",
             subtitle = "累計 ${lifetime.achievedDays} 日達成 / 達成率 ${(lifetime.rate * 100).toInt()}%",
             onClick = { onOpenHighlight("alltime") },
         )
@@ -331,7 +327,7 @@ private fun CalendarLegend(hasPeriod: Boolean) {
     ) {
         LegendSwatch(monthlyStatusColor(DailyStatus.Achieved), "運動した日")
         LegendSwatch(monthlyStatusColor(DailyStatus.Rest), "休養日")
-        LegendSwatch(monthlyStatusColor(DailyStatus.Rescued), "フリーズ")
+        LegendSwatch(monthlyStatusColor(DailyStatus.Rescued), "保険チケット")
         LegendSwatch(monthlyStatusColor(DailyStatus.Missed), "未達成")
         if (hasPeriod) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

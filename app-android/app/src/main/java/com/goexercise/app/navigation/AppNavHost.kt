@@ -75,17 +75,35 @@ fun AppNavHost(
         onDeepLinkConsumed()
     }
 
+    val palette = com.goexercise.app.ui.theme.LocalAppPalette.current
     Scaffold(
+        containerColor = palette.background,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = currentRoute == tab.route,
-                            onClick = { navController.navigateToTab(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                        )
+                // iOS は浮いた角丸の「島」型タブバー(白地・余白付き・影)。Material の全幅バーでなく
+                // Surface でラップして角丸 + インセット + 影にし、iOS build 12 の見た目に合わせる。
+                androidx.compose.material3.Surface(
+                    color = palette.surface,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent) {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = currentRoute == tab.route,
+                                onClick = { navController.navigateToTab(tab.route) },
+                                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                                label = { Text(tab.label) },
+                                colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                                    selectedIconColor = palette.primaryDeep,
+                                    selectedTextColor = palette.primaryDeep,
+                                    indicatorColor = palette.primary.copy(alpha = 0.22f),
+                                    unselectedIconColor = palette.textPrimary,
+                                    unselectedTextColor = palette.textSecondary,
+                                ),
+                            )
+                        }
                     }
                 }
             }
