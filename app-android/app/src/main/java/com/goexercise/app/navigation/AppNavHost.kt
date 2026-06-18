@@ -66,6 +66,8 @@ fun AppNavHost(
         MENSTRUAL_ROUTE to AppRoute.History.path,
         RESCUE_ROUTE to AppRoute.History.path,
         AppRoute.WeeklyRanking.path to AppRoute.Friends.path,
+        // 記録完了は iOS では home タブの NavigationStack 内 push → タブバー(ホーム選択)が残る。
+        RECORD_COMPLETION_ROUTE to AppRoute.Home.path,
     )
     val parentTabRoute = detailParentTab[currentRoute]
     val showBottomBar = tabs.any { it.route == currentRoute } || parentTabRoute != null

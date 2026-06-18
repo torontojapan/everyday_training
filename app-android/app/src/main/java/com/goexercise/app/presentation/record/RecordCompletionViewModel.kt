@@ -50,10 +50,13 @@ class RecordCompletionViewModel @Inject constructor(
         val now = LocalDateTime.now(clock)
         val home = HomeStateReducer.reduce(records, now, rescuedDates = rescued, firstUseDate = firstUse)
         // 「今日保存した記録」のサマリー。observeRecords は日付降順なので今日の最初の1件を採る。
-        val todaysExercises = records.firstOrNull { it.date == now.toLocalDate() }?.exercises ?: emptyList()
-        // 今日保存済 + 連続が 2 日以上 = 昨日(休/救済含む)から伸びた = 「きのうから +1」。
-        // currentStreak==1 は新規スタートなので出さない(iOS streakExtendedThisRun && currentStreak>1 と一致)。
-        val extended = home.streak.currentStreak > 1
+        val today = now.toLocalDate()
+        val todaysExercises = records.firstOrNull { it.date == today }?.exercises ?: emptyList()
+        // iOS streakExtendedThisRun = 「今日の最初の記録」かつ currentStreak>1。今日の記録が 1 件だけ =
+        // この保存が今日の初記録 = 連続が伸びた。2 件目以降は既に今日カウント済みなので出さない。
+        // currentStreak==1 は新規スタートなので出さない。
+        val isFirstRecordToday = records.count { it.date == today } == 1
+        val extended = isFirstRecordToday && home.streak.currentStreak > 1
         RecordCompletionUi(
             streak = home.streak.currentStreak, breed = breed, catState = home.catState,
             exercises = todaysExercises, streakExtendedThisRun = extended,

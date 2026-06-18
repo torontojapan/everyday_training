@@ -113,14 +113,21 @@ final class ScreenshotCaptureUITests: XCTestCase {
         if link.waitForExistence(timeout: 4) { link.tap(); sleep(2); shoot(men, "sub_menstrual") }
         else { shoot(men, "sub_menstrual_MISSING") }
 
-        // sub) 記録完了(home CTA → 種目名入力 → 保存 → 完了画面)。
+        // sub) 記録完了(home CTA → よく使う種目チップで種目名を埋める → 保存 → 完了画面)。
         let rec = launch(["--skip-onboarding", "--initial-tab", "home"] + seed)
         let cta = rec.buttons.matching(NSPredicate(format: "label CONTAINS '記録' OR label CONTAINS '種目'")).firstMatch
         if cta.waitForExistence(timeout: 6) {
             cta.tap(); sleep(2)
-            let nameField = rec.textFields.firstMatch
-            if nameField.waitForExistence(timeout: 4) { nameField.tap(); nameField.typeText("Squat") }
-            let save = rec.buttons["保存"].firstMatch
+            // よく使う種目チップ(suggestion ボタン)をタップして種目名を埋める → canSave 成立。
+            let chip = rec.buttons.matching(NSPredicate(format: "label IN {'スクワット','腕立て伏せ','プランク','腹筋','ランニング'}")).firstMatch
+            if chip.waitForExistence(timeout: 4) { chip.tap(); sleep(1) }
+            else {
+                let nameField = rec.textFields.firstMatch
+                if nameField.waitForExistence(timeout: 3) { nameField.tap(); nameField.typeText("Squat") }
+            }
+            // 保存ボタンは下端 → スクロールで可視化してからタップ。
+            rec.swipeUp(); sleep(1); rec.swipeUp(); sleep(1)
+            let save = rec.buttons.matching(NSPredicate(format: "label CONTAINS '保存'")).firstMatch
             if save.waitForExistence(timeout: 3) { save.tap(); sleep(3); shoot(rec, "sub_record_completion") }
             else { shoot(rec, "sub_record_completion_NOSAVE") }
         }

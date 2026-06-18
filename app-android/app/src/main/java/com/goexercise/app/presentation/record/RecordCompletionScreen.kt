@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pets
@@ -109,8 +110,19 @@ fun RecordCompletionContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            // インラインタイトル(iOS navigationTitle「記録完了」相当)。
-            Text("記録完了", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textPrimary)
+            // インラインタイトル + 左上 戻る(iOS navigationTitle「記録完了」+ 既定の戻るシェブロン相当)。
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
+                androidx.compose.material3.Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "戻る",
+                    tint = palette.primaryDeep,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(24.dp)
+                        .clickable { onDone() },
+                )
+                Text("記録完了", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            }
             // 登場アニメ(iOS contentVisible): 猫 0.85→1 / リボン 0.4→1 / ヒーロー 0.9→1 + フェードイン。
             val p by androidx.compose.animation.core.animateFloatAsState(
                 targetValue = if (appeared) 1f else 0f,
