@@ -48,7 +48,10 @@
    gating=未dismiss && displayName==既定("あなた")。SettingsRepository に `namePromptDismissed` 永続フラグ追加、
    FriendsViewModel に submitNamePrompt(成功時のみ閉じる)/dismissNamePrompt。実機で 決定→表示名更新+カード消滅を確認。
 **B. 要素材/規約**
-6. 設定/友達 **Apple・Google ブランドロゴ画像**（規約準拠アセットを用意して認証ボタンへ。現状テキストのみ）。
+6. ~~設定/友達 **Apple・Google ブランドロゴ画像**~~ ✅ **完了(2026-06-18・オンボ実スクショ検証済)**。
+   `ic_apple_logo.xml`(単色マーク・tint 出し分け)/ `ic_google_g.xml`(公式4色G・固定色)を新規作成、
+   共有 `AppleLogo`/`GoogleLogo` composable で オンボ/設定/友達(バックアップ・復元)の全認証ボタンへ。
+   旧「G 」「 」プレフィックス文字は撤去。
 **C. 実BEデコード（iOS Supabase スキーマ確認後）**
 7. ~~友達 `today_exercise_details` デコード配線~~ ✅ **完了(2026-06-18・Mock友達詳細でスクショ検証 + 単体テスト)**。
    `SharedExerciseDetail` を構造化(reps/sets/durationMinutes + iOS 一致 summary「{reps}回 × {sets}セット / {min}分」)、
@@ -142,7 +145,7 @@
 - [ ] **PerkGuide セクション**(称号一覧ページの「プレミアム特典」5項目: 保険チケット/友達紹介/称号&背景/猫種/節目)。Android 欠落。
 - [ ] **休養ルール詳細4項目**(自動休/3日目×reset/履歴「休」表示/保険チケット月1・月4)+ 展開式。Android は1行要約・非展開。
 - [ ] カスタマイズに**「達成時の振動」haptic トグル**。Android 欠落。
-- [ ] Apple/Google ボタンに**ブランドロゴ画像**。Google コピー「続ける」→iOS「サインイン」。
+- [x] Apple/Google ボタンに**ブランドロゴ画像** ✅(スクショ検証済 2026-06-18・`ic_apple_logo`/`ic_google_g` + 共有 `AppleLogo`/`GoogleLogo`)。コピーは既に「サインイン」。
 - [ ] データ削除系の**破壊色を赤**(Android primaryDeep)。
 - [ ] アイコン整合: 記録と共有=heart.text.square / プレミアム特典=rosette / アップグレード=crown / privacy=hand.raised / バックアップtoggle・sync 行にアイコン。
 - [ ] コピー整合: 「データを書き出す」/「体調・周期を記録する」/cycle footer 等。

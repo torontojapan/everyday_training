@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -554,13 +555,18 @@ private fun BackupSection(
             } else {
                 Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
                     color = palette.textSecondary, fontSize = 11.sp)
-                // ブランド準拠ボタン(Apple=黒地白文字 / Google=白地枠線)。iOS の AppleID/GoogleSignIn ボタン相当。
-                // TODO(parity ITEM8): Apple ロゴ / Google G マーク画像はブランド規約準拠アセットで別途追加。
+                // ブランド準拠ボタン(Apple=黒地白文字+白ロゴ / Google=白地枠線+4色Gマーク)。iOS の AppleID/GoogleSignIn ボタン相当。
                 Surface(
                     color = Color.Black, shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().then(if (isLinking) Modifier else Modifier.clickable { onLinkApple() }),
                 ) {
-                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        com.goexercise.app.ui.components.AppleLogo(tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
                         Text("Apple でサインイン", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -569,7 +575,13 @@ private fun BackupSection(
                     modifier = Modifier.fillMaxWidth().border(1.dp, palette.textSecondary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                         .then(if (isLinking) Modifier else Modifier.clickable { onLinkGoogle() }),
                 ) {
-                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        com.goexercise.app.ui.components.GoogleLogo()
+                        Spacer(Modifier.width(8.dp))
                         Text("Google でサインイン", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }

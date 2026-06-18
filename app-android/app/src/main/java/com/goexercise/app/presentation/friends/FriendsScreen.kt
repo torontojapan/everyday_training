@@ -784,10 +784,18 @@ private fun RestoreSection(
             CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(28.dp))
         } else {
             if (linking.appleEnabled) {
-                OutlinedButton(onClick = onRestoreApple, modifier = Modifier.fillMaxWidth()) { Text(" Apple で復元") }
+                OutlinedButton(onClick = onRestoreApple, modifier = Modifier.fillMaxWidth()) {
+                    com.goexercise.app.ui.components.AppleLogo(tint = palette.textPrimary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Apple で復元")
+                }
             }
             if (linking.googleEnabled) {
-                OutlinedButton(onClick = onRestoreGoogle, modifier = Modifier.fillMaxWidth()) { Text("G Google で復元") }
+                OutlinedButton(onClick = onRestoreGoogle, modifier = Modifier.fillMaxWidth()) {
+                    com.goexercise.app.ui.components.GoogleLogo()
+                    Spacer(Modifier.width(8.dp))
+                    Text("Google で復元")
+                }
             }
         }
     }
@@ -958,12 +966,16 @@ private fun BackupCard(
             } else {
                 if (linking.googleEnabled) {
                     Button(onClick = onBackupGoogle, colors = ButtonDefaults.buttonColors(containerColor = palette.primary), modifier = Modifier.fillMaxWidth()) {
-                        Text("G Google でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        com.goexercise.app.ui.components.GoogleLogo()
+                        Spacer(Modifier.width(8.dp))
+                        Text("Google でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 if (linking.appleEnabled) {
                     Button(onClick = onBackupApple, colors = ButtonDefaults.buttonColors(containerColor = palette.primary), modifier = Modifier.fillMaxWidth()) {
-                        Text(" Apple でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        com.goexercise.app.ui.components.AppleLogo(tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Apple でバックアップ", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 TextButton(onClick = onDismiss) { Text("あとで", color = palette.textSecondary, fontSize = 13.sp) }

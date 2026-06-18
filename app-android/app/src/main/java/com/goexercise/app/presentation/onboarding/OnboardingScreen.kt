@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,8 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
+import com.goexercise.app.ui.components.AppleLogo
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.CatImage
+import com.goexercise.app.ui.components.GoogleLogo
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /**
@@ -154,13 +157,21 @@ fun OnboardingScreen(
             enabled = !linking,
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("Apple で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold) }
+        ) {
+            AppleLogo(tint = Color.White)
+            Spacer(Modifier.width(8.dp))
+            Text("Apple で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold)
+        }
         Button(
             onClick = { viewModel?.linkGoogle(context) { onFinish(selected) } },
             enabled = !linking,
             colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep),
             modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("Google で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold) }
+        ) {
+            GoogleLogo()
+            Spacer(Modifier.width(8.dp))
+            Text("Google で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold)
+        }
         androidx.compose.material3.TextButton(
             onClick = { onFinish(selected) },
             modifier = Modifier.fillMaxWidth(),
