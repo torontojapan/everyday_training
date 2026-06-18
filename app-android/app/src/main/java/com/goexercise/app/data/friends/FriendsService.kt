@@ -36,6 +36,20 @@ data class ProfileRow(
     @SerialName("my_cat_breed") val myCatBreed: String? = null,
     /** プロフィール最終更新(timestamptz)。友達詳細「最終更新 N前」。iOS lastUpdated 相当。 */
     @SerialName("updated_at") val updatedAt: String? = null,
+    /** 今日の種目別詳細(jsonb 配列)。iOS `today_exercise_details`(opt-in 共有・既定 OFF)。
+     *  **読み取り専用**: Android は自分の詳細を publish しない(共有 opt-in トグル未導入のため・既定 OFF の iOS と非対称にならない)。
+     *  書き込み時は null(= 自分の行は詳細なし)。各ユーザーは自分の行のみ書くため他者の値を消さない。 */
+    @SerialName("today_exercise_details") val todayExerciseDetails: List<SharedExerciseDetailRow>? = null,
+)
+
+/** `today_exercise_details` jsonb 要素。iOS `SharedExerciseDetail` の Codable キー(プロパティ名)と一致。 */
+@Serializable
+data class SharedExerciseDetailRow(
+    @SerialName("id") val id: String? = null,
+    @SerialName("name") val name: String,
+    @SerialName("durationMinutes") val durationMinutes: Int? = null,
+    @SerialName("reps") val reps: Int? = null,
+    @SerialName("sets") val sets: Int? = null,
 )
 
 @Serializable
@@ -165,8 +179,13 @@ internal fun ProfileRow.toProfile(): FriendProfile = FriendProfile(
             .recoverCatching { java.time.OffsetDateTime.parse(s).toInstant() }
             .getOrNull()
     },
-    // TODO(parity): today_exercise_details / connected_since は iOS Supabase スキーマ確認後に配線
-    //   (現状 null → 詳細は種目名フォールバック、つながってタイル非表示。Mock では seedDemo で表示確認済)。
+    // today_exercise_details(jsonb)→ 構造化詳細へデコード。summary は SharedExerciseDetail が iOS と
+    // 同一形式で計算する。空配列は null 扱いにして「詳細は共有されていません」フォールバックへ寄せる。
+    todayExerciseDetails = todayExerciseDetails
+        ?.map { com.goexercise.app.domain.friends.SharedExerciseDetail(name = it.name, durationMinutes = it.durationMinutes, reps = it.reps, sets = it.sets) }
+        ?.takeIf { it.isNotEmpty() },
+    // connected_since は iOS も実 BE では nil(SupabaseFriendsService が connectedSince: nil で構築)。
+    // よって Android も null のまま(「つながって」タイルは Mock seed でのみ表示。iOS と一致)。
 )
 
 /** friends 操作のエラー。iOS FriendsServiceError 相当。 */
@@ -480,7 +499,7 @@ class MockFriendsService : FriendsService {
 
     private fun seedDemo() {
         if (friends.isEmpty()) {
-            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false), weeklyStatuses = listOf(com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.Rest, com.goexercise.app.domain.DailyStatus.Rescued, com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.TodayAchieved, com.goexercise.app.domain.DailyStatus.Future, com.goexercise.app.domain.DailyStatus.Future), myCatBreed = com.goexercise.app.domain.CatBreed.Black, todayCategoryName = "筋トレ", todayExerciseDetails = listOf(com.goexercise.app.domain.friends.SharedExerciseDetail("スクワット", "20回・3セット"), com.goexercise.app.domain.friends.SharedExerciseDetail("ベンチプレス", "10回・3セット・20分")), lastUpdated = java.time.Instant.now().minusSeconds(7200), connectedSince = java.time.Instant.now().minusSeconds(30L * 86400)))
+            friends.add(FriendProfile("ABC234", "haru", "はる", currentStreak = 12, totalAchievedDays = 40, todayAchieved = true, weeklyTotalMinutes = 120, weeklyAchievements = listOf(true, true, false, true, true, false, false), weeklyStatuses = listOf(com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.Rest, com.goexercise.app.domain.DailyStatus.Rescued, com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.TodayAchieved, com.goexercise.app.domain.DailyStatus.Future, com.goexercise.app.domain.DailyStatus.Future), myCatBreed = com.goexercise.app.domain.CatBreed.Black, todayCategoryName = "筋トレ", todayExerciseDetails = listOf(com.goexercise.app.domain.friends.SharedExerciseDetail("スクワット", reps = 20, sets = 3), com.goexercise.app.domain.friends.SharedExerciseDetail("ベンチプレス", durationMinutes = 20, reps = 10, sets = 3)), lastUpdated = java.time.Instant.now().minusSeconds(7200), connectedSince = java.time.Instant.now().minusSeconds(30L * 86400)))
             friends.add(FriendProfile("XYZ789", "kenta", "けんた", currentStreak = 3, totalAchievedDays = 8, todayAchieved = false, weeklyTotalMinutes = 45, weeklyAchievements = listOf(true, false, false, true, false, false, false), weeklyStatuses = listOf(com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.Missed, com.goexercise.app.domain.DailyStatus.Rest, com.goexercise.app.domain.DailyStatus.Achieved, com.goexercise.app.domain.DailyStatus.TodayPending, com.goexercise.app.domain.DailyStatus.Future, com.goexercise.app.domain.DailyStatus.Future), myCatBreed = com.goexercise.app.domain.CatBreed.Gray, lastUpdated = java.time.Instant.now().minusSeconds(86400), connectedSince = java.time.Instant.now().minusSeconds(7L * 86400)))
         }
         if (incoming.isEmpty()) {

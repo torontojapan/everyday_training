@@ -50,7 +50,12 @@
 **B. 要素材/規約**
 6. 設定/友達 **Apple・Google ブランドロゴ画像**（規約準拠アセットを用意して認証ボタンへ。現状テキストのみ）。
 **C. 実BEデコード（iOS Supabase スキーマ確認後）**
-7. 友達 `today_exercise_details` / `connected_since` の `SupabaseFriendsService` デコード配線（現状 Mock seed のみ・実BEは null フォールバック。`FriendProfile`/`ProfileRow` は受け口済み）。
+7. ~~友達 `today_exercise_details` デコード配線~~ ✅ **完了(2026-06-18・Mock友達詳細でスクショ検証 + 単体テスト)**。
+   `SharedExerciseDetail` を構造化(reps/sets/durationMinutes + iOS 一致 summary「{reps}回 × {sets}セット / {min}分」)、
+   `ProfileRow.today_exercise_details`(jsonb)+ `SharedExerciseDetailRow` DTO 追加、`toProfile()` でデコード。`ProfileRowDecodeTest` green。
+   **`connected_since` は対象外**(iOS も実BEでは `connectedSince: nil` 固定=デコードしない)。
+   **publish(自分の詳細の送信)は保留**: iOS は opt-in(`includeExerciseDetail` 既定 OFF)。プライバシー最優先方針に従い、
+   共有トグル(既定 OFF)導入までは Android は自分の詳細を publish しない(各ユーザーは自分の行のみ書くため他者の値は消えない)。
 **D. LOW（systematic / 機能等価 / 許容差）**
 8. フォント 1〜2pt 差（`AppType` トークン粒度 vs iOS Dynamic Type `.callout/.footnote/.subheadline`）。一括是正は `Type.kt` にトークン追加が要る。低優先。
 9. 設定 Customize 階層（inline vs サブナビ）。機能等価。
@@ -66,7 +71,7 @@
 - [x] **記録完了 — ✅ 完了**(B1 streak0常時表示 / B2「きのうから+1のばした！」行(VM streakExtended配線) / B3 タイトル / N3 リボン影 / N4 ヒーローパルス+グロー影)
 - [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。ITEM3 生理日まとめ入力画面 ✅(スクショ検証済・MenstrualEntryScreen 新設)。**残: ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求(VMに残数配線要)**
 - [~] 設定   — **大半是正済**(情報サポート4リンク✅/削除gating匿名対応✅/PerkGuide5項目✅/休養ルール4項目展開✅/破壊色赤✅/trialEligible配線✅/共有URL✅/一部アイコン✅/cycle・書き出しコピー✅)。残: 振動トグル(要pref)/ブランドロゴ画像(要アセット)/通知独立View・ウィジェット5段。**ITEM3削除コピーは Android 実挙動(端末内記録は残る)に忠実=変更せず**(監査の過剰指摘)。
-- [~] 友達   — **友達詳細フル画面化＝完了・スクショ検証済**(全画面Dialog: hero[グラデ猫132+@user·friendCode mono+称号バッジ+最終更新]／今日の運動[達成バッジ+カテゴリchip+種目別詳細]／今週の達成[木=今日強調]／統計3タイル[連続/累計/**つながって**=正メトリック]／cheer[入力欄+送信ボタン+2列プリセット+「…を送りました」インライン確認]／解除[bordered red]。モデルに lastUpdated/connectedSince/todayExerciseDetails+SharedExerciseDetail 追加・Mock seed・updated_at デコード配線)。**友達一覧の小項目(スクショ検証)**: ITEM3 追加ボタン=トップバーアイコン✅／ITEM4 エラーバナー色 primaryDeep+更新ボタン✅／ITEM5「6文字の英数字 (例: ABC123)」+無結果コピー✅／ITEM9 公園アバター=影楕円+白縁今日バッジ+決定論的猫+long-press解除撤去+トースト下余白64✅／空状態コピー「右上の + から…」✅。**残**: ITEM6 明示「検索」ボタン(現状ライブ検索)／ITEM7 コピーコードtoast・受信5s・初回名前入力カード／ITEM8 QRキャプション・申請アバター実猫。today_exercise_details/connected_since の**実BEデコード**は iOS スキーマ確認後(現状 null フォールバック・Mock表示確認済)。
+- [~] 友達   — **友達詳細フル画面化＝完了・スクショ検証済**(全画面Dialog: hero[グラデ猫132+@user·friendCode mono+称号バッジ+最終更新]／今日の運動[達成バッジ+カテゴリchip+種目別詳細]／今週の達成[木=今日強調]／統計3タイル[連続/累計/**つながって**=正メトリック]／cheer[入力欄+送信ボタン+2列プリセット+「…を送りました」インライン確認]／解除[bordered red]。モデルに lastUpdated/connectedSince/todayExerciseDetails+SharedExerciseDetail 追加・Mock seed・updated_at デコード配線)。**友達一覧の小項目(スクショ検証)**: ITEM3 追加ボタン=トップバーアイコン✅／ITEM4 エラーバナー色 primaryDeep+更新ボタン✅／ITEM5「6文字の英数字 (例: ABC123)」+無結果コピー✅／ITEM9 公園アバター=影楕円+白縁今日バッジ+決定論的猫+long-press解除撤去+トースト下余白64✅／空状態コピー「右上の + から…」✅。**残**: ITEM6 明示「検索」ボタン(現状ライブ検索)／ITEM7 コピーコードtoast・受信5s・初回名前入力カード／ITEM8 QRキャプション・申請アバター実猫。today_exercise_details の**実BEデコード ✅完了**(構造化+iOS summary一致・単体テスト+Mock詳細スクショ検証)。connected_since は iOS も実BE nil=対象外。publish は opt-in トグル導入まで保留(プライバシー)。
 - [x] **ランキング — ✅ 完了**(G1 EmptyStateView / G2 サマリーgradient+枠 / G3 自分行2dp枠 / G4 メダル不透明度+数字色 / G5 猫fallback=決定論的猫(FriendAvatarResolver新設, iOS FNV-1a 一致) / G6 中央タイトル+システム戻る)
 
 ---

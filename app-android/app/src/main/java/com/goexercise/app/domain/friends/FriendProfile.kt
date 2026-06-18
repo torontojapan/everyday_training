@@ -67,11 +67,29 @@ data class FriendProfile(
         }
 }
 
-/** 今日の運動の種目別共有詳細(name + サマリ「3回・3セット・10分」)。iOS `SharedExerciseDetail` 相当。 */
+/**
+ * 今日の運動の種目別共有詳細。iOS `SharedExerciseDetail` 相当(構造化フィールド + 計算 summary)。
+ * summary は iOS と**完全一致**の形式:「{reps}回 × {sets}セット」/「{reps}回」/「{sets}セット」に
+ * 「{min}分」を付け、" / " で連結する(iOS `SharedExerciseDetail.summary`)。
+ */
 data class SharedExerciseDetail(
     val name: String,
-    val summary: String = "",
-)
+    val durationMinutes: Int? = null,
+    val reps: Int? = null,
+    val sets: Int? = null,
+) {
+    val summary: String
+        get() {
+            val parts = mutableListOf<String>()
+            when {
+                reps != null && sets != null -> parts.add("${reps}回 × ${sets}セット")
+                reps != null -> parts.add("${reps}回")
+                sets != null -> parts.add("${sets}セット")
+            }
+            if (durationMinutes != null) parts.add("${durationMinutes}分")
+            return parts.joinToString(" / ")
+        }
+}
 
 /** 友達申請。iOS `FriendRequest` の移植。 */
 data class FriendRequest(
