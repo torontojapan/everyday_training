@@ -42,7 +42,7 @@
 **A. 新規実装（大・視覚インパクト大／要スクショ検証）**
 1. ~~ホーム **referralスター行**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`ReferralStarsRow` を上段3行目に追加、VM `referralRow` StateFlow(`currentAccountStarBadges`×`currentAccountCode`)で配線。connect 後 refresh も是正。
 2. ~~ホーム **週カレンダー日タップ → DayDetailSheet**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`WeeklyCalendar` セルを clickable 化、履歴 `DayDetailSheet`(internal 化)を再利用、`HomeUiState.weekRecords` で当日記録を供給。記録あり/なし両状態 検証済。
-3. ホーム **revive 成功祝福**「連続復活!」`RankCelebrationOverlay`（`applyRevive` 後に発火。iOS `HomeView.swift:96-104`）。
+3. ~~ホーム **revive 成功祝福**「連続復活!」~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`applyRevive()` 成功で `_reviveCelebration=CatRank.of(potentialStreak)` を点火→`RankCelebrationOverlay(message="連続復活!")`。実機で popup→使う→ピル表示を確認。
 4. 履歴 **生理日まとめ入力画面**（iOS `MenstrualEntryView` 相当・過去日一括）+ 履歴に「生理日を記録する / 過去の日付もまとめて入力できます」entry-row（cycle有効時、★+chevron）。
 5. 友達 **初回表示名入力カード**（`namePromptCard`: 表示名未設定時に1回。iOS `FriendsView.swift:671-711`）。
 **B. 要素材/規約**
@@ -59,7 +59,7 @@
 **検証手順（毎回必須・CLAUDE.md ★7）**: 友達/ランキング描画は `local.properties` の `SUPABASE_HOST`/`SUPABASE_ANON_KEY` を一時空 →Mock強制(seedDemo で友達2名)→ `assembleDebug`→`adb install -r`→ タブ「友達」で `友達とつながる`→ホーム→友達 で signed-in 描画 → `adb exec-out screencap`/uiautomator dump で確認 → **検証後 `cp /tmp/local.properties.bak local.properties` で復元**。emulator AVD=`go_test`。
 
 ## 1. 進捗サマリ（2026-06-18 セッション2: 6画面厳格再監査 → 実装ループ）
-- [~] ホーム  — **大半是正済・スクショ検証(アニメ稼働をフレーム差分で確認)**: ITEM2 環境パーティクル(時刻別18粒・Canvas移植)✅ / NEW-C 猫アイドル(呼吸1.03/浮遊±/傾き±2°合成)✅ / ITEM4 猫タップ bounce1.08+haptic✅ / 猫背景の光輪(tint .32→.06)✅ / ITEM6 吹き出し pop-in(scale0.7→1+fade delay0.15)✅+lineLimit3✅ / ITEM7 今日セル breathing(1.0↔1.05)✅ / ITEM5 称号チップ pawprint✅ / ITEM10 weeklyMini 等幅✅。ITEM1 referralスター行 ✅(スクショ検証済・connect 後 refresh も是正)。ITEM3 日タップ→DayDetailSheet ✅(スクショ検証済・履歴シート再利用)。**残: ITEM8 revive overlay / ITEM9 ⭐10コピー(Android は絵文字回避方針で「星10個」のまま=要オーナー確認)**
+- [~] ホーム  — **大半是正済・スクショ検証(アニメ稼働をフレーム差分で確認)**: ITEM2 環境パーティクル(時刻別18粒・Canvas移植)✅ / NEW-C 猫アイドル(呼吸1.03/浮遊±/傾き±2°合成)✅ / ITEM4 猫タップ bounce1.08+haptic✅ / 猫背景の光輪(tint .32→.06)✅ / ITEM6 吹き出し pop-in(scale0.7→1+fade delay0.15)✅+lineLimit3✅ / ITEM7 今日セル breathing(1.0↔1.05)✅ / ITEM5 称号チップ pawprint✅ / ITEM10 weeklyMini 等幅✅。ITEM1 referralスター行 ✅(スクショ検証済・connect 後 refresh も是正)。ITEM3 日タップ→DayDetailSheet ✅(スクショ検証済・履歴シート再利用)。ITEM8 revive overlay「連続復活!」✅(スクショ検証済)。**残: ITEM9 ⭐10コピー(Android は絵文字回避方針で「星10個」のまま=要オーナー確認)**
 - [~] 記録入力 — **大半是正済**(R1 時間/回数/セット ピッカー✅ / R2 体調・周期 独立セクション✅ / R3 メモ複数行3..5✅ / R4 体重0-500検証+保存ブロック+disabledReason✅ / NEW-1 重さ<1000+「(kg)」✅ / NEW-2 候補見出し表示条件✅ / NEW-3 候補chip選択状態撤去✅)。残: R5 キーボード「完了」バー = **Android はアクセサリバー非対応のため許容差**(ピッカー化で数値テキスト入力も大幅減)。
 - [x] **記録完了 — ✅ 完了**(B1 streak0常時表示 / B2「きのうから+1のばした！」行(VM streakExtended配線) / B3 タイトル / N3 リボン影 / N4 ヒーローパルス+グロー影)
 - [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。**残: ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求(VMに残数配線要)/ ITEM3 生理日まとめ入力画面(新規画面要)**
@@ -109,7 +109,9 @@
 - [ ] RankBadge/CatRankChip に**先頭アイコン(pawprint)**。Android はタイトルのみ。
 - [ ] 吹き出しの**pop-in 出現アニメ**(scale0.7→1, fade, spring delay0.15) + lineLimit3。
 - [ ] 週カレンダー今日セルの**breathing アニメ**(1.05↔1.0)。Android は静的1.05。
-- [ ] revive 成功後の「連続復活!」celebration overlay の有無確認。
+- [x] **revive 成功後の「連続復活!」celebration overlay** ✅(エミュ実スクショ検証済 2026-06-18): `HomeViewModel.applyRevive()` が
+  全 Missed 日復活成功時に `_reviveCelebration = CatRank.of(potentialStreak)` を点火、HomeRoute が `RankCelebrationOverlay(message="連続復活!")` を表示。
+  iOS HomeView.swift:96-104 / handleReviveUse パリティ。実機で StreakRevivePopup→使う→「連続復活!」ピル表示を確認。
 - [ ] ⭐10解放アラートのコピーを iOS 厳密一致(「⭐10達成!」「やったね!」本文)。
 - [ ] weeklyMini の達成数 monospacedDigit + フォント weight。
 

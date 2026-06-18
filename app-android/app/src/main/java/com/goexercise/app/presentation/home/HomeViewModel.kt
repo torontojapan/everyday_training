@@ -283,6 +283,11 @@ class HomeViewModel @Inject constructor(
      * 復活を適用する。Missed 各日にフリーズを消費し、その途切れを handled に積む(再ポップ防止)。
      * rescuedDates Flow が更新されると reviveState が再計算され null に落ちる。
      */
+    /** 復活成功後の「連続復活!」祝福の対象ランク(復元後 streak の称号)。iOS reviveCelebration パリティ。 */
+    private val _reviveCelebration = MutableStateFlow<CatRank?>(null)
+    val reviveCelebration: StateFlow<CatRank?> = _reviveCelebration.asStateFlow()
+    fun consumeReviveCelebration() { _reviveCelebration.value = null }
+
     fun applyRevive() {
         viewModelScope.launch {
             val state = reviveState.value ?: return@launch
@@ -300,6 +305,9 @@ class HomeViewModel @Inject constructor(
             }
             if (applied == missedDates.size) {
                 ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }
+                // 全 Missed 日を復活できた時だけ「連続復活!」祝福を出す(iOS handleReviveUse: restored != nil 時)。
+                // 復元後 streak の称号ランクを overlay へ渡す(iOS reviveCelebration = restored)。
+                _reviveCelebration.value = CatRank.of(state.potentialStreak)
             }
             // 全成功しなかった場合は handled に積まない(ユーザーが再試行できる)。
         }

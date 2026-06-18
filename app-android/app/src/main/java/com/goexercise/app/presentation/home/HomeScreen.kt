@@ -100,6 +100,7 @@ fun HomeRoute(
     val breedUnlock by viewModel.pendingBreedUnlock.collectAsStateWithLifecycle()
     val pendingRankEvent by viewModel.pendingRankEvent.collectAsStateWithLifecycle()
     val reviveState by viewModel.reviveState.collectAsStateWithLifecycle()
+    val reviveCelebration by viewModel.reviveCelebration.collectAsStateWithLifecycle()
 
     // レビュー依頼: VM が節目到達を検知したら Play In-App Review を起動(表示可否は Google 判断)。
     val reviewRequested by viewModel.pendingReviewRequest.collectAsStateWithLifecycle()
@@ -130,6 +131,14 @@ fun HomeRoute(
                 rank = rank,
                 message = message,
                 onFinished = { viewModel.clearRankEvent() },
+            )
+        }
+        // 機能D: 復活成功後の「連続復活!」祝福(applyRevive 成功で VM が点火)。iOS HomeView.swift:96-104 パリティ。
+        reviveCelebration?.let { rank ->
+            RankCelebrationOverlay(
+                rank = rank,
+                message = "連続復活!",
+                onFinished = { viewModel.consumeReviveCelebration() },
             )
         }
     }
