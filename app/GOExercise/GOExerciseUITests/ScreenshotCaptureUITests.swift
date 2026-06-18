@@ -92,4 +92,43 @@ final class ScreenshotCaptureUITests: XCTestCase {
         let settings = launch(["--skip-onboarding", "--initial-tab", "settings"] + seed)
         sleep(2); shoot(settings, "11_settings")
     }
+
+    /// サブ画面 golden(Android パリティ照合用): 友達詳細 / 友達追加 / 生理日入力 / 記録完了 / 日詳細シート。
+    /// in-sim タップ(accessibility id / label)で到達するため表示座標問題なし。
+    func testCaptureSubScreens() {
+        // sub) 友達詳細(--mock-open-friend-detail で自動 push)。
+        let detail = launch(["--skip-onboarding", "--mock-seed-friends", "--mock-open-friend-detail", "--initial-tab", "friends"] + seed)
+        sleep(3); shoot(detail, "sub_friend_detail")
+
+        // sub) 友達追加シート(--mock-open-friend-add)。
+        let add = launch(["--skip-onboarding", "--mock-seed-friends", "--mock-open-friend-add", "--initial-tab", "friends"] + seed)
+        sleep(2); shoot(add, "sub_friend_add")
+
+        // sub) 生理日入力(yearly seed で周期 ON → 履歴の menstrual-link-stats を tap)。
+        let men = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2)
+        let link = men.descendants(matching: .any).matching(identifier: "menstrual-link-stats").firstMatch
+        var t = 0
+        while !link.exists && t < 6 { men.swipeUp(); t += 1; sleep(1) }
+        if link.waitForExistence(timeout: 4) { link.tap(); sleep(2); shoot(men, "sub_menstrual") }
+        else { shoot(men, "sub_menstrual_MISSING") }
+
+        // sub) 記録完了(home CTA → 種目名入力 → 保存 → 完了画面)。
+        let rec = launch(["--skip-onboarding", "--initial-tab", "home"] + seed)
+        let cta = rec.buttons.matching(NSPredicate(format: "label CONTAINS '記録' OR label CONTAINS '種目'")).firstMatch
+        if cta.waitForExistence(timeout: 6) {
+            cta.tap(); sleep(2)
+            let nameField = rec.textFields.firstMatch
+            if nameField.waitForExistence(timeout: 4) { nameField.tap(); nameField.typeText("Squat") }
+            let save = rec.buttons["保存"].firstMatch
+            if save.waitForExistence(timeout: 3) { save.tap(); sleep(3); shoot(rec, "sub_record_completion") }
+            else { shoot(rec, "sub_record_completion_NOSAVE") }
+        }
+
+        // sub) 日詳細シート(履歴カレンダーの活動日を tap)。座標タップ(カレンダー領域 中央上寄り)。
+        let day = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2)
+        day.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.30)).tap()
+        sleep(2); shoot(day, "sub_day_detail")
+    }
 }

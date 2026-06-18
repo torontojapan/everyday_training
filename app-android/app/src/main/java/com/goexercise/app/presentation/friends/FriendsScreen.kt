@@ -370,6 +370,7 @@ fun FriendsContent(
                 searchResults = searchResults,
                 isSearching = isSearching,
                 onSearch = onSearch,
+                onDismiss = { showAdd = false; onClearSearch() },
             )
         }
     }
@@ -415,7 +416,7 @@ private fun FriendDetailScreen(
             // トップバー: 中央タイトル(友達名) + 閉じる(右)。iOS navigationTitle(inline) + 閉じる。
             Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
                 Text(friend.displayName, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
-                TextButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) { Text("閉じる", color = palette.primaryDeep) }
+                com.goexercise.app.ui.components.SheetCloseButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd))
             }
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -1419,6 +1420,7 @@ private fun AddFriendSheet(
     searchResults: List<FriendProfile> = emptyList(),
     isSearching: Boolean = false,
     onSearch: (String) -> Unit = {},
+    onDismiss: () -> Unit = {},
 ) {
     var code by remember { mutableStateOf(initialCode ?: "") }
     // アプリ内QRスキャナ(#8)。読み取った goexercise://friends?code=XXX または生6桁から友達コードを抽出。
@@ -1428,8 +1430,13 @@ private fun AddFriendSheet(
         result.contents?.let { extractFriendCode(it)?.let { c -> code = c } }
     }
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("友達を追加", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-        Text("友達コードで申請を送ります。", fontSize = 13.sp, color = palette.textSecondary)
+        // iOS navigation inline title(中央)+ 閉じる(右・iOS26 カプセル)。
+        Box(Modifier.fillMaxWidth()) {
+            Text("友達を追加", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            com.goexercise.app.ui.components.SheetCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
+        }
+        // iOS Form セクション見出し「友達コードで追加」。
+        Text("友達コードで追加", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textSecondary)
         OutlinedTextField(
             value = code,
             onValueChange = { code = FriendCodeValidator.sanitize(it) },
@@ -1438,6 +1445,17 @@ private fun AddFriendSheet(
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
         )
+        // iOS 順: 申請を送る → QRコードを読み取る。
+        Button(
+            onClick = { onSend(code) },
+            enabled = FriendCodeValidator.isValid(code),
+            colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("申請を送る", color = Color.White)
+        }
         OutlinedButton(
             onClick = {
                 scanLauncher.launch(
@@ -1453,16 +1471,6 @@ private fun AddFriendSheet(
         ) { Text("QRコードを読み取る") }
         if (code.isNotEmpty() && !FriendCodeValidator.isValid(code)) {
             Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)", fontSize = 12.sp, color = palette.textSecondary)
-        }
-        Button(
-            onClick = { onSend(code) },
-            enabled = FriendCodeValidator.isValid(code),
-            colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("申請を送る", color = Color.White)
         }
 
         // ユーザー名で検索(部分一致・2文字以上)。iOS FriendAddView の検索セクション パリティ。

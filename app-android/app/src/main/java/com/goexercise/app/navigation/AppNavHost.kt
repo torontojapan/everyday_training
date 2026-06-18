@@ -60,7 +60,15 @@ fun AppNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val tabs = BottomTab.visible()
-    val showBottomBar = tabs.any { it.route == currentRoute }
+    // iOS は menstrual/rescue/ランキングを各タブの NavigationStack 内に push するためタブバーが残る。
+    // Android もこれらの詳細ルートではボトムバーを維持し、親タブを選択状態にする(iOS パリティ)。
+    val detailParentTab = mapOf(
+        MENSTRUAL_ROUTE to AppRoute.History.path,
+        RESCUE_ROUTE to AppRoute.History.path,
+        AppRoute.WeeklyRanking.path to AppRoute.Friends.path,
+    )
+    val parentTabRoute = detailParentTab[currentRoute]
+    val showBottomBar = tabs.any { it.route == currentRoute } || parentTabRoute != null
 
     // friends に着地した deep link の検証済みコード。FriendsRoute が消費し追加シートを開く。
     var pendingFriendCode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -92,7 +100,7 @@ fun AppNavHost(
                     NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
-                                selected = currentRoute == tab.route,
+                                selected = currentRoute == tab.route || parentTabRoute == tab.route,
                                 onClick = { navController.navigateToTab(tab.route) },
                                 icon = { Icon(tab.icon, contentDescription = tab.label) },
                                 label = { Text(tab.label) },

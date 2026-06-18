@@ -578,7 +578,11 @@ internal fun DayDetailSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val title = date.format(java.time.format.DateTimeFormatter.ofPattern("M月d日(E)", java.util.Locale.JAPANESE))
-            Text(title, style = AppType.sectionTitle, color = palette.textPrimary)
+            // iOS DayDetailSheet: 中央タイトル + 右上「閉じる」(iOS26 カプセル)。
+            Box(Modifier.fillMaxWidth()) {
+                Text(title, style = AppType.sectionTitle, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+                com.goexercise.app.ui.components.SheetCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
+            }
             if (records.isEmpty()) {
                 // iOS: アイコン円(92dp tint)+ メッセージの空状態。
                 val (icon, tint) = dayStatusIcon(status, palette)
