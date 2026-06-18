@@ -5,15 +5,21 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -32,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import com.goexercise.app.domain.WorkoutCategory
 import com.goexercise.app.ui.theme.LocalAppPalette
+import com.goexercise.app.ui.theme.categoryIcon
 
 /** Record ルートのエントリ。保存完了は one-shot イベントで onSaved、戻るで onBack。 */
 @Composable
@@ -86,8 +93,8 @@ fun RecordContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("戻る") }
-            Text("記録する", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
+            TextButton(onClick = onBack) { Text("閉じる") }
+            Text("今日の記録", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
         }
 
         state.drafts.forEach { draft ->
@@ -102,7 +109,11 @@ fun RecordContent(
             )
         }
 
-        TextButton(onClick = onAddExercise) { Text("＋ 種目を追加") }
+        TextButton(onClick = onAddExercise) {
+            Icon(Icons.Filled.AddCircle, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text("種目を追加", color = palette.primaryDeep)
+        }
 
         // 今日の体重(任意)+ 生理日トグル。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
         Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -130,10 +141,11 @@ fun RecordContent(
             }
         }
 
+        Text("メモ", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         OutlinedTextField(
             value = state.memo,
             onValueChange = onMemo,
-            label = { Text("メモ(任意)") },
+            placeholder = { Text("体調や気分など") },
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -142,7 +154,11 @@ fun RecordContent(
             enabled = state.canSave,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (state.isSaving) "保存中…" else "保存する")
+            if (!state.isSaving) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+            }
+            Text(if (state.isSaving) "保存中…" else "保存")
         }
         state.errorMessage?.let { Text(it, color = palette.missed, fontSize = 12.sp) }
         if (state.validExercises().isEmpty()) {
@@ -170,13 +186,25 @@ private fun ExerciseDraftCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 WorkoutCategory.entries.forEach { cat ->
-                    FilterChip(selected = draft.category == cat, onClick = { onCategory(cat) }, label = { Text(cat.displayName) })
+                    FilterChip(
+                        selected = draft.category == cat,
+                        onClick = { onCategory(cat) },
+                        label = { Text(cat.displayName) },
+                        leadingIcon = { Icon(categoryIcon(cat), contentDescription = null, modifier = Modifier.size(16.dp)) },
+                        // iOS は選択チップを「コーラル塗り+白文字/白アイコン」にする。M3 既定の淡色塗りでは弱いため上書き。
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = palette.primary,
+                            selectedLabelColor = androidx.compose.ui.graphics.Color.White,
+                            selectedLeadingIconColor = androidx.compose.ui.graphics.Color.White,
+                        ),
+                    )
                 }
             }
             OutlinedTextField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
                 label = { Text("種目名") },
+                placeholder = { Text("例: スクワット") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -210,7 +238,11 @@ private fun ExerciseDraftCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onAddSet) { Text("＋ 同じ種目でセットを追加") }
+                TextButton(onClick = onAddSet) {
+                    Icon(Icons.Filled.AddCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text("同じ種目でセットを追加")
+                }
                 if (canRemove) {
                     TextButton(onClick = onRemove) { Text("削除") }
                 }
