@@ -44,7 +44,9 @@
 2. ~~ホーム **週カレンダー日タップ → DayDetailSheet**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`WeeklyCalendar` セルを clickable 化、履歴 `DayDetailSheet`(internal 化)を再利用、`HomeUiState.weekRecords` で当日記録を供給。記録あり/なし両状態 検証済。
 3. ~~ホーム **revive 成功祝福**「連続復活!」~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`applyRevive()` 成功で `_reviveCelebration=CatRank.of(potentialStreak)` を点火→`RankCelebrationOverlay(message="連続復活!")`。実機で popup→使う→ピル表示を確認。
 4. ~~履歴 **生理日まとめ入力画面**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`MenstrualEntryScreen`+`MenstrualEntryViewModel` 新設、NavHost に `menstrual` route、履歴 entry-row(cycle有効時)。トグルが履歴カレンダー★に即反映を確認。
-5. 友達 **初回表示名入力カード**（`namePromptCard`: 表示名未設定時に1回。iOS `FriendsView.swift:671-711`）。
+5. ~~友達 **初回表示名入力カード**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`NamePromptCard` を profileHeader 直下に。
+   gating=未dismiss && displayName==既定("あなた")。SettingsRepository に `namePromptDismissed` 永続フラグ追加、
+   FriendsViewModel に submitNamePrompt(成功時のみ閉じる)/dismissNamePrompt。実機で 決定→表示名更新+カード消滅を確認。
 **B. 要素材/規約**
 6. 設定/友達 **Apple・Google ブランドロゴ画像**（規約準拠アセットを用意して認証ボタンへ。現状テキストのみ）。
 **C. 実BEデコード（iOS Supabase スキーマ確認後）**
@@ -155,7 +157,7 @@
 - [ ] エラーバナー: **更新(reload)アクション**追加 + アイコン色を赤→primaryDeep(iOS は赤を避ける)。
 - [ ] コピー「**6文字**の英数字 (例: ABC123)」(Android「6桁」)。検索無結果「該当するユーザーは見つかりませんでした」。
 - [ ] 検索は**明示的「検索」ボタン**(≥2文字)+ race guard(Android はライブ検索)。
-- [ ] コピーコード時トースト「招待コードをコピーしました」。受信応援トースト(5秒)。初回 表示名入力カード。
+- [x] 初回 表示名入力カード(`NamePromptCard`)✅(スクショ検証済 2026-06-18)。/ コピーコード時トースト・受信応援トーストは既存実装済(セッション2)。
 - [ ] QR パネルの説明キャプション。申請行のアバターを実猫(paw プレースホルダでなく)+ 申請subtitle に paw。
 - [ ] 公園アバター: 影楕円 / 今日バッジ checkmark.seal+白縁 / 長押し解除は iOS に無い挙動(要再考)。トースト下余白 24→64。
 

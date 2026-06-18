@@ -128,6 +128,7 @@ fun FriendsRoute(
     val backupSuppressed by viewModel.backupSuppressed.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val namePromptDismissed by viewModel.namePromptDismissed.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // タブを開いたら自動でアカウントを発行(iOS と同じワンステップ化。失敗時は welcome+再試行)。
     LaunchedEffect(Unit) { viewModel.ensureSignedIn() }
@@ -174,6 +175,9 @@ fun FriendsRoute(
         myBreed = myBreed,
         persistedBackupDismissed = backupSuppressed,
         onDismissBackupPersist = viewModel::dismissBackupPrompt,
+        showNamePrompt = state.profile?.let { viewModel.shouldShowNamePrompt(it, namePromptDismissed) } ?: false,
+        onSubmitName = viewModel::submitNamePrompt,
+        onDismissNamePrompt = viewModel::dismissNamePrompt,
     )
 }
 
@@ -204,6 +208,9 @@ fun FriendsContent(
     myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
     persistedBackupDismissed: Boolean = false,
     onDismissBackupPersist: () -> Unit = {},
+    showNamePrompt: Boolean = false,
+    onSubmitName: (String) -> Unit = {},
+    onDismissNamePrompt: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val scope = rememberCoroutineScope()
@@ -276,6 +283,9 @@ fun FriendsContent(
                 onBackupGoogle = { linking.onLinkGoogle { r -> handleLink(r, FriendsLinkProvider.Google) } },
                 onDeleteClick = { confirmDelete = true },
                 myBreed = myBreed,
+                showNamePrompt = showNamePrompt,
+                onSubmitName = onSubmitName,
+                onDismissNamePrompt = onDismissNamePrompt,
             )
             state.isConnecting -> ConnectingBody(palette)
             else -> WelcomeBody(
@@ -838,6 +848,9 @@ private fun SignedInBody(
     onBackupGoogle: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    showNamePrompt: Boolean = false,
+    onSubmitName: (String) -> Unit = {},
+    onDismissNamePrompt: () -> Unit = {},
 ) {
     val profile = state.profile ?: return
     // 削除進行中は他操作を不可にして競合(部分削除)を防ぐ。
@@ -864,6 +877,11 @@ private fun SignedInBody(
 
         ProfileHeaderCard(profile, palette, onRename, myBreed, onCopyCode)
 
+        // 初回のみ: 表示名を決める軽いインライン入力(スキップ可)。iOS namePromptCard(profileHeader 直下)。
+        if (showNamePrompt) {
+            NamePromptCard(palette, onSubmit = onSubmitName, onDismiss = onDismissNamePrompt)
+        }
+
         // バックアップ促し: 連携有効・未バックアップ・トリガー(友達1人以上 or 7日連続)・未dismiss。
         val showBackup = linking.enabled && !state.backupStatus.isBackedUp && !backupDismissed &&
             (state.friends.isNotEmpty() || profile.currentStreak >= 7)
@@ -881,6 +899,39 @@ private fun SignedInBody(
 
         // iOS build 12: サインアウトは廃止、アカウント削除は設定「アカウントとバックアップ」へ集約。
         // よって友達画面にはどちらも置かない(認証は復元のための「鍵」に過ぎないため)。
+    }
+}
+
+/** 初回のみの「表示名を決めてね」インライン入力カード。iOS namePromptCard 相当。 */
+@Composable
+private fun NamePromptCard(palette: AppTheme, onSubmit: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val trimmed = text.trim()
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("表示名を決めましょう", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Text("友達に表示される名前です。あとからいつでも変更できます。", fontSize = 12.sp, color = palette.textSecondary)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text("例: ジュン", fontSize = 14.sp) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onDismiss) {
+                    Text("あとで", fontSize = 13.sp, color = palette.textSecondary)
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { onSubmit(trimmed) }, enabled = trimmed.isNotEmpty()) {
+                    Text(
+                        "決定",
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (trimmed.isNotEmpty()) palette.primaryDeep else palette.textSecondary.copy(alpha = 0.4f),
+                    )
+                }
+            }
+        }
     }
 }
 

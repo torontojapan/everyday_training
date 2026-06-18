@@ -256,6 +256,34 @@ class FriendsViewModel @Inject constructor(
         }
     }
 
+    /** 初回「表示名を決める」カード(namePromptCard)を閉じたか。iOS `friends.didDismissNamePrompt`。 */
+    val namePromptDismissed: StateFlow<Boolean> =
+        settings.namePromptDismissed.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+
+    /** namePromptCard の「あとで」。以後表示しない。 */
+    fun dismissNamePrompt() {
+        viewModelScope.launch { settings.setNamePromptDismissed(true) }
+    }
+
+    /** namePromptCard の「決定」。表示名を更新し、成功時のみ閉じる(失敗時は既定名のまま再度促す。iOS パリティ)。 */
+    fun submitNamePrompt(name: String) {
+        val me = _uiState.value.profile ?: return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                service.publishMyProfile(me.copy(displayName = trimmed))
+                val updated = service.myProfile()
+                _uiState.update { it.copy(profile = updated) }
+                if (updated?.displayName == trimmed) settings.setNamePromptDismissed(true)
+            }.onFailure { e -> _uiState.update { it.copy(errorMessage = friendly(e)) } }
+        }
+    }
+
+    /** namePromptCard の表示可否。未 dismiss かつ表示名が自動既定のときだけ(iOS showNamePrompt)。 */
+    fun shouldShowNamePrompt(profile: FriendProfile, dismissed: Boolean): Boolean =
+        !dismissed && profile.displayName == DEFAULT_DISPLAY_NAME
+
     /** 友達コードで申請を送る。成功でトースト+再ロード、失敗はエラー文言を返す(追加シートが表示)。 */
     fun sendRequest(code: String, onResult: (success: Boolean, message: String) -> Unit = { _, _ -> }) {
         viewModelScope.launch {

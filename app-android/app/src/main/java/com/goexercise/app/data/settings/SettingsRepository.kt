@@ -56,6 +56,10 @@ interface SettingsRepository {
     /** バックアップ促し(BackupCard)を「あとで」で閉じた日。30日間は再表示しない(iOS の沈黙期間)。未設定は null。 */
     val backupPromptDismissedAt: Flow<LocalDate?>
     suspend fun dismissBackupPrompt(date: LocalDate)
+
+    /** 友達の初回「表示名を決める」カードを閉じたか。iOS `friends.didDismissNamePrompt`(@AppStorage)相当。 */
+    val namePromptDismissed: Flow<Boolean>
+    suspend fun setNamePromptDismissed(dismissed: Boolean)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -69,6 +73,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val analyticsKey = androidx.datastore.preferences.core.booleanPreferencesKey("analytics_enabled")
     private val hapticKey = androidx.datastore.preferences.core.booleanPreferencesKey("haptic_enabled")
     private val backupDismissedKey = longPreferencesKey("backup_prompt_dismissed_epoch_day")
+    private val namePromptDismissedKey = androidx.datastore.preferences.core.booleanPreferencesKey("friends_name_prompt_dismissed")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
         prefs[themeKey]?.let { name -> runCatching { AppTheme.valueOf(name) }.getOrNull() } ?: AppTheme.Peach
@@ -137,6 +142,12 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun dismissBackupPrompt(date: LocalDate) {
         dataStore.edit { it[backupDismissedKey] = date.toEpochDay() }
+    }
+
+    override val namePromptDismissed: Flow<Boolean> = dataStore.data.map { it[namePromptDismissedKey] ?: false }
+
+    override suspend fun setNamePromptDismissed(dismissed: Boolean) {
+        dataStore.edit { it[namePromptDismissedKey] = dismissed }
     }
 }
 
