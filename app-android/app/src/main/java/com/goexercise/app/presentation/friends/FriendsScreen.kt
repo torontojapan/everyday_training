@@ -38,6 +38,24 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalDrink
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -516,7 +534,9 @@ private fun WelcomeBody(
             modifier = Modifier.fillMaxWidth(),
             // 連携有効時は「この端末で始める」(復元入口を併設, iOS connectButtonLabel)。
         ) {
-            Text(if (linking.enabled) "👥  この端末で始める" else "👥  友達とつながる", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Filled.People, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (linking.enabled) "この端末で始める" else "友達とつながる", color = Color.White, fontWeight = FontWeight.SemiBold)
         }
         // 以前 Apple/Google 連携した人の復元入口(連携有効時のみ)。
         if (linking.enabled) {
@@ -575,10 +595,10 @@ private fun ShareAppCard(palette: AppTheme) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("📤", fontSize = 20.sp)
+            Icon(Icons.Filled.IosShare, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
             Text("このアプリを友達にシェア", fontSize = 15.sp, color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
-            Text("›", fontSize = 18.sp, color = palette.textSecondary)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -645,16 +665,8 @@ private fun SignedInBody(
 
         FriendsSection(state, palette, onSetSort, onOpenRanking, onCheer, onRemove, onOpenCheerPicker)
 
-        TextButton(onClick = onSignOut, enabled = !locked, modifier = Modifier.padding(top = 12.dp)) {
-            Text("サインアウト", color = palette.textSecondary, fontSize = 13.sp)
-        }
-
-        // アカウント削除(審査 5.1.1(v))。連携有効時のみ表示。
-        if (linking.enabled) {
-            TextButton(onClick = onDeleteClick, enabled = !locked) {
-                Text(if (locked) "削除しています…" else "アカウントを削除", color = palette.primaryDeep, fontSize = 13.sp)
-            }
-        }
+        // iOS build 12: サインアウトは廃止、アカウント削除は設定「アカウントとバックアップ」へ集約。
+        // よって友達画面にはどちらも置かない(認証は復元のための「鍵」に過ぎないため)。
     }
 }
 
@@ -705,6 +717,7 @@ private fun ProfileHeaderCard(
     var showQr by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -713,16 +726,18 @@ private fun ProfileHeaderCard(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(profile.displayName, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-                        Text(
-                            "✏️",
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable { showRename = true },
+                        Icon(
+                            Icons.Filled.Edit, contentDescription = "名前を編集", tint = palette.textSecondary,
+                            modifier = Modifier.size(16.dp).clickable { showRename = true },
                         )
                     }
                     if (profile.username.isNotBlank()) {
                         Text("@${profile.username}", fontSize = 13.sp, color = palette.textSecondary)
                     }
-                    Text("🔥 ${profile.currentStreak} 日連続", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(15.dp))
+                        Text("${profile.currentStreak} 日連続", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
+                    }
                 }
             }
 
@@ -739,7 +754,11 @@ private fun ProfileHeaderCard(
                                 color = palette.primaryDeep,
                             )
                         }
-                        IconChip("📤", palette) {
+                        IconChip(Icons.Filled.ContentCopy, palette, "友達コードをコピー") {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(profile.friendCode))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        IconChip(Icons.Filled.IosShare, palette, "友達コードを共有") {
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(
@@ -750,7 +769,7 @@ private fun ProfileHeaderCard(
                             context.startActivity(Intent.createChooser(intent, "友達コードを共有"))
                         }
                         Spacer(Modifier.width(8.dp))
-                        IconChip(if (showQr) "🔳" else "▦", palette) { showQr = !showQr }
+                        IconChip(Icons.Filled.QrCode, palette, "QRコード") { showQr = !showQr }
                     }
                     if (showQr) {
                         val qr = remember(profile.friendCode) { QrCode.generate(friendInviteUrl(profile.friendCode)) }
@@ -793,8 +812,16 @@ private fun ProfileHeaderCard(
     }
 }
 
+/** 応援種別 → Material アイコン。iOS CheerKind.symbolName(megaphone/bolt/waterbottle/pawprint)に対応。 */
+private fun cheerIcon(kind: CheerKind): androidx.compose.ui.graphics.vector.ImageVector = when (kind) {
+    CheerKind.Fight -> Icons.Filled.Campaign
+    CheerKind.WontLose -> Icons.Filled.Bolt
+    CheerKind.Protein -> Icons.Filled.LocalDrink
+    CheerKind.CatPunch -> Icons.Filled.Pets
+}
+
 @Composable
-private fun IconChip(emoji: String, palette: AppTheme, onClick: () -> Unit) {
+private fun IconChip(icon: androidx.compose.ui.graphics.vector.ImageVector, palette: AppTheme, contentDescription: String?, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
@@ -802,7 +829,7 @@ private fun IconChip(emoji: String, palette: AppTheme, onClick: () -> Unit) {
             .background(palette.background)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = 16.sp) }
+    ) { Icon(icon, contentDescription = contentDescription, tint = palette.primaryDeep, modifier = Modifier.size(20.dp)) }
 }
 
 @Composable
@@ -825,7 +852,7 @@ private fun RequestsSection(
                     Column(Modifier.weight(1f)) {
                         Text(request.fromProfile.displayName, fontSize = 15.sp, color = palette.textPrimary)
                         Text(
-                            "@${request.fromProfile.username} · 🔥 ${request.fromProfile.currentStreak} 日連続",
+                            "@${request.fromProfile.username} · ${request.fromProfile.currentStreak} 日連続",
                             fontSize = 12.sp,
                             color = palette.textSecondary,
                         )
@@ -835,7 +862,7 @@ private fun RequestsSection(
                         colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     ) { Text("承認", color = Color.White, fontSize = 13.sp) }
-                    TextButton(onClick = { onDecline(request) }) { Text("✕", color = palette.textSecondary) }
+                    TextButton(onClick = { onDecline(request) }) { Icon(Icons.Filled.Close, contentDescription = "却下", tint = palette.textSecondary, modifier = Modifier.size(18.dp)) }
                 }
             }
         }
@@ -962,7 +989,7 @@ private fun ParkAvatar(
                 }
             }
             if (active) {
-                Text("✅", fontSize = 15.sp, modifier = Modifier.offset(x = 2.dp, y = (-2).dp))
+                Icon(Icons.Filled.CheckCircle, contentDescription = "今日達成", tint = palette.success, modifier = Modifier.size(16.dp).offset(x = 2.dp, y = (-2).dp))
             }
         }
         Text(
@@ -972,7 +999,10 @@ private fun ParkAvatar(
             color = palette.textPrimary,
             maxLines = 1,
         )
-        Text("🐾 ${friend.currentStreak}", fontSize = 10.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(11.dp))
+            Text("${friend.currentStreak}", fontSize = 10.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
+        }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             DropdownMenuItem(text = { Text("友達を解除") }, onClick = { showMenu = false; onRemove(friend) })
         }
@@ -986,12 +1016,13 @@ private fun RankingChip(palette: AppTheme, onClick: () -> Unit) {
         shape = RoundedCornerShape(50),
         modifier = Modifier.clickable(onClick = onClick),
     ) {
-        Text(
-            "🏆 順位を見る",
-            fontSize = 12.sp,
-            color = palette.settingsAccent,
+        Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-        )
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = palette.settingsAccent, modifier = Modifier.size(14.dp))
+            Text("順位を見る", fontSize = 12.sp, color = palette.settingsAccent)
+        }
     }
 }
 
@@ -1004,7 +1035,13 @@ private fun SortMenu(current: FriendSortOrder, palette: AppTheme, onSetSort: (Fr
             shape = RoundedCornerShape(50),
             modifier = Modifier.clickable { expanded = true },
         ) {
-            Text("⇅ ${current.label}", fontSize = 12.sp, color = palette.textPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(14.dp))
+                Text(current.label, fontSize = 12.sp, color = palette.textPrimary)
+            }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             FriendSortOrder.entries.forEach { order ->
@@ -1026,7 +1063,7 @@ private fun Avatar(palette: AppTheme, size: androidx.compose.ui.unit.Dp) {
     Box(
         modifier = Modifier.size(size).clip(CircleShape).background(palette.primary.copy(alpha = 0.20f)),
         contentAlignment = Alignment.Center,
-    ) { Text("🐱", fontSize = (size.value * 0.55f).sp) }
+    ) { Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(size * 0.5f)) }
 }
 
 @Composable
@@ -1037,7 +1074,7 @@ private fun FriendsEmptyState(palette: AppTheme) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("🐱", fontSize = 64.sp)
+            com.goexercise.app.ui.components.CatImage(breed = com.goexercise.app.domain.CatBreed.Default, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(96.dp))
             Text("まだ友達がいません", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
             Text(
                 "上の「＋ 追加」から、友達コードや QR でつながろう。\n猫があなたの友達を待っています。",
@@ -1053,7 +1090,7 @@ private fun FriendsEmptyState(palette: AppTheme) {
 private fun ErrorBanner(message: String, palette: AppTheme, onClear: () -> Unit) {
     Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("⚠️", fontSize = 16.sp)
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(16.dp))
             Text(message, fontSize = 13.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
             TextButton(onClick = onClear) { Text("閉じる", color = palette.primaryDeep, fontSize = 13.sp) }
         }
@@ -1121,7 +1158,11 @@ private fun AddFriendSheet(
             enabled = FriendCodeValidator.isValid(code),
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("✈ 申請を送る", color = Color.White) }
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("申請を送る", color = Color.White)
+        }
 
         // ユーザー名で検索(部分一致・2文字以上)。iOS FriendAddView の検索セクション パリティ。
         Spacer(Modifier.height(8.dp))
@@ -1181,7 +1222,7 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text(kind.emoji, fontSize = 26.sp)
+                        Icon(cheerIcon(kind), contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(26.dp))
                         Text(kind.label, fontSize = 12.sp, color = palette.textPrimary)
                     }
                 }

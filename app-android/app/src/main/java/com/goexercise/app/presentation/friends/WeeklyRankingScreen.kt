@@ -14,6 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.friends.RankingPeriod
 import com.goexercise.app.domain.friends.WeeklyRankingEntry
+import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 
@@ -109,7 +115,10 @@ private fun PeriodPicker(period: RankingPeriod, palette: AppTheme, onSet: (Ranki
 private fun RulesCard(period: RankingPeriod, palette: AppTheme) {
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("🏆 ${period.rulesTitle}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.settingsAccent)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = palette.settingsAccent, modifier = Modifier.size(18.dp))
+                Text(period.rulesTitle, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.settingsAccent)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PriorityPill(1, "連続日数が長い", palette.primary, palette)
                 PriorityPill(2, "運動時間が長い", palette.settingsAccent, palette)
@@ -152,8 +161,8 @@ private fun MySummaryCard(me: WeeklyRankingEntry, total: Int, period: RankingPer
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("あなたは ${me.rank} 位 / 全 $total 人中", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("🔥 ${me.profile.currentStreak} 日連続", fontSize = 12.sp, color = palette.primaryDeep)
-                    Text("⏱ ${me.totalMinutes} 分", fontSize = 12.sp, color = palette.textSecondary)
+                    StatLabel(Icons.Filled.Pets, "${me.profile.currentStreak} 日連続", palette.primaryDeep)
+                    StatLabel(Icons.Filled.Schedule, "${me.totalMinutes} 分", palette.textSecondary)
                 }
             }
         }
@@ -169,8 +178,13 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RankBadge(entry.rank, palette)
-            Box(Modifier.size(44.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.20f)), contentAlignment = Alignment.Center) {
-                Text("🐱", fontSize = 24.sp)
+            val breed = entry.profile.myCatBreed
+            if (breed != null) {
+                CatAvatar(breed = breed, size = 44.dp)
+            } else {
+                Box(Modifier.size(44.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.20f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+                }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -182,30 +196,37 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("🔥 ${entry.profile.currentStreak}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
-                    Text("⏱ ${entry.totalMinutes}分", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)
+                    StatLabel(Icons.Filled.Pets, "${entry.profile.currentStreak}", palette.primaryDeep)
+                    StatLabel(Icons.Filled.Schedule, "${entry.totalMinutes}分", palette.textSecondary)
                 }
             }
         }
     }
 }
 
+/** 順位バッジ。iOS は絵文字メダルを廃止し「金/銀/銅の色丸 + 番号」。Android も追従(iOS RGB 一致)。 */
 @Composable
 private fun RankBadge(rank: Int, palette: AppTheme) {
-    val medal = when (rank) {
-        1 -> "🥇"
-        2 -> "🥈"
-        3 -> "🥉"
-        else -> null
+    val medalColor = when (rank) {
+        1 -> Color(1.00f, 0.84f, 0.30f)   // gold
+        2 -> Color(0.78f, 0.78f, 0.82f)   // silver
+        3 -> Color(0.82f, 0.55f, 0.32f)   // bronze
+        else -> palette.chipBackground
     }
+    val numberColor = if (rank <= 3) Color.Black.copy(alpha = 0.78f) else palette.textPrimary
     Box(
-        modifier = Modifier.size(40.dp).clip(CircleShape).background(palette.chipBackground),
+        modifier = Modifier.size(40.dp).clip(CircleShape).background(medalColor),
         contentAlignment = Alignment.Center,
     ) {
-        if (medal != null) {
-            Text(medal, fontSize = 22.sp)
-        } else {
-            Text("$rank", fontSize = 15.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
-        }
+        Text("$rank", fontSize = 15.sp, fontWeight = FontWeight.Black, color = numberColor)
+    }
+}
+
+/** アイコン + テキストの小さな統計ラベル(肉球=連続 / 時計=分)。iOS Label パリティ。 */
+@Composable
+private fun StatLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, tint: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = tint)
     }
 }
