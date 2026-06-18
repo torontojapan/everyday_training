@@ -359,7 +359,7 @@ fun SettingsContent(
                             Text("体調・周期を記録する", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.weight(1f))
                             Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
                         }
-                        Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に印で表示されます。端末内のみに保存。", style = AppType.caption, color = palette.textSecondary)
+                        Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に ★ で表示されます。", style = AppType.caption, color = palette.textSecondary)
                     }
                 }
                 // 休養ルール(展開式 4 項目。iOS RecordSharingSettingsPage の DisclosureGroup 相当)。
@@ -371,9 +371,8 @@ fun SettingsContent(
             }
 
             SettingsPage.DataPrivacy -> SubPage("データ & プライバシー", onBack = { page = SettingsPage.Main }) {
-                SectionLabel("データ管理")
+                // iOS は見出しなしの 2 セクション(データ管理/プライバシー の SectionLabel は出さない)。
                 DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
-                SectionLabel("プライバシー")
                 AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
             }
 
@@ -381,10 +380,10 @@ fun SettingsContent(
                 InfoSupportSection()
             }
 
-            SettingsPage.RankLadder -> SubPage("プレミアム特典・称号一覧", onBack = { page = SettingsPage.Main }) {
+            SettingsPage.RankLadder -> SubPage("特典・称号", onBack = { page = SettingsPage.Main }) {
                 SectionLabel("プレミアム特典")
                 PerkGuideSection(palette)
-                SectionLabel("称号一覧(連続で進化)")
+                SectionLabel("称号一覧（連続で進化）")
                 CatRankLadderSection(palette, currentStreak)
             }
         }
@@ -474,26 +473,33 @@ private fun InfoSupportSection() {
     fun open(url: String) { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
     // 問い合わせ(意見・不具合)は Google フォームへ(iOS FeedbackComposer.supportFormURL と同一)。
     val supportFormUrl = "https://forms.gle/Ljbaj4MvW2YPmyJ99"
+    // iOS の情報・サポートは外部リンク/アクション行=シェブロン無し(NavigationLink ではない)。
     SettingsCard {
-        EntryRow(Icons.AutoMirrored.Filled.Chat, "ご意見・ご要望を送る", showChevron = true) { open(supportFormUrl) }
+        EntryRow(Icons.AutoMirrored.Filled.Chat, "ご意見・ご要望を送る", showChevron = false) { open(supportFormUrl) }
         RowDivider()
-        EntryRow(Icons.Filled.BugReport, "不具合を報告する", showChevron = true) { open(supportFormUrl) }
+        EntryRow(Icons.Filled.BugReport, "不具合を報告する", showChevron = false) { open(supportFormUrl) }
     }
     SettingsCard {
+        // iOS は「アプリ … GO エクササイズ」「バージョン … 1.3」の 2 行(LabeledContent)。
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("GOエクササイズ", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+            Text("アプリ", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+            Text("GO エクササイズ", style = AppType.body, color = palette.textSecondary)
+        }
+        RowDivider()
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("バージョン", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
             val ver = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
-            Text("v$ver", style = AppType.caption, color = palette.textSecondary)
+            Text(ver, style = AppType.body, color = palette.textSecondary)
         }
         RowDivider()
         // サブスクリプションの管理は Play ストアのサブスク画面へ(iOS は apps.apple.com/account/subscriptions)。
-        EntryRow(Icons.Filled.CreditCard, "サブスクリプションを管理", showChevron = true) { open("https://play.google.com/store/account/subscriptions") }
+        EntryRow(Icons.Filled.CreditCard, "サブスクリプションを管理", showChevron = false) { open("https://play.google.com/store/account/subscriptions") }
         RowDivider()
-        EntryRow(Icons.Filled.PrivacyTip, "プライバシーポリシー", showChevron = true) { open("https://torontojapan.github.io/everyday_training/privacy/") }
+        EntryRow(Icons.Filled.PrivacyTip, "プライバシーポリシー", showChevron = false) { open("https://torontojapan.github.io/everyday_training/privacy/") }
         RowDivider()
-        EntryRow(Icons.Filled.Description, "利用規約", showChevron = true) { open("https://torontojapan.github.io/everyday_training/terms/") }
+        EntryRow(Icons.Filled.Description, "利用規約", showChevron = false) { open("https://torontojapan.github.io/everyday_training/terms/") }
         RowDivider()
-        EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "サポート", showChevron = true) { open("https://torontojapan.github.io/everyday_training/support/") }
+        EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "サポート", showChevron = false) { open("https://torontojapan.github.io/everyday_training/support/") }
     }
 }
 

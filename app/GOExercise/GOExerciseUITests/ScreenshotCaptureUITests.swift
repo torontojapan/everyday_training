@@ -138,4 +138,40 @@ final class ScreenshotCaptureUITests: XCTestCase {
         day.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.30)).tap()
         sleep(2); shoot(day, "sub_day_detail")
     }
+
+    /// 設定のサブページ群(iOS は NavigationLink で push する階層型)。各行をタップして撮影→戻る。
+    func testCaptureSettingsSubpages() {
+        let app = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "settings"] + seed)
+        sleep(2)
+        // (行ラベル, ショット名)。iOS Label の文言に厳密一致。
+        let pages: [(String, String)] = [
+            ("カスタマイズ", "set_customize"),
+            ("記録と共有", "set_record_sharing"),
+            ("通知設定", "set_notifications"),
+            ("データ & プライバシー", "set_data_privacy"),
+            ("情報・サポート", "set_info"),
+            ("プレミアム特典・称号一覧", "set_perks"),
+        ]
+        for (label, name) in pages {
+            // 行が見えるまでスクロール(buttons / staticTexts どちらでも)。
+            var tries = 0
+            func row() -> XCUIElement {
+                let b = app.buttons[label]
+                return b.exists ? b : app.staticTexts[label]
+            }
+            while !row().exists && tries < 6 { app.swipeUp(); tries += 1; sleep(1) }
+            if row().waitForExistence(timeout: 3) {
+                row().tap(); sleep(2)
+                shoot(app, name)
+                // 戻る(ナビバー先頭ボタン)。
+                let back = app.navigationBars.buttons.element(boundBy: 0)
+                if back.exists { back.tap() } else { app.swipeRight() }
+                sleep(1)
+                // 戻った後はトップへスクロールし直す。
+                app.swipeDown(); app.swipeDown(); sleep(1)
+            } else {
+                shoot(app, name + "_MISSING")
+            }
+        }
+    }
 }
