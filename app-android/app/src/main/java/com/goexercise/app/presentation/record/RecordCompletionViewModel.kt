@@ -7,6 +7,7 @@ import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
+import com.goexercise.app.domain.ExerciseItem
 import com.goexercise.app.presentation.home.HomeStateReducer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,11 +18,13 @@ import java.time.Clock
 import java.time.LocalDateTime
 import javax.inject.Inject
 
-/** 記録完了画面の状態(直近の連続日数 + 猫種 + 猫の状態)。 */
+/** 記録完了画面の状態(直近の連続日数 + 猫種 + 猫の状態 + 今日記録した種目)。 */
 data class RecordCompletionUi(
     val streak: Int = 0,
     val breed: CatBreed = CatBreed.Default,
     val catState: CatState = CatState.Celebrating,
+    /** 今日のサマリーカード用。直近(今日)の記録の種目リスト。iOS recordSummaryCard 相当。 */
+    val exercises: List<ExerciseItem> = emptyList(),
 )
 
 /**
@@ -42,7 +45,10 @@ class RecordCompletionViewModel @Inject constructor(
         settings.firstUseDate,
         settings.catBreed,
     ) { records, rescued, firstUse, breed ->
-        val home = HomeStateReducer.reduce(records, LocalDateTime.now(clock), rescuedDates = rescued, firstUseDate = firstUse)
-        RecordCompletionUi(streak = home.streak.currentStreak, breed = breed, catState = home.catState)
+        val now = LocalDateTime.now(clock)
+        val home = HomeStateReducer.reduce(records, now, rescuedDates = rescued, firstUseDate = firstUse)
+        // 「今日保存した記録」のサマリー。observeRecords は日付降順なので今日の最初の1件を採る。
+        val todaysExercises = records.firstOrNull { it.date == now.toLocalDate() }?.exercises ?: emptyList()
+        RecordCompletionUi(streak = home.streak.currentStreak, breed = breed, catState = home.catState, exercises = todaysExercises)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecordCompletionUi())
 }
