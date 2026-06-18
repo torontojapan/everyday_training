@@ -20,14 +20,6 @@ sealed interface Milestone {
             is WeightLoss -> "-${kg}kg 達成！"
         }
 
-    val emoji: String
-        get() = when (this) {
-            is Anniversary -> "🎉"
-            is LifetimeDays -> if (days >= 365) "🏆" else "🎖️"
-            is CurrentStreak -> if (days >= 100) "🔥" else "✨"
-            is WeightLoss -> if (kg >= 10) "🏆" else "🌟"
-        }
-
     val detail: String
         get() = when (this) {
             is Anniversary -> "GO エクササイズを始めてから${years}周年です。ここまでよくがんばったね！"
@@ -39,10 +31,10 @@ sealed interface Milestone {
     /** SNS シェア本文(末尾に URL は付けない=ShareLink/Intent 側で付与)。iOS shareMessage と同文。 */
     val shareMessage: String
         get() = when (this) {
-            is Anniversary -> "$emoji GO エクササイズ ${years}周年達成！ねこ達とゆるく運動習慣を続けてます。一緒にやろう"
-            is LifetimeDays -> "$emoji GO エクササイズで通算 $days 日達成！ねこ達とゆるく続けてます。一緒にやろう"
-            is CurrentStreak -> "$emoji GO エクササイズで $days 日連続達成！ねこ達とゆるく運動習慣つくってます"
-            is WeightLoss -> "$emoji GO エクササイズで -${kg}kg 達成！ねこ達と一緒にコツコツ続けた結果"
+            is Anniversary -> "GO エクササイズ ${years}周年達成！ねこ達とゆるく運動習慣を続けてます。一緒にやろう"
+            is LifetimeDays -> "GO エクササイズで通算 $days 日達成！ねこ達とゆるく続けてます。一緒にやろう"
+            is CurrentStreak -> "GO エクササイズで $days 日連続達成！ねこ達とゆるく運動習慣つくってます"
+            is WeightLoss -> "GO エクササイズで -${kg}kg 達成！ねこ達と一緒にコツコツ続けた結果"
         }
 
     /** acknowledged 永続化のキー。iOS key(for:) と一致。 */

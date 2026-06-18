@@ -115,6 +115,19 @@ class SupabaseFriendsService(
             .sortedByDescending { it.currentStreak }
     }
 
+    override suspend fun searchByUsername(query: String): List<FriendProfile> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptyList()
+        val uid = client.auth.currentUserOrNull()?.id
+        // username 部分一致(大小無視 ilike)。自分自身は除外。最大 25 件。iOS searchByUsername パリティ。
+        return client.from("profiles").select {
+            filter { ilike("username", "%$q%") }
+            limit(25)
+        }.decodeList<ProfileRow>()
+            .filter { it.userId != uid }
+            .map { it.toProfile() }
+    }
+
     override suspend fun pendingRequests(): List<FriendRequest> {
         val uid = ensureUid()
         val reqs = client.from("friend_requests").select {

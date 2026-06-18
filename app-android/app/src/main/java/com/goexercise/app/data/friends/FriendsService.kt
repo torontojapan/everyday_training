@@ -179,6 +179,8 @@ interface FriendsService {
     suspend fun signOut()
     suspend fun refreshFriends(): List<FriendProfile>
     suspend fun pendingRequests(): List<FriendRequest>
+    /** ユーザー名(部分一致)で他ユーザーを検索する。iOS searchByUsername 相当。自分は除外。 */
+    suspend fun searchByUsername(query: String): List<FriendProfile> = emptyList()
     suspend fun sendRequest(toCode: String)
     suspend fun acceptRequest(request: FriendRequest)
     suspend fun declineRequest(request: FriendRequest)
@@ -273,6 +275,17 @@ class MockFriendsService : FriendsService {
     }
 
     override suspend fun refreshFriends(): List<FriendProfile> = friends.toList()
+
+    override suspend fun searchByUsername(query: String): List<FriendProfile> {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return emptyList()
+        // デモ: 検索用の見知らぬユーザー数名 + 既存友達から username/displayName 部分一致。
+        val pool = friends + listOf(
+            FriendProfile("SAKURA", "sakura_run", "さくら", currentStreak = 8, totalAchievedDays = 30, todayAchieved = true),
+            FriendProfile("REN001", "ren_fit", "れん", currentStreak = 21, totalAchievedDays = 60, todayAchieved = false),
+        )
+        return pool.filter { it.username.lowercase().contains(q) || it.displayName.lowercase().contains(q) }
+    }
 
     override suspend fun pendingRequests(): List<FriendRequest> = incoming.toList()
 

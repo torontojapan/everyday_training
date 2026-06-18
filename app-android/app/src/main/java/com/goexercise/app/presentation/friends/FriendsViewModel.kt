@@ -3,6 +3,7 @@ package com.goexercise.app.presentation.friends
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ensureActive
 import com.goexercise.app.data.friends.AccountBackupStatus
 import com.goexercise.app.data.friends.AccountLinkError
 import com.goexercise.app.data.friends.FriendsError
@@ -102,6 +103,38 @@ class FriendsViewModel @Inject constructor(
     /** 「あとで」をタップ: 本日を記録(30 日沈黙を永続化)。iOS の dismiss 永続に対応。 */
     fun dismissBackupPrompt() {
         viewModelScope.launch { settings.dismissBackupPrompt(java.time.LocalDate.now()) }
+    }
+
+    /** ユーザー名検索の結果(AddFriendSheet 用)。iOS searchByUsername パリティ。 */
+    private val _searchResults = MutableStateFlow<List<com.goexercise.app.domain.friends.FriendProfile>>(emptyList())
+    val searchResults: StateFlow<List<com.goexercise.app.domain.friends.FriendProfile>> = _searchResults.asStateFlow()
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    /** 検索中のジョブ(キーストロークごとに前のを cancel して古い応答で新しい結果を上書きしないように)。 */
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** ユーザー名(部分一致・2文字以上)で他ユーザーを検索する。iOS FriendAddView の search 相当。
+     *  前の検索を cancel し、応答到着時にまだ有効(=より新しいクエリに置き換わっていない)なら反映する。 */
+    fun searchByUsername(query: String) {
+        val q = query.trim()
+        searchJob?.cancel()
+        if (q.length < 2) { _searchResults.value = emptyList(); _isSearching.value = false; return }
+        searchJob = viewModelScope.launch {
+            _isSearching.value = true
+            val results = runCatching { service.searchByUsername(q) }.getOrDefault(emptyList())
+            // cancel 済み(新しいクエリが来た / clearSearch された)なら古い結果は捨てる(iOS の Task.isCancelled 相当)。
+            ensureActive()
+            _searchResults.value = results
+            _isSearching.value = false
+        }
+    }
+
+    /** 検索結果をクリア(シートを閉じた時など)。進行中の検索も止める。 */
+    fun clearSearch() {
+        searchJob?.cancel()
+        _searchResults.value = emptyList()
+        _isSearching.value = false
     }
 
     /** 連携 UI の表示ゲート(既定 false = 連携 UI 非表示で従来挙動)。iOS isAccountLinkingEnabled。 */
