@@ -180,6 +180,13 @@ class FriendsViewModel @Inject constructor(
                 // (新規匿名は空フェッチで no-op。iOS の friendCode 変化 → restoreAfterSignIn に対応)。
                 restoreRecordBackup()
                 load()
+                // サインイン直後に紹介状態を取得して currentAccountCode/星バッジを確定させる。
+                // これが無いとホームの紹介スター行(ReferralStarsRow)が次回起動まで出ない
+                // (iOS は HomeView.onChange(friendCode) → referralStore.refresh() で更新する。本 connect が
+                //  Android の friendCode 出現点なので同じ refresh をここで起こす)。
+                if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+                    runCatching { referralStore.refresh(); referralStore.pollReferrerPops() }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {

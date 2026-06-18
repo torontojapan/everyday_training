@@ -33,3 +33,9 @@ data class HomeUiState(
     /** 復帰日の歓迎カード表示フラグ(昨日 missed・今日未達成・累計>=3日)。iOS isComebackToday パリティ。 */
     val isComebackToday: Boolean = false,
 )
+
+/** ホーム上段3行目の紹介スター行の表示データ。iOS `ReferralStarsRow(count:friendCode:)` 引数に対応。 */
+data class ReferralRowUi(
+    val stars: Int,
+    val friendCode: String,
+)

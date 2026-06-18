@@ -58,6 +58,9 @@ class ReferralStore @Inject constructor(
      *  先行更新し、resetForIdentityChange で null に戻す。Android では myProfile() が suspend で
      *  iOS のような同期 getter ガードが組めないため、これを reactive な突き合わせ対象にする。 */
     private val _currentAccountCode = MutableStateFlow<String?>(null)
+    /** 現在サインイン中のアカウントの friend_code(refresh で確定)。ホームの紹介スター行の
+     *  gating/招待共有に使う(iOS `friendsStore.profile?.friendCode` 相当)。 */
+    val currentAccountCode: StateFlow<String?> = _currentAccountCode.asStateFlow()
 
     /** 現アカウント由来のときだけ通す星バッジ数(口座跨ぎ stale 防止)。表示は必ずこの口座ガード経由
      *  にする(iOS currentAccountStarBadges 相当)。直読み(summary.starBadges)は切替/復元直後に

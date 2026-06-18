@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +39,8 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
@@ -108,6 +111,7 @@ fun HomeRoute(
     }
 
     val celebrateConfetti by viewModel.celebrateConfetti.collectAsStateWithLifecycle()
+    val referralRow by viewModel.referralRow.collectAsStateWithLifecycle()
     Box(modifier = Modifier.fillMaxSize()) {
         HomeContent(
             state = state,
@@ -115,6 +119,7 @@ fun HomeRoute(
             onShareClick = onShareClick,
             celebrate = celebrateConfetti,
             onCelebrateConsumed = viewModel::consumeCelebrateConfetti,
+            referralRow = referralRow,
         )
         // 機能B: 小節目の軽量トースト(HomeContent の上に重ねる。自動消滅で操作は遮らない)。
         // 大節目ダイアログ提示中(pendingMilestone != null)は二重演出を避けて出さない(VM の guard と二重化)。
@@ -244,6 +249,8 @@ fun HomeContent(
     // 紙吹雪は VM が「記録完了(今日の新規記録)」でのみ true にする one-shot 信号で駆動する。
     celebrate: Boolean = false,
     onCelebrateConsumed: () -> Unit = {},
+    // ホーム上段3行目の紹介スター行(iOS referralStarsFullRow)。ゲート未充足なら null。
+    referralRow: ReferralRowUi? = null,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。
@@ -261,6 +268,8 @@ fun HomeContent(
             ) {
                 WeeklyMini(state)
                 TopStatusBar(state, onShareClick)
+                // 上段3行目: 紹介スター行(称号と分離して全幅・最大10星が折り返さず一直線)。
+                referralRow?.let { ReferralStarsRow(it) }
             }
             // 猫劇場。余白を占有して中央のステージ感を出す。
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -413,6 +422,79 @@ private fun StreakBadge(streak: Int, onShareClick: () -> Unit, modifier: Modifie
         }
     }
 }
+
+// MARK: - 紹介スター行 (iOS ReferralStarsRow) -------------------------------------
+
+/** 金の星は「ご褒美」感を出すため常に暖色のゴールド(iOS Color.orange = systemOrange #FF9500)。 */
+private val ReferralStarGold = Color(0xFFFF9500)
+
+/**
+ * ホーム上段3行目の紹介スター行。星(上)+キャプション(下)を縦積みし、全幅をタップで招待を共有する。
+ * iOS `ReferralStarsRow` / `ReferralStarsDisplay.style` のパリティ:
+ *   1〜9 → 金 filled + 枠 で 10 個並べ「あとN人で猫が解放」/ 10 → 全金 / 11+ → 金1個+数値。
+ */
+@Composable
+private fun ReferralStarsRow(row: ReferralRowUi) {
+    val palette = LocalAppPalette.current
+    val context = LocalContext.current
+    val total = com.goexercise.app.domain.CatBreedAccess.BREED_UNLOCK_STARS
+    val count = row.stars
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, referralInviteText(row.friendCode))
+                }
+                context.startActivity(Intent.createChooser(intent, "友達を招待"))
+            },
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        when {
+            // collapsed(11+): 金の星1個 + 数値。
+            count > total -> Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ReferralStar(filled = true)
+                Text(
+                    "$count",
+                    style = AppType.headline.copy(fontWeight = FontWeight.Black),
+                    color = palette.textPrimary,
+                )
+            }
+            // progress(1〜9) / complete(10): 10 個並べ、先頭 count 個を金 filled。
+            else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                repeat(total) { i -> ReferralStar(filled = i < count) }
+            }
+        }
+        if (count in 1 until total) {
+            Text(
+                "あと${total - count}人で猫が解放",
+                style = AppType.caption.copy(fontWeight = FontWeight.Medium),
+                color = palette.textSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReferralStar(filled: Boolean) {
+    val palette = LocalAppPalette.current
+    Icon(
+        imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+        contentDescription = null,
+        tint = if (filled) ReferralStarGold else palette.textSecondary.copy(alpha = 0.3f),
+        modifier = Modifier.size(18.dp),
+    )
+}
+
+/** 招待共有テキスト。iOS ReferralStarsRow.inviteText パリティ(URL のみ Play ストアに差し替え)。 */
+private fun referralInviteText(friendCode: String): String =
+    "GOエクササイズで一緒に運動しよう！オンボーディングでこの招待コードを入れると、" +
+        "お互いに保険チケットがもらえます → $friendCode\n" +
+        "https://play.google.com/store/apps/details?id=com.goexercise.app"
 
 /** 今日の状態チップ。達成済み(緑)/ 回復日(青)/ 残り時間(無印)。iOS statusChip パリティ。 */
 @Composable

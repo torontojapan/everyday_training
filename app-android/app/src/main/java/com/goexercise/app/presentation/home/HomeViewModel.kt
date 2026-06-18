@@ -80,6 +80,16 @@ class HomeViewModel @Inject constructor(
     fun consumeReferrerPops() = referralStore.consumeReferrerPops()
     fun consumeBreedUnlock() = referralStore.consumeBreedUnlock()
 
+    /** ホーム上段3行目の紹介スター行。iOS `referralStarsFullRow` のゲート
+     *  (`isReferralActive && currentAccountStarBadges > 0 && friendCode != nil`)を満たす時だけ
+     *  非 null を流す。星数と friendCode は口座スコープ済み StateFlow から供給する。 */
+    val referralRow: StateFlow<ReferralRowUi?> =
+        combine(referralStore.currentAccountStarBadges, referralStore.currentAccountCode) { stars, code ->
+            if (com.goexercise.app.AppFeatureFlags.isReferralActive && stars > 0 && code != null) {
+                ReferralRowUi(stars = stars, friendCode = code)
+            } else null
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init {
         // 初回利用日を一度だけ確定(以後不変)。iOS LifetimeUsageTracker と同じ起点。
         viewModelScope.launch { settings.setFirstUseDateIfAbsent(LocalDate.now(clock)) }
