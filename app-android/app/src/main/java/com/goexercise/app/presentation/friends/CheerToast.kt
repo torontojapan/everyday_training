@@ -12,10 +12,10 @@ object CheerToast {
         return "$kindEmoji $recipientName に「$body」を送りました"
     }
 
-    /** 受信トースト。message 優先、無ければ kind ラベル。複数未読なら「(ほか N件)」を付す(iOS FriendsView パリティ)。 */
+    /** 受信トースト。iOS は絵文字を付けず「NAME から「body」が届きました!(ほか N件)」(emoji 引数は互換で残すが未使用)。 */
     fun received(emoji: String, senderName: String, kindLabel: String, message: String?, othersCount: Int = 0): String {
         val body = message?.takeIf { it.isNotBlank() } ?: kindLabel
         val suffix = if (othersCount > 0) "(ほか${othersCount}件)" else ""
-        return "$emoji $senderName から「$body」$suffix"
+        return "$senderName から「$body」が届きました!$suffix"
     }
 }

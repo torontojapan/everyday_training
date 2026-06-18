@@ -38,10 +38,6 @@ object QrCode {
 /** QR / 共有に使う招待ディープリンク。iOS `friendInviteURL` と同一フォーマット。 */
 fun friendInviteUrl(code: String): String = "goexercise://friends?code=$code"
 
-/** コード共有用テキスト。iOS `shareText(for:)` 相当。 */
-fun friendShareText(code: String, username: String, streak: Int): String = buildString {
-    append("GO エクササイズで一緒に運動しよう！\n友達コード: ")
-    append(code)
-    if (username.isNotBlank()) append("\n@$username")
-    append(" (🔥 ${streak}日連続)")
-}
+/** コード共有用テキスト。iOS `shareText(for:)` と同一(連続日数・@username は載せない=ユーザー要望、末尾に URL)。 */
+fun friendShareText(code: String, username: String, streak: Int): String =
+    "GO エクササイズで一緒に運動しよう！\n友達コード: $code\nhttps://play.google.com/store/apps/details?id=com.goexercise.app"

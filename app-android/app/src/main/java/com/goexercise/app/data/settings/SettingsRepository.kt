@@ -49,6 +49,10 @@ interface SettingsRepository {
     val analyticsEnabled: Flow<Boolean>
     suspend fun setAnalyticsEnabled(enabled: Boolean)
 
+    /** 達成時の振動(haptic)を有効にするか。既定 true。iOS CelebrationPreferences.hapticEnabled 相当。 */
+    val hapticEnabled: Flow<Boolean>
+    suspend fun setHapticEnabled(enabled: Boolean)
+
     /** バックアップ促し(BackupCard)を「あとで」で閉じた日。30日間は再表示しない(iOS の沈黙期間)。未設定は null。 */
     val backupPromptDismissedAt: Flow<LocalDate?>
     suspend fun dismissBackupPrompt(date: LocalDate)
@@ -63,6 +67,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val catBreedKey = stringPreferencesKey("cat_breed")
     private val onboardingKey = androidx.datastore.preferences.core.booleanPreferencesKey("onboarding_complete")
     private val analyticsKey = androidx.datastore.preferences.core.booleanPreferencesKey("analytics_enabled")
+    private val hapticKey = androidx.datastore.preferences.core.booleanPreferencesKey("haptic_enabled")
     private val backupDismissedKey = longPreferencesKey("backup_prompt_dismissed_epoch_day")
 
     override val theme: Flow<AppTheme> = dataStore.data.map { prefs ->
@@ -117,6 +122,13 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setAnalyticsEnabled(enabled: Boolean) {
         dataStore.edit { it[analyticsKey] = enabled }
+    }
+
+    // 既定 true(達成時に振動)。OFF で celebration haptic を抑止。
+    override val hapticEnabled: Flow<Boolean> = dataStore.data.map { prefs -> prefs[hapticKey] ?: true }
+
+    override suspend fun setHapticEnabled(enabled: Boolean) {
+        dataStore.edit { it[hapticKey] = enabled }
     }
 
     override val backupPromptDismissedAt: Flow<LocalDate?> = dataStore.data.map { prefs ->

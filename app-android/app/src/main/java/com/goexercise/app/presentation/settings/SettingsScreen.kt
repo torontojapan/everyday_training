@@ -22,12 +22,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
@@ -63,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +101,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
     val cycleTrackingEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val hapticEnabled by viewModel.hapticEnabled.collectAsStateWithLifecycle()
     val linkedProvider by viewModel.linkedProvider.collectAsStateWithLifecycle()
     val isLinkingAccount by viewModel.isLinkingAccount.collectAsStateWithLifecycle()
     val linkError by viewModel.linkError.collectAsStateWithLifecycle()
@@ -148,6 +160,8 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
         cycleTrackingEnabled = cycleTrackingEnabled,
         onToggleCycleTracking = viewModel::setCycleTrackingEnabled,
+        hapticEnabled = hapticEnabled,
+        onToggleHaptic = viewModel::setHapticEnabled,
         linkedProvider = linkedProvider,
         isLinkingAccount = isLinkingAccount,
         linkError = linkError,
@@ -179,7 +193,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onShareApp = {
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "GOエクササイズで一緒に運動しよう！\nhttps://goexercise.app")
+                putExtra(Intent.EXTRA_TEXT, "GOエクササイズで一緒に運動しよう！\nhttps://play.google.com/store/apps/details?id=com.goexercise.app")
             }
             runCatching { context.startActivity(Intent.createChooser(intent, "シェア")) }
         },
@@ -209,6 +223,8 @@ fun SettingsContent(
     onToggleAnalytics: (Boolean) -> Unit = {},
     cycleTrackingEnabled: Boolean = false,
     onToggleCycleTracking: (Boolean) -> Unit = {},
+    hapticEnabled: Boolean = true,
+    onToggleHaptic: (Boolean) -> Unit = {},
     myFriendCode: String? = null,
     referralStarBadges: Int = 0,
     canEnterCodeLater: Boolean = false,
@@ -265,7 +281,13 @@ fun SettingsContent(
                 SettingsCard {
                     EntryRow(Icons.Filled.IosShare, "アプリを友達にシェア", onClick = onShareApp)
                     RowDivider()
-                    EntryRow(Icons.Filled.WorkspacePremium, "GOプレミアムにアップグレード", trailing = if (isPremium) "加入済み" else "14日間無料", onClick = onOpenPremium)
+                    // iOS パリティ: 加入中は「GOプレミアム 加入中」表示行(非遷移)、未加入はアップグレード行。
+                    // 「14日間無料」はトライアル適格(isEligibleForIntroOffer)のときだけ出す(消化済みの誤表示防止)。
+                    if (isPremium) {
+                        PremiumActiveRow()
+                    } else {
+                        EntryRow(Icons.Filled.WorkspacePremium, "GOプレミアムにアップグレード", trailing = if (trialEligible) "14日間無料" else null, onClick = onOpenPremium)
+                    }
                     RowDivider()
                     EntryRow(Icons.Filled.MilitaryTech, "プレミアム特典・称号一覧", showChevron = true) { page = SettingsPage.RankLadder }
                 }
@@ -295,8 +317,8 @@ fun SettingsContent(
                         AlertDialog(
                             onDismissRequest = { showWidgetHelp = false },
                             confirmButton = { TextButton(onClick = { showWidgetHelp = false }) { Text("閉じる") } },
-                            title = { Text("ウィジェットの追加方法") },
-                            text = { Text("ホーム画面の何もない所を長押し →「ウィジェット」→「GOエクササイズ」を選んで配置すると、連続日数と今日の達成がホームに表示されます。") },
+                            title = { Text("ウィジェットを追加する") },
+                            text = { WidgetGuideContent(palette) },
                         )
                     }
                 }
@@ -318,27 +340,29 @@ fun SettingsContent(
                     referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
                     onSelect = onSelectBreed, onLockedTap = onOpenPremium,
                 )
+                // 達成時の振動トグル(iOS CustomizationSettingsPage の haptic-toggle)。
+                SettingsCard {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Filled.Vibration, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(22.dp))
+                        Text("達成時の振動", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                        Switch(checked = hapticEnabled, onCheckedChange = onToggleHaptic)
+                    }
+                }
             }
 
             SettingsPage.RecordSharing -> SubPage("記録と共有", onBack = { page = SettingsPage.Main }) {
+                // 体調・周期トグル(iOS: 「体調・周期を記録する」+ footer)。
                 SettingsCard {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
-                            Text("休養ルール", style = AppType.headline, color = palette.textPrimary)
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("体調・周期を記録する", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                            Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
                         }
-                        Text("運動しなかった日も週2日までは自動で休養日になり、連続記録は途切れません。", style = AppType.caption, color = palette.textSecondary)
+                        Text("ON にすると記録画面に「今日は生理日」スイッチが出て、履歴に印で表示されます。端末内のみに保存。", style = AppType.caption, color = palette.textSecondary)
                     }
                 }
-                SettingsCard {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("生理周期トラッキング", style = AppType.headline, color = palette.textPrimary)
-                            Text("ON にすると体重タブに生理日の記録と周期オーバーレイが表示されます。端末内のみに保存。", style = AppType.caption, color = palette.textSecondary)
-                        }
-                        Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
-                    }
-                }
+                // 休養ルール(展開式 4 項目。iOS RecordSharingSettingsPage の DisclosureGroup 相当)。
+                RestRuleCard(palette)
             }
 
             SettingsPage.Notifications -> SubPage("通知設定", onBack = { page = SettingsPage.Main }) {
@@ -357,6 +381,9 @@ fun SettingsContent(
             }
 
             SettingsPage.RankLadder -> SubPage("プレミアム特典・称号一覧", onBack = { page = SettingsPage.Main }) {
+                SectionLabel("プレミアム特典")
+                PerkGuideSection(palette)
+                SectionLabel("称号一覧(連続で進化)")
                 CatRankLadderSection(palette, currentStreak)
             }
         }
@@ -408,6 +435,20 @@ private fun EntryRow(
     }
 }
 
+/** プレミアム加入中の表示行(非遷移)。iOS の premium-active-row(crown.fill + 「GOプレミアム 加入中」)相当。 */
+@Composable
+private fun PremiumActiveRow() {
+    val palette = LocalAppPalette.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(22.dp))
+        Text("GOプレミアム 加入中", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+    }
+}
+
 /** サブページの枠(戻る + タイトル + 内容)。iOS の push 画面相当。 */
 @Composable
 private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
@@ -424,23 +465,34 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
     content()
 }
 
-/** 情報・サポート(アプリ名/バージョン/各種リンク)。iOS 情報・サポートページ相当。 */
+/** 情報・サポート(問い合わせ/アプリ情報/各種リンク)。iOS InfoSupportSettingsPage 相当。 */
 @Composable
 private fun InfoSupportSection() {
     val palette = LocalAppPalette.current
     val context = LocalContext.current
     fun open(url: String) { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+    // 問い合わせ(意見・不具合)は Google フォームへ(iOS FeedbackComposer.supportFormURL と同一)。
+    val supportFormUrl = "https://forms.gle/Ljbaj4MvW2YPmyJ99"
+    SettingsCard {
+        EntryRow(Icons.AutoMirrored.Filled.Chat, "ご意見・ご要望を送る", showChevron = true) { open(supportFormUrl) }
+        RowDivider()
+        EntryRow(Icons.Filled.BugReport, "不具合を報告する", showChevron = true) { open(supportFormUrl) }
+    }
     SettingsCard {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("GOエクササイズ", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
             val ver = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             Text("v$ver", style = AppType.caption, color = palette.textSecondary)
         }
-    }
-    SettingsCard {
-        EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "プライバシーポリシー", showChevron = true) { open("https://torontojapan.github.io/everyday_training/privacy/") }
+        RowDivider()
+        // サブスクリプションの管理は Play ストアのサブスク画面へ(iOS は apps.apple.com/account/subscriptions)。
+        EntryRow(Icons.Filled.CreditCard, "サブスクリプションを管理", showChevron = true) { open("https://play.google.com/store/account/subscriptions") }
+        RowDivider()
+        EntryRow(Icons.Filled.PrivacyTip, "プライバシーポリシー", showChevron = true) { open("https://torontojapan.github.io/everyday_training/privacy/") }
         RowDivider()
         EntryRow(Icons.Filled.Description, "利用規約", showChevron = true) { open("https://torontojapan.github.io/everyday_training/terms/") }
+        RowDivider()
+        EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "サポート", showChevron = true) { open("https://torontojapan.github.io/everyday_training/support/") }
     }
 }
 
@@ -499,24 +551,17 @@ private fun BackupSection(
                     Text("$linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
                         color = palette.textSecondary, fontSize = 11.sp)
                 }
-                // アカウント削除(審査 Guideline 5.1.1(v))。連携済みのみ表示。
-                Row(
-                    Modifier.fillMaxWidth().clickable { confirmDelete = true },
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
-                    Text("アカウントを削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
-                }
             } else {
                 Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
                     color = palette.textSecondary, fontSize = 11.sp)
                 // ブランド準拠ボタン(Apple=黒地白文字 / Google=白地枠線)。iOS の AppleID/GoogleSignIn ボタン相当。
+                // TODO(parity ITEM8): Apple ロゴ / Google G マーク画像はブランド規約準拠アセットで別途追加。
                 Surface(
                     color = Color.Black, shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth().then(if (isLinking) Modifier else Modifier.clickable { onLinkApple() }),
                 ) {
                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                        Text(" Apple でサインイン", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Apple でサインイン", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Surface(
@@ -525,11 +570,21 @@ private fun BackupSection(
                         .then(if (isLinking) Modifier else Modifier.clickable { onLinkGoogle() }),
                 ) {
                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                        Text("Google で続ける", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
+                        Text("Google でサインイン", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+            }
+            // アカウント削除(審査 Guideline 5.1.1(v))。iOS は profile!=nil(匿名含む)で表示 → アカウントがあれば表示。
+            if (hasAccount) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { confirmDelete = true },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
+                    Text("アカウントを削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -684,6 +739,117 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
     }
 }
 
+/** 休養ルール(展開式 4 項目)。iOS RecordSharingSettingsPage の DisclosureGroup「週 2 日まで…」相当。 */
+@Composable
+private fun RestRuleCard(palette: AppTheme) {
+    var expanded by remember { mutableStateOf(false) }
+    val bullets = listOf(
+        "月曜〜日曜の同じ週で、達成できなかった日のうち最大 2 日を自動的に「休」と記録します。",
+        "3 日目以降の未達成日は × になり、その時点で連続記録がリセットされます。",
+        "既に休が割り当てられた日は履歴カレンダーで「休」と表示されます。",
+        "運動不可な日が増えそうな週は、保険チケット (無料は月1回 / GOプレミアムは月4回) で別途救済できます。",
+    )
+    SettingsCard {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+                Text("週 2 日まで休んでも連続記録は続きます", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                Icon(
+                    Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary,
+                    modifier = Modifier.size(20.dp).then(if (expanded) Modifier.rotate(180f) else Modifier),
+                )
+            }
+            if (expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    bullets.forEach { b ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("・", style = AppType.caption, color = palette.textSecondary)
+                            Text(b, style = AppType.caption, color = palette.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** プレミアム特典の内訳(展開式 5 項目)。iOS PerkGuideSection 相当。 */
+@Composable
+private fun PerkGuideSection(palette: AppTheme) {
+    var expanded by remember { mutableStateOf(false) }
+    data class Perk(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val detail: String)
+    val perks = listOf(
+        Perk(Icons.Filled.AcUnit, "保険チケット", "無料は月1 / プレミアムは月4。友達紹介で +1(上限5)。招待された人はウェルカム +1。"),
+        Perk(Icons.Filled.Star, "友達紹介", "1人紹介ごとに⭐と保険チケット。⭐10個で好きな猫が無料で選べるようになります。"),
+        Perk(Icons.Filled.MilitaryTech, "称号 & 背景の進化", "連続記録を続けると猫の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
+        Perk(Icons.Filled.Pets, "猫種", "無料はオレンジ。プレミアム、または⭐10で全11種から選べます。"),
+        Perk(Icons.Filled.Pets, "連続記録の節目", "連続記録のマイルストーンでお祝い演出が出ます。"), // iOS pawprint.fill
+    )
+    SettingsCard {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(20.dp))
+                Text("無料でもらえる特典・達成", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                Icon(
+                    Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary,
+                    modifier = Modifier.size(20.dp).then(if (expanded) Modifier.rotate(180f) else Modifier),
+                )
+            }
+            if (expanded) {
+                perks.forEach { p ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(p.icon, contentDescription = null, tint = palette.primary, modifier = Modifier.size(20.dp).padding(top = 2.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(p.title, style = AppType.headline, color = palette.textPrimary)
+                            Text(p.detail, style = AppType.caption, color = palette.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** ウィジェット追加ガイド(iOS WidgetSetupGuideSheet の 5 ステップ + 表示内容)。Android の追加手順に合わせた文言。 */
+@Composable
+private fun WidgetGuideContent(palette: AppTheme) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val steps = listOf(
+            "ホーム画面の空いている場所を長押し" to "アイコンが揺れたら編集モードです。",
+            "「ウィジェット」をタップ" to "ウィジェット一覧が開きます。",
+            "「GOエクササイズ」を探す" to "一覧からアプリを選びます。",
+            "Small または Medium を選ぶ" to "好みのサイズを選択します。",
+            "ホーム画面にドラッグして配置" to "位置はあとから自由に動かせます。",
+        )
+        steps.forEachIndexed { i, step ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(24.dp).clip(CircleShape).background(palette.primary), contentAlignment = Alignment.Center) {
+                    Text("${i + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(step.first, style = AppType.body, color = palette.textPrimary)
+                    Text(step.second, style = AppType.caption, color = palette.textSecondary)
+                }
+            }
+        }
+        Text("ウィジェットに表示される内容", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.padding(top = 4.dp))
+        listOf("今日の残り時間(深夜0時まで)", "週間達成率と進捗リング", "猫キャラのひとことメッセージ", "タップでアプリを即起動").forEach { b ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = palette.primary, modifier = Modifier.size(14.dp))
+                Text(b, style = AppType.caption, color = palette.textSecondary)
+            }
+        }
+    }
+}
+
 @Composable
 private fun ThemeRow(theme: AppTheme, isSelected: Boolean, onClick: () -> Unit) {
     val palette = LocalAppPalette.current
@@ -748,7 +914,7 @@ private fun DataManagementSection(
                 } else {
                     Icon(Icons.Filled.IosShare, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))
-                    Text("データをエクスポート", color = palette.textPrimary)
+                    Text("データを書き出す", color = palette.textPrimary)
                 }
             }
             Button(
@@ -757,9 +923,10 @@ private fun DataManagementSection(
                 colors = ButtonDefaults.buttonColors(containerColor = palette.chipBackground),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
+                // iOS パリティ: 破壊的操作は赤(.red)。
+                Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
-                Text("すべての記録を削除", color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+                Text("すべての記録を削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
             }
             if (statusMessage != null) {
                 Text(statusMessage, fontSize = 12.sp, color = palette.primaryDeep)
@@ -771,7 +938,7 @@ private fun DataManagementSection(
             onDismissRequest = { confirmDelete = false },
             title = { Text("すべての記録を削除しますか？") },
             text = { Text("運動・体重・体調の記録がすべて削除され、元に戻せません。事前にエクスポートをおすすめします。") },
-            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = palette.primaryDeep) } },
+            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = Color(0xFFD32F2F)) } },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )

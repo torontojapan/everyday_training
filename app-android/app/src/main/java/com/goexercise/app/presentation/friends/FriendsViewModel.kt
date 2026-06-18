@@ -290,14 +290,19 @@ class FriendsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 service.sendCheer(kind, code, message)
-                // 入力した一言があればそれを、無ければ kind ラベルを反映(iOS「『text』を送りました」相当)。
-                _uiState.update { it.copy(toast = CheerToast.sent(kind.emoji, kind.label, to.displayName, message)) }
+                // iOS は送信時に下部トーストを出さない(詳細画面のインライン「『text』を送りました」のみ)。
+                // → ここでは toast を出さず、確認は FriendDetailScreen のインライン表示に委ねる。
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = friendly(e)) }
             } finally {
                 _uiState.update { it.copy(cheeringCodes = it.cheeringCodes - code) }
             }
         }
+    }
+
+    /** 友達コードをコピーした時のトースト(iOS「招待コードをコピーしました」)。 */
+    fun notifyCodeCopied() {
+        _uiState.update { it.copy(toast = "招待コードをコピーしました") }
     }
 
     /** 自分宛ての未読応援を取得し、最新1件をトーストで表示する(message 優先)。iOS の受信トースト相当。 */

@@ -146,6 +146,7 @@ fun AppNavHost(
                         AppRoute.History -> HistoryRoute(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
                             onOpenHighlight = { kind -> navController.navigate("$HIGHLIGHT_ROUTE/$kind") },
+                            onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.General.name}") },
                         )
                         AppRoute.Friends -> FriendsRoute(
                             onOpenRanking = { navController.navigate(AppRoute.WeeklyRanking.path) },

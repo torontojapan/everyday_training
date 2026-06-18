@@ -25,6 +25,8 @@ data class RecordCompletionUi(
     val catState: CatState = CatState.Celebrating,
     /** 今日のサマリーカード用。直近(今日)の記録の種目リスト。iOS recordSummaryCard 相当。 */
     val exercises: List<ExerciseItem> = emptyList(),
+    /** この保存で連続が「昨日から+1」伸びたか。streakHero に「きのうから +1 のばした！」を出す。iOS streakExtendedThisRun 相当。 */
+    val streakExtendedThisRun: Boolean = false,
 )
 
 /**
@@ -49,6 +51,12 @@ class RecordCompletionViewModel @Inject constructor(
         val home = HomeStateReducer.reduce(records, now, rescuedDates = rescued, firstUseDate = firstUse)
         // 「今日保存した記録」のサマリー。observeRecords は日付降順なので今日の最初の1件を採る。
         val todaysExercises = records.firstOrNull { it.date == now.toLocalDate() }?.exercises ?: emptyList()
-        RecordCompletionUi(streak = home.streak.currentStreak, breed = breed, catState = home.catState, exercises = todaysExercises)
+        // 今日保存済 + 連続が 2 日以上 = 昨日(休/救済含む)から伸びた = 「きのうから +1」。
+        // currentStreak==1 は新規スタートなので出さない(iOS streakExtendedThisRun && currentStreak>1 と一致)。
+        val extended = home.streak.currentStreak > 1
+        RecordCompletionUi(
+            streak = home.streak.currentStreak, breed = breed, catState = home.catState,
+            exercises = todaysExercises, streakExtendedThisRun = extended,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecordCompletionUi())
 }

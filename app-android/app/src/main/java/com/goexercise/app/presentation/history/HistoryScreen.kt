@@ -19,8 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Description
@@ -28,6 +33,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -53,8 +59,10 @@ import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.ExerciseTrendSummary
 import com.goexercise.app.domain.LifetimeStatsCalculator
 import com.goexercise.app.domain.MonthlyCalendarCalculator.MonthCell
+import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
+import com.goexercise.app.ui.theme.categoryIcon
 import com.goexercise.app.ui.theme.colorForStatus
 import java.time.LocalDate
 import java.time.YearMonth
@@ -63,10 +71,11 @@ import java.time.YearMonth
 fun HistoryRoute(
     onUseRescue: () -> Unit = {},
     onOpenHighlight: (String) -> Unit = {},
+    onOpenPremium: () -> Unit = {},
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual, onOpenHighlight)
+    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual, onOpenHighlight, onOpenPremium)
 }
 
 @Composable
@@ -77,6 +86,7 @@ fun HistoryContent(
     onUseRescue: () -> Unit = {},
     onToggleMenstrual: (LocalDate) -> Unit = {},
     onOpenHighlight: (String) -> Unit = {},
+    onOpenPremium: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val today = remember { LocalDate.now() }
@@ -116,7 +126,7 @@ fun HistoryContent(
                 }
                 WeekdayHeader()
                 state.cells.chunked(7).forEach { week ->
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         week.forEach { cell ->
                             DayCell(
                                 cell, Modifier.weight(1f),
@@ -138,14 +148,8 @@ fun HistoryContent(
             }
         }
 
-        // 保険チケット(連続を守るフリーズ)。iOS の折りたたみセクション相当の導線。
-        EntryCard(
-            icon = Icons.Filled.ConfirmationNumber,
-            iconTint = palette.primaryDeep,
-            title = "保険チケット",
-            subtitle = "連続が途切れそうな日に使って記録を守る",
-            onClick = onUseRescue,
-        )
+        // 保険チケット(連続を守るフリーズ)。iOS は折りたたみ: 動的subtitle + 説明 + 適用導線 + 非Premium訴求。
+        RescueTicketCollapsible(state, palette, onUseRescue, onOpenPremium)
 
         // ハイライト共有(Weekly/Monthly/All-time)。subtitle は記録から算出。
         val weekly = remember(state.records) { ExerciseTrendSummary.week(state.records, today) }
@@ -162,37 +166,41 @@ fun HistoryContent(
                 onClick = { onOpenHighlight("weekly") },
             )
         }
-        // Monthly = 今月(常時活性。遷移先 HighlightShareViewModel も month=today で当月レビューを作る)。
+        // Monthly = 今月。記録ゼロの月は淡色・非活性・chevron 非表示(iOS パリティ)。
+        val currentMonthHasRecords = state.records.any { YearMonth.from(it.date) == YearMonth.from(today) }
         EntryCard(
             icon = Icons.Filled.Description, iconTint = palette.primaryDeep,
             title = "Monthlyハイライト",
-            subtitle = "今月のがんばりをカードでサマリー",
-            onClick = { onOpenHighlight("monthly") },
+            subtitle = if (currentMonthHasRecords) "今月のがんばりをカードでサマリー" else "今月の記録はまだありません",
+            dimmed = !currentMonthHasRecords,
+            onClick = { if (currentMonthHasRecords) onOpenHighlight("monthly") },
         )
+        // All-time: 累計達成 / 使用日数 / 達成率(iOS subtitle「累計 N 日達成 / 使用 M 日 (R%)」)。記録ゼロは空状態。
         EntryCard(
             icon = Icons.Filled.EmojiEvents, iconTint = palette.primaryDeep,
             title = "All-timeハイライト",
-            subtitle = "累計 ${lifetime.achievedDays} 日達成 / 達成率 ${(lifetime.rate * 100).toInt()}%",
+            subtitle = if (state.records.isEmpty()) "まだ記録がありません"
+                else "累計 ${lifetime.achievedDays} 日達成 / 使用 ${lifetime.usedDays} 日 (${(lifetime.rate * 100).toInt()}%)",
             onClick = { onOpenHighlight("alltime") },
         )
 
-        // 運動履歴(折りたたみ)。iOS 運動履歴 CollapsibleSection。
-        ExerciseHistorySection(state.records)
-
-        // このアプリを友達にシェア。iOS shareAppEntry。
+        // このアプリを友達にシェア。iOS shareAppEntry(運動履歴の前に配置)。
         val context = LocalContext.current
         EntryCard(
             icon = Icons.Filled.IosShare, iconTint = palette.primaryDeep,
             title = "このアプリを友達にシェア",
-            subtitle = "一緒に運動を習慣にしよう",
+            subtitle = "インストール用リンクが LINE / メッセージなどで送れます",
             onClick = {
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "GOエクササイズで一緒に運動しよう！\nhttps://goexercise.app")
+                    putExtra(Intent.EXTRA_TEXT, "GOエクササイズで一緒に運動しよう！\nhttps://play.google.com/store/apps/details?id=com.goexercise.app")
                 }
                 runCatching { context.startActivity(Intent.createChooser(intent, "シェア")) }
             },
         )
+
+        // 運動履歴(折りたたみ)。iOS 運動履歴 CollapsibleSection。
+        ExerciseHistorySection(state.records)
 
         val sel = selected
         if (sel?.date != null && sel.status != null) {
@@ -264,6 +272,52 @@ private fun EntryCard(
     }
 }
 
+/** 保険チケットの折りたたみ。iOS: 動的subtitle「今月 N / M 回 残り」+ 説明 + 適用導線 + 非Premium訴求。 */
+@Composable
+private fun RescueTicketCollapsible(state: HistoryUiState, palette: AppTheme, onUseRescue: () -> Unit, onOpenPremium: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(24.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("保険チケット", style = AppType.headline, color = palette.textPrimary)
+                    Text("今月 ${state.rescueRemaining} / ${state.rescueAllowance} 回 残り", style = AppType.caption, color = palette.textSecondary)
+                }
+                Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary)
+            }
+            if (expanded) {
+                Text("忙しい日に連続記録を守れます。毎月リセットされます。", style = AppType.caption, color = palette.textSecondary)
+                // 使う日を選んで適用。
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onUseRescue() }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("使う日を選んで適用", style = AppType.body, color = palette.primaryDeep, modifier = Modifier.weight(1f))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+                }
+                // 非Premium 向け訴求(GOプレミアムで月4回)。
+                if (!state.isPremium) {
+                    Surface(
+                        color = palette.primary.copy(alpha = 0.10f), shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onOpenPremium() },
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
+                            Text("GOプレミアムで保険チケットが月4回に", style = AppType.caption, color = palette.primaryDeep, modifier = Modifier.weight(1f))
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** 運動履歴の折りたたみセクション。iOS 運動履歴 CollapsibleSection。日付別に種目を表示。 */
 @Composable
 private fun ExerciseHistorySection(records: List<com.goexercise.app.domain.WorkoutRecord>) {
@@ -287,32 +341,83 @@ private fun ExerciseHistorySection(records: List<com.goexercise.app.domain.Worko
                 )
             }
             if (expanded) {
-                // 日付でグルーピング(同日に複数記録があっても日付見出しは1回。iOS HistoryRowView の日別表示)。
-                records.groupBy { it.date }.toSortedMap(compareByDescending { it }).forEach { (date, dayRecords) ->
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            date.format(java.time.format.DateTimeFormatter.ofPattern("M月d日(E)", java.util.Locale.JAPANESE)),
-                            style = AppType.caption, color = palette.textSecondary,
-                        )
-                        dayRecords.flatMap { it.exercises }.forEach { ex ->
-                            val parts = buildList {
-                                ex.durationSeconds?.let { add("${it / 60}分") }
-                                ex.reps?.let { add("${it}回") }
-                                ex.sets?.let { add("${it}セット") }
-                            }
-                            Text(
-                                buildString { append(ex.name); if (parts.isNotEmpty()) append("  ").append(parts.joinToString(" / ")) },
-                                style = AppType.caption,
-                                color = palette.textPrimary,
-                            )
-                        }
-                    }
-                }
                 if (records.isEmpty()) {
                     Text("まだ記録がありません", style = AppType.caption, color = palette.textSecondary)
                 }
+                // 日付でグルーピング(日付見出し sectionTitle)→ 記録ごとに HistoryRowView 相当のカード。iOS StatsView の運動履歴。
+                records.groupBy { it.date }.toSortedMap(compareByDescending { it }).forEach { (date, dayRecords) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            date.format(java.time.format.DateTimeFormatter.ofPattern("M月d日(E)", java.util.Locale.JAPANESE)),
+                            style = AppType.sectionTitle, color = palette.textPrimary,
+                        )
+                        dayRecords.forEach { record -> HistoryRecordRow(record) }
+                    }
+                }
             }
         }
+    }
+}
+
+/** 1 記録分のカード。iOS `HistoryRowView` パリティ: カテゴリ見出し(色付き)+ 種目行(名前 回 セット 時間)+ 合計 + メモ。 */
+@Composable
+private fun HistoryRecordRow(record: com.goexercise.app.domain.WorkoutRecord) {
+    val palette = LocalAppPalette.current
+    val uniqueCategories = record.exercises.mapNotNull { it.category ?: record.category }.distinct()
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (uniqueCategories.size <= 1) {
+                val category = uniqueCategories.firstOrNull() ?: record.category
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(categoryIcon(category), contentDescription = null, tint = palette.categoryColor(category), modifier = Modifier.size(18.dp))
+                    Text(category.displayName, style = AppType.headline, color = palette.categoryColor(category))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    record.exercises.forEach { ex ->
+                        Text(exerciseLine(ex), style = AppType.body, color = palette.textPrimary)
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    record.exercises.forEach { ex ->
+                        val category = ex.category ?: record.category
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(categoryIcon(category), contentDescription = null, tint = palette.categoryColor(category), modifier = Modifier.size(18.dp).padding(end = 0.dp))
+                            Text(exerciseLine(ex), style = AppType.body, color = palette.textPrimary)
+                        }
+                    }
+                }
+            }
+            val totalSeconds = record.exercises.sumOf { it.durationSeconds ?: 0 }
+            if (totalSeconds > 0) {
+                Text("合計 ${durationText(totalSeconds)}", style = AppType.caption, color = palette.textSecondary)
+            }
+            record.memo?.takeIf { it.isNotEmpty() }?.let { memo ->
+                Text(memo, style = AppType.caption, color = palette.textSecondary, maxLines = 2)
+            }
+        }
+    }
+}
+
+/** 種目1行「名前 回 セット 時間」(iOS exerciseLine: reps→sets→duration の順、半角スペース区切り)。 */
+private fun exerciseLine(ex: com.goexercise.app.domain.ExerciseItem): String {
+    val parts = buildList {
+        add(ex.name)
+        ex.reps?.let { add("${it}回") }
+        ex.sets?.let { add("${it}セット") }
+        ex.durationSeconds?.let { add(durationText(it)) }
+    }
+    return parts.joinToString(" ")
+}
+
+/** 秒 → 「X分Y秒」/「X分」/「Y秒」。iOS durationText 相当。 */
+private fun durationText(seconds: Int): String {
+    val m = seconds / 60
+    val s = seconds % 60
+    return when {
+        m > 0 && s > 0 -> "${m}分${s}秒"
+        m > 0 -> "${m}分"
+        else -> "${s}秒"
     }
 }
 
@@ -330,8 +435,11 @@ private fun CalendarLegend(hasPeriod: Boolean) {
         LegendSwatch(monthlyStatusColor(DailyStatus.Rescued), "保険チケット")
         LegendSwatch(monthlyStatusColor(DailyStatus.Missed), "未達成")
         if (hasPeriod) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFE05A8A)))
+            Row(
+                modifier = Modifier.clip(CircleShape).background(palette.chipBackground.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(PeriodDotColor))
                 Text("生理日", color = palette.textSecondary, style = AppType.caption)
             }
         }
@@ -348,15 +456,24 @@ private fun monthlyStatusColor(status: DailyStatus): Color {
         DailyStatus.Rest -> Color(0.36f, 0.65f, 0.40f).copy(alpha = 0.55f)
         DailyStatus.Rescued -> Color(0.36f, 0.65f, 0.40f).copy(alpha = 0.32f)
         DailyStatus.Missed -> Color(0.38f, 0.55f, 0.90f).copy(alpha = 0.30f)
-        DailyStatus.Future, DailyStatus.TodayPending -> palette.secondary.copy(alpha = 0.45f)
+        // iOS: Future はカード地と同じ surface(空白扱い)、TodayPending は secondary@0.40。
+        DailyStatus.Future -> palette.surface
+        DailyStatus.TodayPending -> palette.secondary.copy(alpha = 0.40f)
     }
 }
+
+/** 生理日ドット色。iOS Color(red:0.86, green:0.36, blue:0.45)。 */
+private val PeriodDotColor = Color(0.86f, 0.36f, 0.45f)
 
 @Composable
 private fun LegendSwatch(color: Color, label: String) {
     val palette = LocalAppPalette.current
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(color))
+    // iOS: swatch 14×14 r4、各凡例は chipBackground@0.5 のカプセルチップ。
+    Row(
+        modifier = Modifier.clip(CircleShape).background(palette.chipBackground.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(Modifier.size(14.dp).clip(RoundedCornerShape(4.dp)).background(color))
         Text(label, color = palette.textSecondary, style = AppType.caption)
     }
 }
@@ -396,7 +513,15 @@ private fun DayCell(cell: MonthCell, modifier: Modifier, isToday: Boolean = fals
                 )
                 if (isPeriod) {
                     Box(
-                        Modifier.align(Alignment.TopEnd).padding(3.dp).size(6.dp).clip(CircleShape).background(Color(0xFFE05A8A)),
+                        Modifier.align(Alignment.TopEnd).padding(3.dp).size(6.dp).clip(CircleShape).background(PeriodDotColor),
+                    )
+                }
+                // 保険チケットで救済した日は右下に ticket グリフ(iOS の ticket.fill 相当)。
+                if (status == DailyStatus.Rescued) {
+                    Icon(
+                        Icons.Filled.ConfirmationNumber, contentDescription = "保険チケット使用",
+                        tint = if (isToday) Color.White else palette.primaryDeep,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(10.dp),
                     )
                 }
             }
@@ -425,22 +550,17 @@ private fun DayDetailSheet(
             val title = date.format(java.time.format.DateTimeFormatter.ofPattern("M月d日(E)", java.util.Locale.JAPANESE))
             Text(title, style = AppType.sectionTitle, color = palette.textPrimary)
             if (records.isEmpty()) {
-                Text(messageForStatus(status), color = palette.textSecondary, style = AppType.body)
-            } else {
-                records.forEach { record ->
-                    record.exercises.forEach { ex ->
-                        val parts = buildList {
-                            ex.durationSeconds?.let { add("${it / 60}分") }
-                            ex.reps?.let { add("${it}回") }
-                            ex.sets?.let { add("${it}セット") }
-                            ex.loadKilograms?.let { add("${it}kg") }
-                        }
-                        Text(
-                            buildString { append(ex.name); if (parts.isNotEmpty()) append("  ").append(parts.joinToString(" / ")) },
-                            color = palette.textPrimary, style = AppType.body,
-                        )
+                // iOS: アイコン円(92dp tint)+ メッセージの空状態。
+                val (icon, tint) = dayStatusIcon(status, palette)
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(92.dp).clip(CircleShape).background(tint.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(44.dp))
                     }
+                    Text(messageForStatus(status), color = palette.textSecondary, style = AppType.body, textAlign = TextAlign.Center)
                 }
+            } else {
+                // iOS: 記録ごとに HistoryRowView カード(カテゴリ色見出し + 種目行 + 合計 + メモ)。
+                records.forEach { record -> HistoryRecordRow(record) }
             }
             if (cycleTrackingEnabled && !date.isAfter(LocalDate.now())) {
                 TextButton(onClick = onToggleMenstrual) {
@@ -451,8 +571,17 @@ private fun DayDetailSheet(
     }
 }
 
+/** 空状態のアイコン+色(iOS DayDetailSheet: moon.zzz/calendar/pawprint/checkmark.seal/snowflake)。 */
+private fun dayStatusIcon(status: DailyStatus, palette: AppTheme): Pair<androidx.compose.ui.graphics.vector.ImageVector, Color> = when (status) {
+    DailyStatus.Rest -> Icons.Filled.Bedtime to Color(0.36f, 0.65f, 0.40f)
+    DailyStatus.Future -> Icons.Filled.Event to palette.textSecondary
+    DailyStatus.Rescued -> Icons.Filled.AcUnit to Color(0.36f, 0.65f, 0.40f)
+    DailyStatus.Achieved, DailyStatus.TodayAchieved -> Icons.Filled.Verified to palette.primary
+    DailyStatus.Missed, DailyStatus.TodayPending -> Icons.Filled.Pets to palette.textSecondary
+}
+
 private fun messageForStatus(status: DailyStatus): String = when (status) {
-    DailyStatus.Rest -> "この日は回復日。無理しないのも大事だよ"
+    DailyStatus.Rest -> "この日は回復日。\n無理しないのも大事だよ"
     DailyStatus.Future -> "これからの日だね"
     DailyStatus.Missed -> "この日は記録がないよ"
     DailyStatus.TodayPending -> "今日はまだ記録がないよ"

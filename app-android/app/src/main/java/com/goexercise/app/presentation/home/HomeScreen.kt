@@ -24,6 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -138,10 +142,11 @@ fun HomeRoute(
             AlertDialog(
                 onDismissRequest = { viewModel.consumeBreedUnlock() },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.consumeBreedUnlock() }) { Text("やった！") }
+                    // iOS「やったね!」(絵文字除去方針のためタイトルは「⭐」→「星10」)。本文は iOS と同一文言。
+                    TextButton(onClick = { viewModel.consumeBreedUnlock() }) { Text("やったね!") }
                 },
-                title = { Text("星10個 達成！") },
-                text = { Text("友達紹介の星が10個に到達しました。すべての猫種が解放されました！設定からいつでも変更できます。") },
+                title = { Text("星10達成！") },
+                text = { Text("友達を10人紹介しました!設定や猫選びの画面から、好きな猫が無料で選べるようになりました。") },
             )
         }
     }
@@ -243,6 +248,8 @@ fun HomeContent(
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。
         com.goexercise.app.ui.components.MilestoneBackdrop(streak = state.streak.currentStreak)
+        // 常時の環境パーティクル(時刻別: 朝=花/昼=泡/夕=葉/夜=星)。iOS AmbientParticlesView パリティ。
+        AmbientParticles(hour = remember { java.time.LocalTime.now().hour }, modifier = Modifier.fillMaxSize())
         Column(modifier = Modifier.fillMaxSize()) {
             // 上段クラスタ(今週 + 連続/称号/状態)。
             Column(
@@ -286,7 +293,8 @@ private fun WeeklyMini(state: HomeUiState) {
             Spacer(Modifier.weight(1f))
             Text(
                 "${state.weeklyProgress.achievedCount} / ${state.weeklyProgress.totalDays} 日達成",
-                style = AppType.headline.copy(fontWeight = FontWeight.SemiBold),
+                // iOS: monospacedDigit。等幅数字で達成数の桁ぶれを防ぐ。
+                style = AppType.headline.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
                 color = palette.textSecondary,
             )
         }
@@ -299,6 +307,12 @@ private val WeekdayLabels = listOf("月", "火", "水", "木", "金", "土", "�
 @Composable
 private fun WeeklyCalendar(week: List<DailyStatusEntry>) {
     val palette = LocalAppPalette.current
+    // iOS WeeklyCalendarView: 今日セルは 1.05↔1.0 の呼吸アニメ(repeatForever autoreverse)。
+    val breath = rememberInfiniteTransition(label = "today-breath")
+    val breathScale by breath.animateFloat(
+        initialValue = 1.0f, targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "breathScale",
+    )
     Surface(color = palette.surface, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -306,11 +320,11 @@ private fun WeeklyCalendar(week: List<DailyStatusEntry>) {
         ) {
             week.forEachIndexed { index, entry ->
                 val isToday = entry.status == DailyStatus.TodayAchieved || entry.status == DailyStatus.TodayPending
-                // iOS は曜日ラベル込みのセル全体を 1.05 倍にして「今日」を強調する。
+                // iOS は曜日ラベル込みのセル全体を「今日」だけ呼吸スケールで強調する。
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .scale(if (isToday) 1.05f else 1f),
+                        .scale(if (isToday) breathScale else 1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -438,23 +452,154 @@ private fun remainingTimeText(): String {
     return "あと${hours.coerceAtLeast(0)}時間"
 }
 
+// MARK: - 環境パーティクル(iOS AmbientParticlesView 移植) --------------------------
+
+private enum class AmbientShape { Circle, Star, Leaf, Petal }
+
+private fun ambientPalette(hour: Int): List<Color> = when (hour) {
+    in 5..10 -> listOf(Color(1.0f, 0.78f, 0.78f), Color(1.0f, 0.88f, 0.85f), Color(1.0f, 0.72f, 0.65f))   // 朝
+    in 11..15 -> listOf(Color(1.0f, 0.94f, 0.78f), Color(1.0f, 0.90f, 0.70f), Color(0.98f, 0.85f, 0.65f)) // 昼
+    in 16..20 -> listOf(Color(1.0f, 0.65f, 0.40f), Color(1.0f, 0.75f, 0.45f), Color(0.95f, 0.55f, 0.30f))  // 夕
+    else -> listOf(Color(0.85f, 0.88f, 0.95f), Color(0.70f, 0.78f, 0.90f), Color(0.95f, 0.95f, 0.85f))     // 夜
+}
+
+private fun ambientShapeFor(hour: Int): AmbientShape = when (hour) {
+    in 5..10 -> AmbientShape.Petal
+    in 11..15 -> AmbientShape.Circle
+    in 16..20 -> AmbientShape.Leaf
+    else -> AmbientShape.Star
+}
+
+/** ホーム背景にゆっくり漂う時刻別パーティクル(18粒)。iOS AmbientParticlesView の純関数描画を移植。 */
+@Composable
+private fun AmbientParticles(hour: Int, modifier: Modifier = Modifier) {
+    val now = remember { mutableStateOf(0.0) }
+    LaunchedEffect(Unit) {
+        val start = withFrameNanos { it }
+        while (true) {
+            withFrameNanos { frame -> now.value = (frame - start) / 1_000_000_000.0 }
+        }
+    }
+    val palette = ambientPalette(hour)
+    val shape = ambientShapeFor(hour)
+    androidx.compose.foundation.Canvas(modifier) {
+        val t = now.value
+        val w = size.width
+        val h = size.height
+        for (i in 0 until 18) {
+            val seed = i * 13.37
+            val baseX = ((kotlin.math.sin(seed * 1.13) % 1.0) + 1.0) * 0.5 * w
+            val period = 18.0 + (i % 12)
+            var phase = (t / period + seed) % 1.0
+            if (phase < 0) phase += 1.0
+            val y = h * (1.0 - phase)
+            val wobble = kotlin.math.sin(t * 0.6 + seed) * 24.0
+            val x = (baseX + wobble)
+            val alpha = (kotlin.math.sin(phase * Math.PI) * 0.55).toFloat().coerceIn(0f, 1f)
+            val radius = (8.0 + (i % 5) * 2).toFloat()
+            val color = palette[i % palette.size].copy(alpha = alpha)
+            val cx = x.toFloat()
+            val cy = y.toFloat()
+            when (shape) {
+                AmbientShape.Circle -> drawOval(
+                    color = color,
+                    topLeft = androidx.compose.ui.geometry.Offset(cx - radius, cy - radius),
+                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                )
+                AmbientShape.Star -> drawPath(starPath(cx, cy, radius, 5), color)
+                AmbientShape.Leaf, AmbientShape.Petal -> drawPath(leafPath(cx, cy, radius, radius), color)
+            }
+        }
+    }
+}
+
+private fun leafPath(cx: Float, cy: Float, rx: Float, ry: Float): Path = Path().apply {
+    moveTo(cx, cy - ry)
+    quadraticBezierTo(cx + rx, cy, cx, cy + ry)
+    quadraticBezierTo(cx - rx, cy, cx, cy - ry)
+    close()
+}
+
+private fun starPath(cx: Float, cy: Float, outer: Float, points: Int): Path = Path().apply {
+    val inner = outer * 0.45f
+    for (i in 0 until points * 2) {
+        val r = if (i % 2 == 0) outer else inner
+        val theta = i * Math.PI / points - Math.PI / 2
+        val px = (cx + r * kotlin.math.cos(theta)).toFloat()
+        val py = (cy + r * kotlin.math.sin(theta)).toFloat()
+        if (i == 0) moveTo(px, py) else lineTo(px, py)
+    }
+    close()
+}
+
 // MARK: - 猫劇場 -------------------------------------------------------------------
 
 @Composable
 private fun CatTheater(state: HomeUiState) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // iOS BigCatView の合成アイドル: 呼吸(2.4s) / 浮遊(3.2s) / 傾き(4.1s)。
+    val idle = rememberInfiniteTransition(label = "cat-idle")
+    val breathing by idle.animateFloat(1f, 1.03f, infiniteRepeatable(tween(2400), RepeatMode.Reverse), label = "breath")
+    val floatY by idle.animateFloat(4f, -8f, infiniteRepeatable(tween(3200), RepeatMode.Reverse), label = "float")
+    val sway by idle.animateFloat(-2f, 2f, infiniteRepeatable(tween(4100), RepeatMode.Reverse), label = "sway")
+    // タップ bounce(iOS scaleEffect 1.08 + haptic)。
+    val bounce = remember { androidx.compose.animation.core.Animatable(1f) }
+    val tint = Color(state.catBreed.tintArgb)
+    // 吹き出しの pop-in(scale0.7→1 + fade, delay0.15)。
+    var bubbleAppeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(150); bubbleAppeared = true }
+    val bubbleScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (bubbleAppeared) 1f else 0.7f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
+        label = "bubbleScale",
+    )
+    val bubbleAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (bubbleAppeared) 1f else 0f, label = "bubbleAlpha",
+    )
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        com.goexercise.app.ui.components.CatImage(
-            breed = state.catBreed,
-            state = state.catState,
-            modifier = Modifier.size(280.dp),
-            // 今日まだ未記録なら補給(シェイカー)版で「これからやろう」を演出。iOS: !todayStatus.countsAsAchieved。
-            useShaker = !state.todayStatus.countsAsAchieved,
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    scope.launch {
+                        bounce.animateTo(1.08f, androidx.compose.animation.core.spring(stiffness = 900f, dampingRatio = 0.45f))
+                        bounce.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow))
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            // 背景の光輪(iOS: breed tint .32→.06、画像より一回り内側 0.88)。
+            Box(
+                Modifier.fillMaxSize(0.88f).clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.06f)))),
+            )
+            com.goexercise.app.ui.components.CatImage(
+                breed = state.catBreed,
+                state = state.catState,
+                useShaker = !state.todayStatus.countsAsAchieved,
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    val s = breathing * bounce.value
+                    scaleX = s; scaleY = s
+                    translationY = floatY.dp.toPx()
+                    rotationZ = sway
+                },
+            )
+        }
+        SpeechBubble(
+            state.catMessage.text,
+            modifier = Modifier.padding(horizontal = 24.dp).graphicsLayer {
+                scaleX = bubbleScale; scaleY = bubbleScale; alpha = bubbleAlpha
+            },
         )
-        SpeechBubble(state.catMessage.text, modifier = Modifier.padding(horizontal = 24.dp))
     }
 }
 
@@ -478,6 +623,7 @@ private fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
                 style = AppType.body.copy(fontWeight = FontWeight.SemiBold),
                 color = palette.textPrimary,
                 textAlign = TextAlign.Center,
+                maxLines = 3, // iOS lineLimit(3)
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
             )
         }

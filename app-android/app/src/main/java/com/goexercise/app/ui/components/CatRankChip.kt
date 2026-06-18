@@ -4,8 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -26,7 +30,15 @@ fun CatRankChip(rank: CatRank, modifier: Modifier = Modifier, compact: Boolean =
             .background(Brush.linearGradient(listOf(hi, lo)), RoundedCornerShape(50))
             .border(0.75.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(50))
             .padding(horizontal = if (compact) 8.dp else 11.dp, vertical = if (compact) 3.dp else 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // iOS RankBadge: 先頭に pawprint アイコン + 称号。
+        Icon(
+            Icons.Filled.Pets, contentDescription = null,
+            tint = Color.Black.copy(alpha = 0.78f),
+            modifier = Modifier.size(if (compact) 11.dp else 13.dp),
+        )
         Text(
             title,
             color = Color.Black.copy(alpha = 0.78f),

@@ -1,8 +1,10 @@
 package com.goexercise.app.presentation.record
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,9 +21,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -34,11 +40,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -131,24 +139,11 @@ fun RecordContent(
             Text("種目を追加", color = palette.primaryDeep)
         }
 
-        // 今日の体重(任意)+ 生理日トグル。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
-        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                OutlinedTextField(
-                    value = state.weightInput,
-                    onValueChange = onWeightInput,
-                    label = { Text("体重 (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    state.latestWeightKg?.let { "前回: ${"%.1f".format(it)} kg" }
-                        ?: "体重を入れるとグラフに反映されます",
-                    color = palette.textSecondary, fontSize = 12.sp,
-                )
-                if (state.cycleTrackingEnabled) {
+        // 体調・周期(周期トラッキング ON のときだけ独立セクション。iOS Section「体調・周期」を体重の前に置く)。
+        if (state.cycleTrackingEnabled) {
+            Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("体調・周期", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("今日は生理日", color = palette.textPrimary, modifier = Modifier.weight(1f))
                         Switch(checked = state.menstrualToday, onCheckedChange = onMenstrualToday)
@@ -157,13 +152,54 @@ fun RecordContent(
             }
         }
 
-        Text("メモ", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        OutlinedTextField(
-            value = state.memo,
-            onValueChange = onMemo,
-            placeholder = { Text("体調や気分など") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // 今日の体重(任意)。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                FilledField(
+                    value = state.weightInput,
+                    onValueChange = onWeightInput,
+                    placeholder = "体重 (kg)",
+                    modifier = Modifier.fillMaxWidth(),
+                    fill = palette.chipBackground.copy(alpha = 0.5f),
+                    corner = 12.dp,
+                    borderColor = if (state.hasWeightInputButInvalid) palette.missed else null,
+                    borderWidth = 1.5.dp,
+                    paddingH = 12.dp, paddingV = 12.dp, fontSize = 16.sp,
+                    keyboardType = KeyboardType.Decimal,
+                )
+                // 無効な体重は理由を info アイコン付きで表示、正常時は前回値ヒント(iOS disabledReason / hint)。
+                val reason = state.weightDisabledReason
+                if (reason != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Filled.Info, contentDescription = null, tint = palette.missed, modifier = Modifier.size(14.dp))
+                        Text(reason, color = palette.missed, fontSize = 12.sp)
+                    }
+                } else {
+                    Text(
+                        state.latestWeightKg?.let { "前回: ${"%.1f".format(it)} kg" }
+                            ?: "体重を入れるとグラフに反映されます",
+                        color = palette.textSecondary, fontSize = 12.sp,
+                    )
+                }
+            }
+        }
+
+        // メモ(iOS Section「メモ」。カード内に複数行フィールド)。
+        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("メモ", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                FilledField(
+                    value = state.memo,
+                    onValueChange = onMemo,
+                    placeholder = "体調や気分など",
+                    modifier = Modifier.fillMaxWidth(),
+                    fill = palette.chipBackground.copy(alpha = 0.5f),
+                    corner = 12.dp, paddingH = 12.dp, paddingV = 12.dp, fontSize = 15.sp,
+                    singleLine = false, minLines = 3, maxLines = 5,
+                )
+            }
+        }
 
         Button(
             onClick = onSave,
@@ -233,66 +269,56 @@ private fun ExerciseDraftCard(
                 }
                 Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "最小化", tint = palette.textSecondary, modifier = Modifier.size(20.dp).clickable { onToggleExpand() })
             }
-            // カテゴリ選択(コーラル塗り+白文字/白アイコン)
+            // カテゴリ選択(iOS: 選択=コーラル塗り+白 / 非選択=chipBackground@0.6 + primary@0.35 枠のカプセル)
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 WorkoutCategory.entries.forEach { cat ->
-                    FilterChip(
-                        selected = draft.category == cat,
-                        onClick = { onCategory(cat) },
-                        label = { Text(cat.displayName) },
-                        leadingIcon = { Icon(categoryIcon(cat), contentDescription = null, modifier = Modifier.size(16.dp)) },
-                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = palette.primary,
-                            selectedLabelColor = Color.White,
-                            selectedLeadingIconColor = Color.White,
-                        ),
-                    )
+                    CategoryChip(cat, selected = draft.category == cat, onClick = { onCategory(cat) })
                 }
             }
-            // 種目名(ラベル + フィールド)
+            // 種目名(ラベル + chipBackground@0.5 塗り + primary@0.45 1.5dp 枠の角丸フィールド。iOS ExerciseInputRow)
             Text("種目名", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
+            FilledField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
-                placeholder = { Text("例: スクワット") },
-                singleLine = true,
+                placeholder = "例: スクワット",
                 modifier = Modifier.fillMaxWidth(),
+                fill = palette.chipBackground.copy(alpha = 0.5f),
+                corner = 12.dp, borderColor = palette.primary.copy(alpha = 0.45f), borderWidth = 1.5.dp,
+                paddingH = 12.dp, paddingV = 12.dp, fontSize = 16.sp,
             )
-            // よく使う種目(履歴+日本語デフォルト)。空ならヒント。
-            Text("よく使う種目", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            // よく使う種目(履歴+日本語デフォルト)。iOS は候補ありの時だけ見出し。
             if (suggestions.isNotEmpty()) {
+                Text("よく使う種目", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    suggestions.forEach { name ->
-                        FilterChip(
-                            selected = draft.name == name,
-                            onClick = { onChange(draft.copy(name = name)) },
-                            label = { Text(name) },
-                        )
-                    }
+                    suggestions.forEach { name -> SuggestionChip(name) { onChange(draft.copy(name = name)) } }
                 }
             } else {
                 Text("履歴がたまると、ここによく使う種目が出ます", color = palette.textSecondary, fontSize = 12.sp)
             }
-            // 時間/回数/セット/重さ を1行(iOS 4列パリティ)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("時間 (分)", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
-                NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
-                NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
-                OutlinedTextField(
-                    value = draft.loadText,
-                    onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
-                    label = { Text("重さ") },
-                    placeholder = { Text("0") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                )
+            // 時間/回数/セット/重さ を1行(iOS 4列)。各列=ラベル上 + 同一スタイル/同一高さの chipBackground@0.6 角丸ボックス。
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                PickerColumn("時間 (分)", draft.minutes, minuteOptions, "分", Modifier.weight(1f)) { onChange(draft.copy(minutes = if (it == 0) "" else "$it")) }
+                PickerColumn("回数", draft.reps, repOptions, "回", Modifier.weight(1f)) { onChange(draft.copy(reps = if (it == 0) "" else "$it")) }
+                PickerColumn("セット", draft.sets, setOptions, "", Modifier.weight(1f)) { onChange(draft.copy(sets = if (it == 0) "" else "$it")) }
+                // 重さ(kg): フリー入力。ピッカーと同じ高さ・同じ塗りに揃える(中央寄せ)。
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("重さ (kg)", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    FilledField(
+                        value = draft.loadText,
+                        onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
+                        placeholder = "0",
+                        modifier = Modifier.fillMaxWidth(),
+                        fill = palette.chipBackground.copy(alpha = 0.6f),
+                        corner = 10.dp, paddingH = 10.dp, paddingV = 9.dp, fontSize = 15.sp,
+                        center = true, keyboardType = KeyboardType.Decimal,
+                    )
+                }
             }
             // 同じ種目でセットを追加(名前入力済の時だけ。iOS パリティ)
             if (draft.name.isNotBlank()) {
@@ -302,13 +328,14 @@ private fun ExerciseDraftCard(
                     Text("同じ種目でセットを追加", color = palette.primaryDeep)
                 }
             }
-            // 種目メモ
-            OutlinedTextField(
+            // 種目メモ(chipBackground@0.6 塗りの角丸フィールド。iOS パリティ)
+            FilledField(
                 value = draft.memo,
                 onValueChange = { onChange(draft.copy(memo = it)) },
-                placeholder = { Text("種目メモ (例: 体調メモ、回数アップ等)") },
-                singleLine = true,
+                placeholder = "種目メモ (例: 体調メモ、回数アップ等)",
                 modifier = Modifier.fillMaxWidth(),
+                fill = palette.chipBackground.copy(alpha = 0.6f),
+                corner = 10.dp, paddingH = 10.dp, paddingV = 8.dp, fontSize = 15.sp,
             )
         }
     }
@@ -326,14 +353,140 @@ private fun collapsedSummary(draft: ExerciseDraft): String {
     return parts.joinToString("・")
 }
 
+// iOS のピッカー選択肢: 時間 = 0..100 step5、回数 = 0..50、セット = 0..10(0 は「—」)。
+private val minuteOptions = (0..100 step 5).toList()
+private val repOptions = (0..50).toList()
+private val setOptions = (0..10).toList()
+
+/** 時間/回数/セットの列(ラベル上 + chipBackground@0.6 塗りの角丸ボックス + プルダウン)。iOS labeledPicker 相当。
+ *  ボックスは重さフィールドと同じ塗り・角丸・縦パディングで**高さを揃える**(4列の不揃いを防ぐ)。 */
 @Composable
-private fun NumberField(label: String, value: String, maxDigits: Int, modifier: Modifier, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
+private fun PickerColumn(label: String, value: String, options: List<Int>, unit: String, modifier: Modifier, onSelect: (Int) -> Unit) {
+    val palette = LocalAppPalette.current
+    var open by remember { mutableStateOf(false) }
+    val current = value.toIntOrNull() ?: 0
+    // iOS labeledPicker: 選択値・項目とも単位付き(例「30分」「3回」)。0 は「—」。
+    fun display(n: Int) = if (n == 0) "—" else "$n$unit"
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(palette.chipBackground.copy(alpha = 0.6f))
+                    .clickable { open = true }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    display(current),
+                    color = if (current == 0) palette.textSecondary else palette.textPrimary,
+                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f),
+                )
+                Icon(Icons.Filled.UnfoldMore, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(14.dp))
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { opt ->
+                    DropdownMenuItem(
+                        text = { Text(display(opt)) },
+                        onClick = { onSelect(opt); open = false },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** chipBackground 塗りのコンパクトな角丸入力欄(BasicTextField)。iOS の Form フィールド(塗り+角丸)を移植。
+ *  Material OutlinedTextField(白地・固定高 ~56dp)は使わない(色も高さも iOS と不一致になるため)。 */
+@Composable
+private fun FilledField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    fill: Color,
+    corner: androidx.compose.ui.unit.Dp = 10.dp,
+    borderColor: Color? = null,
+    borderWidth: androidx.compose.ui.unit.Dp = 1.5.dp,
+    paddingH: androidx.compose.ui.unit.Dp = 10.dp,
+    paddingV: androidx.compose.ui.unit.Dp = 9.dp,
+    fontSize: androidx.compose.ui.unit.TextUnit = 15.sp,
+    center: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else 5,
+) {
+    val palette = LocalAppPalette.current
+    val shape = RoundedCornerShape(corner)
+    val align = if (center) TextAlign.Center else TextAlign.Start
+    androidx.compose.foundation.text.BasicTextField(
         value = value,
-        onValueChange = { input -> onValueChange(RecordUiState.clampDigits(input, maxDigits)) },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        onValueChange = onValueChange,
+        singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
+        textStyle = androidx.compose.ui.text.TextStyle(color = palette.textPrimary, fontSize = fontSize, fontWeight = FontWeight.SemiBold, textAlign = align),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(palette.primary),
         modifier = modifier,
+        decorationBox = { inner ->
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(fill)
+                    .then(if (borderColor != null) Modifier.border(borderWidth, borderColor, shape) else Modifier)
+                    .padding(horizontal = paddingH, vertical = paddingV),
+                contentAlignment = if (center) Alignment.Center else Alignment.CenterStart,
+            ) {
+                if (value.isEmpty()) {
+                    Text(
+                        placeholder, color = palette.textSecondary, fontSize = fontSize, fontWeight = FontWeight.SemiBold,
+                        textAlign = align, modifier = if (center) Modifier.fillMaxWidth() else Modifier,
+                    )
+                }
+                inner()
+            }
+        },
     )
+}
+
+/** カテゴリ選択カプセル。iOS: 選択=primary 塗り+白 / 非選択=chipBackground@0.6 + primary@0.35 1.2dp 枠。 */
+@Composable
+private fun CategoryChip(category: WorkoutCategory, selected: Boolean, onClick: () -> Unit) {
+    val palette = LocalAppPalette.current
+    val shape = RoundedCornerShape(50)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) palette.primary else palette.chipBackground.copy(alpha = 0.6f))
+            .then(if (selected) Modifier else Modifier.border(1.2.dp, palette.primary.copy(alpha = 0.35f), shape))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(categoryIcon(category), contentDescription = null, tint = if (selected) Color.White else palette.textPrimary, modifier = Modifier.size(14.dp))
+        Text(category.displayName, color = if (selected) Color.White else palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+/** 候補種目チップ。iOS: chipBackground@0.6 カプセル + primary@0.25 1dp 枠(選択ハイライト無し、タップで入力)。 */
+@Composable
+private fun SuggestionChip(name: String, onClick: () -> Unit) {
+    val palette = LocalAppPalette.current
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(palette.chipBackground.copy(alpha = 0.6f))
+            .border(1.dp, palette.primary.copy(alpha = 0.25f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(name, color = palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
 }

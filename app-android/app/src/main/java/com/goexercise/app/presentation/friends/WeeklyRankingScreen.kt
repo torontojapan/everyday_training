@@ -1,6 +1,7 @@
 package com.goexercise.app.presentation.friends
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,18 +16,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.goexercise.app.domain.friends.FriendAvatarResolver
 import com.goexercise.app.domain.friends.RankingPeriod
 import com.goexercise.app.domain.friends.WeeklyRankingEntry
 import com.goexercise.app.ui.components.CatAvatar
@@ -61,9 +65,15 @@ fun WeeklyRankingContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("戻る") }
-            Text("ランキング", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        // iOS パリティ: 中央タイトル + システム戻る(「戻る」テキストボタンは置かない)。
+        Box(Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+            }
+            Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
         }
 
         PeriodPicker(state.period, palette, onSetPeriod)
@@ -71,13 +81,7 @@ fun WeeklyRankingContent(
         state.myEntry?.let { MySummaryCard(it, state.entries.size, state.period, palette) }
 
         if (state.entries.isEmpty()) {
-            Text(
-                "ランキングを表示するには、友達を追加してください。",
-                fontSize = 13.sp,
-                color = palette.textSecondary,
-                modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
+            RankingEmptyState("ランキングを表示するには、友達を追加してください。", palette)
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.entries.forEach { RankRow(it, palette) }
@@ -146,10 +150,20 @@ private fun PriorityPill(number: Int, label: String, color: Color, palette: AppT
 
 @Composable
 private fun MySummaryCard(me: WeeklyRankingEntry, total: Int, period: RankingPeriod, palette: AppTheme) {
-    Surface(
-        color = palette.primary.copy(alpha = 0.12f),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
+    // iOS パリティ: グラデ(primary 0.18→0.06, 左上→右下)+ 枠線(primary@0.4, 1.5dp)。
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(palette.primary.copy(alpha = 0.18f), palette.primary.copy(alpha = 0.06f)),
+                    start = Offset.Zero,
+                    end = Offset.Infinite,
+                ),
+            )
+            .border(1.5.dp, palette.primary.copy(alpha = 0.4f), shape),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Box(Modifier.size(64.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
@@ -171,21 +185,17 @@ private fun MySummaryCard(me: WeeklyRankingEntry, total: Int, period: RankingPer
 
 @Composable
 private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
+    val shape = RoundedCornerShape(14.dp)
     Surface(
         color = if (entry.isMe) palette.primary.copy(alpha = 0.08f) else palette.surface,
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        // iOS パリティ: 自分の行は 2dp primary 枠。
+        modifier = Modifier.fillMaxWidth().then(if (entry.isMe) Modifier.border(2.dp, palette.primary, shape) else Modifier),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RankBadge(entry.rank, palette)
-            val breed = entry.profile.myCatBreed
-            if (breed != null) {
-                CatAvatar(breed = breed, size = 44.dp)
-            } else {
-                Box(Modifier.size(44.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.20f)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
-                }
-            }
+            // iOS は常に猫アバター(未設定は friendCode 由来の決定論的猫)。アイコンfallbackは置かない。
+            CatAvatar(breed = FriendAvatarResolver.resolve(entry.profile), size = 44.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(entry.profile.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
@@ -207,18 +217,47 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
 /** 順位バッジ。iOS は絵文字メダルを廃止し「金/銀/銅の色丸 + 番号」。Android も追従(iOS RGB 一致)。 */
 @Composable
 private fun RankBadge(rank: Int, palette: AppTheme) {
+    // iOS パリティ: メダル塗りに不透明度(金0.85/銀0.90/銅0.85)、数字色は段ごとの暗色。
     val medalColor = when (rank) {
-        1 -> Color(1.00f, 0.84f, 0.30f)   // gold
-        2 -> Color(0.78f, 0.78f, 0.82f)   // silver
-        3 -> Color(0.82f, 0.55f, 0.32f)   // bronze
+        1 -> Color(1.00f, 0.84f, 0.30f).copy(alpha = 0.85f)   // gold
+        2 -> Color(0.78f, 0.78f, 0.82f).copy(alpha = 0.90f)   // silver
+        3 -> Color(0.82f, 0.55f, 0.32f).copy(alpha = 0.85f)   // bronze
         else -> palette.chipBackground
     }
-    val numberColor = if (rank <= 3) Color.Black.copy(alpha = 0.78f) else palette.textPrimary
+    val numberColor = when (rank) {
+        1 -> Color(0.42f, 0.30f, 0.0f)
+        2 -> Color(0.28f, 0.28f, 0.32f)
+        3 -> Color(0.38f, 0.22f, 0.08f)
+        else -> palette.textPrimary
+    }
     Box(
         modifier = Modifier.size(40.dp).clip(CircleShape).background(medalColor),
         contentAlignment = Alignment.Center,
     ) {
         Text("$rank", fontSize = 15.sp, fontWeight = FontWeight.Black, color = numberColor)
+    }
+}
+
+/** 空状態(pawprint 34dp in 86dp primary@0.12 円 + メッセージを surface@0.75 カード)。iOS EmptyStateView 相当。 */
+@Composable
+private fun RankingEmptyState(message: String, palette: AppTheme) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(palette.surface.copy(alpha = 0.75f))
+            .padding(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                Modifier.size(86.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primary, modifier = Modifier.size(34.dp))
+            }
+            Text(message, fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+        }
     }
 }
 

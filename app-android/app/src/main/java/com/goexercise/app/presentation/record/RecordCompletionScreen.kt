@@ -24,11 +24,21 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.repeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -64,6 +74,7 @@ fun RecordCompletionRoute(
         breed = state.breed,
         catState = state.catState,
         exercises = state.exercises,
+        streakExtendedThisRun = state.streakExtendedThisRun,
         onDone = onDone,
         onRecordAgain = onRecordAgain,
     )
@@ -77,11 +88,14 @@ fun RecordCompletionContent(
     breed: CatBreed,
     catState: CatState,
     exercises: List<ExerciseItem> = emptyList(),
+    streakExtendedThisRun: Boolean = false,
     onDone: () -> Unit = {},
     onRecordAgain: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val ribbon = rememberSaveable { praiseRibbons.random() }
+    var appeared by remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { appeared = true }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -95,18 +109,29 @@ fun RecordCompletionContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
+            // インラインタイトル(iOS navigationTitle「記録完了」相当)。
+            Text("記録完了", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textPrimary)
+            // 登場アニメ(iOS contentVisible): 猫 0.85→1 / リボン 0.4→1 / ヒーロー 0.9→1 + フェードイン。
+            val p by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (appeared) 1f else 0f,
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.72f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
+                label = "appear",
+            )
             // 1. ヒーロー: 大きい祝福猫。
             com.goexercise.app.ui.components.CatImage(
                 breed = breed,
                 state = catState,
-                modifier = Modifier.size(210.dp),
+                modifier = Modifier.size(210.dp).graphicsLayer { val s = 0.85f + 0.15f * p; scaleX = s; scaleY = s; alpha = p },
                 useShaker = true,
             )
-            // 2. 称賛リボン(オレンジ→ピンクのグラデカプセル + 白文字)。
+            // 2. 称賛リボン(オレンジ→ピンクのグラデカプセル + 白文字 + ピンク影)。
             Surface(
                 shape = RoundedCornerShape(50),
                 color = Color.Transparent,
-                modifier = Modifier.background(Brush.horizontalGradient(listOf(RibbonOrange, RibbonPink)), RoundedCornerShape(50)),
+                modifier = Modifier
+                    .graphicsLayer { val s = 0.4f + 0.6f * p; scaleX = s; scaleY = s; alpha = p }
+                    .shadow(16.dp, RoundedCornerShape(50), spotColor = RibbonPink, ambientColor = RibbonPink)
+                    .background(Brush.horizontalGradient(listOf(RibbonOrange, RibbonPink)), RoundedCornerShape(50)),
             ) {
                 Text(
                     ribbon,
@@ -115,10 +140,12 @@ fun RecordCompletionContent(
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                 )
             }
-            // 3. 連続日数ヒーローカード(一番のごほうび)。
-            if (streak > 0) StreakHeroCard(streak)
+            // 3. 連続日数ヒーローカード(一番のごほうび。streak0 でも常時表示)。
+            Box(Modifier.graphicsLayer { val s = 0.9f + 0.1f * p; scaleX = s; scaleY = s; alpha = p }) {
+                StreakHeroCard(streak, streakExtendedThisRun)
+            }
             // 4. 今日の記録サマリー。
-            if (exercises.isNotEmpty()) RecordSummaryCard(exercises)
+            if (exercises.isNotEmpty()) Box(Modifier.graphicsLayer { alpha = p }) { RecordSummaryCard(exercises) }
 
             Spacer(Modifier.height(0.dp))
             // もう一種目を記録する(アウトライン)。
@@ -166,34 +193,54 @@ fun RecordCompletionContent(
     }
 }
 
-/** 連続日数を大きな数字でヒーロー化したカード。iOS streakHero パリティ。 */
+/** 連続日数を大きな数字でヒーロー化したカード。iOS streakHero パリティ(2 回バウンスのパルス + グロー影 + 「+1のばした」行)。 */
 @Composable
-private fun StreakHeroCard(streak: Int) {
+private fun StreakHeroCard(streak: Int, streakExtendedThisRun: Boolean = false) {
     val palette = LocalAppPalette.current
+    val shape = RoundedCornerShape(24.dp)
+    // iOS: scaleEffect 1.04 + shadow(radius 8→22, alpha 0.12→0.35) を 2 回 autoreverse でパルス。
+    val pulse = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        pulse.animateTo(1f, animationSpec = repeatable(2, tween(330), RepeatMode.Reverse))
+        pulse.snapTo(0f)
+    }
+    val scale = 1f + 0.04f * pulse.value
+    val elevation = (8f + 14f * pulse.value).dp
     Surface(
-        shape = RoundedCornerShape(24.dp),
+        shape = shape,
         color = palette.surface,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, palette.primary.copy(alpha = 0.18f), RoundedCornerShape(24.dp)),
+            .scale(scale)
+            .shadow(elevation, shape, spotColor = palette.primary, ambientColor = palette.primary)
+            .border(1.dp, palette.primary.copy(alpha = 0.18f), shape),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 22.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.size(8.dp))
-            Text(
-                "$streak",
-                fontSize = 60.sp,
-                fontWeight = FontWeight.Black,
-                style = TextStyle(brush = Brush.verticalGradient(listOf(HeroOrange, RibbonPink))),
-            )
-            Spacer(Modifier.size(8.dp))
-            Text("日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textSecondary)
+            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    "$streak",
+                    fontSize = 60.sp,
+                    fontWeight = FontWeight.Black,
+                    style = TextStyle(brush = Brush.verticalGradient(listOf(HeroOrange, RibbonPink))),
+                )
+                Spacer(Modifier.size(8.dp))
+                Text("日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textSecondary)
+            }
+            if (streakExtendedThisRun) {
+                Text(
+                    "きのうから +1 のばした！",
+                    style = AppType.headline.copy(fontWeight = FontWeight.SemiBold),
+                    color = palette.primaryDeep,
+                )
+            }
         }
     }
 }

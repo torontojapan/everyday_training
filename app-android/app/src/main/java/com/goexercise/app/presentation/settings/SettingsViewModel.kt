@@ -188,6 +188,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** 達成時の振動(haptic)トグル。既定 ON。iOS CelebrationPreferences.hapticEnabled 相当。 */
+    val hapticEnabled: StateFlow<Boolean> = repository.hapticEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setHapticEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setHapticEnabled(enabled) }
+    }
+
     /** データ管理処理中(エクスポート/削除)。連打ガード + UI スピナー。 */
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()

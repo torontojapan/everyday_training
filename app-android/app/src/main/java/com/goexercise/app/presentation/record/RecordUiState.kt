@@ -42,8 +42,13 @@ data class RecordUiState(
     /** 周期トラッキングが有効か(設定)。OFF なら生理日トグルは出さず触らない(iOS cycleSettings.isEnabled)。 */
     val cycleTrackingEnabled: Boolean = false,
 ) {
-    /** 今日の体重(正の値のみ。空/0/非数値は null)。 */
-    val parsedWeightKg: Double? get() = parseLoad(weightInput)
+    /** 今日の体重(0〜500kg のみ。空/0/範囲外/非数値は null)。iOS parsedWeight (>0 && <500) 相当。 */
+    val parsedWeightKg: Double? get() = parseWeight(weightInput)
+    /** 体重入力はあるが無効(0〜500 外)。保存をブロックし disabledReason を出す。iOS hasWeightInputButInvalid。 */
+    val hasWeightInputButInvalid: Boolean get() = weightInput.isNotBlank() && parsedWeightKg == null
+    /** 保存不可の理由(体重が無効なとき)。iOS disabledReason(info.circle 付き)相当。 */
+    val weightDisabledReason: String? get() =
+        if (hasWeightInputButInvalid) "体重は 0〜500 kg の数値で入力してください" else null
     /** 種目名が入っている下書きだけを ExerciseItem 化(iOS validExercises 相当)。 */
     fun validExercises(): List<ExerciseItem> =
         drafts.mapNotNull { d ->
@@ -61,7 +66,8 @@ data class RecordUiState(
             )
         }
 
-    val canSave: Boolean get() = validExercises().isNotEmpty() && !isSaving
+    // iOS: canSave = !validExercises.isEmpty && !hasWeightInputButInvalid。無効な体重は保存をブロックする。
+    val canSave: Boolean get() = validExercises().isNotEmpty() && !isSaving && !hasWeightInputButInvalid
 
     /** 保存用 WorkoutRecord。代表カテゴリは先頭の有効種目(iOS primaryCategory)。 */
     fun toRecord(date: LocalDate): WorkoutRecord? {
@@ -88,9 +94,13 @@ data class RecordUiState(
             return "$intPart.$fracPart"
         }
 
-        /** 重さ文字列 → kg(正の値のみ。空/0/非数値は null)。iOS parsedLoad 相当。 */
+        /** 重さ文字列 → kg(0 < x < 1000 のみ。空/0/範囲外/非数値は null)。iOS parsedLoad (>0 && <1000) 相当。 */
         fun parseLoad(input: String): Double? =
-            input.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }
+            input.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 1000 }
+
+        /** 体重文字列 → kg(0 < x < 500 のみ)。iOS parsedWeight (>0 && <500) 相当。 */
+        fun parseWeight(input: String): Double? =
+            input.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it < 500 }
 
         const val minutesMaxDigits = MINUTES_MAX_DIGITS
         const val countMaxDigits = COUNT_MAX_DIGITS

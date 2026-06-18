@@ -22,21 +22,21 @@ class CheerToastTest {
     @Test
     fun received_reflectsTypedMessage() {
         assertEquals(
-            "🥤 けんた から「プロテインのんだ?」",
+            "けんた から「プロテインのんだ?」が届きました!",
             CheerToast.received("🥤", "けんた", "プロテイン", "プロテインのんだ?"),
         )
     }
 
     @Test
     fun received_fallsBackToKindLabel_whenMessageBlankOrNull() {
-        assertEquals("🥤 けんた から「プロテイン」", CheerToast.received("🥤", "けんた", "プロテイン", null))
-        assertEquals("🥤 けんた から「プロテイン」", CheerToast.received("🥤", "けんた", "プロテイン", ""))
+        assertEquals("けんた から「プロテイン」が届きました!", CheerToast.received("🥤", "けんた", "プロテイン", null))
+        assertEquals("けんた から「プロテイン」が届きました!", CheerToast.received("🥤", "けんた", "プロテイン", ""))
     }
 
     @Test
     fun received_appendsOthersSuffix_whenMultipleUnseen() {
-        assertEquals("📣 はる から「ファイト」(ほか2件)", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 2))
+        assertEquals("はる から「ファイト」が届きました!(ほか2件)", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 2))
         // 0件なら suffix 無し。
-        assertEquals("📣 はる から「ファイト」", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 0))
+        assertEquals("はる から「ファイト」が届きました!", CheerToast.received("📣", "はる", "ファイト", null, othersCount = 0))
     }
 }

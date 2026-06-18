@@ -26,6 +26,12 @@ data class FriendProfile(
     val monthlyAchievedDays: Int? = null,
     /** 共有する猫の種類(友達一覧のアバター表示用)。未設定は emoji フォールバック。iOS `myCatBreed` 相当。 */
     val myCatBreed: com.goexercise.app.domain.CatBreed? = null,
+    /** プロフィール最終更新時刻。友達詳細の「最終更新 N分前」。iOS `lastUpdated` 相当。 */
+    val lastUpdated: java.time.Instant? = null,
+    /** 友達になった日時。詳細の「つながって N日」タイル。iOS `connectedSince` 相当。 */
+    val connectedSince: java.time.Instant? = null,
+    /** 今日の運動の種目別詳細(相手が「回数・時間・セット数も共有」ON のときのみ)。iOS `todayExerciseDetails` 相当。 */
+    val todayExerciseDetails: List<SharedExerciseDetail>? = null,
 ) {
     val id: String get() = friendCode
 
@@ -60,6 +66,12 @@ data class FriendProfile(
             }
         }
 }
+
+/** 今日の運動の種目別共有詳細(name + サマリ「3回・3セット・10分」)。iOS `SharedExerciseDetail` 相当。 */
+data class SharedExerciseDetail(
+    val name: String,
+    val summary: String = "",
+)
 
 /** 友達申請。iOS `FriendRequest` の移植。 */
 data class FriendRequest(

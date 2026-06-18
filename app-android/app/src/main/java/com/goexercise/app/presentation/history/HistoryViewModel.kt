@@ -32,6 +32,10 @@ data class HistoryUiState(
     val periodDays: Set<LocalDate> = emptySet(),
     /** 周期トラッキング有効時のみ、日詳細から過去日を含む生理日トグルを出す。 */
     val cycleTrackingEnabled: Boolean = false,
+    /** 保険チケット: 今月の残数 / 付与枠(無料1・プレミアム4 + 紹介ボーナス)/ プレミアム状態。iOS 折りたたみ subtitle・訴求用。 */
+    val rescueRemaining: Int = 0,
+    val rescueAllowance: Int = 1,
+    val isPremium: Boolean = false,
 )
 
 /** 履歴(月カレンダー)の VM。記録 Flow × 選択月 → 月グリッド。 */
@@ -39,6 +43,8 @@ data class HistoryUiState(
 class HistoryViewModel @Inject constructor(
     repository: WorkoutRepository,
     rescueTickets: RescueTicketRepository,
+    premium: com.goexercise.app.data.billing.PremiumRepository,
+    referralStore: com.goexercise.app.data.referral.ReferralStore,
     private val menstrual: com.goexercise.app.data.settings.MenstrualRepository,
     health: com.goexercise.app.data.settings.HealthRepository,
     private val clock: Clock,
@@ -46,18 +52,30 @@ class HistoryViewModel @Inject constructor(
 
     private val selectedMonth = MutableStateFlow(YearMonth.now(clock))
 
+    /** 生理日/周期/プレミアム/紹介ボーナスを 1 つに束ねて top-level combine を 5 引数に収める。 */
+    private data class HistoryExtras(
+        val periodDays: Set<LocalDate>, val cycleEnabled: Boolean, val isPremium: Boolean, val freezeBonus: Int,
+    )
+
     val uiState: StateFlow<HistoryUiState> =
         combine(
             repository.observeRecords(),
             selectedMonth,
             todayTicker(),
             rescueTickets.rescuedDates,
-            // 生理日 + 周期トラッキング ON/OFF を 1 つにまとめて 5 引数に収める。
-            combine(menstrual.periodDays, health.prefs) { days, prefs -> days to prefs.cycleTrackingEnabled },
-        ) { records, month, today, rescued, menstrualState ->
-            val (periodDays, cycleEnabled) = menstrualState
+            combine(menstrual.periodDays, health.prefs, premium.isPremiumActive, referralStore.currentAccountFreezeBonus) { days, prefs, prem, bonus ->
+                HistoryExtras(days, prefs.cycleTrackingEnabled, prem, bonus)
+            },
+        ) { records, month, today, rescued, extras ->
             val cells = MonthlyCalendarCalculator.cells(month, records, today, rescued)
-            HistoryUiState(month, cells, MonthlyCalendarCalculator.achievedDaysInMonth(cells), records, periodDays, cycleEnabled)
+            // iOS と同じ付与枠/残数(無料1・プレミアム4 + 紹介ボーナス)。
+            val allowance = com.goexercise.app.domain.RescueTicketAllowance.current(extras.isPremium, extras.freezeBonus)
+            val remaining = com.goexercise.app.domain.RescueTicketLogic.remaining(rescued, today, allowance)
+            HistoryUiState(
+                month, cells, MonthlyCalendarCalculator.achievedDaysInMonth(cells), records,
+                extras.periodDays, extras.cycleEnabled,
+                rescueRemaining = remaining, rescueAllowance = allowance, isPremium = extras.isPremium,
+            )
         }.stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
