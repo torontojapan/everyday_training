@@ -54,7 +54,9 @@ class RecordViewModel @Inject constructor(
         repository.observeRecords()
             .map { records ->
                 WorkoutCategory.entries.associateWith { cat ->
-                    com.goexercise.app.domain.ExerciseHistoryProvider.topExerciseNames(records, cat, limit = 8)
+                    // 履歴(最終使用順)+ 日本語デフォルト候補を結合(iOS DefaultExerciseSuggestions.merged パリティ)。
+                    val history = com.goexercise.app.domain.ExerciseHistoryProvider.topExerciseNames(records, cat, limit = 12)
+                    com.goexercise.app.domain.DefaultExerciseSuggestions.merged(history, cat, limit = 12)
                 }
             }
             .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), emptyMap())

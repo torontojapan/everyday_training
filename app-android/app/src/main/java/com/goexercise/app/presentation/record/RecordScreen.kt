@@ -14,9 +14,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -27,6 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -97,10 +105,18 @@ fun RecordContent(
             Text("今日の記録", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
         }
 
+        // アコーディオン: 入力中の1種目だけ展開し、他は最小化(iOS ExerciseInputRow パリティ)。
+        var expandedId by remember { mutableStateOf(state.drafts.firstOrNull()?.id) }
+        androidx.compose.runtime.LaunchedEffect(state.drafts.size) {
+            // 追加/削除で件数が変わったら最後の種目を開く(追加=新規を展開)。
+            expandedId = state.drafts.lastOrNull()?.id
+        }
         state.drafts.forEach { draft ->
             ExerciseDraftCard(
                 draft = draft,
                 canRemove = state.drafts.size > 1,
+                expanded = expandedId == draft.id,
+                onToggleExpand = { expandedId = if (expandedId == draft.id) null else draft.id },
                 suggestions = suggestionsByCategory[draft.category].orEmpty(),
                 onCategory = { cat -> onCategory(draft.id, cat) },
                 onChange = { updated -> onUpdateDraft(draft.id) { updated } },
@@ -167,10 +183,14 @@ fun RecordContent(
     }
 }
 
+/** 種目カード。iOS ExerciseInputRow パリティ: 折りたたみ(最小化)/展開、種類ラベル、カテゴリ、種目名、
+ *  よく使う種目(空ヒント付き)、時間/回数/セット/重さ を1行、同じ種目でセット追加、種目メモ。 */
 @Composable
 private fun ExerciseDraftCard(
     draft: ExerciseDraft,
     canRemove: Boolean,
+    expanded: Boolean,
+    onToggleExpand: () -> Unit,
     suggestions: List<String> = emptyList(),
     onCategory: (WorkoutCategory) -> Unit,
     onChange: (ExerciseDraft) -> Unit,
@@ -179,8 +199,41 @@ private fun ExerciseDraftCard(
 ) {
     val palette = LocalAppPalette.current
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        if (!expanded) {
+            // 最小化行: アイコン + 名前(未入力) + サマリ + chevron。タップで展開。
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { onToggleExpand() }.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(categoryIcon(draft.category), contentDescription = null, tint = palette.primary, modifier = Modifier.size(20.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        draft.name.ifBlank { "種目名 未入力" },
+                        color = if (draft.name.isBlank()) palette.textSecondary else palette.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(collapsedSummary(draft), color = palette.textSecondary, fontSize = 12.sp)
+                }
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "展開", tint = palette.textSecondary, modifier = Modifier.size(20.dp))
+            }
+            return@Surface
+        }
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // 種目ごとのカテゴリ選択(複数カテゴリ混在可)。
+            // ヘッダ: 「種類」ラベル + 削除(trash) + 最小化(chevron up)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("種類", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                if (canRemove) {
+                    Icon(
+                        Icons.Filled.Delete, contentDescription = "種目を削除", tint = Color(0xFFD32F2F),
+                        modifier = Modifier.size(20.dp).clickable { onRemove() },
+                    )
+                    Spacer(Modifier.size(12.dp))
+                }
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "最小化", tint = palette.textSecondary, modifier = Modifier.size(20.dp).clickable { onToggleExpand() })
+            }
+            // カテゴリ選択(コーラル塗り+白文字/白アイコン)
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -191,24 +244,25 @@ private fun ExerciseDraftCard(
                         onClick = { onCategory(cat) },
                         label = { Text(cat.displayName) },
                         leadingIcon = { Icon(categoryIcon(cat), contentDescription = null, modifier = Modifier.size(16.dp)) },
-                        // iOS は選択チップを「コーラル塗り+白文字/白アイコン」にする。M3 既定の淡色塗りでは弱いため上書き。
                         colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                             selectedContainerColor = palette.primary,
-                            selectedLabelColor = androidx.compose.ui.graphics.Color.White,
-                            selectedLeadingIconColor = androidx.compose.ui.graphics.Color.White,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White,
                         ),
                     )
                 }
             }
+            // 種目名(ラベル + フィールド)
+            Text("種目名", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
-                label = { Text("種目名") },
                 placeholder = { Text("例: スクワット") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            // よく使う種目チップ(最終使用日順)。タップで種目名に反映(iOS パリティ)。
+            // よく使う種目(履歴+日本語デフォルト)。空ならヒント。
+            Text("よく使う種目", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             if (suggestions.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -222,33 +276,54 @@ private fun ExerciseDraftCard(
                         )
                     }
                 }
+            } else {
+                Text("履歴がたまると、ここによく使う種目が出ます", color = palette.textSecondary, fontSize = 12.sp)
             }
+            // 時間/回数/セット/重さ を1行(iOS 4列パリティ)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("分", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
+                NumberField("時間 (分)", draft.minutes, RecordUiState.minutesMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(minutes = it)) }
                 NumberField("回数", draft.reps, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(reps = it)) }
                 NumberField("セット", draft.sets, RecordUiState.countMaxDigits, Modifier.weight(1f)) { onChange(draft.copy(sets = it)) }
+                OutlinedTextField(
+                    value = draft.loadText,
+                    onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
+                    label = { Text("重さ") },
+                    placeholder = { Text("0") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                )
             }
-            // 重さ(kg)フリー入力(ダンベル等の負荷。小数可)。iOS パリティ。
+            // 同じ種目でセットを追加(名前入力済の時だけ。iOS パリティ)
+            if (draft.name.isNotBlank()) {
+                TextButton(onClick = onAddSet, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Icon(Icons.Filled.AddCircle, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text("同じ種目でセットを追加", color = palette.primaryDeep)
+                }
+            }
+            // 種目メモ
             OutlinedTextField(
-                value = draft.loadText,
-                onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
-                label = { Text("重さ (kg)") },
+                value = draft.memo,
+                onValueChange = { onChange(draft.copy(memo = it)) },
+                placeholder = { Text("種目メモ (例: 体調メモ、回数アップ等)") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onAddSet) {
-                    Icon(Icons.Filled.AddCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.size(4.dp))
-                    Text("同じ種目でセットを追加")
-                }
-                if (canRemove) {
-                    TextButton(onClick = onRemove) { Text("削除") }
-                }
-            }
         }
     }
+}
+
+/** 最小化行のサマリ「カテゴリ・30分・3回・3セット・10kg」。iOS collapsedSummary パリティ。 */
+private fun collapsedSummary(draft: ExerciseDraft): String {
+    val parts = mutableListOf(draft.category.displayName)
+    draft.minutes.toIntOrNull()?.takeIf { it > 0 }?.let { parts += "${it}分" }
+    draft.reps.toIntOrNull()?.takeIf { it > 0 }?.let { parts += "${it}回" }
+    draft.sets.toIntOrNull()?.takeIf { it > 0 }?.let { parts += "${it}セット" }
+    draft.loadText.toDoubleOrNull()?.takeIf { it > 0 }?.let { kg ->
+        parts += if (kg % 1.0 == 0.0) "${kg.toInt()}kg" else "${kg}kg"
+    }
+    return parts.joinToString("・")
 }
 
 @Composable
