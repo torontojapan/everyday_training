@@ -103,6 +103,8 @@ fun FriendsRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val myBreed by viewModel.myBreed.collectAsStateWithLifecycle()
     val backupSuppressed by viewModel.backupSuppressed.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // タブを開いたら自動でアカウントを発行(iOS と同じワンステップ化。失敗時は welcome+再試行)。
     LaunchedEffect(Unit) { viewModel.ensureSignedIn() }
@@ -131,6 +133,10 @@ fun FriendsRoute(
         onConnect = viewModel::connect,
         onRename = viewModel::rename,
         onSendRequest = { code -> viewModel.sendRequest(code) },
+        searchResults = searchResults,
+        isSearching = isSearching,
+        onSearch = viewModel::searchByUsername,
+        onClearSearch = viewModel::clearSearch,
         onAccept = viewModel::accept,
         onDecline = viewModel::decline,
         onRemove = viewModel::removeFriend,
@@ -156,6 +162,10 @@ fun FriendsContent(
     onConnect: () -> Unit = {},
     onRename: (String) -> Unit = {},
     onSendRequest: (String) -> Unit = {},
+    searchResults: List<FriendProfile> = emptyList(),
+    isSearching: Boolean = false,
+    onSearch: (String) -> Unit = {},
+    onClearSearch: () -> Unit = {},
     onAccept: (FriendRequest) -> Unit = {},
     onDecline: (FriendRequest) -> Unit = {},
     onRemove: (FriendProfile) -> Unit = {},
@@ -307,7 +317,7 @@ fun FriendsContent(
     if (showAdd) {
         val sheetState = rememberModalBottomSheetState()
         ModalBottomSheet(
-            onDismissRequest = { showAdd = false },
+            onDismissRequest = { showAdd = false; onClearSearch() },
             sheetState = sheetState,
             containerColor = palette.background,
         ) {
@@ -316,8 +326,12 @@ fun FriendsContent(
                 initialCode = addSheetCode,
                 onSend = { code ->
                     onSendRequest(code)
+                    onClearSearch()
                     showAdd = false
                 },
+                searchResults = searchResults,
+                isSearching = isSearching,
+                onSearch = onSearch,
             )
         }
     }
@@ -1060,7 +1074,14 @@ private fun extractFriendCode(scanned: String): String? {
 }
 
 @Composable
-private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (String) -> Unit) {
+private fun AddFriendSheet(
+    palette: AppTheme,
+    initialCode: String?,
+    onSend: (String) -> Unit,
+    searchResults: List<FriendProfile> = emptyList(),
+    isSearching: Boolean = false,
+    onSearch: (String) -> Unit = {},
+) {
     var code by remember { mutableStateOf(initialCode ?: "") }
     // アプリ内QRスキャナ(#8)。読み取った goexercise://friends?code=XXX または生6桁から友達コードを抽出。
     val scanLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -1101,6 +1122,37 @@ private fun AddFriendSheet(palette: AppTheme, initialCode: String?, onSend: (Str
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth(),
         ) { Text("✈ 申請を送る", color = Color.White) }
+
+        // ユーザー名で検索(部分一致・2文字以上)。iOS FriendAddView の検索セクション パリティ。
+        Spacer(Modifier.height(8.dp))
+        Text("ユーザー名で検索", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        var query by remember { mutableStateOf("") }
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it; onSearch(it) },
+            label = { Text("ユーザー名(一部でも可)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (isSearching) {
+            CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(20.dp))
+        }
+        searchResults.forEach { p ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(p.displayName, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                    Text("@${p.username} · ${p.currentStreak}日連続", fontSize = 12.sp, color = palette.textSecondary)
+                }
+                OutlinedButton(onClick = { onSend(p.friendCode) }) { Text("申請") }
+            }
+        }
+        if (query.trim().length >= 2 && !isSearching && searchResults.isEmpty()) {
+            Text("見つかりませんでした", fontSize = 12.sp, color = palette.textSecondary)
+        }
         Spacer(Modifier.height(8.dp))
     }
 }

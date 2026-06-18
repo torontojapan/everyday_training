@@ -34,6 +34,7 @@ import com.goexercise.app.presentation.record.RecordRoute
 import com.goexercise.app.presentation.rescue.RescueRoute
 import com.goexercise.app.presentation.share.StreakShareRoute
 import com.goexercise.app.presentation.share.HighlightShareRoute
+import com.goexercise.app.presentation.record.RecordCompletionRoute
 import com.goexercise.app.presentation.settings.SettingsRoute
 import com.goexercise.app.presentation.weight.WeightRoute
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -41,6 +42,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 private const val WEIGHT_ROUTE = "weight" // AppRoute(ディープリンク正本)に無いタブ専用 route
 private const val RESCUE_ROUTE = "rescue" // フリーズ使用(履歴から遷移する詳細画面)
 private const val HIGHLIGHT_ROUTE = "highlight-share" // ハイライト共有(履歴から weekly/monthly/alltime で遷移)
+private const val RECORD_COMPLETION_ROUTE = "record-completion" // 記録完了の祝福画面(保存後に着地)
 private const val PREMIUM_ROUTE = "premium" // GOプレミアム ペイウォール(#6)。?ctx= で文脈を渡す
 
 /**
@@ -105,7 +107,12 @@ fun AppNavHost(
                             onBack = { navController.popBackStack() },
                         )
                         AppRoute.Record -> RecordRoute(
-                            onSaved = { navController.popBackStack() },
+                            // 保存後は記録完了の祝福画面へ(Record をスタックから外す=戻るでホーム)。iOS RecordCompletionView パリティ。
+                            onSaved = {
+                                navController.navigate(RECORD_COMPLETION_ROUTE) {
+                                    popUpTo(AppRoute.Record.path) { inclusive = true }
+                                }
+                            },
                             onBack = { navController.popBackStack() },
                         )
                         AppRoute.Settings -> SettingsRoute(
@@ -147,6 +154,17 @@ fun AppNavHost(
             // ハイライト共有カード(履歴から weekly/monthly/alltime。VM が kind を SavedStateHandle で受ける)。
             composable("$HIGHLIGHT_ROUTE/{kind}") {
                 HighlightShareRoute(onBack = { navController.popBackStack() })
+            }
+            // 記録完了の祝福画面(保存後に着地)。ホームに戻る / もう一種目を記録する。iOS RecordCompletionView パリティ。
+            composable(RECORD_COMPLETION_ROUTE) {
+                RecordCompletionRoute(
+                    onDone = { navController.popBackStack() },
+                    onRecordAgain = {
+                        navController.navigate(AppRoute.Record.path) {
+                            popUpTo(RECORD_COMPLETION_ROUTE) { inclusive = true }
+                        }
+                    },
+                )
             }
             // GOプレミアム ペイウォール(#6)。ctx で見出しを出し分ける。
             composable("$PREMIUM_ROUTE/{ctx}") { entry ->

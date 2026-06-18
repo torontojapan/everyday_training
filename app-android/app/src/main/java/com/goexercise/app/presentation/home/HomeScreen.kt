@@ -17,6 +17,11 @@ import android.content.Intent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.MilitaryTech
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -157,14 +162,30 @@ private fun rankCelebrationDisplay(event: RankUpEvent): Pair<CatRank, String> = 
     is RankUpEvent.Weekly -> CatRank.of(event.streak) to "${event.streak}日連続!"
 }
 
-/** 達成お祝いダイアログ(emoji + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */
+/** 節目バッジの Material アイコン(iOS の SF Symbol rosette/trophy/medal/crown 相当)。
+ *  iOS は「絵文字は安っぽい」とブランド方針で廃止し、金色のシンボルに統一。Android も追従。 */
+private fun milestoneIcon(milestone: Milestone): androidx.compose.ui.graphics.vector.ImageVector = when (milestone) {
+    is Milestone.Anniversary -> Icons.Filled.WorkspacePremium                                          // rosette
+    is Milestone.LifetimeDays -> if (milestone.days >= 365) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech  // trophy / medal
+    is Milestone.CurrentStreak -> Icons.Filled.WorkspacePremium                                        // crown→premium seal / rosette
+    is Milestone.WeightLoss -> if (milestone.kg >= 10) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech       // trophy / medal
+}
+
+/** 達成お祝いダイアログ(金色シンボル + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */
 @Composable
 private fun MilestoneCelebrationDialog(milestone: Milestone, onDismiss: () -> Unit) {
     val palette = LocalAppPalette.current
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Text(milestone.emoji, fontSize = 48.sp) },
+        icon = {
+            Icon(
+                imageVector = milestoneIcon(milestone),
+                contentDescription = null,
+                tint = androidx.compose.ui.graphics.Color(0xFFFFB300), // 金色(iOS の金グラデ相当)
+                modifier = Modifier.size(48.dp),
+            )
+        },
         title = { Text(milestone.headline, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center) },
         text = { Text(milestone.detail, color = palette.textSecondary, textAlign = TextAlign.Center) },
         confirmButton = {
@@ -257,12 +278,17 @@ private fun ComebackWelcomeCard() {
 @Composable
 private fun CatTheater(state: HomeUiState) {
     val palette = LocalAppPalette.current
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 猫劇場: ユーザーの猫種 × 今の状態(77 画像)。
+    // 猫劇場: iOS BigCatView(280pt)パリティで、大きい猫を中央に主役配置し、吹き出しはその下。
+    // 旧実装は小さい猫(96dp)を横にメッセージと並べていたため、ホームの主役が猫でなくなっていた。
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         com.goexercise.app.ui.components.CatImage(
             breed = state.catBreed,
             state = state.catState,
-            modifier = Modifier.size(96.dp),
+            modifier = Modifier.size(220.dp),
             // 今日まだ未記録なら補給(シェイカー)版で「これからやろう」を演出。iOS: !todayStatus.countsAsAchieved。
             useShaker = !state.todayStatus.countsAsAchieved,
         )
