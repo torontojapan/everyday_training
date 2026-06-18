@@ -39,6 +39,9 @@
 **残(LOW/要素材/要判断)**: フォント 1〜2pt 差(AppType トークン粒度 vs iOS Dynamic Type=systematic・低優先) / ブランドロゴ画像(規約準拠アセット) / Customize 階層(inline vs sub-nav・機能等価) / 生理日まとめ入力画面(新規) / ホーム referral行・日タップsheet・revive祝福overlay / 友達 初回名前カード / キーボード「完了」(Android作法に無く許容).
 
 ## ★残タスク（次セッション着手用・優先順）— 2026-06-18 セッション2 末
+> **2026-06-18 セッション3 完了**: A1〜A5 / B6 / C7 / D8〜10 / E11 を**すべて消化**(各実装はエミュ実スクショ検証 or 判断確定)。
+> 機能ギャップは 0。残る既知の許容差は D8(二次ラベル ≤2pt フォント差・範囲内)のみ。次セッションの新規着手項目は無し
+> (publish 側=自分の種目詳細共有は、iOS と同じ opt-in トグル[既定 OFF]を将来入れる時にまとめて、というメモのみ)。
 **A. 新規実装（大・視覚インパクト大／要スクショ検証）**
 1. ~~ホーム **referralスター行**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`ReferralStarsRow` を上段3行目に追加、VM `referralRow` StateFlow(`currentAccountStarBadges`×`currentAccountCode`)で配線。connect 後 refresh も是正。
 2. ~~ホーム **週カレンダー日タップ → DayDetailSheet**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`WeeklyCalendar` セルを clickable 化、履歴 `DayDetailSheet`(internal 化)を再利用、`HomeUiState.weekRecords` で当日記録を供給。記録あり/なし両状態 検証済。
