@@ -59,12 +59,15 @@
    **`connected_since` は対象外**(iOS も実BEでは `connectedSince: nil` 固定=デコードしない)。
    **publish(自分の詳細の送信)は保留**: iOS は opt-in(`includeExerciseDetail` 既定 OFF)。プライバシー最優先方針に従い、
    共有トグル(既定 OFF)導入までは Android は自分の詳細を publish しない(各ユーザーは自分の行のみ書くため他者の値は消えない)。
-**D. LOW（systematic / 機能等価 / 許容差）**
-8. フォント 1〜2pt 差（`AppType` トークン粒度 vs iOS Dynamic Type `.callout/.footnote/.subheadline`）。一括是正は `Type.kt` にトークン追加が要る。低優先。
-9. 設定 Customize 階層（inline vs サブナビ）。機能等価。
-10. 記録入力 キーボード「完了」バー（Android にアクセサリバーの作法なし=許容差）。
-**E. 要オーナー判断**
-11. 絵文字方針（Android 全廃 vs iOS 絵文字。⭐10 等は現状 Android 方針優先で対応済）。
+**D. LOW（systematic / 機能等価 / 許容差）— 2026-06-18 すべて判断確定(意図的な許容差)**
+8. フォント差 → **許容(範囲内)で確定**。中核タイプスケールは iOS と一致済(`AppType`: title34/screenTitle22/sectionTitle20/headline17/body17/caption12 = iOS largeTitle/title2/title3/headline/body/caption1)。
+   残差は iOS `.callout`16/`.footnote`13/`.subheadline`15 を最近接トークンで近似する**二次的ラベルの ≤2pt のみ**で、レンダリング誤差の範囲内。検証済画面への一括 rewire は回帰リスク>便益のため行わない。
+9. 設定 Customize 階層 → **解決済(既にパリティ)**。Android 設定は階層型 `SettingsPage`(`SubPage("カスタマイズ")` 等)で iOS の サブナビと等価。
+10. 記録入力 キーボード「完了」バー → **許容差で確定**。Android にアクセサリバーの作法が無く、IME/戻るで閉じる。ピッカー化で数値テキスト入力も大幅減。
+**E. 絵文字方針 — 2026-06-18 確定(Android no-emoji 方針を一貫適用)**
+11. 方針=**絵文字→Material アイコン(Android 全廃)**。iOS 自体も `ReferralCelebrationSheet` 等は SF Symbol アイコン+絵文字なし文言を使用しており、
+    no-emoji は iOS パリティとも整合。残存していた `ReferralCelebrationDialog` の ❄️/⭐/✨ を Material アイコン(AcUnit/Star/AutoAwesome)へ置換し iOS と一致(スクショ検証済)。
+    ⭐10 アラートは既に「星10達成!」。特典ガイド本文の "⭐"(星バッジへの文中言及)は文言として残置。
 
 **検証手順（毎回必須・CLAUDE.md ★7）**: 友達/ランキング描画は `local.properties` の `SUPABASE_HOST`/`SUPABASE_ANON_KEY` を一時空 →Mock強制(seedDemo で友達2名)→ `assembleDebug`→`adb install -r`→ タブ「友達」で `友達とつながる`→ホーム→友達 で signed-in 描画 → `adb exec-out screencap`/uiautomator dump で確認 → **検証後 `cp /tmp/local.properties.bak local.properties` で復元**。emulator AVD=`go_test`。
 
