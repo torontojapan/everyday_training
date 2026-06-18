@@ -44,6 +44,46 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
   ②日詳細シート=中央タイトル+閉じる追加 ③共有 `SheetCloseButton`(iOS26 ナビボタンの淡カプセル)へ統一(友達詳細/追加/日詳細。旧=素テキスト/欠落)
   ④ボトムタブバー= menstrual/rescue/ランキングは iOS が各タブ内 push でタブバーを残すため、Android も維持+親タブ選択(`AppNavHost.detailParentTab`)。実機でランキングにタブバー(友達選択)確認。
 
+## ★★ golden 照合カバレッジ台帳（全ページ×全パターンを build 12 と厳密一致させる 残タスク・正本）
+**方法(確立済・再現手順)**: ① iOS build 12 を sim にビルド→install(CFBundleVersion=12 確認)。② 直接 deep-link 可能な画面は
+`simctl launch --initial-tab <tab> --initial-route <route> --seed-demo-data --skip-onboarding --mock-seed-friends --seed-scenario yearly` で起動→`simctl io screenshot`。
+③ sub 画面/状態は **XCUITest `ScreenshotCaptureUITests`** に撮影メソッドを足し、`xcodebuild test -only-testing:...` →
+`xcrun xcresulttool export attachments` で PNG 抽出(accessibility-id/座標タップ・多ディスプレイでも確実)。
+④ Android は同データ状態(Mock 強制+sqlite 注入/launch arg)で実スクショ。⑤ **2LLM 照合**(Claude 並列視覚 diff + Codex 源照合)→
+敵対的に裏取り(誤検知排除)→ 改善 → **Codex で全 MATCH 収束**。⑥ 各画面/状態を下表で ✅ 化。**全 ✅ まで「完了」と書かない。**
+
+**凡例**: ✅=golden 横並び照合+収束済 / ☐=未照合(残) / —=該当なし
+
+| 画面 | 主要状態 | golden照合 |
+|---|---|---|
+| ホーム | 達成済(populated) | ✅(セッション4) |
+| ホーム | 新規/空・未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | ☐ |
+| 記録入力 | 入力済 | ✅(セッション4・field統一確認) |
+| 記録入力 | 空/初期・複数種目・体重バリデーションエラー | ☐ |
+| 記録完了 | 達成(連続>1初記録/2件目) | ✅(セッション6・back/tabbar/きのうから条件) |
+| 履歴 | populated | ✅(セッション4) |
+| 履歴 | 空状態・保険チケット展開・Monthly空 | ☐ |
+| 日詳細シート | 記録あり | ✅(セッション5) |
+| 日詳細シート | 空/休/救済/未来 状態 | ☐ |
+| 生理日入力 | マーク有 | ✅(セッション5・tabbar) |
+| 設定 | 無料・main | ✅(セッション4・Google「続ける」) |
+| 設定 | プレミアム・連携ON(認証セクション)・サブページ(カスタマイズ/記録と共有/通知/データ&プライバシー/情報/称号一覧) | ☐ |
+| 友達 | サインイン済populated | ✅(セッション4) |
+| 友達 | welcome(未サインイン)・空(友達0)・エラーバナー・cheer picker | ☐ |
+| 友達詳細 | populated | ✅(セッション5・閉じるカプセル) |
+| 友達追加 | — | ✅(セッション5・順序/見出し/閉じる) |
+| ランキング | 今週 | ✅(セッション4・segmented picker) |
+| ランキング | 今月・空状態 | ☐ |
+| 体重 | プレミアムpopulated・無料→paywall | ☐(App Store test では撮影済・未照合) |
+| ペイウォール | 一般/freeze/weight 文脈 | ☐ |
+| 連続シェア / ハイライトシェア(週/月/全期間) | — | ☐ |
+| オンボーディング | step1(猫選択)/step2(バックアップ) | ☐(ロゴはセッションB6で確認) |
+| フリーズ(rescue) | — | ☐(tabbar 修正は反映済・未照合) |
+| ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | ☐ |
+
+**次バッチ着手順(推奨)**: ①設定サブページ群 ②ホーム各状態(空/未達成/復帰) ③履歴空/チケット展開 ④友達 welcome/空
+⑤ランキング今月/空 ⑥体重/ペイウォール ⑦シェア各種 ⑧オンボ ⑨日詳細の状態別。各バッチ=XCUITest 撮影追加→2LLM→修正→収束。
+
 ## 0. 完全一致のための手順（毎回これを守る = 再発防止）
 1. **正本 = iOS build 12**。シミュレータに build 12 を確実に install(derivedDataPath 固定→CFBundleVersion=12 確認)。
    手順は memory `android_ios_ui_parity`。
