@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,11 +20,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MilitaryTech
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -35,13 +57,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,6 +77,7 @@ import com.goexercise.app.domain.CatRank
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.metalColor
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 @Composable
@@ -149,6 +175,14 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         backupError = backupError,
         onToggleBackup = viewModel::setBackupEnabled,
         onBackupNow = viewModel::backupNow,
+        onDeleteAccount = { viewModel.deleteAccount { ok -> deletedMsg = if (ok) "アカウントを削除しました" else "削除に失敗しました" } },
+        onShareApp = {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "GOエクササイズで一緒に運動しよう！\nhttps://goexercise.app")
+            }
+            runCatching { context.startActivity(Intent.createChooser(intent, "シェア")) }
+        },
     )
 }
 
@@ -196,8 +230,15 @@ fun SettingsContent(
     linkError: String? = null,
     onLinkApple: () -> Unit = {},
     onLinkGoogle: () -> Unit = {},
+    onDeleteAccount: () -> Unit = {},
+    onShareApp: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
+    // iOS 設定は階層型(カスタマイズ/記録と共有/通知設定/データとプライバシー/情報・サポート/特典一覧 をサブページへ)。
+    var page by rememberSaveable { mutableStateOf(SettingsPage.Main) }
+    if (page != SettingsPage.Main) {
+        androidx.activity.compose.BackHandler { page = SettingsPage.Main }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -206,84 +247,200 @@ fun SettingsContent(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("設定", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = palette.textPrimary)
+        when (page) {
+            SettingsPage.Main -> {
+                Text("設定", style = AppType.screenTitle, color = palette.textPrimary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
 
-        // アカウントとバックアップは機種変更時の命綱なので最上位に置く(iOS 設定再構成パリティ)。
-        Text("アカウントとバックアップ", color = palette.textSecondary, fontSize = 13.sp)
-        BackupSection(
-            palette = palette,
-            enabled = backupEnabled,
-            syncing = backupSyncing,
-            error = backupError,
-            hasAccount = myFriendCode != null,
-            onToggle = onToggleBackup,
-            onBackupNow = onBackupNow,
-            linkedProvider = linkedProvider,
-            isLinking = isLinkingAccount,
-            linkError = linkError,
-            onLinkApple = onLinkApple,
-            onLinkGoogle = onLinkGoogle,
-        )
+                // アカウントとバックアップ(機種変更の命綱なので最上位)。
+                SectionLabel("アカウントとバックアップ")
+                BackupSection(
+                    palette = palette, enabled = backupEnabled, syncing = backupSyncing, error = backupError,
+                    hasAccount = myFriendCode != null, onToggle = onToggleBackup, onBackupNow = onBackupNow,
+                    linkedProvider = linkedProvider, isLinking = isLinkingAccount, linkError = linkError,
+                    onLinkApple = onLinkApple, onLinkGoogle = onLinkGoogle, onDeleteAccount = onDeleteAccount,
+                )
 
-        PremiumCard(isPremium = isPremium, trialEligible = trialEligible, palette = palette, onClick = onOpenPremium)
-
-        Text("あなたの猫", color = palette.textSecondary, fontSize = 13.sp)
-        CatBreedPicker(
-            selected = catBreed,
-            palette = palette,
-            isPremium = isPremium,
-            referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
-            onSelect = onSelectBreed,
-            onLockedTap = onOpenPremium,
-        )
-
-        Text("称号一覧（連続で進化）", color = palette.textSecondary, fontSize = 13.sp)
-        CatRankLadderSection(palette, currentStreak)
-
-        Text("通知", color = palette.textSecondary, fontSize = 13.sp)
-        ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime, onSetEveningTime, onSetReminderCount, onSetReminderPersonality)
-
-        if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
-            Text("友達を招待", color = palette.textSecondary, fontSize = 13.sp)
-            ReferralSection(
-                palette = palette,
-                myFriendCode = myFriendCode,
-                starBadges = referralStarBadges,
-                canEnterCodeLater = canEnterCodeLater,
-                onShareInvite = onShareInvite,
-                laterCode = laterCode,
-                onLaterCodeChange = onLaterCodeChange,
-                laterSubmitting = laterSubmitting,
-                laterAccepted = laterAccepted,
-                onSubmitLaterInvite = onSubmitLaterInvite,
-                referralError = referralError,
-            )
-        }
-
-        Text("テーマ", color = palette.textSecondary, fontSize = 13.sp)
-        AppTheme.entries.forEach { theme ->
-            ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
-        }
-
-        Text("データ管理", color = palette.textSecondary, fontSize = 13.sp)
-        DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
-
-        Text("プライバシー", color = palette.textSecondary, fontSize = 13.sp)
-        AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
-
-        // 生理周期トラッキングのオプトイン(既定 OFF・プライバシー優先)。ON で体重タブに生理日記録 UI を出す。
-        Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("生理周期トラッキング", color = palette.textPrimary, fontWeight = FontWeight.Bold)
-                    Text(
-                        "ON にすると体重タブに生理日の記録と周期オーバーレイが表示されます。端末内のみに保存。",
-                        color = palette.textSecondary, fontSize = 12.sp,
+                // プレミアム & 特典。
+                SectionLabel("プレミアム & 特典")
+                SettingsCard {
+                    EntryRow(Icons.Filled.IosShare, "アプリを友達にシェア", onClick = onShareApp)
+                    RowDivider()
+                    EntryRow(Icons.Filled.WorkspacePremium, "GOプレミアムにアップグレード", trailing = if (isPremium) "加入済み" else "14日間無料", onClick = onOpenPremium)
+                    RowDivider()
+                    EntryRow(Icons.Filled.MilitaryTech, "プレミアム特典・称号一覧", showChevron = true) { page = SettingsPage.RankLadder }
+                }
+                if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
+                    ReferralSection(
+                        palette = palette, myFriendCode = myFriendCode, starBadges = referralStarBadges,
+                        canEnterCodeLater = canEnterCodeLater, onShareInvite = onShareInvite,
+                        laterCode = laterCode, onLaterCodeChange = onLaterCodeChange,
+                        laterSubmitting = laterSubmitting, laterAccepted = laterAccepted,
+                        onSubmitLaterInvite = onSubmitLaterInvite, referralError = referralError,
                     )
                 }
-                Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
+
+                // アプリ設定(各サブページへ)。
+                SectionLabel("アプリ設定")
+                SettingsCard {
+                    EntryRow(Icons.Filled.Palette, "カスタマイズ", showChevron = true) { page = SettingsPage.Customize }
+                    RowDivider()
+                    EntryRow(Icons.Filled.EditNote, "記録と共有", showChevron = true) { page = SettingsPage.RecordSharing }
+                    RowDivider()
+                    EntryRow(Icons.Filled.Notifications, "通知設定", showChevron = true) { page = SettingsPage.Notifications }
+                    RowDivider()
+                    // ウィジェット追加方法(iOS パリティ)。端末のホーム長押し→ウィジェットの一般手順を案内。
+                    var showWidgetHelp by remember { mutableStateOf(false) }
+                    EntryRow(Icons.Filled.Widgets, "ウィジェットの追加方法を見る") { showWidgetHelp = true }
+                    if (showWidgetHelp) {
+                        AlertDialog(
+                            onDismissRequest = { showWidgetHelp = false },
+                            confirmButton = { TextButton(onClick = { showWidgetHelp = false }) { Text("閉じる") } },
+                            title = { Text("ウィジェットの追加方法") },
+                            text = { Text("ホーム画面の何もない所を長押し →「ウィジェット」→「GOエクササイズ」を選んで配置すると、連続日数と今日の達成がホームに表示されます。") },
+                        )
+                    }
+                }
+                SettingsCard {
+                    EntryRow(Icons.Filled.Security, "データ & プライバシー", showChevron = true) { page = SettingsPage.DataPrivacy }
+                    RowDivider()
+                    EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "情報・サポート", showChevron = true) { page = SettingsPage.Info }
+                }
+            }
+
+            SettingsPage.Customize -> SubPage("カスタマイズ", onBack = { page = SettingsPage.Main }) {
+                SectionLabel("テーマカラー")
+                AppTheme.entries.forEach { theme ->
+                    ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
+                }
+                SectionLabel("自分のキャラ")
+                CatBreedPicker(
+                    selected = catBreed, palette = palette, isPremium = isPremium,
+                    referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
+                    onSelect = onSelectBreed, onLockedTap = onOpenPremium,
+                )
+            }
+
+            SettingsPage.RecordSharing -> SubPage("記録と共有", onBack = { page = SettingsPage.Main }) {
+                SettingsCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+                            Text("休養ルール", style = AppType.headline, color = palette.textPrimary)
+                        }
+                        Text("運動しなかった日も週2日までは自動で休養日になり、連続記録は途切れません。", style = AppType.caption, color = palette.textSecondary)
+                    }
+                }
+                SettingsCard {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("生理周期トラッキング", style = AppType.headline, color = palette.textPrimary)
+                            Text("ON にすると体重タブに生理日の記録と周期オーバーレイが表示されます。端末内のみに保存。", style = AppType.caption, color = palette.textSecondary)
+                        }
+                        Switch(checked = cycleTrackingEnabled, onCheckedChange = onToggleCycleTracking)
+                    }
+                }
+            }
+
+            SettingsPage.Notifications -> SubPage("通知設定", onBack = { page = SettingsPage.Main }) {
+                ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime, onSetEveningTime, onSetReminderCount, onSetReminderPersonality)
+            }
+
+            SettingsPage.DataPrivacy -> SubPage("データ & プライバシー", onBack = { page = SettingsPage.Main }) {
+                SectionLabel("データ管理")
+                DataManagementSection(palette, isBusy, statusMessage, onExport, onDeleteAll)
+                SectionLabel("プライバシー")
+                AnalyticsSection(palette, analyticsEnabled, onToggleAnalytics)
+            }
+
+            SettingsPage.Info -> SubPage("情報・サポート", onBack = { page = SettingsPage.Main }) {
+                InfoSupportSection()
+            }
+
+            SettingsPage.RankLadder -> SubPage("プレミアム特典・称号一覧", onBack = { page = SettingsPage.Main }) {
+                CatRankLadderSection(palette, currentStreak)
             }
         }
+    }
+}
+
+/** 設定のサブページ識別子。iOS の NavigationLink 階層に対応。 */
+private enum class SettingsPage { Main, Customize, RecordSharing, Notifications, DataPrivacy, Info, RankLadder }
+
+/** セクション見出し(iOS List のセクションヘッダ相当)。 */
+@Composable
+private fun SectionLabel(text: String) {
+    Text(text, color = LocalAppPalette.current.textSecondary, style = AppType.caption, modifier = Modifier.padding(top = 4.dp, start = 4.dp))
+}
+
+/** カード(中に行をまとめる。iOS insetGrouped セクション相当)。 */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(color = LocalAppPalette.current.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(color = LocalAppPalette.current.textSecondary.copy(alpha = 0.12f), modifier = Modifier.padding(start = 52.dp))
+}
+
+/** アイコン + タイトル + (任意の右側テキスト/chevron) の設定行。iOS Label 行相当。 */
+@Composable
+private fun EntryRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    trailing: String? = null,
+    showChevron: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val palette = LocalAppPalette.current
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // iOS 設定の行アイコンは濃色(charcoal)。アクセント色にしない。
+        Icon(icon, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(22.dp))
+        Text(title, style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+        trailing?.let { Text(it, style = AppType.caption, color = palette.primaryDeep) }
+        if (showChevron) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** サブページの枠(戻る + タイトル + 内容)。iOS の push 画面相当。 */
+@Composable
+private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+    val palette = LocalAppPalette.current
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+        }
+        Text(title, style = AppType.sectionTitle, color = palette.textPrimary)
+    }
+    content()
+}
+
+/** 情報・サポート(アプリ名/バージョン/各種リンク)。iOS 情報・サポートページ相当。 */
+@Composable
+private fun InfoSupportSection() {
+    val palette = LocalAppPalette.current
+    val context = LocalContext.current
+    fun open(url: String) { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))) } }
+    SettingsCard {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("GOエクササイズ", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+            val ver = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+            Text("v$ver", style = AppType.caption, color = palette.textSecondary)
+        }
+    }
+    SettingsCard {
+        EntryRow(Icons.AutoMirrored.Filled.HelpOutline, "プライバシーポリシー", showChevron = true) { open("https://torontojapan.github.io/everyday_training/privacy/") }
+        RowDivider()
+        EntryRow(Icons.Filled.Description, "利用規約", showChevron = true) { open("https://torontojapan.github.io/everyday_training/terms/") }
     }
 }
 
@@ -305,7 +462,9 @@ private fun BackupSection(
     linkError: String? = null,
     onLinkApple: () -> Unit = {},
     onLinkGoogle: () -> Unit = {},
+    onDeleteAccount: () -> Unit = {},
 ) {
+    var confirmDelete by remember { mutableStateOf(false) }
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -333,25 +492,55 @@ private fun BackupSection(
                 }
                 error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
             }
-            // 認証(Apple/Google でバックアップ)を設定に集約(#14)。未連携=サインインボタン / 連携済=状態表示。
+            // 認証(Apple/Google でバックアップ)を設定に集約。未連携=ブランド認証ボタン / 連携済=状態表示+削除。
             if (linkedProvider != null) {
-                Text("✓ $linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
-                    color = palette.textSecondary, fontSize = 11.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(16.dp))
+                    Text("$linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
+                        color = palette.textSecondary, fontSize = 11.sp)
+                }
+                // アカウント削除(審査 Guideline 5.1.1(v))。連携済みのみ表示。
+                Row(
+                    Modifier.fillMaxWidth().clickable { confirmDelete = true },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
+                    Text("アカウントを削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                }
             } else {
                 Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
                     color = palette.textSecondary, fontSize = 11.sp)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onLinkApple, enabled = !isLinking, modifier = Modifier.weight(1f)) {
-                        Text("Apple で連携")
+                // ブランド準拠ボタン(Apple=黒地白文字 / Google=白地枠線)。iOS の AppleID/GoogleSignIn ボタン相当。
+                Surface(
+                    color = Color.Black, shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().then(if (isLinking) Modifier else Modifier.clickable { onLinkApple() }),
+                ) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Text(" Apple でサインイン", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
-                    OutlinedButton(onClick = onLinkGoogle, enabled = !isLinking, modifier = Modifier.weight(1f)) {
-                        Text("Google で連携")
+                }
+                Surface(
+                    color = palette.surface, shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().border(1.dp, palette.textSecondary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .then(if (isLinking) Modifier else Modifier.clickable { onLinkGoogle() }),
+                ) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        Text("Google で続ける", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
             }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("アカウントを削除しますか？") },
+            text = { Text("アカウントとクラウドのバックアップが完全に削除され、元に戻せません。端末内の記録は残ります。") },
+            confirmButton = { TextButton(onClick = { onDeleteAccount(); confirmDelete = false }) { Text("アカウントを削除", color = Color(0xFFD32F2F)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
+        )
     }
 }
 
@@ -404,7 +593,7 @@ private fun CatBreedPicker(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 CatAvatar(breed = breed, size = 52.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
-                                if (locked) Text("🔒", fontSize = 18.sp)
+                                if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
                             }
                             Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
                         }
@@ -496,40 +685,6 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
 }
 
 @Composable
-private fun PremiumCard(isPremium: Boolean, trialEligible: Boolean, palette: AppTheme, onClick: () -> Unit) {
-    Surface(
-        color = palette.surface,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, palette.primary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("👑", fontSize = 22.sp)
-            Column(Modifier.weight(1f)) {
-                Text("GOプレミアム", color = palette.textPrimary, fontWeight = FontWeight.Bold)
-                Text(
-                    // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
-                    when {
-                        isPremium -> "加入済み・全機能が使えます"
-                        trialEligible -> "14日間無料で全機能を解放"
-                        else -> "全機能を解放"
-                    },
-                    color = palette.textSecondary,
-                    fontSize = 12.sp,
-                )
-            }
-            Text(if (isPremium) "✓" else "›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-    }
-}
-
-@Composable
 private fun ThemeRow(theme: AppTheme, isSelected: Boolean, onClick: () -> Unit) {
     val palette = LocalAppPalette.current
     Surface(
@@ -557,7 +712,7 @@ private fun ThemeRow(theme: AppTheme, isSelected: Boolean, onClick: () -> Unit) 
                 Text(theme.displayName, color = palette.textPrimary, fontWeight = FontWeight.Bold)
                 Text(theme.hint, color = palette.textSecondary, fontSize = 12.sp)
             }
-            if (isSelected) Text("✓", color = theme.primary, fontWeight = FontWeight.Bold)
+            if (isSelected) Icon(Icons.Filled.Verified, contentDescription = "選択中", tint = theme.primary, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -588,8 +743,13 @@ private fun DataManagementSection(
             Text("運動・体重・体調の記録を JSON で書き出したり、すべて削除できます(課金状態は削除されません)。",
                 fontSize = 12.sp, color = palette.textSecondary)
             OutlinedButton(onClick = onExport, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
-                if (isBusy) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = palette.primary)
-                else Text("📤 データをエクスポート", color = palette.textPrimary)
+                if (isBusy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = palette.primary)
+                } else {
+                    Icon(Icons.Filled.IosShare, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text("データをエクスポート", color = palette.textPrimary)
+                }
             }
             Button(
                 onClick = { confirmDelete = true },
@@ -597,7 +757,9 @@ private fun DataManagementSection(
                 colors = ButtonDefaults.buttonColors(containerColor = palette.chipBackground),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("🗑 すべての記録を削除", color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+                Icon(Icons.Filled.Delete, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("すべての記録を削除", color = palette.primaryDeep, fontWeight = FontWeight.Bold)
             }
             if (statusMessage != null) {
                 Text(statusMessage, fontSize = 12.sp, color = palette.primaryDeep)
@@ -648,7 +810,7 @@ private fun ReferralSection(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("🎁", fontSize = 22.sp)
+                        Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
                         Column(Modifier.weight(1f)) {
                             Text("友達を招待する", color = palette.textPrimary, fontWeight = FontWeight.Bold)
                             Text(
@@ -656,12 +818,15 @@ private fun ReferralSection(
                                 color = palette.textSecondary, fontSize = 12.sp,
                             )
                         }
-                        Text("›", color = palette.primaryDeep, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
-            Text("⭐ 紹介した友達: ${starBadges} 人", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(18.dp))
+                Text("紹介した友達: ${starBadges} 人", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+            }
 
             if (canEnterCodeLater) {
                 if (laterAccepted) {

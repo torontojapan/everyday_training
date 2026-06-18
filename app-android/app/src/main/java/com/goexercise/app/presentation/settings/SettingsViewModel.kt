@@ -91,6 +91,20 @@ class SettingsViewModel @Inject constructor(
 
     fun clearLinkError() { _linkError.value = null }
 
+    /** アカウント削除(審査 Guideline 5.1.1(v))。本人データを完全消去し、ローカルのアカウント表示も初期化する。 */
+    fun deleteAccount(onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val ok = runCatching { friendsService.deleteAccount() }.isSuccess
+            if (ok) {
+                _myFriendCode.value = null
+                _linkedProvider.value = null
+                // identity 消滅後は同期状態をリセット(口座跨ぎ wipe 防止。FriendsVM の identity 切替と同じ)。
+                runCatching { recordSync.resetForIdentityChange() }
+            }
+            onDone(ok)
+        }
+    }
+
     /** 生理周期トラッキングのオプトイン状態(既定 OFF)。ON で体重タブに生理日記録 UI を出す。 */
     val cycleTrackingEnabled: StateFlow<Boolean> = health.prefs
         .map { it.cycleTrackingEnabled }
