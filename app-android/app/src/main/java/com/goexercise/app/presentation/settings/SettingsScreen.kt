@@ -582,7 +582,8 @@ private fun BackupSection(
                     ) {
                         com.goexercise.app.ui.components.GoogleLogo()
                         Spacer(Modifier.width(8.dp))
-                        Text("Google でサインイン", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
+                        // iOS 設定は GoogleSignInButton(title: "Google で続ける")。
+                        Text("Google で続ける", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

@@ -113,7 +113,8 @@ fun CatAvatar(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(Color(breed.tintArgb).copy(alpha = 0.30f)),
+            // iOS FriendAvatarView は breed tint を 0.22 で控えめに敷く(iOS パリティ)。
+            .background(Color(breed.tintArgb).copy(alpha = 0.22f)),
         contentAlignment = Alignment.Center,
     ) {
         CatImage(

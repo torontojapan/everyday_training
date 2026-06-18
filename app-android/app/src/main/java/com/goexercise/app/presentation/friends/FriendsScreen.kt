@@ -94,6 +94,7 @@ import com.goexercise.app.domain.friends.FriendProfile
 import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendSortOrder
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1003,7 +1004,8 @@ private fun ProfileHeaderCard(
                 com.goexercise.app.ui.components.CatAvatar(breed = myBreed, size = 56.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(profile.displayName, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                        // iOS profileHeader は Typography.title(.largeTitle ~34pt)。AppType.title に一致させる。
+                        Text(profile.displayName, style = AppType.title, color = palette.textPrimary)
                         Icon(
                             Icons.Filled.Edit, contentDescription = "名前を編集", tint = palette.textSecondary,
                             modifier = Modifier.size(16.dp).clickable { showRename = true },

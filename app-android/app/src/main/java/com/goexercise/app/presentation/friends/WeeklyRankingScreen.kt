@@ -92,22 +92,25 @@ fun WeeklyRankingContent(
 
 @Composable
 private fun PeriodPicker(period: RankingPeriod, palette: AppTheme, onSet: (RankingPeriod) -> Unit) {
-    Surface(color = palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(4.dp)) {
+    // iOS `.pickerStyle(.segmented)` パリティ: 薄いライトグレーのトラック + 白の選択ピル(微小な影)+
+    // 濃色テキスト。旧 coral 塗りピルは iOS のセグメント表現と別物だったため是正(角丸も pill→小角丸)。
+    Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(2.dp)) {
             RankingPeriod.entries.forEach { p ->
                 val selected = p == period
                 Surface(
-                    color = if (selected) palette.primary else Color.Transparent,
-                    shape = RoundedCornerShape(50),
+                    color = if (selected) Color.White else Color.Transparent,
+                    shape = RoundedCornerShape(7.dp),
+                    shadowElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier.weight(1f).clickable { onSet(p) },
                 ) {
                     Text(
                         p.label,
-                        fontSize = 14.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) Color.White else palette.textSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (selected) palette.textPrimary else palette.textSecondary,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
+                        modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth(),
                     )
                 }
             }
