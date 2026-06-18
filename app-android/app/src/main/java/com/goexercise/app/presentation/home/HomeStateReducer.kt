@@ -101,6 +101,10 @@ object HomeStateReducer {
             monthlyTotalMinutes = monthlyTotalMinutes,
             monthlyAchievedDays = monthlyAchievedDays,
             isComebackToday = isComebackToday,
+            weekRecords = weekStatuses.firstOrNull()?.let { first ->
+                val last = weekStatuses.last().date
+                records.filter { !it.date.isBefore(first.date) && !it.date.isAfter(last) }
+            } ?: emptyList(),
         )
     }
 }

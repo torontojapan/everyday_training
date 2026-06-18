@@ -10,6 +10,7 @@ import com.goexercise.app.domain.ExerciseTrendSummary
 import com.goexercise.app.domain.LifetimeStatsCalculator
 import com.goexercise.app.domain.StreakState
 import com.goexercise.app.domain.WeeklyProgress
+import com.goexercise.app.domain.WorkoutRecord
 
 /**
  * ホーム画面の UI 状態。iOS `HomeViewModel` の公開プロパティのうち、移植済みロジックで
@@ -32,6 +33,9 @@ data class HomeUiState(
     val monthlyAchievedDays: Int = 0,
     /** 復帰日の歓迎カード表示フラグ(昨日 missed・今日未達成・累計>=3日)。iOS isComebackToday パリティ。 */
     val isComebackToday: Boolean = false,
+    /** 今週(週カレンダーの範囲)の記録。週セルタップ時の DayDetailSheet で当日分を絞り込む
+     *  (iOS は store.records を sheet で filter。Android は週分だけ載せて UI 状態を軽く保つ)。 */
+    val weekRecords: List<WorkoutRecord> = emptyList(),
 )
 
 /** ホーム上段3行目の紹介スター行の表示データ。iOS `ReferralStarsRow(count:friendCode:)` 引数に対応。 */

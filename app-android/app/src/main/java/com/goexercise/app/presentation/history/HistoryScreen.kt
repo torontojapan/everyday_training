@@ -529,10 +529,11 @@ private fun DayCell(cell: MonthCell, modifier: Modifier, isToday: Boolean = fals
     }
 }
 
-/** 日セルタップ時の詳細ボトムシート。iOS `DayDetailSheet` の移植。 */
+/** 日セルタップ時の詳細ボトムシート。iOS `DayDetailSheet` の移植。
+ *  ホーム週カレンダーの日タップからも再利用する(internal)。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DayDetailSheet(
+internal fun DayDetailSheet(
     date: LocalDate,
     status: DailyStatus,
     records: List<com.goexercise.app.domain.WorkoutRecord>,

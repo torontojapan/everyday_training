@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -252,6 +253,8 @@ fun HomeContent(
     // ホーム上段3行目の紹介スター行(iOS referralStarsFullRow)。ゲート未充足なら null。
     referralRow: ReferralRowUi? = null,
 ) {
+    // 週カレンダーの日タップで開く DayDetailSheet 用の選択日(iOS selectedDayEntry)。
+    var selectedDay by remember { mutableStateOf<DailyStatusEntry?>(null) }
     Box(modifier = Modifier.fillMaxSize()) {
         // 連続ランク駆動の進化背景(最背面)。
         com.goexercise.app.ui.components.MilestoneBackdrop(streak = state.streak.currentStreak)
@@ -266,7 +269,7 @@ fun HomeContent(
                     .padding(top = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                WeeklyMini(state)
+                WeeklyMini(state, onDayClick = { selectedDay = it })
                 TopStatusBar(state, onShareClick)
                 // 上段3行目: 紹介スター行(称号と分離して全幅・最大10星が折り返さず一直線)。
                 referralRow?.let { ReferralStarsRow(it) }
@@ -289,12 +292,22 @@ fun HomeContent(
         // 達成時の全画面紙吹雪(最前面)。記録完了でのみ VM が点火、終了で consume。iOS パリティ。
         com.goexercise.app.ui.components.ConfettiOverlay(play = celebrate, onFinished = onCelebrateConsumed)
     }
+    // 週カレンダー日タップ → 履歴と同じ DayDetailSheet を再利用(iOS .sheet(item: selectedDayEntry))。
+    // その日の記録だけ weekRecords から絞り込む(iOS は store.records を同日フィルタ)。
+    selectedDay?.let { entry ->
+        com.goexercise.app.presentation.history.DayDetailSheet(
+            date = entry.date,
+            status = entry.status,
+            records = state.weekRecords.filter { it.date == entry.date },
+            onDismiss = { selectedDay = null },
+        )
+    }
 }
 
 // MARK: - 今週ミニ -----------------------------------------------------------------
 
 @Composable
-private fun WeeklyMini(state: HomeUiState) {
+private fun WeeklyMini(state: HomeUiState, onDayClick: (DailyStatusEntry) -> Unit = {}) {
     val palette = LocalAppPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -307,14 +320,14 @@ private fun WeeklyMini(state: HomeUiState) {
                 color = palette.textSecondary,
             )
         }
-        WeeklyCalendar(state.weekStatuses)
+        WeeklyCalendar(state.weekStatuses, onDayClick)
     }
 }
 
 private val WeekdayLabels = listOf("月", "火", "水", "木", "金", "土", "日")
 
 @Composable
-private fun WeeklyCalendar(week: List<DailyStatusEntry>) {
+private fun WeeklyCalendar(week: List<DailyStatusEntry>, onDayClick: (DailyStatusEntry) -> Unit = {}) {
     val palette = LocalAppPalette.current
     // iOS WeeklyCalendarView: 今日セルは 1.05↔1.0 の呼吸アニメ(repeatForever autoreverse)。
     val breath = rememberInfiniteTransition(label = "today-breath")
@@ -330,10 +343,16 @@ private fun WeeklyCalendar(week: List<DailyStatusEntry>) {
             week.forEachIndexed { index, entry ->
                 val isToday = entry.status == DailyStatus.TodayAchieved || entry.status == DailyStatus.TodayPending
                 // iOS は曜日ラベル込みのセル全体を「今日」だけ呼吸スケールで強調する。
+                // iOS WeeklyCalendarView: 各セルは plain Button → タップで DayDetailSheet。
+                // 全日タップ可。リップル無し(plain 相当)で iOS の見た目に合わせる。
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .scale(if (isToday) breathScale else 1f),
+                        .scale(if (isToday) breathScale else 1f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onDayClick(entry) },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
