@@ -33,6 +33,17 @@
 - **受容済み差分**: 設定 Apple ボタン= iOS 公式 `ASAuthorizationAppleIDButton` vs Android 自作(プラットフォーム制約)。
   バックアップ説明文の文言/配置に軽微差(認証セクションは config-gated・低優先)。中核 chrome(ホーム/履歴/記録入力)は golden 一致。
 
+## ★ 2026-06-19 セッション5: サブ画面 golden 照合(XCUITest で iOS sim 操作)
+deep-link 不可・cliclick は多ディスプレイ Retina で座標不可・idb は brew 撤去 → **XCUITest(`ScreenshotCaptureUITests.testCaptureSubScreens`)**で
+iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(`--mock-open-friend-detail`/`--mock-open-friend-add`/
+`--seed-scenario yearly` で周期ON→menstrual-link、座標で day-detail)。xcresult から PNG 抽出 → Android 実スクショと 2LLM 照合。
+- **golden 取得**: `xcodebuild test -only-testing:GOExerciseUITests/ScreenshotCaptureUITests/testCaptureSubScreens -resultBundlePath /tmp/x.xcresult`
+  → `xcrun xcresulttool export attachments --path /tmp/x.xcresult --output-path <dir>`。**`--initial-tab` を使うとタブ文脈(タブバー付き)で撮れる**(`--initial-route` の単独 push 罠を回避)。
+- **誤検知排除(Codex MATCH)**: day_detail カード塗り(surface on background で一致)/ friend_detail hero アバター(Brush.linearGradient 0.50→0.15 で一致)。
+- **実差分 是正(Codex 全 MATCH 収束・commit a97bf4f)**: ①友達追加=「申請を送る」を QR の上へ+見出し「友達コードで追加」+中央タイトル+閉じる追加
+  ②日詳細シート=中央タイトル+閉じる追加 ③共有 `SheetCloseButton`(iOS26 ナビボタンの淡カプセル)へ統一(友達詳細/追加/日詳細。旧=素テキスト/欠落)
+  ④ボトムタブバー= menstrual/rescue/ランキングは iOS が各タブ内 push でタブバーを残すため、Android も維持+親タブ選択(`AppNavHost.detailParentTab`)。実機でランキングにタブバー(友達選択)確認。
+
 ## 0. 完全一致のための手順（毎回これを守る = 再発防止）
 1. **正本 = iOS build 12**。シミュレータに build 12 を確実に install(derivedDataPath 固定→CFBundleVersion=12 確認)。
    手順は memory `android_ios_ui_parity`。
