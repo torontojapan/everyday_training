@@ -43,7 +43,7 @@
 1. ~~ホーム **referralスター行**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`ReferralStarsRow` を上段3行目に追加、VM `referralRow` StateFlow(`currentAccountStarBadges`×`currentAccountCode`)で配線。connect 後 refresh も是正。
 2. ~~ホーム **週カレンダー日タップ → DayDetailSheet**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`WeeklyCalendar` セルを clickable 化、履歴 `DayDetailSheet`(internal 化)を再利用、`HomeUiState.weekRecords` で当日記録を供給。記録あり/なし両状態 検証済。
 3. ~~ホーム **revive 成功祝福**「連続復活!」~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`applyRevive()` 成功で `_reviveCelebration=CatRank.of(potentialStreak)` を点火→`RankCelebrationOverlay(message="連続復活!")`。実機で popup→使う→ピル表示を確認。
-4. 履歴 **生理日まとめ入力画面**（iOS `MenstrualEntryView` 相当・過去日一括）+ 履歴に「生理日を記録する / 過去の日付もまとめて入力できます」entry-row（cycle有効時、★+chevron）。
+4. ~~履歴 **生理日まとめ入力画面**~~ ✅ **完了(2026-06-18・エミュ実スクショ検証済)**。`MenstrualEntryScreen`+`MenstrualEntryViewModel` 新設、NavHost に `menstrual` route、履歴 entry-row(cycle有効時)。トグルが履歴カレンダー★に即反映を確認。
 5. 友達 **初回表示名入力カード**（`namePromptCard`: 表示名未設定時に1回。iOS `FriendsView.swift:671-711`）。
 **B. 要素材/規約**
 6. 設定/友達 **Apple・Google ブランドロゴ画像**（規約準拠アセットを用意して認証ボタンへ。現状テキストのみ）。
@@ -62,7 +62,7 @@
 - [~] ホーム  — **大半是正済・スクショ検証(アニメ稼働をフレーム差分で確認)**: ITEM2 環境パーティクル(時刻別18粒・Canvas移植)✅ / NEW-C 猫アイドル(呼吸1.03/浮遊±/傾き±2°合成)✅ / ITEM4 猫タップ bounce1.08+haptic✅ / 猫背景の光輪(tint .32→.06)✅ / ITEM6 吹き出し pop-in(scale0.7→1+fade delay0.15)✅+lineLimit3✅ / ITEM7 今日セル breathing(1.0↔1.05)✅ / ITEM5 称号チップ pawprint✅ / ITEM10 weeklyMini 等幅✅。ITEM1 referralスター行 ✅(スクショ検証済・connect 後 refresh も是正)。ITEM3 日タップ→DayDetailSheet ✅(スクショ検証済・履歴シート再利用)。ITEM8 revive overlay「連続復活!」✅(スクショ検証済)。**残: ITEM9 ⭐10コピー(Android は絵文字回避方針で「星10個」のまま=要オーナー確認)**
 - [~] 記録入力 — **大半是正済**(R1 時間/回数/セット ピッカー✅ / R2 体調・周期 独立セクション✅ / R3 メモ複数行3..5✅ / R4 体重0-500検証+保存ブロック+disabledReason✅ / NEW-1 重さ<1000+「(kg)」✅ / NEW-2 候補見出し表示条件✅ / NEW-3 候補chip選択状態撤去✅)。残: R5 キーボード「完了」バー = **Android はアクセサリバー非対応のため許容差**(ピッカー化で数値テキスト入力も大幅減)。
 - [x] **記録完了 — ✅ 完了**(B1 streak0常時表示 / B2「きのうから+1のばした！」行(VM streakExtended配線) / B3 タイトル / N3 リボン影 / N4 ヒーローパルス+グロー影)
-- [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。**残: ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求(VMに残数配線要)/ ITEM3 生理日まとめ入力画面(新規画面要)**
+- [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。ITEM3 生理日まとめ入力画面 ✅(スクショ検証済・MenstrualEntryScreen 新設)。**残: ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求(VMに残数配線要)**
 - [~] 設定   — **大半是正済**(情報サポート4リンク✅/削除gating匿名対応✅/PerkGuide5項目✅/休養ルール4項目展開✅/破壊色赤✅/trialEligible配線✅/共有URL✅/一部アイコン✅/cycle・書き出しコピー✅)。残: 振動トグル(要pref)/ブランドロゴ画像(要アセット)/通知独立View・ウィジェット5段。**ITEM3削除コピーは Android 実挙動(端末内記録は残る)に忠実=変更せず**(監査の過剰指摘)。
 - [~] 友達   — **友達詳細フル画面化＝完了・スクショ検証済**(全画面Dialog: hero[グラデ猫132+@user·friendCode mono+称号バッジ+最終更新]／今日の運動[達成バッジ+カテゴリchip+種目別詳細]／今週の達成[木=今日強調]／統計3タイル[連続/累計/**つながって**=正メトリック]／cheer[入力欄+送信ボタン+2列プリセット+「…を送りました」インライン確認]／解除[bordered red]。モデルに lastUpdated/connectedSince/todayExerciseDetails+SharedExerciseDetail 追加・Mock seed・updated_at デコード配線)。**友達一覧の小項目(スクショ検証)**: ITEM3 追加ボタン=トップバーアイコン✅／ITEM4 エラーバナー色 primaryDeep+更新ボタン✅／ITEM5「6文字の英数字 (例: ABC123)」+無結果コピー✅／ITEM9 公園アバター=影楕円+白縁今日バッジ+決定論的猫+long-press解除撤去+トースト下余白64✅／空状態コピー「右上の + から…」✅。**残**: ITEM6 明示「検索」ボタン(現状ライブ検索)／ITEM7 コピーコードtoast・受信5s・初回名前入力カード／ITEM8 QRキャプション・申請アバター実猫。today_exercise_details/connected_since の**実BEデコード**は iOS スキーマ確認後(現状 null フォールバック・Mock表示確認済)。
 - [x] **ランキング — ✅ 完了**(G1 EmptyStateView / G2 サマリーgradient+枠 / G3 自分行2dp枠 / G4 メダル不透明度+数字色 / G5 猫fallback=決定論的猫(FriendAvatarResolver新設, iOS FNV-1a 一致) / G6 中央タイトル+システム戻る)
@@ -118,7 +118,9 @@
 ### D. 履歴 (iOS StatsView/MonthlyCalendarView/HistoryRowView)
 - [ ] **保険チケットを折りたたみ化**: 「今月 N / M 回 残り」動的subtitle + アイコン状態(ticket.fill↔ticket) + 展開(説明「忙しい日に連続記録を守れます。毎月リセットされます。」+「使う日を選んで適用」+ **非Premium向け Premium訴求「GOプレミアムで保険チケットが月4回に」→paywall**)。Android は単純カード。
 - [ ] **運動履歴を HistoryRowView 相当**に: 日付グルーピング(見出し sectionTitle)+ per-record カード(surface r18/padding14)+ カテゴリ見出し+SF Symbol+色 + 種目行(回 セット duration 順)+「合計 {duration}」+ **メモ**。Android はフラットテキスト(カード/カテゴリ/合計/メモ 全欠落)。
-- [ ] **生理日入力 entry-row**「生理日を記録する / 過去の日付もまとめて入力できます」(★ + chevron, cycle有効時)→ MenstrualEntryView 相当(一括入力)。Android 欠落。
+- [x] **生理日入力 entry-row**「生理日を記録する / 過去の日付もまとめて入力できます」(★ + chevron, cycle有効時)→ `MenstrualEntryScreen`(一括入力)✅(エミュ実スクショ検証済 2026-06-18)。
+  履歴のカレンダー直後・保険チケットの前に配置(iOS StatsView 並び順)。専用画面=月ナビ(翌月ガード)+曜日行+グリッド(today強調/未来淡色非活性)+
+  ★トグル(markColor#DB5C73 塗り0.18+枠1.5+★)+「M月の記録: N 日」+説明3点。`MenstrualRepository` 共有でトグルが履歴カレンダーの★に即反映(検証済)。
 - [ ] カレンダーセルの**救済日マーク(右下 ticket.fill)** + 凡例「保険チケット使用」chip。Android 欠落。
 - [ ] Monthly空状態: 当月記録なしで dim + chevron非表示 + disabled + subtitle「今月の記録はまだありません」。
 - [ ] All-time subtitle を「累計 N 日達成 / 使用 M 日 (R%)」に(Android「達成率R%」で使用日数欠落)。空状態「まだ記録がありません」。

@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.DailyStatus
@@ -72,10 +73,11 @@ fun HistoryRoute(
     onUseRescue: () -> Unit = {},
     onOpenHighlight: (String) -> Unit = {},
     onOpenPremium: () -> Unit = {},
+    onOpenMenstrual: () -> Unit = {},
     viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual, onOpenHighlight, onOpenPremium)
+    HistoryContent(state, viewModel::prevMonth, viewModel::nextMonth, onUseRescue, viewModel::toggleMenstrual, onOpenHighlight, onOpenPremium, onOpenMenstrual)
 }
 
 @Composable
@@ -87,6 +89,7 @@ fun HistoryContent(
     onToggleMenstrual: (LocalDate) -> Unit = {},
     onOpenHighlight: (String) -> Unit = {},
     onOpenPremium: () -> Unit = {},
+    onOpenMenstrual: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
     val today = remember { LocalDate.now() }
@@ -146,6 +149,12 @@ fun HistoryContent(
                     style = AppType.caption,
                 )
             }
+        }
+
+        // 生理日まとめ入力 entry-row(周期トラッキング ON のときだけ)。iOS StatsView の並び順:
+        // カレンダー → 生理日入力 → 保険チケット → ハイライト。
+        if (state.cycleTrackingEnabled) {
+            MenstrualEntryRow(palette, onClick = onOpenMenstrual)
         }
 
         // 保険チケット(連続を守るフリーズ)。iOS は折りたたみ: 動的subtitle + 説明 + 適用導線 + 非Premium訴求。
@@ -268,6 +277,26 @@ private fun EntryCard(
             if (!dimmed) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(20.dp))
             }
+        }
+    }
+}
+
+/** 生理日まとめ入力への導線。iOS StatsView.menstrualEntry: ★(markColor) + 2 行テキスト + chevron, surface r18 padding14。 */
+@Composable
+private fun MenstrualEntryRow(palette: com.goexercise.app.ui.theme.AppTheme, onClick: () -> Unit) {
+    val markColor = Color(0.86f, 0.36f, 0.45f)
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.clickable(onClick = onClick).padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("★", fontSize = 22.sp, fontWeight = FontWeight.Black, color = markColor)
+            Column(modifier = Modifier.weight(1f)) {
+                Text("生理日を記録する", style = AppType.headline, color = palette.textPrimary)
+                Text("過去の日付もまとめて入力できます", style = AppType.caption, color = palette.textSecondary)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(20.dp))
         }
     }
 }

@@ -45,6 +45,7 @@ private const val RESCUE_ROUTE = "rescue" // フリーズ使用(履歴から遷�
 private const val HIGHLIGHT_ROUTE = "highlight-share" // ハイライト共有(履歴から weekly/monthly/alltime で遷移)
 private const val RECORD_COMPLETION_ROUTE = "record-completion" // 記録完了の祝福画面(保存後に着地)
 private const val PREMIUM_ROUTE = "premium" // GOプレミアム ペイウォール(#6)。?ctx= で文脈を渡す
+private const val MENSTRUAL_ROUTE = "menstrual" // 生理日まとめ入力(履歴から遷移する専用カレンダー)
 
 /**
  * アプリの骨格。ボトムタブ(home/履歴/体重/友達/設定)を持つ Scaffold + NavHost。
@@ -147,6 +148,7 @@ fun AppNavHost(
                             onUseRescue = { navController.navigate(RESCUE_ROUTE) },
                             onOpenHighlight = { kind -> navController.navigate("$HIGHLIGHT_ROUTE/$kind") },
                             onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.General.name}") },
+                            onOpenMenstrual = { navController.navigate(MENSTRUAL_ROUTE) },
                         )
                         AppRoute.Friends -> FriendsRoute(
                             onOpenRanking = { navController.navigate(AppRoute.WeeklyRanking.path) },
@@ -163,6 +165,10 @@ fun AppNavHost(
             // 体重タブ(premium。未加入は paywall[weight 文脈]へ)。
             composable(WEIGHT_ROUTE) {
                 WeightRoute(onOpenPremium = { navController.navigate("$PREMIUM_ROUTE/${PaywallContext.Weight.name}") })
+            }
+            // 生理日まとめ入力(履歴の entry-row から遷移)。周期トラッキング ON のときだけ到達。
+            composable(MENSTRUAL_ROUTE) {
+                com.goexercise.app.presentation.history.MenstrualEntryRoute(onBack = { navController.popBackStack() })
             }
             // フリーズ使用(履歴から遷移)。無料枠なら paywall(freeze 文脈)へ誘導。
             composable(RESCUE_ROUTE) {
