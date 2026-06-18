@@ -1,5 +1,6 @@
 package com.goexercise.app.ui.theme
 
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -7,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.TextStyle
 
 /**
  * iOS のカラートークンは Material3 の ColorScheme より項目が多い(restDay/missed/
@@ -63,7 +65,12 @@ fun GOExerciseTheme(
             error = theme.missed,
         )
     }
-    CompositionLocalProvider(LocalAppPalette provides theme) {
+    // inline の Text(fontSize/fontWeight 直指定で family 未指定)も丸ゴで描くため、
+    // 既定 LocalTextStyle に family を載せる(サイズ/ウェイトは各 Text 側の指定が優先)。
+    CompositionLocalProvider(
+        LocalAppPalette provides theme,
+        LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = RoundedFontFamily)),
+    ) {
         MaterialTheme(
             colorScheme = scheme,
             typography = AppTypography,
