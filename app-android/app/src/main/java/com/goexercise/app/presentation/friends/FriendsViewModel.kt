@@ -175,7 +175,7 @@ class FriendsViewModel @Inject constructor(
         _uiState.update { it.copy(isConnecting = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                service.signIn(displayName = DEFAULT_DISPLAY_NAME, username = "")
+                service.signIn(displayName = DEFAULT_DISPLAY_NAME, username = generatedUsername())
                 // 再インストール後の既存セッション等にバックアップが残っていれば取り込む
                 // (新規匿名は空フェッチで no-op。iOS の friendCode 変化 → restoreAfterSignIn に対応)。
                 restoreRecordBackup()
@@ -494,5 +494,18 @@ class FriendsViewModel @Inject constructor(
     companion object {
         const val DEFAULT_DISPLAY_NAME = "あなた"
         private const val GENERIC_ERROR = "通信に失敗しました。少し時間をおいて試してください。"
+
+        /**
+         * 匿名サインイン時の検索用 username 自動生成。iOS `FriendsStore.generatedUsername()` 完全移植
+         * (`"neko" + UUID の英数字 6 文字 小文字`)。これが無いと自分ヘッダの @username 行が出ず
+         * (FriendsScreen は username 非空時のみ描画)、username 検索もできない=iOS と非一致だった(2026-06-19 検出)。
+         */
+        fun generatedUsername(): String {
+            val suffix = java.util.UUID.randomUUID().toString()
+                .replace("-", "")
+                .take(6)
+                .lowercase()
+            return "neko$suffix"
+        }
     }
 }

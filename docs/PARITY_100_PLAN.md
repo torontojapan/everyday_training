@@ -121,10 +121,28 @@
   をボタン上+長文を section footer(節末)に。Android=長文をトグル直下+「機種変更で確実に復元するには…(連携でバックアップが自動 ON)。」。
   文言と配置順が微差。機能は等価。次サイクルで iOS サインアウト状態を厳密採寸して寄せる。
 
-### ⛔ ブロッカー: 友達/ランキング/設定サインイン状態は Mock-force ビルドが要る
-- 現 APK(local.properties SUPABASE 空)は友達タブが Supabase 接続待ちで「準備しています…」から進まない
-  →匿名プロフィール未確立→ranking/friend詳細/設定の削除・招待行・連携状態が撮れない。
-- memory [[android_ios_ui_parity]] の手順どおり **Mock 強制(seedDemo)ビルド**にしてから撮る。検証後 local.properties 復元。
+### Mock-force ビルド手順(確立)+ 友達/ランキング/設定サインイン照合(セッション継続分)
+- ⚠️ `secret()` は **`app-android/local.properties`**(repo ルートでなく gradle ルート)を読む。ここに実 Supabase 鍵が
+  入っていると friends が実接続待ちで「準備しています…」スタック。**Mock 化** = `app-android/local.properties` の
+  `SUPABASE_HOST`/`SUPABASE_ANON_KEY` をコメントアウト → `:app:assembleDebug`(BuildConfig が `SUPABASE_HOST=""` に
+  再生成=isConfigured false→MockFriendsService)→ install。**検証後 `/tmp/local.properties.realbak_session` から復元**(済)。
+  ※ local.properties 変更は Gradle のタスク入力に乗らず BuildConfig が stale になりがち → 確実を期すなら `:app:clean`。
+
+### 🐞 是正した実バグ③: 友達 自分プロフィールの @username が空(Mock でなく実挙動)
+- iOS は匿名サインインで `username: generatedUsername()`=`"neko"+UUID英数字6文字小文字`(例 @neko2f669b)を付与し、
+  自分ヘッダに **@username 表示**+username 検索可。Android `FriendsViewModel.connect()` は `username = ""` を渡し、
+  FriendsScreen は username 非空時のみ @行を描くため **@ハンドルが出ず・検索もできなかった**。
+  → `generatedUsername()` を iOS 完全移植(同companion)して `connect()` で付与。`@nekoc9d16b` 表示を実証
+  (`proofs/friends_self_username_FIXED.png`)。friends ユニットテスト green。
+
+### ✓ 友達/ランキング/設定(プロフィール確立後・Mock build・density393)で照合
+- **設定**: プロフィール確立後に「**アカウントを削除**」(5.1.1(v) 赤・trash)と「**友達を招待する**」が**出現**=
+  状態ゲートだった分析をスクショで確証(`proofs/settings_android_with_profile_delete_invite_present.png`)。
+- **友達**: ヘッダ(アバター/表示名/@username[修正後]/連続)/友達コード+copy/share/QR/表示名決めカード/アプリ共有/
+  申請カード+承認・×/友達リスト+順位を見る・連続日数順=一致。友達数(2 vs 10)・名前=mock データ差。
+- **ランキング**: タイトル/今週・今月セグメント/順位ルールカード(①連続②運動時間)/自分順位カード/メダル色丸(金銀銅)+
+  名前+🐾連続+⏱分=一致(`proofs/ranking_ios_vs_android.png`)。**LOW**: 戻る=iOS 丸囲み`<` / Android 赤`←`。人数=データ差。
+- **LOW**: 設定「友達を招待する」は iOS=プレーン行(Label+share icon)/ Android=副題付きカード。機能等価。
 
 ### ✅ 方法論ギャップ=解消済(density で幅一致)
 - **emulator go_test は論理幅 411dp、iPhone 17 Pro Max は 440pt**(約6.5%狭い)。幅依存レイアウトで
