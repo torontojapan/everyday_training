@@ -337,25 +337,33 @@ fun SettingsContent(
                 }
             }
 
+            // iOS: テーマカラー(→ドリルイン)/ 自分のキャラを変更(現在値+ドリルイン)/ 達成時の振動 を 1 カード。
             SettingsPage.Customize -> SubPage("カスタマイズ", onBack = { page = SettingsPage.Main }) {
-                SectionLabel("テーマカラー")
-                AppTheme.entries.forEach { theme ->
-                    ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
-                }
-                SectionLabel("自分のキャラ")
-                CatBreedPicker(
-                    selected = catBreed, palette = palette, isPremium = isPremium,
-                    referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
-                    onSelect = onSelectBreed, onLockedTap = onOpenPremium,
-                )
-                // 達成時の振動トグル(iOS CustomizationSettingsPage の haptic-toggle)。
                 SettingsCard {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    EntryRow(Icons.Filled.Palette, "テーマカラー", showChevron = true) { page = SettingsPage.ThemePicker }
+                    RowDivider()
+                    EntryRow(Icons.Filled.Pets, "自分のキャラを変更", trailing = catBreed.displayName, showChevron = true) { page = SettingsPage.CatPicker }
+                    RowDivider()
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Filled.Vibration, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(22.dp))
                         Text("達成時の振動", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
                         Switch(checked = hapticEnabled, onCheckedChange = onToggleHaptic)
                     }
                 }
+            }
+
+            SettingsPage.ThemePicker -> SubPage("テーマカラー", onBack = { page = SettingsPage.Customize }) {
+                AppTheme.entries.forEach { theme ->
+                    ThemeRow(theme = theme, isSelected = theme == selected, onClick = { onSelect(theme) })
+                }
+            }
+
+            SettingsPage.CatPicker -> SubPage("自分のキャラ", onBack = { page = SettingsPage.Customize }) {
+                CatBreedPicker(
+                    selected = catBreed, palette = palette, isPremium = isPremium,
+                    referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
+                    onSelect = onSelectBreed, onLockedTap = onOpenPremium,
+                )
             }
 
             SettingsPage.RecordSharing -> SubPage("記録と共有", onBack = { page = SettingsPage.Main }) {
@@ -417,7 +425,7 @@ fun SettingsContent(
 }
 
 /** 設定のサブページ識別子。iOS の NavigationLink 階層に対応。 */
-private enum class SettingsPage { Main, Customize, RecordSharing, Notifications, DataPrivacy, Info, RankLadder }
+private enum class SettingsPage { Main, Customize, ThemePicker, CatPicker, RecordSharing, Notifications, DataPrivacy, Info, RankLadder }
 
 /** セクション見出し(iOS List のセクションヘッダ相当)。 */
 @Composable
