@@ -8,15 +8,19 @@ import androidx.compose.ui.unit.sp
 import com.goexercise.app.R
 
 /**
- * iOS は全画面 `Font.system(design: .rounded)`(SF Rounded)。Android に SF Rounded は無いので
- * 日本語対応の丸ゴ **M PLUS Rounded 1c**(Google Fonts, SIL OFL)を同梱して代替する。
- * res/font に 4 ウェイト(regular/medium/bold/black)を配置済み。
+ * iOS build 12 パリティ: iOS は `Font.system(design: .rounded)` だが **SF Rounded は欧文/数字のみ**で、
+ * **日本語はシステムのゴシック(Hiragino)**で描画される(丸ゴにならない)。
+ * これに合わせ Android も「欧文/数字=丸ゴ・和文=ゴシック」のハイブリッドにする:
+ *  - 欧文/数字: M PLUS Rounded 1c を **Latin サブセット**(ASCII+Latin-1)にして同梱(丸ゴ)。
+ *  - 和文(かな/漢字/和文約物): このフォントに字形が無いため **端末標準の和文ゴシック**
+ *    (Noto Sans CJK JP 等)へ自動フォールバック=iOS が Hiragino を使うのと同じ発想。
+ * これにより、以前「和文まで丸ゴ」で iOS と字形が違っていた問題を解消する(ユーザー指摘 2026-06-19)。
  */
 val RoundedFontFamily = FontFamily(
-    Font(R.font.mplus_rounded1c_regular, FontWeight.Normal),
-    Font(R.font.mplus_rounded1c_medium, FontWeight.Medium),
-    Font(R.font.mplus_rounded1c_bold, FontWeight.Bold),
-    Font(R.font.mplus_rounded1c_black, FontWeight.Black),
+    Font(R.font.mplus_latin_regular, FontWeight.Normal),
+    Font(R.font.mplus_latin_medium, FontWeight.Medium),
+    Font(R.font.mplus_latin_bold, FontWeight.Bold),
+    Font(R.font.mplus_latin_black, FontWeight.Black),
 )
 
 /**
