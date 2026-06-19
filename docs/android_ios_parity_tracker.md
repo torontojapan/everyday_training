@@ -100,7 +100,7 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | 体重 | プレミアムpopulated・無料→paywall | ☐(App Store test では撮影済・未照合) |
 | ペイウォール | 一般/freeze/weight 文脈 | ☐ |
 | 連続シェア / ハイライトシェア(週/月/全期間) | — | ☐ |
-| オンボーディング | step1(猫選択)/step2(バックアップ) | ☐(ロゴはセッションB6で確認) |
+| オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |
 | フリーズ(rescue) | — | ☐(tabbar 修正は反映済・未照合) |
 | ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | ☐ |
 
