@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -297,7 +299,7 @@ fun SettingsContent(
                     if (isPremium) {
                         PremiumActiveRow()
                     } else {
-                        EntryRow(Icons.Filled.WorkspacePremium, "GOプレミアムにアップグレード", trailing = if (trialEligible) "14日間無料" else null, onClick = onOpenPremium)
+                        EntryRow(crownIcon(), "GOプレミアムにアップグレード", trailing = if (trialEligible) "14日間無料" else null, onClick = onOpenPremium)
                     }
                     RowDivider()
                     EntryRow(Icons.Filled.MilitaryTech, "プレミアム特典・称号一覧", showChevron = true) { page = SettingsPage.RankLadder }
@@ -449,6 +451,10 @@ private fun RowDivider() {
     HorizontalDivider(color = LocalAppPalette.current.textSecondary.copy(alpha = 0.12f), modifier = Modifier.padding(start = 52.dp))
 }
 
+/** iOS crown.fill 相当の王冠アイコン(ic_crown ベクター)。WorkspacePremium(リボン)からの置換。 */
+@Composable
+private fun crownIcon(): ImageVector = ImageVector.vectorResource(com.goexercise.app.R.drawable.ic_crown)
+
 /** アイコン + タイトル + (任意の右側テキスト/chevron) の設定行。iOS Label 行相当。 */
 @Composable
 private fun EntryRow(
@@ -483,7 +489,7 @@ private fun PremiumActiveRow() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(22.dp))
+        Icon(crownIcon(), contentDescription = null, tint = palette.primary, modifier = Modifier.size(22.dp))
         Text("GOプレミアム 加入中", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
     }
 }

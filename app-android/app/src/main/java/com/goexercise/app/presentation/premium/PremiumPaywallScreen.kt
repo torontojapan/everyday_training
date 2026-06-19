@@ -135,8 +135,11 @@ fun PremiumPaywallContent(
 
         // ヘッダー
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // iOS: crown.fill(コーラル単色)。絵文字 👑 ではなく Material アイコンに統一。
-            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(48.dp))
+            // iOS: crown.fill(コーラル単色)。crown ベクター(ic_crown)で字形一致(以前は WorkspacePremium=リボンで別物)。
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(com.goexercise.app.R.drawable.ic_crown),
+                contentDescription = null, tint = palette.primary, modifier = Modifier.size(48.dp),
+            )
             Text(context.headline, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary, textAlign = TextAlign.Center)
             Text(
                 copy.subhead,

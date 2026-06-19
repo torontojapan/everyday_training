@@ -1,0 +1,5 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24" android:tint="#FFFFFFFF">
+  <!-- iOS SF Symbol crown.fill 相当(3山の王冠 + 基部バンド)。WorkspacePremium(リボン)からの置換でパリティ。 -->
+  <path android:fillColor="#FFFFFFFF" android:pathData="M5,16L3,5L8,9L12,4L16,9L21,5L19,16Z"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M5,18h14v2.2h-14z"/>
+</vector>

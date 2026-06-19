@@ -212,8 +212,11 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                // iOS lockedOverlay: crown.fill(コーラル単色)。絵文字 👑 ではなく Material アイコンに統一(一般paywallと同じ)。
-                Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(44.dp))
+                // iOS lockedOverlay: crown.fill(コーラル単色)。crown ベクター(ic_crown)で字形一致。
+                Icon(
+                    painter = androidx.compose.ui.res.painterResource(com.goexercise.app.R.drawable.ic_crown),
+                    contentDescription = null, tint = palette.primary, modifier = Modifier.size(44.dp),
+                )
                 Text("体重タブは GOプレミアム機能です", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center)
                 Text(
                     // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
