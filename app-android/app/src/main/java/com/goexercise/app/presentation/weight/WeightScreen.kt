@@ -24,9 +24,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -142,7 +145,8 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text("👑", fontSize = 44.sp)
+                // iOS lockedOverlay: crown.fill(コーラル単色)。絵文字 👑 ではなく Material アイコンに統一(一般paywallと同じ)。
+                Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(44.dp))
                 Text("体重タブは GOプレミアム機能です", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center)
                 Text(
                     // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
@@ -150,9 +154,18 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                     else "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。",
                     fontSize = 12.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
                 )
-                Button(onClick = onOpenPremium, colors = ButtonDefaults.buttonColors(containerColor = palette.primary)) {
+                Button(
+                    onClick = onOpenPremium,
+                    colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+                    shape = RoundedCornerShape(50), // iOS Capsule。
+                ) {
                     Text("GOプレミアムを見る", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
+                // iOS フッター: ホーム「記録する」からの体重入力は無料(無料導線を明示)。
+                Text(
+                    "ホーム画面の「記録する」からの体重入力は\n引き続き無料でご利用いただけます",
+                    fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                )
             }
         }
     }
