@@ -57,7 +57,8 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
 | 画面 | 主要状態 | golden照合 |
 |---|---|---|
 | ホーム | 達成済(populated) | ✅(セッション4) |
-| ホーム | 新規/空・未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | ☐ |
+| ホーム | 新規/空(0日連続・全"-"週・待機猫・CTA) | ✅(セッション12・MATCH。猫メッセージは両者 Encouraging プール同一=ランダム差) |
+| ホーム | 未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | 🔶(referral=A1/revive=A3/comeback=実装済・golden 横並びは未) |
 | 記録入力 | 入力済 | ✅(セッション4・field統一確認) |
 | 記録入力 | 空/初期・複数種目・体重バリデーションエラー | ☐ |
 | 記録完了 | 達成(連続>1初記録/2件目) | ✅(セッション6・back/tabbar/きのうから条件) |
