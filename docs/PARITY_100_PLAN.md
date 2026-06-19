@@ -103,6 +103,11 @@
 - **履歴 生理日行**:iOS は `cycleSettings.isEnabled` 条件付き。Android も `if(cycleTrackingEnabled)` で
   同文言「生理日を記録する/過去の日付もまとめて入力できます」+★22sp Black 同色を描画。**一致**(私のキャプチャは
   周期 OFF だったため非表示=設定差)。
+- **記録入力(過去 MATCH 誤報告の画面)= 全要素一致を density393 で確認**(証跡 `proofs/record_ios_vs_android.png`):
+  過去欠陥の「種目メモ欄欠落」→PRESENT / 「重さ配置違い」→4列目に正配置 / 「候補チップ日本語デフォルト未表示」→
+  スクワット/腕立て伏せ/プランク/腹筋… PRESENT / 「アコーディオン無し」→種類アコーディオン(^)PRESENT、全て解消。
+  「体調・周期/今日は生理日」トグルは両OSとも `cycleTrackingEnabled` ゲート(非表示=設定差で一致)。
+  体重ヒントは両OSとも同一ロジック(`前回: %.1f kg` / 無ければ `体重を入れるとグラフに反映されます`)=データ差のみ。
 
 ### ✅ 方法論ギャップ=解消済(density で幅一致)
 - **emulator go_test は論理幅 411dp、iPhone 17 Pro Max は 440pt**(約6.5%狭い)。幅依存レイアウトで
