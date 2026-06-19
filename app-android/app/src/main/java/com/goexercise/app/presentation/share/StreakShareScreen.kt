@@ -106,18 +106,17 @@ fun StreakShareContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
-            // コンパクトカード(自身のグラデ範囲が背景と異なるため浮いて見える=iOS と同型)。影付き。
-            Box(modifier = Modifier.weight(1f, fill = false).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                preview?.let { bmp ->
-                    Image(
-                        bitmap = bmp,
-                        contentDescription = "${streak}日連続のシェア画像",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxHeight().aspectRatio(1080f / StreakShareImageRenderer.COMPACT_H)
-                            .shadow(18.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)),
-                    )
-                } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
-            }
+            // コンパクトカード(自身のグラデ範囲が背景と異なるため浮いて見える=iOS と同型)。
+            // iOS と同じく画面幅の大部分を占める大きさ(全幅)。影付き。
+            preview?.let { bmp ->
+                Image(
+                    bitmap = bmp,
+                    contentDescription = "${streak}日連続のシェア画像",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1080f / StreakShareImageRenderer.COMPACT_H)
+                        .shadow(20.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)),
+                )
+            } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
 
             // グラデ選択ドット(白縁。グラデ背景上で視認)。iOS ShareGradientPicker。
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

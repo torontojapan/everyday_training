@@ -109,17 +109,16 @@ fun HighlightShareContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
-            Box(modifier = Modifier.weight(1f, fill = false).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                preview?.let { bmp ->
-                    Image(
-                        bitmap = bmp,
-                        contentDescription = "${kind.title}のシェア画像",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxHeight().aspectRatio(1080f / HighlightShareImageRenderer.COMPACT_H)
-                            .shadow(18.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)),
-                    )
-                } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
-            }
+            // iOS と同じく画面幅の大部分を占めるコンパクトカード(全幅)。影付き。
+            preview?.let { bmp ->
+                Image(
+                    bitmap = bmp,
+                    contentDescription = "${kind.title}のシェア画像",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1080f / HighlightShareImageRenderer.COMPACT_H)
+                        .shadow(20.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)),
+                )
+            } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
 
             // グラデ選択ドット(白縁。グラデ背景上で視認。再タップで種別既定色へ)。iOS ShareGradientPicker。
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -31,7 +31,7 @@ object HighlightShareImageRenderer {
     private const val W = 1080
     private const val H = 2340
     /** 画面プレビュー用のコンパクトカード高さ(iOS MonthlyReviewCard 非 fillFrame の縦横比)。 */
-    const val COMPACT_H = 1480
+    const val COMPACT_H = 1680
 
     /** ハイライト種別。バッジ絵文字・タイトル・グラデ色を持つ(iOS の icon/title/gradient 対応)。 */
     enum class Kind(val badgeEmoji: String, val title: String, val gradient: List<Int>) {
@@ -68,7 +68,7 @@ object HighlightShareImageRenderer {
 
         // 内容を縦中央寄せ(stat 行数で高さが変わるので概算で上端を決める)。
         val statRows = buildStatRows(review, streakLabel)
-        val contentHeight = 1180f + statRows.size * 64f
+        val contentHeight = 1270f + statRows.size * 64f
         var top = ((h - contentHeight) / 2f).coerceAtLeast(120f)
 
         // アイコン付き日本語バッジ(英字バッジ + 和タイトルの重複を解消、iOS 1.3)。
@@ -79,7 +79,8 @@ object HighlightShareImageRenderer {
 
         // 猫。iOS MonthlyReviewCard は猫(影付き)のみで**プログラム紙吹雪を持たない**(粒は猫スプライトに焼込み)。
         // よって連続カードと違いハイライトでは drawConfetti を呼ばない(iOS パリティ・2LLM監査)。
-        val diameter = 340f
+        // iOS MonthlyReviewCard 猫 200pt(カード幅比≈0.55)。Android 1080 幅で同比率へ拡大。
+        val diameter = 430f
         val centerY = top + diameter / 2
         drawCat(context, canvas, cx, centerY, diameter, breed, poseSeed)
         top = centerY + diameter / 2 + 48f

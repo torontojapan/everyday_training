@@ -37,10 +37,10 @@ object StreakShareImageRenderer {
     private const val H = 2340
     /** 画面プレビュー用のコンパクトカード高さ(iOS StreakShareCard 非 fillFrame の縦横比に合わせる)。
      *  CONTENT_HEIGHT(1040)+上下マージンを確保しつつカードが間延びしない高さ。 */
-    const val COMPACT_H = 1240
+    const val COMPACT_H = 1280
     // 内容ブロックのおおよその高さ(称号→日数→猫→アプリ名)。これを使って縦中央寄せにする
     // (iOS は VStack が縦長フレーム内で中央寄せ。上下対称マージンで構図を合わせる)。
-    private const val CONTENT_HEIGHT = 1040f
+    private const val CONTENT_HEIGHT = 1080f
 
     /**
      * 連続日数 + 猫種からシェアカードの Bitmap を描く。
@@ -87,15 +87,16 @@ object StreakShareImageRenderer {
 
         // iOS StreakShareCard の並び順: 称号バッジ → 猫 → 大KPI(N 日連続)→ アプリ名。
         // 猫を数字の「前」に置く(以前は数字→猫で iOS と逆だった)。
-        val diameter = 360f
+        // iOS は猫 200pt(カード幅比 ≈0.55)。Android 1080 幅で同比率になるよう拡大(旧 360=0.33 は小さすぎ)。
+        val diameter = 480f
         val centerY = top + diameter / 2
         drawConfetti(canvas, cx, centerY, diameter)
         drawCat(context, canvas, cx, centerY, diameter, breed, level, poseSeed)
-        top = centerY + diameter / 2 + 40f
+        top = centerY + diameter / 2 + 44f
 
-        // 大KPI: 「N」+「日連続」を 1 行(lastTextBaseline 揃え)で中央寄せ(iOS は HStack)。
-        val numPaint = textPaint(180f, black = true).apply { setShadowLayer(16f, 0f, 6f, 0x33000000) }
-        val sufPaint = textPaint(52f, bold = true)
+        // 大KPI: 「N」+「日連続」を 1 行(lastTextBaseline 揃え)で中央寄せ(iOS は HStack)。iOS 88pt≈幅0.22 に合わせ拡大。
+        val numPaint = textPaint(220f, black = true).apply { setShadowLayer(16f, 0f, 6f, 0x33000000) }
+        val sufPaint = textPaint(60f, bold = true)
         val numStr = streak.toString()
         val suffix = " 日連続"
         val numW = numPaint.measureText(numStr)
