@@ -118,21 +118,6 @@ fun StreakShareContent(
                 )
             } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
 
-            // グラデ選択ドット(白縁。グラデ背景上で視認)。iOS ShareGradientPicker。
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
-                    Box(
-                        modifier = Modifier.size(38.dp).clip(CircleShape)
-                            .background(androidx.compose.ui.graphics.Brush.linearGradient(g.colors.map { androidx.compose.ui.graphics.Color(it) }))
-                            .then(
-                                if (g == gradient) Modifier.border(3.dp, androidx.compose.ui.graphics.Color.White, CircleShape)
-                                else Modifier.border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f), CircleShape),
-                            )
-                            .clickable { onSelectGradient(g) },
-                    )
-                }
-            }
-
             // SNSで共有(黒@0.45 カプセル・白文字。iOS)。
             ShareCapsuleButton(
                 text = if (streak > 0) "SNSで共有" else "まず1日記録してみよう",
@@ -146,6 +131,22 @@ fun StreakShareContent(
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ||
                         context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
                     ) doSave() else saveLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+            }
+
+            // グラデ選択ドット(白縁。グラデ背景上で視認)。iOS ShareGradientPicker は
+            // 「写真に保存」の**下**に置く(2026-06-19 パリティ: 以前はボタンの上で順序が iOS と逆だった)。
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
+                    Box(
+                        modifier = Modifier.size(38.dp).clip(CircleShape)
+                            .background(androidx.compose.ui.graphics.Brush.linearGradient(g.colors.map { androidx.compose.ui.graphics.Color(it) }))
+                            .then(
+                                if (g == gradient) Modifier.border(3.dp, androidx.compose.ui.graphics.Color.White, CircleShape)
+                                else Modifier.border(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f), CircleShape),
+                            )
+                            .clickable { onSelectGradient(g) },
+                    )
                 }
             }
         }

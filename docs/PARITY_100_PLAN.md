@@ -121,6 +121,19 @@
   をボタン上+長文を section footer(節末)に。Android=長文をトグル直下+「機種変更で確実に復元するには…(連携でバックアップが自動 ON)。」。
   文言と配置順が微差。機能は等価。次サイクルで iOS サインアウト状態を厳密採寸して寄せる。
 
+### 🐞 是正した実バグ④: 共有カード(連続)のグラデが iOS と別物(failure#4 領域)
+`ShareCardGradient.kt` の 5 プリセットが **2 ストップの Material 近似色**で iOS の **3 ストップ カスタム RGB** と
+別物だった。さらに連続カード既定が **Sunset(暖色)** で iOS の **ocean(寒色)** と相違、ピッカーが**ボタンの上**に
+あり iOS(「写真に保存」の**下**)と順序逆だった。是正:
+- 5 プリセット色を iOS `ShareCardGradient.swift` の 3 ストップ RGB を厳密移植(sunset/ocean/twilight/forest/daybreak)。
+- 連続カード既定を **Ocean** に(`SettingsRepository.shareGradient` 未設定既定 + `StreakShareUi` 初期値、
+  iOS `@AppStorage("shareCard.gradient.streak")=.ocean` パリティ)。
+- `StreakShareScreen` のピッカーを**最下部(写真に保存の下)**へ移動。
+- SNSで共有ボタンの「濃い色」差は**背景グラデ差(暖色)由来**で、ocean 既定化で解消(ボタン自体は black@0.45 で一致)。
+- 横並び実証=`proofs/streak_share_ios_vs_android_FIXED.png`(ocean 背景・浮きカード・ピッカー最下部が一致)。全テスト green。
+- **次**: ハイライト3カード(weekly=sunset/monthly=review既定/alltime=daybreak)の既定・ピッカー位置・色を同様に照合
+  (色は共有プリセット修正の恩恵を受けるが、per-card 既定と HighlightShareScreen のレイアウトは要確認)。
+
 ### Mock-force ビルド手順(確立)+ 友達/ランキング/設定サインイン照合(セッション継続分)
 - ⚠️ `secret()` は **`app-android/local.properties`**(repo ルートでなく gradle ルート)を読む。ここに実 Supabase 鍵が
   入っていると friends が実接続待ちで「準備しています…」スタック。**Mock 化** = `app-android/local.properties` の

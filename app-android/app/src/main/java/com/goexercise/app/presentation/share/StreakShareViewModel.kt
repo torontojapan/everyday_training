@@ -21,7 +21,8 @@ import javax.inject.Inject
 data class StreakShareUi(
     val streak: Int = 0,
     val breed: CatBreed = CatBreed.Default,
-    val gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Default,
+    // 連続カード既定は Ocean(iOS shareCard.gradient.streak=.ocean パリティ)。flow 確定までの初期値も合わせる。
+    val gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Ocean,
 )
 
 /**

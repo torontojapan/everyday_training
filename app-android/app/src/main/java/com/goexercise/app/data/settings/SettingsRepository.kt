@@ -112,8 +112,10 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     private val shareGradientKey = stringPreferencesKey("share_gradient")
+    // 連続(streak)カード専用キー。未設定時の既定は **Ocean(寒色)**=iOS
+    // `@AppStorage("shareCard.gradient.streak") = .ocean` パリティ(以前は全体既定 Sunset で連続カードが暖色だった)。
     override val shareGradient: Flow<ShareCardGradient> = dataStore.data.map { prefs ->
-        ShareCardGradient.fromName(prefs[shareGradientKey])
+        prefs[shareGradientKey]?.let { ShareCardGradient.fromName(it) } ?: ShareCardGradient.Ocean
     }
 
     override suspend fun setShareGradient(gradient: ShareCardGradient) {
