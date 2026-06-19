@@ -445,17 +445,19 @@ private fun EntryRow(
     title: String,
     trailing: String? = null,
     showChevron: Boolean = false,
+    tint: Color? = null,
     onClick: () -> Unit,
 ) {
     val palette = LocalAppPalette.current
+    // iOS 設定の行アイコンは濃色(charcoal)。破壊的行(削除)は赤=tint で上書き。
+    val fg = tint ?: palette.textPrimary
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // iOS 設定の行アイコンは濃色(charcoal)。アクセント色にしない。
-        Icon(icon, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(22.dp))
-        Text(title, style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
+        Text(title, style = AppType.body, color = fg, modifier = Modifier.weight(1f))
         trailing?.let { Text(it, style = AppType.caption, color = palette.primaryDeep) }
         if (showChevron) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(20.dp))
     }
@@ -651,10 +653,11 @@ private fun AnalyticsSection(palette: AppTheme, enabled: Boolean, onToggle: (Boo
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("利用状況の分析を共有", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                // iOS: トグルラベルは通常ウェイト(太字にしない)。
+                Text("利用状況の分析を共有", style = AppType.body, color = palette.textPrimary)
                 Text(
-                    "アプリ改善のための匿名の利用データ(個人を特定しません)。OFF にすると一切送信しません。",
-                    color = palette.textSecondary, fontSize = 12.sp,
+                    "アプリ改善のための匿名データ(個人を特定しません)。OFF にすると一切送信しません。",
+                    style = AppType.caption, color = palette.textSecondary,
                 )
             }
             Switch(checked = enabled, onCheckedChange = onToggle)
@@ -950,34 +953,24 @@ private fun DataManagementSection(
     onDeleteAll: () -> Unit,
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
-    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("運動・体重・体調の記録を JSON で書き出したり、すべて削除できます(課金状態は削除されません)。",
-                fontSize = 12.sp, color = palette.textSecondary)
-            OutlinedButton(onClick = onExport, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
-                if (isBusy) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = palette.primary)
-                } else {
-                    Icon(Icons.Filled.IosShare, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text("データを書き出す", color = palette.textPrimary)
-                }
-            }
-            Button(
-                onClick = { confirmDelete = true },
-                enabled = !isBusy,
-                colors = ButtonDefaults.buttonColors(containerColor = palette.chipBackground),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                // iOS パリティ: 破壊的操作は赤(.red)。
-                Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
-                Text("すべての記録を削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
-            }
-            if (statusMessage != null) {
-                Text(statusMessage, fontSize = 12.sp, color = palette.primaryDeep)
-            }
+    // iOS: 書き出す/削除は 1 セクションのプレーン行(divider)+ footer の説明文(card の外・下)。
+    SettingsCard {
+        EntryRow(Icons.Filled.IosShare, "データを書き出す", showChevron = false) { if (!isBusy) onExport() }
+        RowDivider()
+        EntryRow(Icons.Filled.Delete, "すべての記録を削除", showChevron = false, tint = Color(0xFFD32F2F)) { if (!isBusy) confirmDelete = true }
+    }
+    Text(
+        "書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。",
+        style = AppType.caption, color = palette.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+    )
+    if (isBusy) {
+        Row(Modifier.padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = palette.primary, strokeWidth = 2.dp)
+            Text("処理中…", style = AppType.caption, color = palette.textSecondary)
         }
+    }
+    if (statusMessage != null) {
+        Text(statusMessage, style = AppType.caption, color = palette.primaryDeep, modifier = Modifier.padding(start = 4.dp))
     }
     if (confirmDelete) {
         AlertDialog(
