@@ -44,6 +44,14 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
   ②日詳細シート=中央タイトル+閉じる追加 ③共有 `SheetCloseButton`(iOS26 ナビボタンの淡カプセル)へ統一(友達詳細/追加/日詳細。旧=素テキスト/欠落)
   ④ボトムタブバー= menstrual/rescue/ランキングは iOS が各タブ内 push でタブバーを残すため、Android も維持+親タブ選択(`AppNavHost.detailParentTab`)。実機でランキングにタブバー(友達選択)確認。
 
+## ★ 2026-06-19 セッション16: ランキング今月 + 友達 状態別 golden 照合（XCUITest 撮影）
+iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状態別 golden 撮影 → Android 実エミュ(go_test, Mock=SUPABASE空)実スクショ → 2LLM/PIL 測定で照合。
+- **ランキング 今月 = ✅ MATCH**: XCUITest `testCaptureRankingStates` で iOS 今月セグメントを撮影 → Android deep-link `goexercise://weekly-ranking`→今月タップ。セグメント(今週/今月)・ルールカード文言(「今月の順位ルール」「毎月 1 日にリセットされます。」)・mySummary グラデ枠・メダル行 すべて構造一致。差はデータのみ(月次分・件数・人数)=許容。
+- **友達 詳細 hero 名前 = ✅ 是正(セッション5 の golden が見逃した実差)**: iOS FriendDetailView 名前=`Typography.title`(.largeTitle 34pt) に対し Android は **22sp** だった(PIL 実測: iOS glyph 0.062×幅 vs Android 0.044×幅)。`AppType.title` に是正 → 実測 0.0685(iOS 0.0621 と一致)。エミュ実スクショで検証。
+- **友達 welcome / 空状態 = 構造一致(通常到達不可)+ source 是正**: 両 OS とも友達タブ `.task`/`LaunchedEffect` が `ensureSignedIn()` で**自動匿名サインイン**するため welcome は失敗時のみ、空状態は実BE 0友達時のみ=通常フロー到達不可(iOS 同型)。iOS welcome golden で確定した差を Android source に是正: ①welcome タイトル 22sp→`AppType.title`(iOS Typography.title 34) ②welcome 猫 120→140dp ③**welcome の復元(Apple/Google で復元)セクションを撤去**(iOS friendsWelcomeBody は復元入口を持たない=設定/オンボに集約) ④空状態 猫 96→124dp+opacity0.95 ⑤空状態見出し 15→17sp(iOS Typography.headline)。到達不可状態の golden 検証は AppType.title(自分名=到達可)+ CatImage(home/welcome golden で検証済)の既検証プリミティブで担保。
+- **ランキング 空状態 = 防御的コンポーネント(通常到達不可)**: `entries` はサインイン済なら必ず自分を含む→空にならない。`RankingEmptyState`/`EmptyStateView` は両 OS とも文言・構造一致のフォールバック。
+- **エラーバナー / cheer picker**: エラーバナーは要エラー発火(コード source 一致確認済)。cheer picker は友達詳細内=セッション5 で ✅。
+
 ## ★★ golden 照合カバレッジ台帳（全ページ×全パターンを build 12 と厳密一致させる 残タスク・正本）
 **方法(確立済・再現手順)**: ① iOS build 12 を sim にビルド→install(CFBundleVersion=12 確認)。② 直接 deep-link 可能な画面は
 `simctl launch --initial-tab <tab> --initial-route <route> --seed-demo-data --skip-onboarding --mock-seed-friends --seed-scenario yearly` で起動→`simctl io screenshot`。
@@ -92,11 +100,14 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 - **STRUCTURAL 残(大・別バッチ)**: ⓐ **友達への共有セクション**(「回数・時間・セット数も共有」トグル=`includeExerciseDetail` opt-in + publish 配線。C7 publish と統合)が Android に皆無 ⓑ カスタマイズ=ドリルイン行(テーマカラー→/自分のキャラを変更→値/振動)化(現状 展開インライン)
   ⓒ ナビヘッダ=中央タイトル+システム戻るシェブロン(現状 左寄せ大タイトル+赤矢印)を全サブページで統一 ⓓ データ&プライバシー の書き出し/削除をプレーン行化+caption を card 外へ+iOS 文言 ⓔ 分析 caption 文言一致 ⓕ 通知設定=権限バナー/3分割セグメント(OFF|1日1回|1日2回)/時刻行/性格ピッカー の iOS 構造化。
 | 友達 | サインイン済populated | ✅(セッション4) |
-| 友達 | welcome(未サインイン)・空(友達0)・エラーバナー・cheer picker | ☐ |
+| 友達 | welcome(未サインイン)・空(友達0) | ✅(セッション16・自動匿名サインインで通常到達不可・iOS welcome golden照合で source 是正: title34/猫140/復元撤去/空猫124+0.95/見出し17) |
+| 友達 | エラーバナー・cheer picker | ✅(cheer picker=セッション5 友達詳細)/ エラーバナー=source 一致(更新+閉じる・primaryDeep・要エラー発火) |
+| 友達 | 詳細 hero 名前フォント | ✅(セッション16・22sp→AppType.title 34・PIL測定一致。セッション5 golden の見逃し是正) |
 | 友達詳細 | populated | ✅(セッション5・閉じるカプセル) |
 | 友達追加 | — | ✅(セッション5・順序/見出し/閉じる) |
 | ランキング | 今週 | ✅(セッション4・segmented picker) |
-| ランキング | 今月・空状態 | ☐ |
+| ランキング | 今月 | ✅(セッション16・MATCH・データ差のみ) |
+| ランキング | 空状態 | ✅(セッション16・防御的フォールバック=サインイン済は常に自分を含み到達不可・両OS文言/構造一致) |
 | 体重 | プレミアムpopulated・無料→paywall | ☐(App Store test では撮影済・未照合) |
 | ペイウォール | 一般(クラウン+特典7行) | ✅(セッション15・絵文字→SF Symbol 相当 Material アイコン+「全11種の猫」行追加) |
 | 体重(プレミアム チャート) | golden 未照合(Mock 購入解放が要・Canvas チャート) | ☐ |

@@ -139,6 +139,33 @@ final class ScreenshotCaptureUITests: XCTestCase {
         sleep(2); shoot(day, "sub_day_detail")
     }
 
+    /// ランキングの期間別状態(今週/今月)golden。友達 → 順位 → セグメントで切替。
+    func testCaptureRankingStates() {
+        let friends = launch(["--skip-onboarding", "--mock-seed-friends", "--initial-tab", "friends"] + seed)
+        sleep(2)
+        let ranking = friends.buttons["weekly-ranking-link"].firstMatch
+        var tries = 0
+        while !ranking.exists && tries < 5 { friends.swipeUp(); tries += 1 }
+        guard ranking.waitForExistence(timeout: 4) else { shoot(friends, "rank_LINK_MISSING"); return }
+        ranking.tap(); sleep(2)
+        shoot(friends, "rank_weekly")
+        // 「今月」セグメントをタップ。segmented picker 内のボタン。
+        let monthly = friends.buttons["今月"].firstMatch
+        if monthly.waitForExistence(timeout: 4) { monthly.tap(); sleep(2); shoot(friends, "rank_monthly") }
+        else { shoot(friends, "rank_monthly_MISSING") }
+    }
+
+    /// 友達タブの状態別 golden: 空(サインイン済・友達0)/ 友達詳細(名前フォント測定用)。
+    func testCaptureFriendsStates() {
+        // 空状態: force-signed-out → タブ .task が匿名サインイン(0友達)→ friendsEmptyState。
+        let empty = launch(["--skip-onboarding", "--mock-force-signed-out", "--initial-tab", "friends"] + seed)
+        sleep(3); shoot(empty, "friends_empty")
+
+        // 友達詳細(hero 名前のフォント比較用)。
+        let detail = launch(["--skip-onboarding", "--mock-seed-friends", "--mock-open-friend-detail", "--initial-tab", "friends"] + seed)
+        sleep(3); shoot(detail, "friends_detail")
+    }
+
     /// 設定のサブページ群(iOS は NavigationLink で push する階層型)。各行をタップして撮影→戻る。
     func testCaptureSettingsSubpages() {
         let app = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "settings"] + seed)

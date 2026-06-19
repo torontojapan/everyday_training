@@ -484,7 +484,8 @@ private fun FriendDetailHero(friend: FriendProfile, rank: com.goexercise.app.dom
                     modifier = Modifier.fillMaxSize().padding(10.dp),
                 )
             }
-            Text(friend.displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            // iOS FriendDetailView 名前 = Typography.title(.largeTitle ~34pt)。AppType.title に一致。
+            Text(friend.displayName, style = AppType.title, color = palette.textPrimary)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (friend.username.isNotBlank()) Text("@${friend.username}", fontSize = 12.sp, color = palette.textSecondary)
                 Text("·", color = palette.textSecondary)
@@ -737,9 +738,10 @@ private fun WelcomeBody(
         com.goexercise.app.ui.components.CatImage(
             breed = myBreed,
             state = com.goexercise.app.domain.CatState.WaitingMorning,
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(140.dp),
         )
-        Text("友達と一緒に続けよう", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        // iOS friendsWelcomeBody タイトル = Typography.title(.largeTitle ~34pt)。
+        Text("友達と一緒に続けよう", style = AppType.title, color = palette.textPrimary)
         Text(
             "つながると、おたがいの連続記録を見て応援し合えます。\nメールもパスワードも不要です。",
             fontSize = 13.sp,
@@ -759,10 +761,8 @@ private fun WelcomeBody(
             Spacer(Modifier.width(8.dp))
             Text(if (linking.enabled) "この端末で始める" else "友達とつながる", color = Color.White, fontWeight = FontWeight.SemiBold)
         }
-        // 以前 Apple/Google 連携した人の復元入口(連携有効時のみ)。
-        if (linking.enabled) {
-            RestoreSection(palette, linking, isLinking, onRestoreApple, onRestoreGoogle)
-        }
+        // iOS パリティ: バックアップ/復元は設定「アカウントとバックアップ」とオンボーディングに集約し、
+        // 友達 welcome からは撤去(iOS friendsWelcomeBody は復元入口を持たない)。
         ShareAppCard(palette)
     }
 }
@@ -1374,8 +1374,9 @@ private fun FriendsEmptyState(palette: AppTheme) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            com.goexercise.app.ui.components.CatImage(breed = com.goexercise.app.domain.CatBreed.Default, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(96.dp))
-            Text("まだ友達がいません", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
+            // iOS friendsEmptyState: cat 124 + opacity 0.95 / 見出し Typography.headline(17)。
+            com.goexercise.app.ui.components.CatImage(breed = com.goexercise.app.domain.CatBreed.Default, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
+            Text("まだ友達がいません", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
             Text(
                 "右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。",
                 fontSize = 12.sp,
