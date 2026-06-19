@@ -503,7 +503,8 @@ private fun LegendSwatch(color: Color, label: String) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.size(14.dp).clip(RoundedCornerShape(4.dp)).background(color))
-        Text(label, color = palette.textSecondary, style = AppType.caption)
+        // iOS は 11pt medium。caption(12sp)だと 4 チップ目がスクロール端で切れるため 11sp に合わせる。
+        Text(label, color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
 
