@@ -328,7 +328,7 @@ iOS との一致とは別に、Android 単体としての品質を網羅検証�
 ---
 
 ## 3. グローバル
-- [x] 丸ゴフォント(M PLUS Rounded 1c)同梱・全画面適用。
+- [x] フォント = iOS build 12 ハイブリッドに一致(セッション17b・ユーザー指摘で是正): **欧文/数字=M PLUS Rounded 1c の Latin サブセット(丸ゴ)/ 和文=端末標準ゴシック(Noto Sans CJK JP)へフォールバック**。iOS は `Font.system(.rounded)` でも SF Rounded が欧文のみ・和文は Hiragino ゴシックなのと同型。旧「和文まで丸ゴ」を解消(タブ文字を iOS と並べ一致確認・APK ~14MB 削減)。
 - [x] ボトムタブ = 浮島型(角丸島/白地/影/選択コーラルピル)+ Material アイコン。
 - [ ] iOS golden スクショを repo に保存して参照可能にする(検討)。
 
