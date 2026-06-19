@@ -50,6 +50,8 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
 - **[MED] ハイライトの紙吹雪**: HighlightShareImageRenderer がプログラム紙吹雪を描いていたが iOS MonthlyReviewCard は猫(影)のみ(粒は猫スプライト焼込み)→ ハイライトから drawConfetti 削除(連続カードは iOS も StaticConfettiView 有のため維持)。死蔵 drawConfetti/cos/sin も除去。
 - 再ビルド→実エミュ再撮影で Weekly=紙吹雪/英字副題消失・streak=紙吹雪維持/英字副題消失 を確認(収束)。
 - 受容(低): streak オンスクリーンプレビューの角丸 24 vs iOS 32+影(エクスポート画像は両者フルブリードで一致)/ KPI接尾の先頭スペース(視覚同等)。
+- **同 17b 追加完了**: フリーズ rescue 使用画面を iOS RescueTicketUseView へ全面改修(✅)/ 設定 連携ON 認証セクション 削除導線 reactivity 是正(✅)/ 体重 premium 折りたたみ化(✅)。
+- **★ 残(全表 ✅ または下記 🔶 のみ・☐ ゼロ)**: ①ホーム overlay/dialog(referral行/revive/⭐10/節目/rankup)②milestone・breed-unlock ダイアログ — いずれも**実装は session2/3 でエミュ実スクショ検証済**、iOS golden も取得済だが、**Android 側に referral/revive/節目 のデータ注入手段が無く golden 横並び自動撮影のみ不可**。機能・コードは一致確認済。
 
 ## ★ 2026-06-19 セッション17: 残☐ 一括消化（記録/シェア/体重/日詳細/設定 golden 照合）
 iOS build 12 を XCUITest で一括撮影(testCaptureRemainingStates)→ Android は **sqlite 注入で 14日連続+体重20件の populated 状態**を作り(`run-as ... sqlite3 goexercise.db`、デモseed が無い Android の populated 化手段)→ 実エミュ実スクショ照合。
@@ -101,7 +103,7 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 | 設定 | データ&プライバシー(プレーン行+footer caption+分析文言)| ✅(セッション9) |
 | 設定 | カスタマイズ(ドリルイン行=テーマ/猫ピッカー sub 画面化)| ✅(セッション10) |
 | 設定 | 通知設定(3セクション/3分割セグメント/時刻チップ行/性格ピッカー+footer)| ✅(セッション11・残=権限拒否バナーのみ条件付き未) |
-| **設定サブページ 6/6 = iOS Form 構造へ収束** | プレミアム/連携ON 認証セクションの実描画照合のみ別途 | 🔶 |
+| **設定サブページ 6/6 = iOS Form 構造へ収束** | プレミアム ✅(s17)/ 連携ON 認証セクション ✅(s17・削除導線 reactivity 是正) | ✅ |
 
 **通知設定 再構成スペック(iOS golden 確認済)**: ①権限バナー(拒否時)「通知が許可されていません/リマインドを受け取るには…/設定アプリを開く」
 ②**通知**セクション見出し + 「通知ON/OFF」トグル(現状「毎日のリマインダー/運動を続けるための通知」)+ **3分割セグメント OFF|1日1回|1日2回**(現状=有効時のみ 2 pill)
