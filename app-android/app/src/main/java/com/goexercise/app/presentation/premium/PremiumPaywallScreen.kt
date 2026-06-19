@@ -21,9 +21,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -125,7 +135,8 @@ fun PremiumPaywallContent(
 
         // ヘッダー
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("👑", fontSize = 48.sp)
+            // iOS: crown.fill(コーラル単色)。絵文字 👑 ではなく Material アイコンに統一。
+            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(48.dp))
             Text(context.headline, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary, textAlign = TextAlign.Center)
             Text(
                 copy.subhead,
@@ -136,12 +147,15 @@ fun PremiumPaywallContent(
         // 特典
         Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                benefit("⚖️", "体重の記録 + 推移グラフ(日 / 週 / 月)", palette)
-                benefit("📈", "週次 / 月次レポート + トレンドライン", palette)
-                benefit("🌙", "周期オーバーレイで体調と体重を重ねて可視化", palette)
-                benefit("🎯", "目標 / BMI / 達成リング / 進捗バー", palette)
-                benefit("❄️", "保険チケット 月4回(無料は月1回)", palette)
-                benefit("✨", "減量ご褒美マイルストーン(-3 / -5 / -10 kg)", palette)
+                // iOS: 各特典は SF Symbol(コーラル単色)。絵文字 → Material アイコンへ統一。
+                benefit(Icons.Filled.MonitorWeight, "体重の記録 + 推移グラフ(日 / 週 / 月)", palette)
+                benefit(Icons.Filled.ShowChart, "週次 / 月次レポート + トレンドライン", palette)
+                benefit(Icons.Filled.CalendarMonth, "周期オーバーレイで体調と体重を重ねて可視化", palette)
+                benefit(Icons.Filled.TrackChanges, "目標 / BMI / 達成リング / 進捗バー", palette)
+                benefit(Icons.Filled.AcUnit, "保険チケット 月4回(無料は月1回)", palette)
+                benefit(Icons.Filled.AutoAwesome, "減量ご褒美マイルストーン(-3 / -5 / -10 kg)", palette)
+                // iOS にある「全11種の猫」特典(Android で欠落していた)。
+                benefit(Icons.Filled.Pets, "全11種の猫から好きな子を選べる", palette)
             }
         }
 
@@ -198,9 +212,9 @@ fun PremiumPaywallContent(
 }
 
 @Composable
-private fun benefit(icon: String, text: String, palette: AppTheme) {
+private fun benefit(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, palette: AppTheme) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(icon, fontSize = 18.sp)
+        Icon(icon, contentDescription = null, tint = palette.primary, modifier = Modifier.size(20.dp))
         Text(text, fontSize = 14.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
     }
 }
