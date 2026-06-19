@@ -135,7 +135,7 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | 連続シェア | — | ✅(セッション17+17b監査。並び順 iOS=バッジ→猫→「N 日連続」横並び→アプリ名 / 見出し撤去 / 5グラデドット+SNSで共有+写真に保存 / 英字「GO Exercise」副題削除(監査17b)。紙吹雪は iOS にも有=維持) |
 | ハイライトシェア(週/月/全期間) | — | ✅(セッション17+17b監査。統計行 iOS SF Symbol 相当アイコン🐾🕐📋⭐❤️ / Monthly バッジ📄 / SNSで共有 / **英字副題削除+紙吹雪削除**(iOS MonthlyReviewCard は猫のみ・監査17b)。4並列敵対監査で収束) |
 | オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |
-| フリーズ(rescue)使用画面 | — | 🔶(履歴→保険チケット展開→「使う日を選んで適用」で到達。RescueTicketUse 画面の golden 横並びは未[XCUIT で iOS link 自動タップが不安定]・tabbar 反映済) |
+| フリーズ(rescue)使用画面 | — | ✅(セッション17b・iOS RescueTicketUseView へ全面改修=題「保険チケットを使う」/summaryカード(チケットicon+「今月の保険チケット: N/M 回 残り」+無料枠のみインライン「(GOプレミアムで月4回)」)/操作説明カード/「マークの意味」凡例/「これまでに使った日」/適用確認ダイアログ。👑 premium ボタン撤去(iOS はインライン文言)。実エミュ検証・iOS ソース全文照合。VM に rescuedDates 追加) |
 | ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | 🔶(milestone-eve seed→記録で iOS は記録完了画面[既✅]へ。節目/breed-unlock ダイアログは発火条件が data 依存で golden 自動撮影が不安定=実装は session3 で✅・golden 横並び未) |
 
 **次バッチ着手順(推奨)**: ~~①設定サブページ群~~(ナビヘッダ/記録と共有 ✅・残=カスタマイズ/データ&プライバシー/通知の STRUCTURAL)

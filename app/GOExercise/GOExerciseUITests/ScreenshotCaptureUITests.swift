@@ -229,6 +229,22 @@ final class ScreenshotCaptureUITests: XCTestCase {
         }
     }
 
+    /// フリーズ(rescue)使用画面 golden。履歴→保険チケット展開→使う日を選んで適用。
+    func testCaptureRescueUse() {
+        let app = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2)
+        let hdr = app.buttons.matching(NSPredicate(format: "label CONTAINS '保険チケット'")).firstMatch
+        var t = 0
+        while !hdr.exists && t < 6 { app.swipeUp(); t += 1; sleep(1) }
+        guard hdr.waitForExistence(timeout: 4) else { shoot(app, "rescueuse_HDR_MISSING"); return }
+        hdr.tap(); sleep(1)
+        let use = app.descendants(matching: .any).matching(identifier: "rescue-use-link").firstMatch
+        var u = 0
+        while !use.exists && u < 4 { app.swipeUp(); u += 1; sleep(1) }
+        if use.waitForExistence(timeout: 4) { use.tap(); sleep(2); shoot(app, "rescueuse") }
+        else { shoot(app, "rescueuse_LINK_MISSING") }
+    }
+
     /// 履歴: 保険チケット CollapsibleSection を展開して golden 撮影。
     func testCaptureRescueTicketExpanded() {
         let app = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)

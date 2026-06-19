@@ -27,6 +27,8 @@ data class RescueUiState(
     val cells: List<MonthCell> = emptyList(),
     val remaining: Int = 0,
     val allowance: Int = 1,
+    /** これまでに保険チケットを適用した日(新しい順)。iOS rescuedHistory 用。 */
+    val rescuedDates: List<LocalDate> = emptyList(),
 )
 
 /**
@@ -65,6 +67,7 @@ class RescueViewModel @Inject constructor(
                 cells = cells,
                 remaining = RescueTicketLogic.remaining(rescued, today, allowance),
                 allowance = allowance,
+                rescuedDates = rescued.sortedDescending(),
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RescueUiState(YearMonth.now(clock)))
 
