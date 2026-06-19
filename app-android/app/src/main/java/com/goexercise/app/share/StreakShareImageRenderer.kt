@@ -35,6 +35,9 @@ object StreakShareImageRenderer {
     // (上下に黒帯が出ない)。Canvas はグラデを全面に塗るので白余白は元から無い。
     private const val W = 1080
     private const val H = 2340
+    /** 画面プレビュー用のコンパクトカード高さ(iOS StreakShareCard 非 fillFrame の縦横比に合わせる)。
+     *  CONTENT_HEIGHT(1040)+上下マージンを確保しつつカードが間延びしない高さ。 */
+    const val COMPACT_H = 1240
     // 内容ブロックのおおよその高さ(称号→日数→猫→アプリ名)。これを使って縦中央寄せにする
     // (iOS は VStack が縦長フレーム内で中央寄せ。上下対称マージンで構図を合わせる)。
     private const val CONTENT_HEIGHT = 1040f
@@ -50,23 +53,27 @@ object StreakShareImageRenderer {
         breed: CatBreed,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+        // 画面プレビュー用のコンパクトカード(iOS StreakShareCard 非 fillFrame ≈ 縦横比 0.84)を描くときは
+        // COMPACT_H を渡す。共有/保存(端末全画面比)は既定 H(2340)。
+        heightPx: Int = H,
     ): Bitmap {
         val level = StreakLevel.of(streak)
-        val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+        val h = heightPx
+        val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val cx = W / 2f
 
         // 背景グラデーション(左上→右下)。ユーザー選択があればそれを、無ければ称号レベル既定色を使う。
         val colors = (gradient?.colors ?: level.gradientColors).toIntArray()
         canvas.drawRect(
-            0f, 0f, W.toFloat(), H.toFloat(),
+            0f, 0f, W.toFloat(), h.toFloat(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = LinearGradient(0f, 0f, W.toFloat(), H.toFloat(), colors, null, Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, 0f, W.toFloat(), h.toFloat(), colors, null, Shader.TileMode.CLAMP)
             },
         )
 
         // 内容を縦中央寄せ(上下対称マージン)。iOS の縦長カードの構図に合わせる。
-        var top = ((H - CONTENT_HEIGHT) / 2f).coerceAtLeast(96f)
+        var top = ((h - CONTENT_HEIGHT) / 2f).coerceAtLeast(96f)
 
         // 見出しは「称号バッジ」: 連続日数で決まる CatRank 称号(みならいネコ〜ぬしネコ)を
         // メタル色カプセル+肉球で描く(iOS の RankBadge パリティ)。rank0(7日未満)は称賛文を出す。

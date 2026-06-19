@@ -30,6 +30,8 @@ object HighlightShareImageRenderer {
 
     private const val W = 1080
     private const val H = 2340
+    /** 画面プレビュー用のコンパクトカード高さ(iOS MonthlyReviewCard 非 fillFrame の縦横比)。 */
+    const val COMPACT_H = 1480
 
     /** ハイライト種別。バッジ絵文字・タイトル・グラデ色を持つ(iOS の icon/title/gradient 対応)。 */
     enum class Kind(val badgeEmoji: String, val title: String, val gradient: List<Int>) {
@@ -47,24 +49,27 @@ object HighlightShareImageRenderer {
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+        // プレビュー用コンパクトカードは COMPACT_H を渡す。共有/保存は既定 H(全画面比)。
+        heightPx: Int = H,
     ): Bitmap {
-        val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+        val h = heightPx
+        val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val cx = W / 2f
 
         // 背景グラデーション(左上→右下)を全面に(白余白なし)。ユーザー選択があればそれを、無ければ種別既定色。
         val colors = (gradient?.colors ?: kind.gradient).toIntArray()
         canvas.drawRect(
-            0f, 0f, W.toFloat(), H.toFloat(),
+            0f, 0f, W.toFloat(), h.toFloat(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = LinearGradient(0f, 0f, W.toFloat(), H.toFloat(), colors, null, Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, 0f, W.toFloat(), h.toFloat(), colors, null, Shader.TileMode.CLAMP)
             },
         )
 
         // 内容を縦中央寄せ(stat 行数で高さが変わるので概算で上端を決める)。
         val statRows = buildStatRows(review, streakLabel)
         val contentHeight = 1180f + statRows.size * 64f
-        var top = ((H - contentHeight) / 2f).coerceAtLeast(120f)
+        var top = ((h - contentHeight) / 2f).coerceAtLeast(120f)
 
         // アイコン付き日本語バッジ(英字バッジ + 和タイトルの重複を解消、iOS 1.3)。
         top = drawBadgePill(canvas, cx, top, "${kind.badgeEmoji} ${kind.title}")
