@@ -79,10 +79,11 @@ fun OnboardingScreen(
                 .background(palette.primary.copy(alpha = 0.14f))
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         )
-        Text("ようこそ 🐾", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
+        // iOS onboardingHeader は「ステップ + 大見出し(Typography.title=largeTitle)+ 補足」。
+        // iOS に無い「ようこそ 🐾」見出しは撤去し、タイトルを iOS と同じ大きさ(AppType.title)に。
         Text(
             if (step == 0) "一緒にがんばる猫を選ぼう" else "記録をバックアップしよう",
-            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary,
+            style = com.goexercise.app.ui.theme.AppType.title, color = palette.textPrimary,
         )
         Text(
             // 猫種は「初回は全解放・以降の変更はプレミアム(or 紹介⭐10)」。オンボで「いつでも変更」と
