@@ -131,8 +131,10 @@
 - `StreakShareScreen` のピッカーを**最下部(写真に保存の下)**へ移動。
 - SNSで共有ボタンの「濃い色」差は**背景グラデ差(暖色)由来**で、ocean 既定化で解消(ボタン自体は black@0.45 で一致)。
 - 横並び実証=`proofs/streak_share_ios_vs_android_FIXED.png`(ocean 背景・浮きカード・ピッカー最下部が一致)。全テスト green。
-- **次**: ハイライト3カード(weekly=sunset/monthly=review既定/alltime=daybreak)の既定・ピッカー位置・色を同様に照合
-  (色は共有プリセット修正の恩恵を受けるが、per-card 既定と HighlightShareScreen のレイアウトは要確認)。
+- **ハイライト3カードも照合完了**(iOS golden=`testCaptureRemainingStates` の rem_hl_*):
+  背景の per-kind 既定色は一致(weekly=ティール緑/monthly=twilight紫/alltime=橙→珊瑚)、カード構造・統計表(最長連続/
+  合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
+  (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
 ### Mock-force ビルド手順(確立)+ 友達/ランキング/設定サインイン照合(セッション継続分)
 - ⚠️ `secret()` は **`app-android/local.properties`**(repo ルートでなく gradle ルート)を読む。ここに実 Supabase 鍵が

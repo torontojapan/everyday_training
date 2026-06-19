@@ -120,7 +120,19 @@ fun HighlightShareContent(
                 )
             } ?: CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White)
 
-            // グラデ選択ドット(白縁。グラデ背景上で視認。再タップで種別既定色へ)。iOS ShareGradientPicker。
+            if (review != null) {
+                ShareCapsuleButton(text = "SNSで共有", bg = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)) {
+                    scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed, gradient) }
+                }
+                ShareCapsuleButton(text = "写真に保存", bg = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ||
+                        context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) doSave() else saveLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+            }
+
+            // グラデ選択ドット(白縁。グラデ背景上で視認。再タップで種別既定色へ)。iOS ShareGradientPicker は
+            // 「写真に保存」の**下**(2026-06-19 パリティ: 以前はボタンの上で順序が iOS と逆だった。連続カードと同型是正)。
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
                     Box(
@@ -132,17 +144,6 @@ fun HighlightShareContent(
                             )
                             .clickable { onSelectGradient(g) },
                     )
-                }
-            }
-
-            if (review != null) {
-                ShareCapsuleButton(text = "SNSで共有", bg = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)) {
-                    scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed, gradient) }
-                }
-                ShareCapsuleButton(text = "写真に保存", bg = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)) {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ||
-                        context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                    ) doSave() else saveLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
             }
         }
