@@ -75,9 +75,10 @@ fun MilestoneCelebrationOverlay(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    // 猫(連続更新ポーズ)+ 金バッジ。
+                    // 猫(祝福ポーズ)+ 金バッジ。連続更新ポーズ(streakExtended)は炎入りで
+                    // ユーザーに「火はださい」と指摘されたため celebrating(炎なし)に変更(2026-06-19)。
                     Box(contentAlignment = Alignment.BottomEnd) {
-                        CatImage(breed = breed, state = CatState.StreakExtended, modifier = Modifier.size(180.dp))
+                        CatImage(breed = breed, state = CatState.Celebrating, modifier = Modifier.size(180.dp))
                         Box(
                             Modifier.size(52.dp).clip(CircleShape).background(palette.surface),
                             contentAlignment = Alignment.Center,

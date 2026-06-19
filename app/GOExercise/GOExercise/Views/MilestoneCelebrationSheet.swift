@@ -33,12 +33,11 @@ struct MilestoneCelebrationSheet: View {
         }
     }
 
-    /// ミルストーンに合うキャラ表情。連続記録系は炎を背負う `streakExtended`、
-    /// アニバーサリ/累計/減量達成系は喜び満開の `celebrating` をデフォルトに。
+    /// ミルストーンに合うキャラ表情。全節目で喜び満開の `celebrating` を使う。
+    /// (連続記録は以前 炎入りの `streakExtended` だったが「火はださい」とユーザー指摘で廃止。2026-06-19)
     private var characterState: CatState {
         switch milestone {
-        case .currentStreak: return .streakExtended
-        case .anniversary, .lifetimeDays, .weightLoss: return .celebrating
+        case .currentStreak, .anniversary, .lifetimeDays, .weightLoss: return .celebrating
         }
     }
 
