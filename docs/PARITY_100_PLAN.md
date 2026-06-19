@@ -136,7 +136,14 @@
   合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
   (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
-### 🔴 HIGH 未是正: 体重(premium)HeroCard に「達成リング+猫」が欠落
+### ✅ 是正した実バグ⑦(HIGH): 体重 HeroCard の「達成リング+猫」+日付を実装
+`WeightHeroDashboard.ringWithCat` を Android に移植: `HealthPrefs.progressRatio()`(iOS 完全移植)+ `WeightViewModel` に
+breed(settings.catBreed)/progress を追加 + `WeightScreen.WeightAchievementRing`(Canvas drawArc 背景リング+進捗 -90°round-cap +
+中央 surface円+CatImage + 右下%バッジ primaryDeep capsule 白枠)+ HeroCard を「ヘッダ(最新の体重·日付)→ Row[体重+チップ |
+リング]→ 開始→目標」に再構成。50% デモで リング/猫/%/日付/開始→目標 全要素一致を実証
+(`proofs/weight_hero_ring_ios_vs_android_FIXED.png`)。全ユニットテスト green。
+
+#### (参考)是正前の所見
 Mock 購入(`PLAY_BILLING_ENABLED` 未設定=Mock billing。paywall「14日間無料で始める」で isPremiumActive=true・**ただし
 in-memory でアプリ再起動で揮発**)→ 体重 entries+目標+身長をシード/設定して照合(`proofs/weight_premium_ios_vs_android.png`):
 - **構造一致**: HeroCard / 記録する / レポート / 推移(「30日で30件記録」は iOS と完全一致)/ 履歴。

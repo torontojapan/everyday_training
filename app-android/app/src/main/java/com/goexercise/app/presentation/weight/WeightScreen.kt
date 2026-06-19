@@ -3,6 +3,10 @@
 package com.goexercise.app.presentation.weight
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -74,6 +78,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.ChartPeriod
 import com.goexercise.app.domain.WeightStats
+import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.CatState
+import com.goexercise.app.ui.components.CatImage
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.LocalAppPalette
 import java.time.LocalDate
@@ -246,25 +253,36 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
     var showTargetDialog by remember { mutableStateOf(false) }
     Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("最新の体重", fontSize = 12.sp, color = palette.textSecondary)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
-                    fontSize = 44.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
-                )
-                Text(" kg", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.remainingToTarget?.let { rem ->
-                    val within = abs(rem) < 0.05
-                    Chip(if (within) "✓ 目標圏内" else "📏 あと %.1fkg".format(abs(rem)), if (within) palette.success else palette.primaryDeep, palette)
+            // iOS WeightHeroDashboard 上段ヘッダ「最新の体重 · {日付}」。
+            val header = state.latest?.let {
+                "最新の体重 · " + it.recordedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d HH:mm"))
+            } ?: "最新の体重"
+            Text(header, fontSize = 12.sp, color = palette.textSecondary)
+            // iOS 中段: 巨大な現在体重(左)+ 達成リング+猫(右)。
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
+                            fontSize = 44.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+                        )
+                        Text(" kg", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.remainingToTarget?.let { rem ->
+                            val within = abs(rem) < 0.05
+                            Chip(if (within) "✓ 目標圏内" else "📏 あと %.1fkg".format(abs(rem)), if (within) palette.success else palette.primaryDeep, palette)
+                        }
+                        state.weekStats?.change?.let { ch ->
+                            Chip("${if (ch <= 0) "↘" else "↗"} 今週 %+.1fkg".format(ch), if (ch <= 0) palette.success else palette.primaryDeep, palette)
+                        }
+                        state.forecastDays?.let { d ->
+                            Chip(if (d == 0) "🎯 目標達成" else "⏳ あと約${d}日", palette.settingsAccent, palette)
+                        }
+                    }
                 }
-                state.weekStats?.change?.let { ch ->
-                    Chip("${if (ch <= 0) "↘" else "↗"} 今週 %+.1fkg".format(ch), if (ch <= 0) palette.success else palette.primaryDeep, palette)
-                }
-                state.forecastDays?.let { d ->
-                    Chip(if (d == 0) "🎯 目標達成" else "⏳ あと約${d}日", palette.settingsAccent, palette)
-                }
+                // iOS ringWithCat(達成リング+中央猫+%バッジ)。目標/開始未設定(progress=null)でも空リング+猫は出す。
+                WeightAchievementRing(progress = state.progress, breed = state.breed, palette = palette)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 state.health.startKg?.let { Text("開始 %.1f →".format(it), fontSize = 12.sp, color = palette.textSecondary) }
@@ -278,6 +296,45 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
     if (showTargetDialog) {
         NumberDialog("目標体重 (kg)", state.health.targetKg, palette, onDismiss = { showTargetDialog = false }) {
             onSetTarget(it); showTargetDialog = false
+        }
+    }
+}
+
+/**
+ * iOS `WeightHeroDashboard.ringWithCat` 移植: 達成リング(円弧進捗)+ 中央に選択猫 + 右下%バッジ。
+ * 仕様: ring 108 / line 9 / 背景リング primary@0.18 / 進捗 primary round-cap -90°開始 /
+ *       中央 surface円(84)+猫(82, clipCircle) / バッジ "{N}%" white on primaryDeep capsule offset(30,38)+白枠2。
+ */
+@Composable
+private fun WeightAchievementRing(progress: Double?, breed: CatBreed, palette: AppTheme) {
+    val ring = 108.dp
+    val line = 9.dp
+    Box(modifier = Modifier.size(ring + 12.dp), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.size(ring)) {
+            val sw = line.toPx()
+            val d = size.minDimension - sw
+            val tl = androidx.compose.ui.geometry.Offset(sw / 2, sw / 2)
+            val sz = androidx.compose.ui.geometry.Size(d, d)
+            drawArc(color = palette.primary.copy(alpha = 0.18f), startAngle = 0f, sweepAngle = 360f, useCenter = false,
+                topLeft = tl, size = sz, style = Stroke(width = sw))
+            progress?.let { p ->
+                drawArc(color = palette.primary, startAngle = -90f, sweepAngle = (p.coerceIn(0.0, 1.0) * 360).toFloat(),
+                    useCenter = false, topLeft = tl, size = sz, style = Stroke(width = sw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+        }
+        // 中央 surface 円 + 猫。
+        Box(modifier = Modifier.size(ring - 24.dp).clip(CircleShape).background(palette.surface), contentAlignment = Alignment.Center) {
+            CatImage(breed = breed, state = CatState.Celebrating, modifier = Modifier.size(ring - 26.dp).clip(CircleShape))
+        }
+        // 進捗バッジ(右下)。
+        progress?.let { p ->
+            Box(
+                modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-2).dp, y = (-2).dp)
+                    .clip(CircleShape).background(palette.primaryDeep)
+                    .border(2.dp, palette.surface, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text("${(p.coerceIn(0.0, 1.0) * 100).toInt()}%", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
         }
     }
 }

@@ -23,7 +23,18 @@ data class HealthPrefs(
     val isLossGoal: Boolean = true,
     /** 生理周期トラッキングのオプトイン。既定 false(プライバシー優先=明示 ON まで生理日UIを出さない)。iOS CycleTrackingSettings.isEnabled 相当。 */
     val cycleTrackingEnabled: Boolean = false,
-)
+) {
+    /** 開始→目標の達成率(0..1、超過は1で頭打ち)。増量/減量両対応。開始=目標は null。
+     *  iOS `UserHealthPreferences.progressRatio(currentKilograms:)` 完全移植(体重 HeroCard の達成リング用)。 */
+    fun progressRatio(currentKg: Double): Double? {
+        val t = targetKg ?: return null
+        val s = startKg ?: return null
+        val totalDelta = t - s
+        if (kotlin.math.abs(totalDelta) <= 0.001) return null
+        val raw = (currentKg - s) / totalDelta
+        return raw.coerceIn(0.0, 1.0)
+    }
+}
 
 interface HealthRepository {
     val prefs: Flow<HealthPrefs>
