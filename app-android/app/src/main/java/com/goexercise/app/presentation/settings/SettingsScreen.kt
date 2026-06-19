@@ -27,6 +27,8 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CardGiftcard
@@ -102,6 +104,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
     val cycleTrackingEnabled by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+    val shareExerciseDetail by viewModel.shareExerciseDetail.collectAsStateWithLifecycle()
     val hapticEnabled by viewModel.hapticEnabled.collectAsStateWithLifecycle()
     val linkedProvider by viewModel.linkedProvider.collectAsStateWithLifecycle()
     val isLinkingAccount by viewModel.isLinkingAccount.collectAsStateWithLifecycle()
@@ -161,6 +164,8 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onToggleAnalytics = viewModel::setAnalyticsEnabled,
         cycleTrackingEnabled = cycleTrackingEnabled,
         onToggleCycleTracking = viewModel::setCycleTrackingEnabled,
+        shareExerciseDetail = shareExerciseDetail,
+        onToggleShareDetail = viewModel::setShareExerciseDetail,
         hapticEnabled = hapticEnabled,
         onToggleHaptic = viewModel::setHapticEnabled,
         linkedProvider = linkedProvider,
@@ -224,6 +229,8 @@ fun SettingsContent(
     onToggleAnalytics: (Boolean) -> Unit = {},
     cycleTrackingEnabled: Boolean = false,
     onToggleCycleTracking: (Boolean) -> Unit = {},
+    shareExerciseDetail: Boolean = false,
+    onToggleShareDetail: (Boolean) -> Unit = {},
     hapticEnabled: Boolean = true,
     onToggleHaptic: (Boolean) -> Unit = {},
     myFriendCode: String? = null,
@@ -364,6 +371,25 @@ fun SettingsContent(
                 }
                 // 休養ルール(展開式 4 項目。iOS RecordSharingSettingsPage の DisclosureGroup 相当)。
                 RestRuleCard(palette)
+                // 友達への共有(友達機能 ON のときだけ)。iOS friendsEnabled ガード。
+                // 種目の回数/時間/セット数の共有 opt-in(既定 OFF)。体重・体調は共有対象外。
+                if (com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED) {
+                    SectionLabel("友達への共有")
+                    val shareGreen = Color(0.30f, 0.62f, 0.38f)
+                    SettingsCard {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Filled.Groups, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(20.dp))
+                                Text("回数・時間・セット数も共有", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                                Switch(checked = shareExerciseDetail, onCheckedChange = onToggleShareDetail)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Filled.Lock, contentDescription = null, tint = shareGreen, modifier = Modifier.size(16.dp))
+                                Text("体重・体調は共有されません", style = AppType.caption, color = shareGreen)
+                            }
+                        }
+                    }
+                }
             }
 
             SettingsPage.Notifications -> SubPage("通知設定", onBack = { page = SettingsPage.Main }) {
@@ -453,14 +479,15 @@ private fun PremiumActiveRow() {
 @Composable
 private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalAppPalette.current
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    // iOS のサブページ ナビバー: 中央タイトル(inline ~17pt)+ 左の円形戻る(シェブロン)。
+    Box(Modifier.fillMaxWidth()) {
         Box(
-            modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
+            modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
         }
-        Text(title, style = AppType.sectionTitle, color = palette.textPrimary)
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
     }
     content()
 }

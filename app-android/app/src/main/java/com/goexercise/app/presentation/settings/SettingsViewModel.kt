@@ -196,6 +196,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { repository.setHapticEnabled(enabled) }
     }
 
+    /** 友達への種目詳細(回数/時間/セット)共有 opt-in。既定 OFF。iOS includeExerciseDetail 相当。 */
+    val shareExerciseDetail: StateFlow<Boolean> = repository.shareExerciseDetail
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setShareExerciseDetail(enabled: Boolean) {
+        viewModelScope.launch { repository.setShareExerciseDetail(enabled) }
+    }
+
     /** データ管理処理中(エクスポート/削除)。連打ガード + UI スピナー。 */
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()

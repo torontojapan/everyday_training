@@ -258,6 +258,10 @@ class SupabaseFriendsService(
             monthlyTotalMinutes = profile.monthlyTotalMinutes,
             monthlyAchievedDays = profile.monthlyAchievedDays,
             myCatBreed = profile.myCatBreed?.rawValue,
+            // 種目詳細の共有(opt-in 時のみ非 null)。OFF なら null を書いて列をクリア(=共有停止)。iOS パリティ。
+            todayExerciseDetails = profile.todayExerciseDetails?.map {
+                SharedExerciseDetailRow(name = it.name, durationMinutes = it.durationMinutes, reps = it.reps, sets = it.sets)
+            },
         )
         client.from("profiles").upsert(row) { onConflict = "user_id" }
     }

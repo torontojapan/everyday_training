@@ -1,7 +1,9 @@
 package com.goexercise.app.presentation.home
 
 import com.goexercise.app.domain.CatRank
+import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.friends.FriendProfile
+import com.goexercise.app.domain.friends.SharedExerciseDetail
 
 /**
  * 自分の [HomeUiState](実統計)+ 友達アイデンティティ(コード/ユーザー名/表示名)から、友達バックエンドに
@@ -12,10 +14,26 @@ import com.goexercise.app.domain.friends.FriendProfile
  */
 object MyFriendProfileBuilder {
 
-    fun build(state: HomeUiState, identity: FriendProfile): FriendProfile {
+    /** 今日の種目別詳細(共有 opt-in 時のみ)。iOS FriendSharedActivity.build(includeDetail:) 相当。
+     *  duration は分(0 なら null)、reps/sets はそのまま。体重・体調は対象外。 */
+    fun todayDetails(state: HomeUiState, shareDetail: Boolean): List<SharedExerciseDetail>? {
+        if (!shareDetail) return null
+        val today = state.weekStatuses.firstOrNull {
+            it.status == DailyStatus.TodayAchieved || it.status == DailyStatus.TodayPending
+        }?.date ?: return null
+        return state.weekRecords.filter { it.date == today }.flatMap { it.exercises }.mapNotNull { ex ->
+            val name = ex.name.trim()
+            if (name.isEmpty()) return@mapNotNull null
+            val minutes = (ex.durationSeconds ?: 0) / 60
+            SharedExerciseDetail(name = name, durationMinutes = minutes.takeIf { it > 0 }, reps = ex.reps, sets = ex.sets)
+        }.takeIf { it.isNotEmpty() }
+    }
+
+    fun build(state: HomeUiState, identity: FriendProfile, shareDetail: Boolean = false): FriendProfile {
         val todayCategory = state.todaySummary.categoryCounts
             .maxByOrNull { it.value }?.key?.displayName
         return identity.copy(
+            todayExerciseDetails = todayDetails(state, shareDetail),
             currentStreak = state.streak.currentStreak,
             totalAchievedDays = state.lifetimeStats.achievedDays,
             todayAchieved = state.todayStatus.countsAsAchieved,
@@ -38,7 +56,7 @@ object MyFriendProfileBuilder {
      * publish するべき統計が変わったかを判定するためのシグネチャ(identity 非依存)。
      * 毎分 ticker や初期空状態での無駄な再 publish を distinctUntilChangedBy で抑えるのに使う。
      */
-    fun statsSignature(state: HomeUiState): List<Any?> = listOf(
+    fun statsSignature(state: HomeUiState, shareDetail: Boolean = false): List<Any?> = listOf(
         state.streak.currentStreak,
         state.lifetimeStats.achievedDays,
         state.todayStatus.countsAsAchieved,
@@ -53,5 +71,8 @@ object MyFriendProfileBuilder {
         // currentStreak は既に含まれるが、publish 値を直接署名に反映して再 publish 判定を正しく保つ。
         CatRank.of(state.streak.currentStreak).rank,
         state.catBreed,
+        // 共有 opt-in と今日の種目詳細(変化で再 publish。reps/sets 編集も検知)。
+        shareDetail,
+        todayDetails(state, shareDetail),
     )
 }

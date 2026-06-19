@@ -365,16 +365,17 @@ class HomeViewModel @Inject constructor(
             // 「未サインイン中に統計を観測 → 後で Friends からサインイン → 統計据え置きでも初回 publish される」
             // を保証する(distinctUntilChangedBy を上流に置くと未サインインで消費され初回 publish が欠落する: Codex)。
             var lastPublishedSig: List<Any?>? = null
-            uiState
-                .filter { it.weekStatuses.isNotEmpty() } // reduce 済みの実状態のみ
-                .collect { state ->
-                    val sig = MyFriendProfileBuilder.statsSignature(state)
+            // 種目詳細の共有 opt-in(既定 OFF)も観測し、トグル変更で再 publish する。
+            combine(uiState, settings.shareExerciseDetail) { state, share -> state to share }
+                .filter { it.first.weekStatuses.isNotEmpty() } // reduce 済みの実状態のみ
+                .collect { (state, share) ->
+                    val sig = MyFriendProfileBuilder.statsSignature(state, share)
                     if (sig == lastPublishedSig) return@collect // publish 済みの統計は再評価しない(時刻 ticker 等の無駄打ち回避)
                     runCatching {
                         // 未サインインは送らない・作らない(myProfile は未サインイン時 network 不要で null)。
                         // ここで return すると lastPublishedSig を進めないので、サインイン後に再評価される。
                         val current = friendsService.myProfile() ?: return@collect
-                        val updated = MyFriendProfileBuilder.build(state, current)
+                        val updated = MyFriendProfileBuilder.build(state, current, share)
                         if (updated != current) friendsService.publishMyProfile(updated) // 変化が無ければ書かない(iOS guard 相当)
                         if (com.goexercise.app.AppFeatureFlags.isReferralActive) {
                             referralStore.confirmFirstRecordIfNeeded(state.lifetimeStats.achievedDays >= 1)
