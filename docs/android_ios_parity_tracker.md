@@ -72,7 +72,7 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 | 記録完了 | 達成(連続>1初記録/2件目) | ✅(セッション6・back/tabbar/きのうから条件) |
 | 履歴 | populated | ✅(セッション4) |
 | 履歴 | 空状態(空カレンダー/凡例/保険チケット折りたたみ/Monthly空/All-time空) | ✅(セッション13・MATCH・凡例11pt是正) |
-| 履歴 | 保険チケット展開状態 | ☐ |
+| 履歴 | 保険チケット展開状態 | ✅(セッション16・golden MATCH。展開時 header残数を隠し本文に icon+残数(body)+説明 / 「使う日を選んで適用」を coral 塗りボタン化(白文字/影/カレンダーicon) / Premium訴求を Divider+塗り無し primary 行へ) |
 | 日詳細シート | 記録あり | ✅(セッション5) |
 | 日詳細シート | 空/休/救済/未来 状態 | ☐ |
 | 生理日入力 | マーク有 | ✅(セッション5・tabbar) |
@@ -194,7 +194,7 @@ iOS との一致とは別に、Android 単体としての品質を網羅検証�
 - [~] ホーム  — **大半是正済・スクショ検証(アニメ稼働をフレーム差分で確認)**: ITEM2 環境パーティクル(時刻別18粒・Canvas移植)✅ / NEW-C 猫アイドル(呼吸1.03/浮遊±/傾き±2°合成)✅ / ITEM4 猫タップ bounce1.08+haptic✅ / 猫背景の光輪(tint .32→.06)✅ / ITEM6 吹き出し pop-in(scale0.7→1+fade delay0.15)✅+lineLimit3✅ / ITEM7 今日セル breathing(1.0↔1.05)✅ / ITEM5 称号チップ pawprint✅ / ITEM10 weeklyMini 等幅✅。ITEM1 referralスター行 ✅(スクショ検証済・connect 後 refresh も是正)。ITEM3 日タップ→DayDetailSheet ✅(スクショ検証済・履歴シート再利用)。ITEM8 revive overlay「連続復活!」✅(スクショ検証済)。**残: ITEM9 ⭐10コピー(Android は絵文字回避方針で「星10個」のまま=要オーナー確認)**
 - [~] 記録入力 — **大半是正済**(R1 時間/回数/セット ピッカー✅ / R2 体調・周期 独立セクション✅ / R3 メモ複数行3..5✅ / R4 体重0-500検証+保存ブロック+disabledReason✅ / NEW-1 重さ<1000+「(kg)」✅ / NEW-2 候補見出し表示条件✅ / NEW-3 候補chip選択状態撤去✅)。残: R5 キーボード「完了」バー = **Android はアクセサリバー非対応のため許容差**(ピッカー化で数値テキスト入力も大幅減)。
 - [x] **記録完了 — ✅ 完了**(B1 streak0常時表示 / B2「きのうから+1のばした！」行(VM streakExtended配線) / B3 タイトル / N3 リボン影 / N4 ヒーローパルス+グロー影)
-- [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。ITEM3 生理日まとめ入力画面 ✅(スクショ検証済・MenstrualEntryScreen 新設)。**残: ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求(VMに残数配線要)**
+- [~] 履歴   — **大半是正済**(ITEM2 運動履歴=HistoryRowView相当カード(日付見出し/カテゴリ色見出し/種目行 回ｾｯﾄ時間/合計/メモ)✅ / ITEM5 Monthly空状態dim✅ / ITEM6 All-time「使用M日」✅ / ITEM7 共有コピー・Play URL・運動履歴前へ✅ / ITEM8 grid6dp/Future=surface/TodayPending0.40/生理日色/凡例14・r4・カプセル✅ / ITEM4 救済日セルに ticket グリフ✅)。ITEM3 生理日まとめ入力画面 ✅(スクショ検証済・MenstrualEntryScreen 新設)。ITEM1 保険チケット折りたたみ+残数subtitle+Premium訴求 ✅(セッション16・golden MATCH。展開時の本文 icon+残数+説明・coral塗りの適用ボタン・Divider+Premium行)
 - [~] 設定   — **大半是正済**(情報サポート4リンク✅/削除gating匿名対応✅/PerkGuide5項目✅/休養ルール4項目展開✅/破壊色赤✅/trialEligible配線✅/共有URL✅/一部アイコン✅/cycle・書き出しコピー✅)。残: 振動トグル(要pref)/ブランドロゴ画像(要アセット)/通知独立View・ウィジェット5段。**ITEM3削除コピーは Android 実挙動(端末内記録は残る)に忠実=変更せず**(監査の過剰指摘)。
 - [~] 友達   — **友達詳細フル画面化＝完了・スクショ検証済**(全画面Dialog: hero[グラデ猫132+@user·friendCode mono+称号バッジ+最終更新]／今日の運動[達成バッジ+カテゴリchip+種目別詳細]／今週の達成[木=今日強調]／統計3タイル[連続/累計/**つながって**=正メトリック]／cheer[入力欄+送信ボタン+2列プリセット+「…を送りました」インライン確認]／解除[bordered red]。モデルに lastUpdated/connectedSince/todayExerciseDetails+SharedExerciseDetail 追加・Mock seed・updated_at デコード配線)。**友達一覧の小項目(スクショ検証)**: ITEM3 追加ボタン=トップバーアイコン✅／ITEM4 エラーバナー色 primaryDeep+更新ボタン✅／ITEM5「6文字の英数字 (例: ABC123)」+無結果コピー✅／ITEM9 公園アバター=影楕円+白縁今日バッジ+決定論的猫+long-press解除撤去+トースト下余白64✅／空状態コピー「右上の + から…」✅。**残**: ITEM6 明示「検索」ボタン(現状ライブ検索)／ITEM7 コピーコードtoast・受信5s・初回名前入力カード／ITEM8 QRキャプション・申請アバター実猫。today_exercise_details の**実BEデコード ✅完了**(構造化+iOS summary一致・単体テスト+Mock詳細スクショ検証)。connected_since は iOS も実BE nil=対象外。publish は opt-in トグル導入まで保留(プライバシー)。
 - [x] **ランキング — ✅ 完了**(G1 EmptyStateView / G2 サマリーgradient+枠 / G3 自分行2dp枠 / G4 メダル不透明度+数字色 / G5 猫fallback=決定論的猫(FriendAvatarResolver新設, iOS FNV-1a 一致) / G6 中央タイトル+システム戻る)

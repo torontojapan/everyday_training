@@ -155,6 +155,18 @@ final class ScreenshotCaptureUITests: XCTestCase {
         else { shoot(friends, "rank_monthly_MISSING") }
     }
 
+    /// 履歴: 保険チケット CollapsibleSection を展開して golden 撮影。
+    func testCaptureRescueTicketExpanded() {
+        let app = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2)
+        // 「保険チケット」ヘッダ(Button・label に保険チケットを含む)をタップして展開。
+        let header = app.buttons.matching(NSPredicate(format: "label CONTAINS '保険チケット'")).firstMatch
+        var tries = 0
+        while !header.exists && tries < 6 { app.swipeUp(); tries += 1; sleep(1) }
+        if header.waitForExistence(timeout: 4) { header.tap(); sleep(2); shoot(app, "rescue_expanded") }
+        else { shoot(app, "rescue_expanded_MISSING") }
+    }
+
     /// 友達タブの状態別 golden: 空(サインイン済・友達0)/ 友達詳細(名前フォント測定用)。
     func testCaptureFriendsStates() {
         // 空状態: force-signed-out → タブ .task が匿名サインイン(0友達)→ friendsEmptyState。

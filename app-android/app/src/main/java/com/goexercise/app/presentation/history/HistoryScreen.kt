@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.ChevronRight
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -312,34 +315,58 @@ private fun RescueTicketCollapsible(state: HistoryUiState, palette: AppTheme, on
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(24.dp))
+                // iOS CollapsibleSection header: アイコン(16/heavy)+ タイトル。subtitle は折りたたみ中のみ。
+                Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
                 Column(Modifier.weight(1f)) {
                     Text("保険チケット", style = AppType.headline, color = palette.textPrimary)
-                    Text("今月 ${state.rescueRemaining} / ${state.rescueAllowance} 回 残り", style = AppType.caption, color = palette.textSecondary)
+                    // iOS: 展開時は本文と二重になるので subtitle を隠す(CollapsibleSection.header)。
+                    if (!expanded) {
+                        Text("今月 ${state.rescueRemaining} / ${state.rescueAllowance} 回 残り", style = AppType.caption, color = palette.textSecondary)
+                    }
                 }
                 Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary)
             }
             if (expanded) {
-                Text("忙しい日に連続記録を守れます。毎月リセットされます。", style = AppType.caption, color = palette.textSecondary)
-                // 使う日を選んで適用。
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onUseRescue() }.padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("使う日を選んで適用", style = AppType.body, color = palette.primaryDeep, modifier = Modifier.weight(1f))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+                val available = state.rescueRemaining > 0
+                // iOS rescueTicketContent: アイコン + (残数 body + 説明 caption)。
+                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(
+                        Icons.Filled.ConfirmationNumber, contentDescription = null,
+                        tint = if (available) palette.primary else palette.textSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("今月 ${state.rescueRemaining} / ${state.rescueAllowance} 回 残り", style = AppType.body, color = palette.textPrimary)
+                        Text("忙しい日に連続記録を守れます。毎月リセットされます。", style = AppType.caption, color = palette.textSecondary)
+                    }
                 }
-                // 非Premium 向け訴求(GOプレミアムで月4回)。
+                // iOS: 「使う日を選んで適用」= primary 塗りの目立つボタン(白文字・カレンダーアイコン・影・52dp)。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(6.dp, RoundedCornerShape(14.dp), spotColor = palette.primary.copy(alpha = 0.30f))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(palette.primary)
+                        .clickable { onUseRescue() }
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.EventAvailable, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Text("使う日を選んで適用", style = AppType.body, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.weight(1f))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
+                }
+                // 非Premium 向け訴求(GOプレミアムで月4回)。iOS: Divider + 塗り無しの primary 文字行。
                 if (!state.isPremium) {
-                    Surface(
-                        color = palette.primary.copy(alpha = 0.10f), shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { onOpenPremium() },
+                    HorizontalDivider(color = palette.textSecondary.copy(alpha = 0.2f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onOpenPremium() }.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
-                            Text("GOプレミアムで保険チケットが月4回に", style = AppType.caption, color = palette.primaryDeep, modifier = Modifier.weight(1f))
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
-                        }
+                        Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
+                        Text("GOプレミアムで保険チケットが月4回に", style = AppType.body, color = palette.primary, modifier = Modifier.weight(1f))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
                     }
                 }
             }
