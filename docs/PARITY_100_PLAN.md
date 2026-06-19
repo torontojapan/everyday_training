@@ -65,3 +65,27 @@
 
 > これを全部入れれば、Android は iOS build 12 と**知覚的に区別できない**水準で固定され、
 > 個別指摘は不要になる。基準=各セル SSIM ≥ 0.97 かつ構造(要素/順序/文言/色トークン)完全一致。
+
+---
+## 現在地 / 再開手順(2026-06-19 セッション末・コンテキスト満杯で中断)
+**完了済(コミット済・branch feature/android-ios-ui-parity)**:
+- 今セッションの UI 是正: ランキング今月/友達(welcome/空/詳細名前)/履歴 保険チケット展開/共有カード
+  (連続・ハイライト=全面グラデ背景+浮きコンパクトカード+グラデ選択ピッカー+iOS配色ボタン+X、
+  サイズ/猫比率を iOS へ、**絵文字を全廃し白単色ベクターアイコン**へ)/体重 折りたたみ+paywall/設定 削除reactivity/
+  フォント(和文ゴシック+欧文丸ゴ)/週ストリップ色を iOS 低不透明度へ/節目を全画面祝福+ボタン対称化/rescue画面/
+  referral スター・⭐10(debugInjectStars 追加)。
+- **ハーネス構築完了**: `tools/parity/diff.py`(SSIM+差分ヒートマップ+HTMLレポート+**マスク領域**)/
+  `tools/parity/capture_android.py`(adb 駆動・sqlite シード・画面レシピ)/ `tools/parity/README.md`。
+  end-to-end 動作確認済(撮影→差分→parity_report/index.html)。
+
+**次セッションでやること(差分ゼロ化ループ)= Task #11→#12**:
+1. **両OS決定論フック**: 連続日数/猫種/グラデ/poseSeed/時刻/premium/referral を iOS・Android で同一値に固定。
+   - iOS: launch arg 追加(gradient/poseSeed 固定の debug arg を StreakShareSheet/MonthlyReviewSheet に)。breed=`-user.myCat`、streak=`--seed-scenario` or 固定 records 注入の debug seed。
+   - Android: sqlite seed(capture_android.py 済)+ 猫種/グラデは SettingsRepository、poseSeed は renderer に debug 固定フック。
+   - 揃えにくい領域は diff.py の `masks` で除外(構造/色/アイコン/フォント差を測る)。
+2. **capture_android.py の recipe を全画面×状態へ拡張** + iOS XCUIT(ScreenshotCaptureUITests)を全状態へ拡張。
+3. **pairs.json を全セル分**作り、`python3 tools/parity/diff.py --pairs pairs.json --out-dir parity_report` を回す。
+4. FAIL(SSIM<0.97)を**全て潰すまで**改修ループ(各修正に横並び合成+SSIM 添付=自己監査必須 [[feedback_parity_selfaudit_after_fix]])。
+5. 全セル PASS で完了。以後は差分ゲートを CI 化。
+
+**環境**: emulator go_test 起動中 / Mock 撮影は local.properties の SUPABASE 空+再ビルド(検証後 /tmp/local.properties.realbak2 から復元)/ iOS golden は build 12 sim(/tmp/goex_dd)+ XCUIT 撮影 → xcresulttool export。
