@@ -136,6 +136,18 @@
   合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
   (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
+### 🔴 HIGH 未是正: 体重(premium)HeroCard に「達成リング+猫」が欠落
+Mock 購入(`PLAY_BILLING_ENABLED` 未設定=Mock billing。paywall「14日間無料で始める」で isPremiumActive=true・**ただし
+in-memory でアプリ再起動で揮発**)→ 体重 entries+目標+身長をシード/設定して照合(`proofs/weight_premium_ios_vs_android.png`):
+- **構造一致**: HeroCard / 記録する / レポート / 推移(「30日で30件記録」は iOS と完全一致)/ 履歴。
+- **欠落①(コンポーネント)**: iOS `WeightHeroDashboard.ringWithCat` = HeroCard 右の **達成リング(円弧進捗)+ 中央に選択猫 + 右下%バッジ**が
+  **Android HeroCard に存在しない**。iOS 仕様: ring 108 / line 9 / 背景リング primary@0.18 / 進捗 primary round-cap -90°開始 /
+  中央 surface円(84)+猫画像(82, clipCircle) / バッジ "{N}%" white on primaryDeep capsule offset(30,38)+白枠2。
+  実装に要: `WeightUiState` に **progress(=(start-cur)/(start-target) clamp)** と **breed** を追加(VM に breed flow 注入)+ Compose Canvas drawArc + 既存 CatAvatar。
+- **欠落②**: 「最新の体重 · {日付}」の**日付**が Android に無い(iOS は記録日時を表示)。
+- 開始値(開始 75.0 →)は Android コードに有(`WeightScreen` line270 `startKg?.let`)だが私のシードで startKg 未導出のため非表示=データ差。
+- **LOW**: チップ構成差(iOS「圏内 達成」/ Android「✓目標圏内」+「🎯目標達成」+「⏳あと約N日」の3つ)。
+
 ### ホーム紹介スター行 / rescue-use(セッション継続分)
 - **ホーム紹介スター行=一致を実証**(`proofs/home_referral_ios_vs_android.png`): Mock build で友達タブ訪問(profile/code 確立)
   → `goexercise://debug-stars?n=5` → ホームに「★5金+5空 / あと5人で猫が解放」が iOS と同配置・同文言で表示。
