@@ -136,6 +136,15 @@
   合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
   (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
+### 残状態の seed レシピ整備(次サイクルで確定的に到達するための infrastructure)
+`capture_android.py seed_streak` に 2 オプション追加(2026-06-19 検証済):
+- `--end-offset N`: 連続の終端を today から N 日前へ。**milestone-eve** = `--seed-streak 9 --end-offset 1`
+  (9日連続・昨日まで=今日 pending → 今日記録で 10 日連続=節目発火。Android 連続節目しきい値=最小 10、以後 30/50/100…)。
+  実機で「9日連続・今週 月火水木=◎/金=・(todayPending)・CTA『今日の運動を記録する』」を確認。
+- `--skip-recent N`: 連続中の直近 N 日を未記録に=**× 未達成日**を作る(rescue-use の適用対象が要る画面用)。
+- これで rescue-use / 節目ダイアログ / today-pending ホーム等が再現可能に(節目ダイアログ・rescue-use の最終撮影は
+  記録→ホーム復帰 / 履歴→保険チケット→適用 の UI フローが要るため次サイクル)。
+
 ### ✅ 是正した実バグ⑦(HIGH): 体重 HeroCard の「達成リング+猫」+日付を実装
 `WeightHeroDashboard.ringWithCat` を Android に移植: `HealthPrefs.progressRatio()`(iOS 完全移植)+ `WeightViewModel` に
 breed(settings.catBreed)/progress を追加 + `WeightScreen.WeightAchievementRing`(Canvas drawArc 背景リング+進捗 -90°round-cap +

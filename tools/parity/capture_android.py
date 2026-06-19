@@ -40,13 +40,19 @@ def run_as_sqlite(sql):
     adb("shell", f"run-as {PKG} sh -c 'echo \"{sql}\" | sqlite3 {DB}'")
 
 
-def seed_streak(days, today=None, breed_records="strength"):
-    """today まで days 日連続の workout_records を注入(iOS と同じ epochDay 基準)。"""
+def seed_streak(days, today=None, breed_records="strength", end_offset=0, skip_recent=0):
+    """days 日連続の workout_records を注入(iOS と同じ epochDay 基準)。
+
+    end_offset: 連続の終端を today から N 日前にずらす(N=1 → 昨日まで連続=今日未記録。
+                **milestone-eve** に使う: seed_streak(6, end_offset=1) → 今日記録すると 7 日連続=節目発火)。
+    skip_recent: 連続の中で**直近 N 日を記録しない**(× 未達成日を作る。**rescue-use** の適用対象が要る画面用)。
+    """
     today = today or datetime.date.today()
     epoch = datetime.date(1970, 1, 1)
+    end = today - datetime.timedelta(days=end_offset)  # 連続の最終日
     lines = ["DELETE FROM workout_records;"]
-    for i in range(days):
-        d = today - datetime.timedelta(days=i)
+    for i in range(skip_recent, days):
+        d = end - datetime.timedelta(days=i)
         ed = (d - epoch).days
         ms = int(datetime.datetime(d.year, d.month, d.day, 9, 0).timestamp() * 1000)
         ex = [{"id": str(uuid.uuid4()), "name": "スクワット", "reps": 20, "sets": 3, "category": "strength"}]
@@ -142,6 +148,10 @@ def main():
     ap.add_argument("--out-dir", default="/tmp/and_caps")
     ap.add_argument("--recipes", default="")
     ap.add_argument("--seed-streak", type=int)
+    ap.add_argument("--end-offset", type=int, default=0,
+                    help="連続の終端を today から N 日前へ(N=1=昨日まで=milestone-eve。今日記録で +1 日=節目発火)")
+    ap.add_argument("--skip-recent", type=int, default=0,
+                    help="直近 N 日を記録せず × 未達成日を作る(rescue-use の適用対象が要る画面用)")
     ap.add_argument("--match-ios-width", action="store_true",
                     help="撮影前に density=393 を適用し論理幅を iPhone 17 Pro Max(440dp)へ揃える")
     a = ap.parse_args()
@@ -149,8 +159,8 @@ def main():
         set_ios_matched_density()
         print(f"set density {IOS_MATCHED_DENSITY} (≈440dp, iPhone 17 Pro Max width)")
     if a.seed_streak:
-        seed_streak(a.seed_streak)
-        print(f"seeded {a.seed_streak}-day streak")
+        seed_streak(a.seed_streak, end_offset=a.end_offset, skip_recent=a.skip_recent)
+        print(f"seeded {a.seed_streak}-day streak (end_offset={a.end_offset}, skip_recent={a.skip_recent})")
         return
     import os
     os.makedirs(a.out_dir, exist_ok=True)
