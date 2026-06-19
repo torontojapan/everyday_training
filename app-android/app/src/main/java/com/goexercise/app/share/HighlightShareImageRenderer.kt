@@ -33,12 +33,13 @@ object HighlightShareImageRenderer {
     /** 画面プレビュー用のコンパクトカード高さ(iOS MonthlyReviewCard 非 fillFrame の縦横比)。 */
     const val COMPACT_H = 1680
 
-    /** ハイライト種別。バッジ絵文字・タイトル・グラデ色を持つ(iOS の icon/title/gradient 対応)。 */
-    enum class Kind(val badgeEmoji: String, val title: String, val gradient: List<Int>) {
+    /** ハイライト種別。バッジ白アイコン(iOS SF Symbol 相当)・タイトル・グラデ色を持つ。
+     *  iOS: sparkles(Weekly)/ doc.text.image(Monthly)/ trophy.fill(All-time)。絵文字は使わない。 */
+    enum class Kind(val badgeIconRes: Int, val title: String, val gradient: List<Int>) {
         // iOS weeklyGradient(青緑)/ monthlyGradient(紫)/ lifetimeGradient(金)を ARGB 化。
-        Weekly("✨", "Weeklyハイライト", listOf(0xFF29A0BD.toInt(), 0xFF38B3A8.toInt(), 0xFF6BCC99.toInt())),
-        Monthly("📄", "Monthlyハイライト", listOf(0xFF807AEB.toInt(), 0xFF9E6BE0.toInt(), 0xFFD97ACC.toInt())),
-        AllTime("🏆", "All-timeハイライト", listOf(0xFFF5A338.toInt(), 0xFFF08547.toInt(), 0xFFE6666B.toInt())),
+        Weekly(com.goexercise.app.R.drawable.ic_stat_sparkles, "Weeklyハイライト", listOf(0xFF29A0BD.toInt(), 0xFF38B3A8.toInt(), 0xFF6BCC99.toInt())),
+        Monthly(com.goexercise.app.R.drawable.ic_stat_doc, "Monthlyハイライト", listOf(0xFF807AEB.toInt(), 0xFF9E6BE0.toInt(), 0xFFD97ACC.toInt())),
+        AllTime(com.goexercise.app.R.drawable.ic_stat_trophy, "All-timeハイライト", listOf(0xFFF5A338.toInt(), 0xFFF08547.toInt(), 0xFFE6666B.toInt())),
     }
 
     fun render(
@@ -72,7 +73,7 @@ object HighlightShareImageRenderer {
         var top = ((h - contentHeight) / 2f).coerceAtLeast(120f)
 
         // アイコン付き日本語バッジ(英字バッジ + 和タイトルの重複を解消、iOS 1.3)。
-        top = drawBadgePill(canvas, cx, top, "${kind.badgeEmoji} ${kind.title}")
+        top = drawBadgePill(context, canvas, cx, top, kind.badgeIconRes, kind.title)
 
         // 期間ラベル(2026年6月 / 5/26 - 6/1 / 通算 365日)。
         top = canvas.drawCentered(review.periodLabel, cx, top, textPaint(40f, bold = true).apply { alpha = 220 }, gap = 36f)
@@ -104,7 +105,7 @@ object HighlightShareImageRenderer {
         top += (fmNum.descent - fmNum.ascent) + 36f
 
         // stat 行(半透明角丸ボックス)。
-        top = drawStatBox(canvas, cx, top, statRows)
+        top = drawStatBox(context, canvas, cx, top, statRows)
         top += 32f
 
         // アプリ名(iOS MonthlyReviewCard は "GO エクササイズ" 1 行のみ。英字 "GO Exercise" 副題は iOS に無い)。
@@ -177,16 +178,17 @@ object HighlightShareImageRenderer {
 
     // ---- stat 行の組み立て ----
 
-    private data class StatRow(val icon: String, val label: String, val value: String)
+    private data class StatRow(val iconRes: Int, val label: String, val value: String)
 
-    // iOS MonthlyReviewCard.statRow の SF Symbol を共有画像用の emoji に対応付け
-    // (pawprint.fill/clock.fill/list.bullet.rectangle/star.fill/heart.fill)。バッジと同じ emoji 方式。
+    // iOS MonthlyReviewCard.statRow の SF Symbol(白単色)を、対応する白ベクターアイコンで描く
+    // (pawprint.fill→ic_stat_paw / clock.fill→clock / list.bullet.rectangle→list / star.fill→star / heart.fill→heart)。
+    // ★絵文字(色付き)ではなく iOS と同じ白単色アイコンにする(ユーザー指摘 2026-06-19)。
     private fun buildStatRows(review: MonthlyReviewBuilder.Review, streakLabel: String): List<StatRow> = buildList {
-        add(StatRow("🐾", streakLabel, "${review.longestStreak} 日"))
-        add(StatRow("🕐", "合計時間", "${review.totalDurationMinutes} 分"))
-        add(StatRow("📋", "種目数", "${review.totalExerciseCount} 件"))
-        review.topCategory?.let { add(StatRow("⭐", "イチオシのカテゴリ", it.displayName)) }
-        review.topExerciseName?.let { add(StatRow("❤️", "推し種目", it)) }
+        add(StatRow(com.goexercise.app.R.drawable.ic_stat_paw, streakLabel, "${review.longestStreak} 日"))
+        add(StatRow(com.goexercise.app.R.drawable.ic_stat_clock, "合計時間", "${review.totalDurationMinutes} 分"))
+        add(StatRow(com.goexercise.app.R.drawable.ic_stat_list, "種目数", "${review.totalExerciseCount} 件"))
+        review.topCategory?.let { add(StatRow(com.goexercise.app.R.drawable.ic_stat_star, "イチオシのカテゴリ", it.displayName)) }
+        review.topExerciseName?.let { add(StatRow(com.goexercise.app.R.drawable.ic_stat_heart, "推し種目", it)) }
     }
 
     // ---- 描画ヘルパ(自己完結。StreakShareImageRenderer を壊さないため独立)----
@@ -218,21 +220,31 @@ object HighlightShareImageRenderer {
         return top + (fm.descent - fm.ascent) + gap
     }
 
-    /** アイコン付き日本語バッジ(黒半透明カプセル)。次要素の上端 Y を返す。 */
-    private fun drawBadgePill(canvas: Canvas, cx: Float, top: Float, text: String): Float {
-        val tp = textPaint(40f, bold = true)
-        val tw = tp.measureText(text)
+    /** 白アイコン付き日本語バッジ(黒半透明カプセル)。iOS Label(systemImage:) と同型(絵文字を使わない)。次要素の上端 Y を返す。 */
+    private fun drawBadgePill(context: Context, canvas: Canvas, cx: Float, top: Float, iconRes: Int, title: String): Float {
+        val tp = textPaint(40f, bold = true).apply { textAlign = Paint.Align.LEFT }
+        val tw = tp.measureText(title)
         val fm = tp.fontMetrics
+        val iconSize = 40f
+        val iconGap = 12f
         val padH = 36f
-        val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 24f)
+        val contentW = iconSize + iconGap + tw
+        val rect = RectF(cx - contentW / 2 - padH, top, cx + contentW / 2 + padH, top + (fm.descent - fm.ascent) + 24f)
         val rad = rect.height() / 2
         canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x73000000 })
-        canvas.drawText(text, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
+        val contentLeft = cx - contentW / 2
+        ContextCompat.getDrawable(context, iconRes)?.let { d ->
+            val iconTop = (rect.centerY() - iconSize / 2).toInt()
+            d.setTint(0xFFFFFFFF.toInt())
+            d.setBounds(contentLeft.toInt(), iconTop, (contentLeft + iconSize).toInt(), iconTop + iconSize.toInt())
+            d.draw(canvas)
+        }
+        canvas.drawText(title, contentLeft + iconSize + iconGap, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
         return rect.bottom + 28f
     }
 
     /** stat 行を半透明角丸ボックスにまとめて描く。次要素の上端 Y を返す。 */
-    private fun drawStatBox(canvas: Canvas, cx: Float, top: Float, rows: List<StatRow>): Float {
+    private fun drawStatBox(context: Context, canvas: Canvas, cx: Float, top: Float, rows: List<StatRow>): Float {
         if (rows.isEmpty()) return top
         val boxW = 760f
         val rowH = 64f
@@ -243,19 +255,24 @@ object HighlightShareImageRenderer {
         val rect = RectF(left, top, right, top + boxH)
         canvas.drawRoundRect(rect, 28f, 28f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x2EFFFFFF })
 
-        val iconPaint = textPaint(30f).apply { textAlign = Paint.Align.LEFT }
         val labelPaint = textPaint(32f).apply { textAlign = Paint.Align.LEFT; alpha = 220 }
         val valuePaint = textPaint(32f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val padH = 36f
-        val iconW = 48f // 先頭アイコン + 余白の幅(iOS Label のアイコン列に相当)。
-        // ラベルと値が重ならないよう、値が使える最大幅(右カラム)。
-        // 推し種目名はユーザー入力で長くなり得るので、はみ出す前に「…」で省略する。
+        val iconSize = 36f   // 白単色アイコン(iOS SF Symbol 相当)。
+        val iconW = 52f      // アイコン列幅(アイコン + 余白)。
         val valueMaxW = boxW - padH * 2 - iconW - 260f // ラベル側に最低 260px 確保
         rows.forEachIndexed { i, row ->
             val rowTop = top + padV + i * rowH
             val fm = labelPaint.fontMetrics
             val baseline = rowTop + rowH / 2 - (fm.ascent + fm.descent) / 2
-            canvas.drawText(row.icon, left + padH, baseline, iconPaint)
+            // iOS は statRow アイコン=白単色。ベクターを白で描く(絵文字を使わない)。
+            ContextCompat.getDrawable(context, row.iconRes)?.let { d ->
+                val iconTop = (rowTop + rowH / 2 - iconSize / 2).toInt()
+                val iconLeft = (left + padH).toInt()
+                d.setTint(0xFFFFFFFF.toInt())
+                d.setBounds(iconLeft, iconTop, iconLeft + iconSize.toInt(), iconTop + iconSize.toInt())
+                d.draw(canvas)
+            }
             canvas.drawText(row.label, left + padH + iconW, baseline, labelPaint)
             canvas.drawText(ellipsize(row.value, valuePaint, valueMaxW), right - padH, baseline, valuePaint)
         }

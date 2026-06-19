@@ -80,7 +80,7 @@ object StreakShareImageRenderer {
         val rank = CatRank.of(streak)
         val rankTitle = rank.title
         if (rankTitle != null && rank.metalKind != null) {
-            top = drawRankBadge(canvas, cx, top, rankTitle, rank.metalKind!!)
+            top = drawRankBadge(context, canvas, cx, top, rankTitle, rank.metalKind!!)
         } else {
             top = canvas.drawCentered(level.headline, cx, top, textPaint(56f, bold = true), gap = 24f)
         }
@@ -248,14 +248,18 @@ object StreakShareImageRenderer {
         return android.graphics.Color.rgb(ch(r), ch(g), ch(b))
     }
 
-    /** 称号バッジ(メタル色カプセル + 🐾 + 称号)を中央に描き、次要素の上端 Y を返す。 */
-    private fun drawRankBadge(canvas: Canvas, cx: Float, top: Float, title: String, kind: MetalKind): Float {
-        val label = "🐾 $title"
-        val tp = textPaint(46f, bold = true).apply { color = 0xFF1A1A1A.toInt() } // メタル地に黒文字(コントラスト)
-        val tw = tp.measureText(label)
+    /** 称号バッジ(メタル色カプセル + 肉球アイコン + 称号)を中央に描き、次要素の上端 Y を返す。
+     *  iOS RankBadge は pawprint(SF Symbol)。絵文字でなく単色ベクター(濃色=メタル地に映える)で描く。 */
+    private fun drawRankBadge(context: Context, canvas: Canvas, cx: Float, top: Float, title: String, kind: MetalKind): Float {
+        val dark = 0xFF1A1A1A.toInt()
+        val tp = textPaint(46f, bold = true).apply { color = dark; textAlign = Paint.Align.LEFT } // メタル地に黒文字
+        val tw = tp.measureText(title)
         val fm = tp.fontMetrics
         val padH = 40f
-        val rect = RectF(cx - tw / 2 - padH, top, cx + tw / 2 + padH, top + (fm.descent - fm.ascent) + 22f)
+        val iconSize = 44f
+        val iconGap = 12f
+        val contentW = iconSize + iconGap + tw
+        val rect = RectF(cx - contentW / 2 - padH, top, cx + contentW / 2 + padH, top + (fm.descent - fm.ascent) + 22f)
         val rad = rect.height() / 2
         // メタル地: 上→下で明→暗の簡易グラデで金属らしさを出す。
         val base = metalColor(kind)
@@ -270,7 +274,14 @@ object StreakShareImageRenderer {
         canvas.drawRoundRect(rect, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE; strokeWidth = 3f; color = 0x66FFFFFF
         })
-        canvas.drawText(label, cx, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
+        val contentLeft = cx - contentW / 2
+        ContextCompat.getDrawable(context, com.goexercise.app.R.drawable.ic_stat_paw)?.let { d ->
+            val iconTop = (rect.centerY() - iconSize / 2).toInt()
+            d.setTint(dark)
+            d.setBounds(contentLeft.toInt(), iconTop, (contentLeft + iconSize).toInt(), iconTop + iconSize.toInt())
+            d.draw(canvas)
+        }
+        canvas.drawText(title, contentLeft + iconSize + iconGap, rect.centerY() - (fm.ascent + fm.descent) / 2, tp)
         return rect.bottom + 28f
     }
 
