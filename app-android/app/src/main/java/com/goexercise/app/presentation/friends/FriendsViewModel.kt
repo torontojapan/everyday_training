@@ -290,7 +290,7 @@ class FriendsViewModel @Inject constructor(
             try {
                 service.sendRequest(code.uppercase())
                 load()
-                val msg = "$code に友達申請を送りました 🤝"
+                val msg = "$code に友達申請を送りました"  // iOS は絵文字なし(🤝 を除去・絵文字全廃)
                 _uiState.update { it.copy(toast = msg) }
                 onResult(true, msg)
             } catch (e: Exception) {

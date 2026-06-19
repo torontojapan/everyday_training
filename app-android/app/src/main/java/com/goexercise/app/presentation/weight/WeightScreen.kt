@@ -6,6 +6,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -605,7 +607,10 @@ private fun HistoryBody(state: WeightUiState, palette: AppTheme, onDelete: (Stri
                     e.memo?.let { Text(it, fontSize = 11.sp, color = palette.textSecondary) }
                 }
                 Text("%.1f kg".format(e.weightKg), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
-                TextButton(onClick = { pendingDelete = e.id }) { Text("🗑", fontSize = 14.sp) }
+                // 絵文字 🗑 を Material アイコンに統一(絵文字全廃)。
+                IconButton(onClick = { pendingDelete = e.id }) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "削除", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }

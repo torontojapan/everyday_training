@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ShowChart
@@ -246,7 +248,13 @@ private fun planCard(
             .clickable(onClick = onClick),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (selected) "🔘" else "⚪", fontSize = 18.sp)
+            // iOS は Image(systemName: selected ? "checkmark.circle.fill" : "circle")。絵文字 🔘/⚪ を Material アイコンに統一。
+            Icon(
+                if (selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (selected) palette.primary else palette.textSecondary,
+                modifier = Modifier.size(22.dp),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)

@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material3.Icon
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -40,7 +44,8 @@ fun StreakRevivePopup(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Text("❄️", fontSize = 40.sp) },
+        // iOS は Image(systemName: "snowflake")。絵文字 ❄️ ではなく Material アイコンに統一(絵文字全廃)。
+        icon = { Icon(Icons.Filled.AcUnit, contentDescription = null, tint = icy, modifier = Modifier.size(40.dp)) },
         title = {
             Text(
                 text = "連続${potentialStreak}日を守れます",
