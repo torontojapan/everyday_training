@@ -144,8 +144,11 @@ fun HomeRoute(
     }
 
     pendingMilestone?.let { milestone ->
-        MilestoneCelebrationDialog(
+        // iOS MilestoneCelebrationSheet パリティ: 全画面の祝福(猫+金バッジ+大見出し+共有CTA)。
+        com.goexercise.app.ui.components.MilestoneCelebrationOverlay(
             milestone = milestone,
+            breed = state.catBreed,
+            badgeIcon = milestoneIcon(milestone),
             onDismiss = { viewModel.acknowledgeMilestone(milestone) },
         )
     }
@@ -212,38 +215,6 @@ private fun milestoneIcon(milestone: Milestone): ImageVector = when (milestone) 
     is Milestone.LifetimeDays -> if (milestone.days >= 365) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech  // trophy / medal
     is Milestone.CurrentStreak -> Icons.Filled.WorkspacePremium                                        // crown→premium seal / rosette
     is Milestone.WeightLoss -> if (milestone.kg >= 10) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech       // trophy / medal
-}
-
-/** 達成お祝いダイアログ(金色シンボル + 見出し + 詳細 + シェア + 閉じる)。iOS MilestoneCelebrationSheet 相当。 */
-@Composable
-private fun MilestoneCelebrationDialog(milestone: Milestone, onDismiss: () -> Unit) {
-    val palette = LocalAppPalette.current
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = milestoneIcon(milestone),
-                contentDescription = null,
-                tint = Color(0xFFFFB300), // 金色(iOS の金グラデ相当)
-                modifier = Modifier.size(48.dp),
-            )
-        },
-        title = { Text(milestone.headline, fontWeight = FontWeight.Bold, color = palette.textPrimary, textAlign = TextAlign.Center) },
-        text = { Text(milestone.detail, color = palette.textSecondary, textAlign = TextAlign.Center) },
-        confirmButton = {
-            TextButton(onClick = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "${milestone.shareMessage}\nhttps://goexercise.app")
-                }
-                runCatching { context.startActivity(Intent.createChooser(intent, "シェア")) }
-                onDismiss()
-            }) { Text("シェアする", color = palette.primaryDeep, fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("閉じる", color = palette.textSecondary) } },
-        containerColor = palette.surface,
-    )
 }
 
 /**

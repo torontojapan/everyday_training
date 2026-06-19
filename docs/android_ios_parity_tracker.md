@@ -138,7 +138,8 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | ハイライトシェア(週/月/全期間) | — | ✅(セッション17+17b監査。統計行 iOS SF Symbol 相当アイコン🐾🕐📋⭐❤️ / Monthly バッジ📄 / SNSで共有 / **英字副題削除+紙吹雪削除**(iOS MonthlyReviewCard は猫のみ・監査17b)。4並列敵対監査で収束) |
 | オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |
 | フリーズ(rescue)使用画面 | — | ✅(セッション17b・iOS RescueTicketUseView へ全面改修=題「保険チケットを使う」/summaryカード(チケットicon+「今月の保険チケット: N/M 回 残り」+無料枠のみインライン「(GOプレミアムで月4回)」)/操作説明カード/「マークの意味」凡例/「これまでに使った日」/適用確認ダイアログ。👑 premium ボタン撤去(iOS はインライン文言)。実エミュ検証・iOS ソース全文照合。VM に rescuedDates 追加) |
-| ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | 🔶(milestone-eve seed→記録で iOS は記録完了画面[既✅]へ。節目/breed-unlock ダイアログは発火条件が data 依存で golden 自動撮影が不安定=実装は session3 で✅・golden 横並び未) |
+| ダイアログ | 紹介確定/rankup/revive ✅ / 節目(milestone) | ✅(セッション17b・**節目を iOS MilestoneCelebrationSheet 相当の全画面祝福へ全面改修**=猫(連続更新ポーズ)+金ロゼット+大見出し「連続 N 日達成！」+説明+全幅「シェアして運動仲間とつながる」+中央「閉じる」+X。旧 compact AlertDialog(閉じる/シェアする 右寄せ)を置換=ボタン左右対称化(ユーザー指摘)。sqlite で 9日/29日連続を注入し記録→10日/30日節目を実発火させ撮影検証) |
+| ダイアログ | breed-unlock(⭐10) | 🔶(実装✅ session3。発火に referral 10★が必要=Android 側 referral 注入手段なく golden 横並び未) |
 
 **次バッチ着手順(推奨)**: ~~①設定サブページ群~~(ナビヘッダ/記録と共有 ✅・残=カスタマイズ/データ&プライバシー/通知の STRUCTURAL)
 ②ホーム各状態(空/未達成/復帰) ③履歴空/チケット展開 ④友達 welcome/空 ⑤ランキング今月/空 ⑥体重/ペイウォール
