@@ -122,6 +122,22 @@ class ReferralStore @Inject constructor(
         _currentAccountCode.value = null // 口座ガードを即 0 に倒す(新アカウントの refresh が確定するまで)。
     }
 
+    /**
+     * DEBUG/QA 専用: 紹介スター数を直接注入する(iOS `debugInjectStars` 相当)。
+     * ホームの紹介スター行と ⭐10 breed-unlock 祝福の視覚確認に使う。MainActivity が
+     * `BuildConfig.DEBUG` のときだけ deep-link `goexercise://debug-stars?n=N` から呼ぶ。
+     * 口座ガードを通すため summary/current/summaryAccountCode を現アカウントに揃える。
+     */
+    fun debugInjectStars(n: Int) {
+        scope.launch {
+            val code = service.myProfile()?.friendCode
+            _currentAccountCode.value = code
+            _summaryAccountCode.value = code
+            _summary.value = ReferralSummary(starBadges = n, freezeBonusThisMonth = 0)
+            if (n >= CatBreedAccess.BREED_UNLOCK_STARS) _pendingBreedUnlock.value = true
+        }
+    }
+
     suspend fun refresh() {
         // 世代は**最初の suspend より前**に取得する。myProfile() 自体が suspend で、その中断中に
         // identity が変わると古い friendCode が返り得るため、直後にも再チェックして破棄する(Codex R2)。

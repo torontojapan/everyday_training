@@ -82,6 +82,13 @@ class MainActivity : ComponentActivity() {
             RealAccountAuthCoordinator.deliverCallback(uri)
             return null
         }
+        // DEBUG/QA 専用: 紹介スター注入(iOS --mock-referral-stars 相当)。
+        // `goexercise://debug-stars?n=5` で星行、`?n=10` で ⭐10 breed-unlock 祝福を発火できる。
+        if (com.goexercise.app.BuildConfig.DEBUG && uri != null && uri.startsWith("goexercise://debug-stars")) {
+            val n = uri.substringAfter("n=", "").substringBefore("&").toIntOrNull() ?: 0
+            referralStore.debugInjectStars(n)
+            return null
+        }
         return uri
     }
 }
