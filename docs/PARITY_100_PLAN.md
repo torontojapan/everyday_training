@@ -136,6 +136,13 @@
   合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
   (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
+### ホーム紹介スター行 / rescue-use(セッション継続分)
+- **ホーム紹介スター行=一致を実証**(`proofs/home_referral_ios_vs_android.png`): Mock build で友達タブ訪問(profile/code 確立)
+  → `goexercise://debug-stars?n=5` → ホームに「★5金+5空 / あと5人で猫が解放」が iOS と同配置・同文言で表示。
+  行は**コード元から正**(`isReferralActive && stars>0 && code!=null`=iOS 同条件)で、現 APK(実 Supabase・connect 前)では code=null のため非表示だっただけ=**状態ゲート**。
+- **rescue-use(保険チケットを使う)=次サイクル送り**: 365連続シードだと×(未達成)日が無く rescue-use 導線が出ない+
+  無料は「今月 1/1回残り」(iOS golden は 4/4=premium)。クリーン照合には**専用シード(過去に未達成日を作る)+premium mock** が要る。
+
 ### 体重タブ / ペイウォール照合(セッション継続分)
 - **ペイウォール本体=ほぼ完全一致**(`proofs/paywall_ios_vs_android.png`): タイトル「GOプレミアム」/「体重タブの全機能を
   解放しよう」/特典7項目(アイコン+文言: 記録+推移グラフ/週次月次レポート/周期オーバーレイ/目標BMI達成リング/
