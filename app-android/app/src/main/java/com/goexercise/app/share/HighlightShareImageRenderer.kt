@@ -46,13 +46,14 @@ object HighlightShareImageRenderer {
         breed: CatBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     ): Bitmap {
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val cx = W / 2f
 
-        // 背景グラデーション(左上→右下)を全面に(白余白なし)。
-        val colors = kind.gradient.toIntArray()
+        // 背景グラデーション(左上→右下)を全面に(白余白なし)。ユーザー選択があればそれを、無ければ種別既定色。
+        val colors = (gradient?.colors ?: kind.gradient).toIntArray()
         canvas.drawRect(
             0f, 0f, W.toFloat(), H.toFloat(),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -114,11 +115,12 @@ object HighlightShareImageRenderer {
         breed: CatBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     ): Boolean {
         val app = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val bitmap = render(app, review, kind, breed, streakLabel, poseSeed)
+                val bitmap = render(app, review, kind, breed, streakLabel, poseSeed, gradient)
                 val name = "goexercise-highlight-${System.currentTimeMillis()}.png"
                 val values = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name)
@@ -145,13 +147,14 @@ object HighlightShareImageRenderer {
         breed: CatBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
+        gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     ) {
         val app = context.applicationContext
         val uri = withContext(Dispatchers.IO) {
             val dir = File(app.cacheDir, "shared").apply { mkdirs() }
             dir.listFiles { f -> f.name.startsWith("goexercise-highlight-") }?.forEach { it.delete() }
             val file = File(dir, "goexercise-highlight-${System.currentTimeMillis()}.png")
-            file.outputStream().use { render(app, review, kind, breed, streakLabel, poseSeed).compress(Bitmap.CompressFormat.PNG, 100, it) }
+            file.outputStream().use { render(app, review, kind, breed, streakLabel, poseSeed, gradient).compress(Bitmap.CompressFormat.PNG, 100, it) }
             FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
         }
         val intent = Intent(Intent.ACTION_SEND).apply {

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDate
 import javax.inject.Inject
@@ -24,6 +25,8 @@ data class HighlightShareUi(
     val kind: HighlightShareImageRenderer.Kind = HighlightShareImageRenderer.Kind.Weekly,
     val breed: CatBreed = CatBreed.Default,
     val streakLabel: String = "今週の最長連続",
+    /** ユーザーが選んだ背景グラデ(null=種別ごとの既定色)。iOS activeGradient と同じ上書き方式。 */
+    val gradient: com.goexercise.app.domain.ShareCardGradient? = null,
 )
 
 /**
@@ -35,7 +38,7 @@ data class HighlightShareUi(
 class HighlightShareViewModel @Inject constructor(
     repository: WorkoutRepository,
     rescueTickets: RescueTicketRepository,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
     private val clock: Clock,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -57,7 +60,8 @@ class HighlightShareViewModel @Inject constructor(
         repository.observeRecords(),
         rescueTickets.rescuedDates,
         settings.catBreed,
-    ) { records, rescued, breed ->
+        settings.highlightShareGradient,
+    ) { records, rescued, breed, gradient ->
         val today = LocalDate.now(clock)
         val review = when (kind) {
             HighlightShareImageRenderer.Kind.Weekly ->
@@ -67,6 +71,14 @@ class HighlightShareViewModel @Inject constructor(
             HighlightShareImageRenderer.Kind.AllTime ->
                 MonthlyReviewBuilder.lifetime(records, today = today, rescuedDates = rescued)
         }
-        HighlightShareUi(review = review, kind = kind, breed = breed, streakLabel = streakLabel)
+        HighlightShareUi(review = review, kind = kind, breed = breed, streakLabel = streakLabel, gradient = gradient)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HighlightShareUi(kind = kind, streakLabel = streakLabel))
+
+    /** グラデ選択。同じものを再タップで既定色(null)へ戻す(iOS の上書き解除に相当)。 */
+    fun setGradient(gradient: com.goexercise.app.domain.ShareCardGradient) {
+        viewModelScope.launch {
+            val current = state.value.gradient
+            settings.setHighlightShareGradient(if (current == gradient) null else gradient)
+        }
+    }
 }

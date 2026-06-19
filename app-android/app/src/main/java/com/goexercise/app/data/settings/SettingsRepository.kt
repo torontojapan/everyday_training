@@ -38,6 +38,11 @@ interface SettingsRepository {
     val shareGradient: Flow<ShareCardGradient>
     suspend fun setShareGradient(gradient: ShareCardGradient)
 
+    /** ハイライト共有カードの背景グラデ上書き(null=種別ごとの既定色=Weekly緑/Monthly紫/All-time橙)。
+     *  iOS `@AppStorage("shareCard.gradient.review")` 相当(streak とは独立キー)。 */
+    val highlightShareGradient: Flow<ShareCardGradient?>
+    suspend fun setHighlightShareGradient(gradient: ShareCardGradient?)
+
     /** オンボーディング(初回の猫選択)を完了したか。iOS UserCatPreferences.hasCompletedOnboarding 相当。 */
     val onboardingComplete: Flow<Boolean>
     suspend fun setOnboardingComplete()
@@ -113,6 +118,17 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setShareGradient(gradient: ShareCardGradient) {
         dataStore.edit { it[shareGradientKey] = gradient.name }
+    }
+
+    private val highlightShareGradientKey = stringPreferencesKey("highlight_share_gradient")
+    override val highlightShareGradient: Flow<ShareCardGradient?> = dataStore.data.map { prefs ->
+        prefs[highlightShareGradientKey]?.let { name -> ShareCardGradient.entries.firstOrNull { it.name == name } }
+    }
+
+    override suspend fun setHighlightShareGradient(gradient: ShareCardGradient?) {
+        dataStore.edit {
+            if (gradient == null) it.remove(highlightShareGradientKey) else it[highlightShareGradientKey] = gradient.name
+        }
     }
 
     // 明示フラグが無い既存インストール(アップグレード)は、初回利用日が既にあれば「オンボ済」とみなす

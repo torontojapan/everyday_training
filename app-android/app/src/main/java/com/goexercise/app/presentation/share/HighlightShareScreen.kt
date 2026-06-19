@@ -2,16 +2,18 @@ package com.goexercise.app.presentation.share
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -53,6 +55,8 @@ fun HighlightShareRoute(
         kind = state.kind,
         breed = state.breed,
         streakLabel = state.streakLabel,
+        gradient = state.gradient,
+        onSelectGradient = viewModel::setGradient,
         onBack = onBack,
     )
 }
@@ -64,6 +68,8 @@ fun HighlightShareContent(
     kind: HighlightShareImageRenderer.Kind,
     breed: CatBreed,
     streakLabel: String,
+    gradient: com.goexercise.app.domain.ShareCardGradient? = null,
+    onSelectGradient: (com.goexercise.app.domain.ShareCardGradient) -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     val palette = LocalAppPalette.current
@@ -71,55 +77,54 @@ fun HighlightShareContent(
     val scope = rememberCoroutineScope()
     val poseSeed = rememberSaveable { (0..9999).random() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(palette.background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Text(
-            kind.title,
-            color = palette.textPrimary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-
-        // プレビュー(共有と同一の Canvas レンダラから生成。WYSIWYG)。review 確定後のみ描画。
-        val preview by produceState<ImageBitmap?>(initialValue = null, review, breed, poseSeed) {
-            val r = review
-            value = if (r == null) {
-                null
-            } else {
-                withContext(Dispatchers.Default) {
-                    HighlightShareImageRenderer.render(context, r, kind, breed, streakLabel, poseSeed).asImageBitmap()
-                }
-            }
+    // プレビュー(共有と同一の Canvas レンダラから生成。WYSIWYG)。review/gradient 確定後のみ描画。
+    val preview by produceState<ImageBitmap?>(initialValue = null, review, breed, poseSeed, gradient) {
+        val r = review
+        value = if (r == null) null else withContext(Dispatchers.Default) {
+            HighlightShareImageRenderer.render(context, r, kind, breed, streakLabel, poseSeed, gradient).asImageBitmap()
         }
+    }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1080f / 2340f) // スマホ全画面比。生成前もカードの場所を確保。
-                .clip(RoundedCornerShape(24.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(palette.background).padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(kind.title, color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+
+        // プレビューは残り領域に収まるよう Fit でスケール(全画面比カードを縮小表示)。
+        // これにより下のグラデ選択 + ボタンが常に1画面に収まる(以前は全画面化でピッカーが画面外だった)。
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             preview?.let { bmp ->
                 Image(
                     bitmap = bmp,
                     contentDescription = "${kind.title}のシェア画像",
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)),
                 )
             } ?: CircularProgressIndicator(color = palette.primaryDeep)
         }
 
+        // 背景グラデ ピッカー(5種・選択は永続化。再タップで種別既定色へ)。iOS ShareGradientPicker パリティ。
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.goexercise.app.domain.ShareCardGradient.entries.forEach { g ->
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(g.colors.map { androidx.compose.ui.graphics.Color(it) }))
+                        .then(
+                            if (g == gradient) Modifier.border(3.dp, palette.primaryDeep, CircleShape)
+                            else Modifier.border(1.dp, palette.textSecondary.copy(alpha = 0.3f), CircleShape),
+                        )
+                        .clickable { onSelectGradient(g) },
+                )
+            }
+        }
+
         if (review != null) {
             Button(
-                onClick = { scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed) } },
+                onClick = { scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed, gradient) } },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("SNSで共有")
@@ -128,7 +133,7 @@ fun HighlightShareContent(
             // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。
             fun doSave() {
                 scope.launch {
-                    val ok = HighlightShareImageRenderer.saveToGallery(context, review, kind, breed, streakLabel, poseSeed)
+                    val ok = HighlightShareImageRenderer.saveToGallery(context, review, kind, breed, streakLabel, poseSeed, gradient)
                     android.widget.Toast.makeText(
                         context,
                         if (ok) "写真に保存しました" else "保存に失敗しました",

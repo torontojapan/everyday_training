@@ -13,10 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -89,27 +86,20 @@ fun StreakShareContent(
         modifier = Modifier
             .fillMaxSize()
             .background(palette.background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // iOS パリティ: 「○週間つづいた!」見出しは廃止(7〜13日を一律「1週間」と表す不正確さのため)。
-        // 見出しはカード内の称号バッジに統一(StreakShareSheet.swift の注記)。画面上部に重複見出しは置かない。
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1080f / 2340f) // 生成前もカードの場所を確保(レイアウトのガタつき防止)。スマホ全画面比。
-                .clip(RoundedCornerShape(24.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
+        // iOS パリティ: 「○週間つづいた!」見出しは廃止(称号バッジに統一・StreakShareSheet.swift の注記)。
+        // プレビューは残り領域に Fit でスケール(全画面比カードを縮小表示)。これで下のグラデ選択 +
+        // ボタンが常に1画面に収まる(以前は全画面比でピッカー/ボタンが画面外=選べなかった)。
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             preview?.let { bmp ->
                 Image(
                     bitmap = bmp,
                     contentDescription = "${streak}日連続のシェア画像",
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)),
                 )
             } ?: CircularProgressIndicator(color = palette.primaryDeep)
         }
