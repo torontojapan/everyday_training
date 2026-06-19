@@ -87,7 +87,8 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 |---|---|---|
 | ホーム | 達成済(populated) | ✅(セッション4) |
 | ホーム | 新規/空(0日連続・全"-"週・待機猫・CTA) | ✅(セッション12・MATCH。猫メッセージは両者 Encouraging プール同一=ランダム差) |
-| ホーム | 未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | 🔶(referral行=A1/revive overlay=A3/comeback=セッション2-3 でエミュ実スクショ検証済。iOS golden(rem_home_referral=★5+「あと5人で猫が解放」/rem_home_revive)取得済。**golden 横並びは Android 側の referral/revive データ注入手段が無く不可**=機能・実装は検証済の前提で 🔶 据置) |
+| ホーム | revive popup/flow・節目・rankup・復帰welcome | ✅(セッション17b・sqlite 注入[17日連続+直近3日欠]で **StreakRevivePopup**(❄️「連続N日を守れます」+保険チケットを使う/今回はしない)を実発火→使用で streak 0→18 復活・木曜×→○救済・「連続復活!」祝福(RankCelebrationOverlay)を確認。節目=全画面 overlay 実発火撮影(別行)。rankup チップ(みならいネコ)・復帰welcome カード(おかえり…)も実描画確認) |
+| ホーム | referralスター・⭐10 breed-unlock | 🔶(実装✅ session2/3・iOS golden 取得済。発火に referral backend の star 数が必要で Android mock に注入手段が無く golden 横並びのみ不可) |
 | 記録入力 | 入力済 | ✅(セッション4・field統一確認) |
 | 記録入力 | 空/初期・複数種目・体重バリデーションエラー | ✅(セッション17・golden MATCH。空=種類chip/種目名/よく使う種目/4ピッカー/種目メモ/+種目を追加/今日の体重/メモ 一致。複数=アコーディオン最小化行+削除trash。体調・周期は両OSとも周期設定で gating。体重検証=前セッション✅+ユニットテスト) |
 | 記録完了 | 達成(連続>1初記録/2件目) | ✅(セッション6・back/tabbar/きのうから条件) |
