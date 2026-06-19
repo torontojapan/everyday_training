@@ -144,10 +144,11 @@
 - **体重タブ teaser(非premium)**: iOS `WeightTabRootView.lockedOverlay` と Android `WeightScreen.LockedOverlay` は
   文言一致(「体重タブは GOプレミアム機能です」/「14日間無料でお試し…推移グラフ・BMI・レポート・周期オーバーレイ…」/
   「GOプレミアムを見る」/「ホーム画面の『記録する』からの体重入力は引き続き無料」)。
+- ✅ **アイコン crown=是正済**: `ic_crown.xml`(3山+基部バンドの王冠ベクター)を新設し、WorkspacePremium(リボン)を
+  4箇所(PremiumPaywallScreen/WeightScreen teaser/設定アップグレード行/設定加入中行)で置換。体重 teaser で王冠描画を実証
+  (`proofs/premium_crown_icon_FIXED.png`)。
 - **⚠️ 未是正の差(要判断)**:
-  1. **アイコン crown vs ribbon**: iOS は teaser/paywall とも `crown.fill`(王冠)。Android は `Icons.Filled.WorkspacePremium`
-     (リボン/ロゼット)を**全 paywall 共通で意図的採用**(Material core に crown 無し)。厳密一致には crown ベクター同梱が要る(LOW・app全体)。
-  2. **初回自動提示**: iOS は weight タブを開くと**未加入なら paywall シートを自動提示**(`updateGate()`→`showPaywall=true`、
+  1. **初回自動提示**: iOS は weight タブを開くと**未加入なら paywall シートを自動提示**(`updateGate()`→`showPaywall=true`、
      X 閉じで 6h cooldown)。Android は teaser のみで自動提示しない。**ただし Android の paywall は別ルート(全画面)なので
      自動 navigate はループ footgun リスク**があり、安易移植は不可。iOS と同じ「シート型 paywall + cooldown」を別途設計してから実装する(要判断)。
 
