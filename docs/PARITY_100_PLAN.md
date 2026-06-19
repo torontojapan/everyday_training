@@ -136,6 +136,21 @@
   合計時間/種目数/イチオシのカテゴリ/推し種目)も一致。**ピッカーがボタンの上にあった同型バグを最下部へ是正**
   (`HighlightShareScreen`)。証跡=`proofs/highlight_share_x3_ios_vs_android.png`。統計の数値は seed データ差(単一種目シードのため 0分/種目数小)。
 
+### 体重タブ / ペイウォール照合(セッション継続分)
+- **ペイウォール本体=ほぼ完全一致**(`proofs/paywall_ios_vs_android.png`): タイトル「GOプレミアム」/「体重タブの全機能を
+  解放しよう」/特典7項目(アイコン+文言: 記録+推移グラフ/週次月次レポート/周期オーバーレイ/目標BMI達成リング/
+  保険チケット月4回/減量マイルストーン/全11種の猫)/年額おすすめ+月額/14日間無料で始める/購入を復元/fine print。
+  **価格の数値**(iOS ¥22.99 vs Android ¥3,800 等)は StoreKit/Play のストア環境差(「実質約¥317/月・34%お得」コピーは一致)。
+- **体重タブ teaser(非premium)**: iOS `WeightTabRootView.lockedOverlay` と Android `WeightScreen.LockedOverlay` は
+  文言一致(「体重タブは GOプレミアム機能です」/「14日間無料でお試し…推移グラフ・BMI・レポート・周期オーバーレイ…」/
+  「GOプレミアムを見る」/「ホーム画面の『記録する』からの体重入力は引き続き無料」)。
+- **⚠️ 未是正の差(要判断)**:
+  1. **アイコン crown vs ribbon**: iOS は teaser/paywall とも `crown.fill`(王冠)。Android は `Icons.Filled.WorkspacePremium`
+     (リボン/ロゼット)を**全 paywall 共通で意図的採用**(Material core に crown 無し)。厳密一致には crown ベクター同梱が要る(LOW・app全体)。
+  2. **初回自動提示**: iOS は weight タブを開くと**未加入なら paywall シートを自動提示**(`updateGate()`→`showPaywall=true`、
+     X 閉じで 6h cooldown)。Android は teaser のみで自動提示しない。**ただし Android の paywall は別ルート(全画面)なので
+     自動 navigate はループ footgun リスク**があり、安易移植は不可。iOS と同じ「シート型 paywall + cooldown」を別途設計してから実装する(要判断)。
+
 ### Mock-force ビルド手順(確立)+ 友達/ランキング/設定サインイン照合(セッション継続分)
 - ⚠️ `secret()` は **`app-android/local.properties`**(repo ルートでなく gradle ルート)を読む。ここに実 Supabase 鍵が
   入っていると friends が実接続待ちで「準備しています…」スタック。**Mock 化** = `app-android/local.properties` の
