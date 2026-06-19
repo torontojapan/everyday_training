@@ -44,6 +44,13 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
   ②日詳細シート=中央タイトル+閉じる追加 ③共有 `SheetCloseButton`(iOS26 ナビボタンの淡カプセル)へ統一(友達詳細/追加/日詳細。旧=素テキスト/欠落)
   ④ボトムタブバー= menstrual/rescue/ランキングは iOS が各タブ内 push でタブバーを残すため、Android も維持+親タブ選択(`AppNavHost.detailParentTab`)。実機でランキングにタブバー(友達選択)確認。
 
+## ★ 2026-06-19 セッション17b: 共有カード 監査検証ループ（4並列 Claude 敵対監査 → ソース裏取り → 是正 → 再検証収束）
+連続/Weekly/Monthly/All-time の4カードを Android 実スクショ vs iOS golden + レンダラソースで4エージェント並列に敵対監査。全エージェント+ソースで一致した**2実差を是正**:
+- **[HIGH] 英字「GO Exercise」副題**: 両レンダラが「GO エクササイズ」の下に英字 mono 行を描いていたが iOS(StreakShareCard/MonthlyReviewCard)は「GO エクササイズ」1行のみ → 両レンダラから削除。
+- **[MED] ハイライトの紙吹雪**: HighlightShareImageRenderer がプログラム紙吹雪を描いていたが iOS MonthlyReviewCard は猫(影)のみ(粒は猫スプライト焼込み)→ ハイライトから drawConfetti 削除(連続カードは iOS も StaticConfettiView 有のため維持)。死蔵 drawConfetti/cos/sin も除去。
+- 再ビルド→実エミュ再撮影で Weekly=紙吹雪/英字副題消失・streak=紙吹雪維持/英字副題消失 を確認(収束)。
+- 受容(低): streak オンスクリーンプレビューの角丸 24 vs iOS 32+影(エクスポート画像は両者フルブリードで一致)/ KPI接尾の先頭スペース(視覚同等)。
+
 ## ★ 2026-06-19 セッション17: 残☐ 一括消化（記録/シェア/体重/日詳細/設定 golden 照合）
 iOS build 12 を XCUITest で一括撮影(testCaptureRemainingStates)→ Android は **sqlite 注入で 14日連続+体重20件の populated 状態**を作り(`run-as ... sqlite3 goexercise.db`、デモseed が無い Android の populated 化手段)→ 実エミュ実スクショ照合。
 - **シェアカード ✅**: 連続カードを iOS 並び順(バッジ→猫→「N 日連続」横並び→アプリ名)へ + 「○週間つづいた!」見出し撤去 / ハイライト3種に統計行アイコン🐾🕐📋⭐❤️追加 / SNSで共有 文言統一(commit 3f7a084)。
@@ -125,8 +132,8 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | 体重 | プレミアムpopulated | ✅(セッション17・**折りたたみ化完了**=記録する/レポート/推移/履歴 を `WeightCollapsible`(既定折りたたみ・アイコン[AddCircle/BarChart/ShowChart/FormatListBulleted]+題+折りたたみ中subtitle+シェブロン)で iOS 順に。subtitle 文言も iOS 一致[新しい体重を追加 / 今週±Nkg/平均Nkg / 30日でN件記録 / 全N件]。展開で subtitle 隠す挙動も一致。実エミュ検証。データ要素[目標/身長/猫リング]は data 差) |
 | ペイウォール | 一般(クラウン+特典7行) | ✅(セッション15・絵文字→SF Symbol 相当 Material アイコン+「全11種の猫」行追加) |
 | 体重(プレミアム チャート) | — | ✅(セッション17・推移を折りたたみで展開→期間チップ[1週/1月/3月/半年/全期間]+折れ線+破線トレンド描画を実エミュ確認。iOS CollapsibleSection 内チャートと一致) |
-| 連続シェア | — | ✅(セッション17・golden MATCH。並び順を iOS へ=バッジ→猫→「N 日連続」横並び→アプリ名 / 「○週間つづいた!」見出し撤去(iOS 廃止済)/ 5グラデドット+SNSで共有+写真に保存 一致) |
-| ハイライトシェア(週/月/全期間) | — | ✅(セッション17・golden MATCH。統計行に iOS SF Symbol 相当の先頭アイコン🐾🕐📋⭐❤️を追加 / Monthly バッジを📄へ / SNSで共有 文言統一) |
+| 連続シェア | — | ✅(セッション17+17b監査。並び順 iOS=バッジ→猫→「N 日連続」横並び→アプリ名 / 見出し撤去 / 5グラデドット+SNSで共有+写真に保存 / 英字「GO Exercise」副題削除(監査17b)。紙吹雪は iOS にも有=維持) |
+| ハイライトシェア(週/月/全期間) | — | ✅(セッション17+17b監査。統計行 iOS SF Symbol 相当アイコン🐾🕐📋⭐❤️ / Monthly バッジ📄 / SNSで共有 / **英字副題削除+紙吹雪削除**(iOS MonthlyReviewCard は猫のみ・監査17b)。4並列敵対監査で収束) |
 | オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |
 | フリーズ(rescue)使用画面 | — | 🔶(履歴→保険チケット展開→「使う日を選んで適用」で到達。RescueTicketUse 画面の golden 横並びは未[XCUIT で iOS link 自動タップが不安定]・tabbar 反映済) |
 | ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | 🔶(milestone-eve seed→記録で iOS は記録完了画面[既✅]へ。節目/breed-unlock ダイアログは発火条件が data 依存で golden 自動撮影が不安定=実装は session3 で✅・golden 横並び未) |

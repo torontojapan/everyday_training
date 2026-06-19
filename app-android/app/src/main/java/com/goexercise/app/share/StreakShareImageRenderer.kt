@@ -102,9 +102,8 @@ object StreakShareImageRenderer {
         canvas.drawText(suffix, startX + numW, baseline, sufPaint)
         top += (fmNum.descent - fmNum.ascent) + 32f
 
-        // アプリ名。
-        top = canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 8f)
-        canvas.drawCentered("GO Exercise", cx, top, textPaint(22f, mono = true).apply { alpha = 180; letterSpacing = 0.15f }, gap = 0f)
+        // アプリ名(iOS StreakShareCard は "GO エクササイズ" の 1 行のみ。英字 "GO Exercise" 副題は iOS に無いため出さない)。
+        canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 0f)
 
         return bmp
     }

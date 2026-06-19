@@ -18,9 +18,7 @@ import com.goexercise.app.domain.WorkoutCategory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 
 /**
  * ハイライト共有カード(Weekly / Monthly / All-time)を Canvas で描く。
@@ -73,10 +71,10 @@ object HighlightShareImageRenderer {
         // 期間ラベル(2026年6月 / 5/26 - 6/1 / 通算 365日)。
         top = canvas.drawCentered(review.periodLabel, cx, top, textPaint(40f, bold = true).apply { alpha = 220 }, gap = 36f)
 
-        // 猫 + 紙吹雪。
+        // 猫。iOS MonthlyReviewCard は猫(影付き)のみで**プログラム紙吹雪を持たない**(粒は猫スプライトに焼込み)。
+        // よって連続カードと違いハイライトでは drawConfetti を呼ばない(iOS パリティ・2LLM監査)。
         val diameter = 340f
         val centerY = top + diameter / 2
-        drawConfetti(canvas, cx, centerY, diameter)
         drawCat(context, canvas, cx, centerY, diameter, breed, poseSeed)
         top = centerY + diameter / 2 + 48f
 
@@ -102,9 +100,8 @@ object HighlightShareImageRenderer {
         top = drawStatBox(canvas, cx, top, statRows)
         top += 32f
 
-        // アプリ名。
-        top = canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 8f)
-        canvas.drawCentered("GO Exercise", cx, top, textPaint(22f, mono = true).apply { alpha = 180; letterSpacing = 0.15f }, gap = 0f)
+        // アプリ名(iOS MonthlyReviewCard は "GO エクササイズ" 1 行のみ。英字 "GO Exercise" 副題は iOS に無い)。
+        canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 0f)
 
         return bmp
     }
@@ -254,26 +251,6 @@ object HighlightShareImageRenderer {
             canvas.drawText(ellipsize(row.value, valuePaint, valueMaxW), right - padH, baseline, valuePaint)
         }
         return rect.bottom + 28f
-    }
-
-    /** 猫の周りに紙吹雪。決定論的配置(StreakShareImageRenderer と同じ意匠)。 */
-    private fun drawConfetti(canvas: Canvas, cx: Float, cy: Float, diameter: Float) {
-        val colors = intArrayOf(
-            0xFFFFFFFF.toInt(), 0xFFFFD94D.toInt(), 0xFFFC8C73.toInt(),
-            0xFF8CCCF2.toInt(), 0xFFB38CF2.toInt(),
-        )
-        for (i in 0 until 18) {
-            val angle = i * 137.5
-            val radius = 190f + (i % 5) * 26f
-            val x = cx + (cos(Math.toRadians(angle)) * radius).toFloat()
-            val y = cy + (sin(Math.toRadians(angle)) * radius).toFloat() - 30f
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors[i % colors.size] }
-            canvas.save()
-            canvas.rotate((i * 47 % 360).toFloat(), x, y)
-            if (i % 4 == 0) canvas.drawCircle(x, y, 9f, paint)
-            else canvas.drawRoundRect(RectF(x - 7f, y - 11f, x + 7f, y + 11f), 3f, 3f, paint)
-            canvas.restore()
-        }
     }
 
     private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, poseSeed: Int) {
