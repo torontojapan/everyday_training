@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CardGiftcard
@@ -1090,56 +1091,69 @@ private fun ReminderSection(
     onSetPersonality: (com.goexercise.app.domain.NotificationPersonality) -> Unit = {},
 ) {
     var picker by remember { mutableStateOf<String?>(null) } // "morning" / "evening" / null
-    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("毎日のリマインダー", color = palette.textPrimary, fontWeight = FontWeight.Bold)
-                    Text("運動を続けるための通知", color = palette.textSecondary, fontSize = 12.sp)
-                }
-                Switch(checked = reminder.enabled, onCheckedChange = onToggle)
-            }
-            if (reminder.enabled) {
-                // 通知回数(1日1回=朝のみ / 2回=朝+夕)。
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("通知回数", color = palette.textSecondary, fontSize = 13.sp)
-                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                    listOf(1 to "1日1回", 2 to "1日2回").forEach { (c, label) ->
-                        val sel = reminder.count == c
-                        Surface(
-                            color = if (sel) palette.primary else palette.chipBackground,
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.padding(start = 6.dp).clickable { onSetCount(c) },
-                        ) {
-                            Text(label, fontSize = 12.sp, color = if (sel) androidx.compose.ui.graphics.Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                        }
+    var personalityMenu by remember { mutableStateOf(false) }
+    // iOS: 通知 / 通知時間 / 通知の性格 の 3 セクション。
+    // 通知: 通知ON/OFF トグル + 3 分割セグメント(OFF|1日1回|1日2回)。
+    SectionLabel("通知")
+    SettingsCard {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("通知ON/OFF", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+            Switch(checked = reminder.enabled, onCheckedChange = onToggle)
+        }
+        RowDivider()
+        val segIndex = if (!reminder.enabled) 0 else reminder.count.coerceIn(1, 2)
+        Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(Modifier.padding(2.dp)) {
+                listOf("OFF", "1日1回", "1日2回").forEachIndexed { i, label ->
+                    val sel = i == segIndex
+                    Surface(
+                        color = if (sel) Color.White else Color.Transparent,
+                        shape = RoundedCornerShape(7.dp),
+                        shadowElevation = if (sel) 2.dp else 0.dp,
+                        modifier = Modifier.weight(1f).clickable {
+                            when (i) { 0 -> onToggle(false); 1 -> { onToggle(true); onSetCount(1) }; else -> { onToggle(true); onSetCount(2) } }
+                        },
+                    ) {
+                        Text(label, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium, color = if (sel) palette.textPrimary else palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth())
                     }
                 }
-                // 朝(1本目)時刻。
-                ReminderTimeRow("通知時間1", reminder.hour, reminder.minute, palette) { picker = "morning" }
-                // 夕(2本目)時刻 — 2回のときのみ。
-                if (reminder.count > 1) {
-                    ReminderTimeRow("通知時間2", reminder.eveningHour, reminder.eveningMinute, palette) { picker = "evening" }
-                }
-                // 性格(quiet/voice/friendDriven)。
-                Text("通知の性格", color = palette.textSecondary, fontSize = 13.sp)
-                com.goexercise.app.domain.NotificationPersonality
-                    .visibleCases(com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED)
-                    .forEach { p ->
-                        val sel = reminder.personality == p
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().clickable { onSetPersonality(p) }.padding(vertical = 4.dp),
-                        ) {
-                            androidx.compose.material3.RadioButton(selected = sel, onClick = { onSetPersonality(p) })
-                            Column {
-                                Text(p.displayName, color = palette.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(p.hint, color = palette.textSecondary, fontSize = 11.sp)
-                            }
-                        }
-                    }
             }
         }
+    }
+    if (reminder.enabled) {
+        // 通知時間: 通知時間1 / 通知時間2(2回時)。グレー時刻チップ + シェブロン。
+        SectionLabel("通知時間")
+        SettingsCard {
+            ReminderTimeRow("通知時間1", reminder.hour, reminder.minute, palette) { picker = "morning" }
+            if (reminder.count > 1) {
+                RowDivider()
+                ReminderTimeRow("通知時間2", reminder.eveningHour, reminder.eveningMinute, palette) { picker = "evening" }
+            }
+        }
+        // 通知の性格: インラインピッカー(性格 + 現在値 ⇕)+ 既定説明 + footer 3 種解説。
+        SectionLabel("通知の性格")
+        SettingsCard {
+            Box {
+                Row(Modifier.fillMaxWidth().clickable { personalityMenu = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("性格", style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+                    Text(reminder.personality.displayName, style = AppType.body, color = palette.primaryDeep)
+                    Icon(Icons.Filled.UnfoldMore, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
+                }
+                androidx.compose.material3.DropdownMenu(expanded = personalityMenu, onDismissRequest = { personalityMenu = false }) {
+                    com.goexercise.app.domain.NotificationPersonality
+                        .visibleCases(com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED)
+                        .forEach { p ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.displayName) }, onClick = { onSetPersonality(p); personalityMenu = false })
+                        }
+                }
+            }
+        }
+        Text(reminder.personality.hint, style = AppType.caption, color = palette.textSecondary, modifier = Modifier.padding(start = 4.dp))
+        // iOS footer: 3 性格の解説。
+        Text(
+            "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。",
+            style = AppType.caption, color = palette.textSecondary, modifier = Modifier.padding(start = 4.dp),
+        )
     }
     picker?.let { which ->
         val isMorning = which == "morning"
@@ -1164,11 +1178,16 @@ private fun ReminderSection(
 
 @Composable
 private fun ReminderTimeRow(label: String, hour: Int, minute: Int, palette: AppTheme, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = palette.textSecondary, fontSize = 13.sp)
-        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-        TextButton(onClick = onClick) {
-            Text("%02d:%02d".format(hour, minute), color = palette.primaryDeep, fontWeight = FontWeight.Bold)
+    // iOS: ラベル + グレー時刻チップ + シェブロン(ナビ行風)。
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(label, style = AppType.body, color = palette.textPrimary, modifier = Modifier.weight(1f))
+        Surface(color = palette.chipBackground, shape = RoundedCornerShape(8.dp)) {
+            Text("%d:%02d".format(hour, minute), style = AppType.body, color = palette.textPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(20.dp))
     }
 }
