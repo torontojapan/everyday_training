@@ -126,12 +126,28 @@ def recipe(name, out):
         raise SystemExit(f"unknown recipe: {name}")
 
 
+# iPhone 17 Pro Max は論理幅 440pt。emulator go_test は 1080x2400@420dpi=411dp で **約6.5%狭く**、
+# 幅依存レイアウト(履歴の凡例「未達成」等)が iOS で収まるのに Android で切れる **偽差分**を生む。
+# density=393 にすると 1080/(393/160)=439.7dp ≈ 440pt で iPhone 17 Pro Max に一致する(2026-06-19 実証)。
+IOS_MATCHED_DENSITY = 393
+
+
+def set_ios_matched_density():
+    """撮影前に論理幅を iPhone 17 Pro Max(440dp)へ合わせる。元に戻すには `adb shell wm density reset`。"""
+    adb("shell", "wm", "density", str(IOS_MATCHED_DENSITY))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", default="/tmp/and_caps")
     ap.add_argument("--recipes", default="")
     ap.add_argument("--seed-streak", type=int)
+    ap.add_argument("--match-ios-width", action="store_true",
+                    help="撮影前に density=393 を適用し論理幅を iPhone 17 Pro Max(440dp)へ揃える")
     a = ap.parse_args()
+    if a.match_ios_width:
+        set_ios_matched_density()
+        print(f"set density {IOS_MATCHED_DENSITY} (≈440dp, iPhone 17 Pro Max width)")
     if a.seed_streak:
         seed_streak(a.seed_streak)
         print(f"seeded {a.seed_streak}-day streak")

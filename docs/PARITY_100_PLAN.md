@@ -104,16 +104,19 @@
   同文言「生理日を記録する/過去の日付もまとめて入力できます」+★22sp Black 同色を描画。**一致**(私のキャプチャは
   周期 OFF だったため非表示=設定差)。
 
-### ⚠️ 方法論ギャップ(次サイクルで先に直すこと)
+### ✅ 方法論ギャップ=解消済(density で幅一致)
 - **emulator go_test は論理幅 411dp、iPhone 17 Pro Max は 440pt**(約6.5%狭い)。幅依存レイアウトで
-  **偽の差分**が出る。実例=履歴の凡例「未達成」が Android で「未達」に切れる(両OSとも horizontalScroll で
-  クリップ、幅一致なら iOS 同様に収まる)。LegendSwatch は両OSとも 11sp で**コードは一致**。
-  → **幅一致 AVD(440dp 相当)を用意**してから全画面 SSIM を回すこと(でないと width-sensitive 画面が全部 FALSE FAIL)。
+  **偽の差分**が出ていた。実例=履歴の凡例「未達成」が Android で「未達」に切れていた。
+- **根治**: `adb shell wm density 393` で 1080/(393/160)=439.7dp ≈ 440pt にすると **iPhone 17 Pro Max と幅一致**。
+  これで凡例「未達成」が**完全表示**になることを実証(証跡 `tools/parity/proofs/history_legend_android_440dp_fits.png`)。
+  → **凡例切れはコード欠陥でなく device-width アーティファクトと確定**。LegendSwatch は両OSとも 11sp で一致。
+- `capture_android.py --match-ios-width` で density=393 を自動適用(撮影は必ずこれを付ける)。戻すには `adb shell wm density reset`。
 - SSIM 全画面値はアスペクト比差(iOS 0.460 / Android 0.450)+ 猫アート差で原理的に 0.97 に届きにくい。
   **SSIM はスクリーニング、合否は要素単位の目視**(CLAUDE.md)。home masked SSIM=0.91 だが要素照合では週ストリップ以外一致。
 
 ### 次セッションでやること
-1. **幅一致 AVD を作成**(1080x2454 @ 392dpi 等で 440dp に合わせる、または iPhone を 411pt 機種に変更)。これが最優先。
+1. ~~幅一致 AVD~~ → **解決済**: `adb shell wm density 393`(または `capture_android.py --match-ios-width`)。
+   ★全 Android 撮影は density 393 で行う(411dp で撮ると幅依存画面が偽 FAIL)。
 2. 残り画面の Android 撮影(record/settings/weight/friends/ranking)→ iOS golden と要素照合。friends/ranking は
    Mock ビルド(local.properties SUPABASE 空)+ deep-link/mock arg が要。
 3. **両OS決定論フック**(連続/猫種/グラデ/poseSeed/時刻)で共有カード等を揃える。揃えにくい領域は `masks`。
