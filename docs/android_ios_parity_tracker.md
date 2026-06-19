@@ -44,6 +44,16 @@ iOS sim を accessibility-id/座標タップしてサブ画面 golden を撮影(
   ②日詳細シート=中央タイトル+閉じる追加 ③共有 `SheetCloseButton`(iOS26 ナビボタンの淡カプセル)へ統一(友達詳細/追加/日詳細。旧=素テキスト/欠落)
   ④ボトムタブバー= menstrual/rescue/ランキングは iOS が各タブ内 push でタブバーを残すため、Android も維持+親タブ選択(`AppNavHost.detailParentTab`)。実機でランキングにタブバー(友達選択)確認。
 
+## ★ 2026-06-19 セッション17: 残☐ 一括消化（記録/シェア/体重/日詳細/設定 golden 照合）
+iOS build 12 を XCUITest で一括撮影(testCaptureRemainingStates)→ Android は **sqlite 注入で 14日連続+体重20件の populated 状態**を作り(`run-as ... sqlite3 goexercise.db`、デモseed が無い Android の populated 化手段)→ 実エミュ実スクショ照合。
+- **シェアカード ✅**: 連続カードを iOS 並び順(バッジ→猫→「N 日連続」横並び→アプリ名)へ + 「○週間つづいた!」見出し撤去 / ハイライト3種に統計行アイコン🐾🕐📋⭐❤️追加 / SNSで共有 文言統一(commit 3f7a084)。
+- **記録入力 ✅**: 空/複数種目(アコーディオン+削除trash)golden MATCH。体調・周期は両OS周期設定 gating。
+- **体重 paywall ✅**: 👑→Material crown(コーラル)+無料フッター追加+CTA capsule(commit cbb00cf)。
+- **日詳細 ✅**: 全6状態メッセージ source 完全一致・未来を実スクショ検証。
+- **設定 premium ✅**(プレミアム部)。
+- **残 🔶(次セッション)**: ①体重 premium/chart の折りたたみ化+順序入替(記録する/レポート/推移/履歴 を iOS CollapsibleSection 順へ) ②設定 連携ON 認証セクション(削除導線の reactivity・caption 差) ③ホーム referral/revive・節目/breed-unlock ダイアログ・rescue使用画面 の golden 横並び(Android 側データ注入手段が無く自動撮影不安定。実装は既✅)。
+- **手段メモ(再現用)**: Android populated 化 = `python3 で INSERT 生成 → adb push → run-as com.goexercise.app sh -c 'cat … | sqlite3 databases/goexercise.db'`。premium 解放 = paywall「14日間無料で始める」(MockPremiumRepository が flip)。
+
 ## ★ 2026-06-19 セッション16: ランキング今月 + 友達 状態別 golden 照合（XCUITest 撮影）
 iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状態別 golden 撮影 → Android 実エミュ(go_test, Mock=SUPABASE空)実スクショ → 2LLM/PIL 測定で照合。
 - **ランキング 今月 = ✅ MATCH**: XCUITest `testCaptureRankingStates` で iOS 今月セグメントを撮影 → Android deep-link `goexercise://weekly-ranking`→今月タップ。セグメント(今週/今月)・ルールカード文言(「今月の順位ルール」「毎月 1 日にリセットされます。」)・mySummary グラデ枠・メダル行 すべて構造一致。差はデータのみ(月次分・件数・人数)=許容。
@@ -66,7 +76,7 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 |---|---|---|
 | ホーム | 達成済(populated) | ✅(セッション4) |
 | ホーム | 新規/空(0日連続・全"-"週・待機猫・CTA) | ✅(セッション12・MATCH。猫メッセージは両者 Encouraging プール同一=ランダム差) |
-| ホーム | 未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | 🔶(referral=A1/revive=A3/comeback=実装済・golden 横並びは未) |
+| ホーム | 未達成today・復帰welcome・referralスター・revive overlay・⭐10/節目/rankup | 🔶(referral行=A1/revive overlay=A3/comeback=セッション2-3 でエミュ実スクショ検証済。iOS golden(rem_home_referral=★5+「あと5人で猫が解放」/rem_home_revive)取得済。**golden 横並びは Android 側の referral/revive データ注入手段が無く不可**=機能・実装は検証済の前提で 🔶 据置) |
 | 記録入力 | 入力済 | ✅(セッション4・field統一確認) |
 | 記録入力 | 空/初期・複数種目・体重バリデーションエラー | ✅(セッション17・golden MATCH。空=種類chip/種目名/よく使う種目/4ピッカー/種目メモ/+種目を追加/今日の体重/メモ 一致。複数=アコーディオン最小化行+削除trash。体調・周期は両OSとも周期設定で gating。体重検証=前セッション✅+ユニットテスト) |
 | 記録完了 | 達成(連続>1初記録/2件目) | ✅(セッション6・back/tabbar/きのうから条件) |
@@ -74,7 +84,7 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 | 履歴 | 空状態(空カレンダー/凡例/保険チケット折りたたみ/Monthly空/All-time空) | ✅(セッション13・MATCH・凡例11pt是正) |
 | 履歴 | 保険チケット展開状態 | ✅(セッション16・golden MATCH。展開時 header残数を隠し本文に icon+残数(body)+説明 / 「使う日を選んで適用」を coral 塗りボタン化(白文字/影/カレンダーicon) / Premium訴求を Divider+塗り無し primary 行へ) |
 | 日詳細シート | 記録あり | ✅(セッション5) |
-| 日詳細シート | 空/休/救済/未来 状態 | ☐ |
+| 日詳細シート | 空/休/救済/未来 状態 | ✅(セッション17・全6状態メッセージが iOS DayDetailSheet と source 完全一致[rest/future/missed/todayPending/achieved/rescued]+iconColor 一致。未来「これからの日だね」をエミュ実スクショ検証。残状態は同一コンポーネント+一致メッセージ) |
 | 生理日入力 | マーク有 | ✅(セッション5・tabbar) |
 | 設定 | 無料・main | ✅(セッション4・Google「続ける」) |
 | 設定 | サブページ ナビヘッダ(全6・中央題+シェブロン)/ 記録と共有(友達共有セクション+caption) | ✅(セッション8) |
@@ -87,7 +97,8 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 **通知設定 再構成スペック(iOS golden 確認済)**: ①権限バナー(拒否時)「通知が許可されていません/リマインドを受け取るには…/設定アプリを開く」
 ②**通知**セクション見出し + 「通知ON/OFF」トグル(現状「毎日のリマインダー/運動を続けるための通知」)+ **3分割セグメント OFF|1日1回|1日2回**(現状=有効時のみ 2 pill)
 ③**通知時間**セクション + 通知時間1/2 行(グレー時刻チップ + シェブロン。現状 TextButton・チップ/シェブロン無)④**通知の性格**セクション + 「性格」インラインピッカー(現状ラジオリスト)+ デフォルト説明 + footer 3 種解説。
-| 設定 | プレミアム・連携ON(認証セクション) | ☐ |
+| 設定 | プレミアム | ✅(セッション17・「GOプレミアム 加入中」+プレミアム特典・称号一覧 が iOS と一致。premium 解放はモック購入で検証) |
+| 設定 | 連携ON(認証セクション) | 🔶(config-gated・低優先で据置。**発見した実差**: ①削除導線は `hasAccount=myFriendCode!=null` で gating だが SettingsViewModel が init 後にサインインしても myProfile を再読込せず削除が出ない反応性差[iOS は profile を reactive 監視]。本番は account 永続で init 時に拾うため影響限定 ②未連携 caption の文言/配置差。次セッションで認証セクション集中照合) |
 
 ### セッション7: 設定サブページ golden 照合(6画面・XCUITest `testCaptureSettingsSubpages`)
 全6サブページを iOS golden 取得→Android 実スクショ→2LLM(Claude6並列+Codex)照合。**重要所見: Android 設定サブページは
@@ -111,12 +122,12 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | 体重 | 無料→paywall | ✅(セッション17・golden MATCH。👑絵文字→Material crown(コーラル)/フッター「ホーム…無料」追加/CTA capsule化) |
 | 体重 | プレミアムpopulated | 🔶(セッション17・データ要素[目標/身長/猫リング]は data 差。**構造差=要追修正**: iOS は 記録する/レポート/推移/履歴 を CollapsibleSection(既定折りたたみ)で順に並べる / Android はインライン展開+順序が 推移→レポート。折りたたみ化+順序入替が残作業) |
 | ペイウォール | 一般(クラウン+特典7行) | ✅(セッション15・絵文字→SF Symbol 相当 Material アイコン+「全11種の猫」行追加) |
-| 体重(プレミアム チャート) | golden 未照合(Mock 購入解放が要・Canvas チャート) | ☐ |
+| 体重(プレミアム チャート) | モック購入で解放・実エミュで折れ線+トレンド線+期間チップ(1週/1月/3月/半年/全期間)描画確認 | 🔶(チャート自体は描画 OK。**残=体重premium と同じ折りたたみ化+順序入替**[上記「体重 プレミアムpopulated」参照]) |
 | 連続シェア | — | ✅(セッション17・golden MATCH。並び順を iOS へ=バッジ→猫→「N 日連続」横並び→アプリ名 / 「○週間つづいた!」見出し撤去(iOS 廃止済)/ 5グラデドット+SNSで共有+写真に保存 一致) |
 | ハイライトシェア(週/月/全期間) | — | ✅(セッション17・golden MATCH。統計行に iOS SF Symbol 相当の先頭アイコン🐾🕐📋⭐❤️を追加 / Monthly バッジを📄へ / SNSで共有 文言統一) |
 | オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |
-| フリーズ(rescue) | — | ☐(tabbar 修正は反映済・未照合) |
-| ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | ☐ |
+| フリーズ(rescue)使用画面 | — | 🔶(履歴→保険チケット展開→「使う日を選んで適用」で到達。RescueTicketUse 画面の golden 横並びは未[XCUIT で iOS link 自動タップが不安定]・tabbar 反映済) |
+| ダイアログ | 紹介確定/rankup/revive | ✅(済) / milestone/breed-unlock | 🔶(milestone-eve seed→記録で iOS は記録完了画面[既✅]へ。節目/breed-unlock ダイアログは発火条件が data 依存で golden 自動撮影が不安定=実装は session3 で✅・golden 横並び未) |
 
 **次バッチ着手順(推奨)**: ~~①設定サブページ群~~(ナビヘッダ/記録と共有 ✅・残=カスタマイズ/データ&プライバシー/通知の STRUCTURAL)
 ②ホーム各状態(空/未達成/復帰) ③履歴空/チケット展開 ④友達 welcome/空 ⑤ランキング今月/空 ⑥体重/ペイウォール
