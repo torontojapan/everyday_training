@@ -45,10 +45,27 @@ def align(ios, andr, top, bottom):
     return ios_c, and_r
 
 
-def compute(ios_path, and_path, top=0.05, bottom=0.04):
+def apply_masks(img, masks):
+    """masks: [[x,y,w,h], ...] を 0..1 の割合で受け取り、その矩形を灰色で塗りつぶす(SSIM 対象外化)。
+    猫・大きな数字・候補リスト等の**可変データ領域**を無視し、構造/色/レイアウト/アイコンの差だけを測るため。"""
+    if not masks:
+        return img
+    out = img.copy()
+    h, w = out.shape[:2]
+    for (mx, my, mw, mh) in masks:
+        x0, y0 = int(w * mx), int(h * my)
+        x1, y1 = int(w * (mx + mw)), int(h * (my + mh))
+        out[y0:y1, x0:x1] = 128
+    return out
+
+
+def compute(ios_path, and_path, top=0.05, bottom=0.04, masks=None):
     ios = load_rgb(ios_path)
     andr = load_rgb(and_path)
     ios_c, and_c = align(ios, andr, top, bottom)
+    if masks:
+        ios_c = apply_masks(ios_c, masks)
+        and_c = apply_masks(and_c, masks)
     # グレースケール SSIM(構造)+ カラー SSIM(channel_axis)。
     score, ssim_map = ssim(ios_c, and_c, channel_axis=2, full=True)
     # 差分ヒートマップ(チャンネル平均の絶対差を増幅)。
@@ -86,8 +103,9 @@ def build_report(pairs, out_dir, threshold):
         name = p["name"]
         top = p.get("top", 0.05)
         bottom = p.get("bottom", 0.04)
+        masks = p.get("masks")
         try:
-            score, ios_c, and_c, heat = compute(p["ios"], p["android"], top, bottom)
+            score, ios_c, and_c, heat = compute(p["ios"], p["android"], top, bottom, masks)
             comp = os.path.join(out_dir, f"{name}.png")
             composite(ios_c, and_c, heat, score, threshold, comp)
             rows.append({"name": name, "ssim": round(float(score), 4),
