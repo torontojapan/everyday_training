@@ -51,7 +51,8 @@ iOS build 12 を XCUITest で一括撮影(testCaptureRemainingStates)→ Android
 - **体重 paywall ✅**: 👑→Material crown(コーラル)+無料フッター追加+CTA capsule(commit cbb00cf)。
 - **日詳細 ✅**: 全6状態メッセージ source 完全一致・未来を実スクショ検証。
 - **設定 premium ✅**(プレミアム部)。
-- **残 🔶(次セッション)**: ①体重 premium/chart の折りたたみ化+順序入替(記録する/レポート/推移/履歴 を iOS CollapsibleSection 順へ) ②設定 連携ON 認証セクション(削除導線の reactivity・caption 差) ③ホーム referral/revive・節目/breed-unlock ダイアログ・rescue使用画面 の golden 横並び(Android 側データ注入手段が無く自動撮影不安定。実装は既✅)。
+- **体重 premium/chart ✅(追補)**: 折りたたみ化+順序入替を実装(`WeightCollapsible` 新設・記録する/レポート/推移/履歴 を iOS 順・subtitle 一致・展開でチャート描画確認)。ユニットテスト green。
+- **残 🔶(次セッション・小)**: ①設定 連携ON 認証セクション(削除導線の reactivity[SettingsVM が init 後サインインを再読込せず]・未連携 caption 差。config-gated・低優先) ②ホーム referral/revive・節目/breed-unlock ダイアログ・rescue使用画面 の golden 横並び(Android 側データ注入手段が無く自動撮影不安定。実装は既✅)。
 - **手段メモ(再現用)**: Android populated 化 = `python3 で INSERT 生成 → adb push → run-as com.goexercise.app sh -c 'cat … | sqlite3 databases/goexercise.db'`。premium 解放 = paywall「14日間無料で始める」(MockPremiumRepository が flip)。
 
 ## ★ 2026-06-19 セッション16: ランキング今月 + 友達 状態別 golden 照合（XCUITest 撮影）
@@ -120,9 +121,9 @@ Material 風(個別カード/展開グリッド/シェブロン/セクション�
 | ランキング | 今月 | ✅(セッション16・MATCH・データ差のみ) |
 | ランキング | 空状態 | ✅(セッション16・防御的フォールバック=サインイン済は常に自分を含み到達不可・両OS文言/構造一致) |
 | 体重 | 無料→paywall | ✅(セッション17・golden MATCH。👑絵文字→Material crown(コーラル)/フッター「ホーム…無料」追加/CTA capsule化) |
-| 体重 | プレミアムpopulated | 🔶(セッション17・データ要素[目標/身長/猫リング]は data 差。**構造差=要追修正**: iOS は 記録する/レポート/推移/履歴 を CollapsibleSection(既定折りたたみ)で順に並べる / Android はインライン展開+順序が 推移→レポート。折りたたみ化+順序入替が残作業) |
+| 体重 | プレミアムpopulated | ✅(セッション17・**折りたたみ化完了**=記録する/レポート/推移/履歴 を `WeightCollapsible`(既定折りたたみ・アイコン[AddCircle/BarChart/ShowChart/FormatListBulleted]+題+折りたたみ中subtitle+シェブロン)で iOS 順に。subtitle 文言も iOS 一致[新しい体重を追加 / 今週±Nkg/平均Nkg / 30日でN件記録 / 全N件]。展開で subtitle 隠す挙動も一致。実エミュ検証。データ要素[目標/身長/猫リング]は data 差) |
 | ペイウォール | 一般(クラウン+特典7行) | ✅(セッション15・絵文字→SF Symbol 相当 Material アイコン+「全11種の猫」行追加) |
-| 体重(プレミアム チャート) | モック購入で解放・実エミュで折れ線+トレンド線+期間チップ(1週/1月/3月/半年/全期間)描画確認 | 🔶(チャート自体は描画 OK。**残=体重premium と同じ折りたたみ化+順序入替**[上記「体重 プレミアムpopulated」参照]) |
+| 体重(プレミアム チャート) | — | ✅(セッション17・推移を折りたたみで展開→期間チップ[1週/1月/3月/半年/全期間]+折れ線+破線トレンド描画を実エミュ確認。iOS CollapsibleSection 内チャートと一致) |
 | 連続シェア | — | ✅(セッション17・golden MATCH。並び順を iOS へ=バッジ→猫→「N 日連続」横並び→アプリ名 / 「○週間つづいた!」見出し撤去(iOS 廃止済)/ 5グラデドット+SNSで共有+写真に保存 一致) |
 | ハイライトシェア(週/月/全期間) | — | ✅(セッション17・golden MATCH。統計行に iOS SF Symbol 相当の先頭アイコン🐾🕐📋⭐❤️を追加 / Monthly バッジを📄へ / SNSで共有 文言統一) |
 | オンボーディング | step1(猫選択)/step2(バックアップ) | ✅(セッション14・「ようこそ🐾」撤去+タイトル largeTitle 化。ロゴは B6) |

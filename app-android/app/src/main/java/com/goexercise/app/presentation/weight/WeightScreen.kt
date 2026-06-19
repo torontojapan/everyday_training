@@ -25,6 +25,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -44,7 +50,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.Alignment
@@ -117,16 +126,74 @@ private fun WeightContent(
         Text("体重", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         HeroCard(state, palette, onSetTarget)
         BmiStrip(state, palette, onSetHeight)
-        EntryCard(palette, onAdd)
-        if (state.dailyChart.size >= 2) {
-            ChartSection(state, palette, onSetPeriod, onToggleCycle)
+        // iOS WeightView: HeroCard/BMI の下は CollapsibleSection(既定折りたたみ)で
+        // 記録する → レポート → 推移 → 履歴 の順。各セクションの subtitle を折りたたみ中に出す。
+        WeightCollapsible("記録する", "新しい体重を追加", Icons.Filled.AddCircle, palette) {
+            EntryBody(palette, onAdd)
         }
-        ReportCard(state, palette)
+        if (state.weekStats != null || state.monthStats != null) {
+            WeightCollapsible("レポート", reportSubtitle(state), Icons.Filled.BarChart, palette) {
+                ReportBody(state, palette)
+            }
+        }
+        if (state.dailyChart.size >= 2) {
+            WeightCollapsible("推移", chartSubtitle(state), Icons.Filled.ShowChart, palette) {
+                ChartBody(state, palette, onSetPeriod, onToggleCycle)
+            }
+        }
         // 生理日トラッキングはオプトイン(設定で ON)時のみ表示。既定 OFF=プライバシー優先。iOS パリティ。
         if (state.health.cycleTrackingEnabled) CyclePanel(state, palette, onTogglePeriodDay)
-        HistoryList(state, palette, onDelete)
+        if (state.entries.isNotEmpty()) {
+            WeightCollapsible("履歴", historySubtitle(state), Icons.AutoMirrored.Filled.FormatListBulleted, palette) {
+                HistoryBody(state, palette, onDelete)
+            }
+        }
     }
 }
+
+/** iOS CollapsibleSection 相当: カード + ヘッダ(アイコン+題+折りたたみ中 subtitle+シェブロン)。既定折りたたみ。 */
+@Composable
+private fun WeightCollapsible(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    palette: AppTheme,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var expanded by rememberSaveable(title) { mutableStateOf(false) }
+    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(icon, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                    // iOS: 展開時は本文と二重になるので subtitle を隠す。
+                    if (!expanded && subtitle.isNotEmpty()) {
+                        Text(subtitle, fontSize = 12.sp, color = palette.textSecondary)
+                    }
+                }
+                Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary)
+            }
+            if (expanded) content()
+        }
+    }
+}
+
+private fun reportSubtitle(s: WeightUiState): String {
+    val st = s.weekStats ?: s.monthStats ?: return ""
+    val label = if (s.weekStats != null) "今週" else "今月"
+    return "%s %+.1fkg / 平均 %.1fkg".format(label, st.change, st.average)
+}
+
+private fun chartSubtitle(s: WeightUiState): String =
+    if (s.dailyChart.isNotEmpty()) "30 日で ${s.dailyChart.size} 件記録" else "記録がありません"
+
+private fun historySubtitle(s: WeightUiState): String =
+    if (s.entries.isNotEmpty()) "全 ${s.entries.size} 件" else "履歴なし"
 
 @Composable
 private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremium: () -> Unit) {
@@ -237,7 +304,7 @@ private fun BmiStrip(state: WeightUiState, palette: AppTheme, onSetHeight: (Doub
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> Unit) {
+private fun EntryBody(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> Unit) {
     var weight by remember { mutableStateOf("") }
     var memo by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf(0) } // 0=今日, 1=昨日, 2=その他(任意過去日)
@@ -246,9 +313,7 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
     // 保存日は**保存タップ時**に算出(日跨ぎで画面を開いたまま「今日」が前日になる回帰を防ぐ。Codex 指摘)。
     fun effectiveDate(): LocalDate = when (mode) { 0 -> LocalDate.now(); 1 -> LocalDate.now().minusDays(1); else -> customDate }
 
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("記録する", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("今日", "昨日", "その他").forEachIndexed { i, label ->
                     val sel = mode == i
@@ -280,7 +345,6 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("✓ 保存", color = Color.White) }
-        }
     }
 
     if (showPicker) {
@@ -308,28 +372,23 @@ private fun EntryCard(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
 }
 
 @Composable
-private fun ChartSection(state: WeightUiState, palette: AppTheme, onSetPeriod: (ChartPeriod) -> Unit, onToggleCycle: () -> Unit) {
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("推移", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-                Spacer(Modifier.weight(1f))
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ChartPeriod.entries.forEach { p ->
-                        val sel = p == state.period
-                        Surface(color = if (sel) palette.primary else palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.clickable { onSetPeriod(p) }) {
-                            Text(p.shortLabel, fontSize = 11.sp, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                        }
-                    }
+private fun ChartBody(state: WeightUiState, palette: AppTheme, onSetPeriod: (ChartPeriod) -> Unit, onToggleCycle: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 期間チップ(iOS は推移セクション内の期間ピッカー。題はコラプシブルのヘッダへ移動)。
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ChartPeriod.entries.forEach { p ->
+                val sel = p == state.period
+                Surface(color = if (sel) palette.primary else palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.clickable { onSetPeriod(p) }) {
+                    Text(p.shortLabel, fontSize = 11.sp, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
-            WeightChart(state, palette, Modifier.fillMaxWidth().height(200.dp))
-            if (state.periodDays.isNotEmpty()) {
-                Text(
-                    if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
-                    fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },
-                )
-            }
+        }
+        WeightChart(state, palette, Modifier.fillMaxWidth().height(200.dp))
+        if (state.periodDays.isNotEmpty()) {
+            Text(
+                if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
+                fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },
+            )
         }
     }
 }
@@ -416,14 +475,10 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
 }
 
 @Composable
-private fun ReportCard(state: WeightUiState, palette: AppTheme) {
-    if (state.weekStats == null && state.monthStats == null) return
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("レポート", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-            state.weekStats?.let { StatsRow("今週 (7 日)", it, palette) }
-            state.monthStats?.let { StatsRow("今月 (30 日)", it, palette) }
-        }
+private fun ReportBody(state: WeightUiState, palette: AppTheme) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        state.weekStats?.let { StatsRow("今週 (7 日)", it, palette) }
+        state.monthStats?.let { StatsRow("今月 (30 日)", it, palette) }
     }
 }
 
@@ -479,21 +534,18 @@ private fun CyclePanel(state: WeightUiState, palette: AppTheme, onTogglePeriodDa
 }
 
 @Composable
-private fun HistoryList(state: WeightUiState, palette: AppTheme, onDelete: (String) -> Unit) {
-    if (state.entries.isEmpty()) return
+private fun HistoryBody(state: WeightUiState, palette: AppTheme, onDelete: (String) -> Unit) {
     var pendingDelete by remember { mutableStateOf<String?>(null) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("履歴 (${state.entries.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+    // 折りたたみカード内なので各行は素の Row(入れ子カードを避ける)。
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         state.entries.take(30).forEach { e ->
-            Surface(color = palette.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${e.date}", fontSize = 13.sp, color = palette.textPrimary)
-                        e.memo?.let { Text(it, fontSize = 11.sp, color = palette.textSecondary) }
-                    }
-                    Text("%.1f kg".format(e.weightKg), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
-                    TextButton(onClick = { pendingDelete = e.id }) { Text("🗑", fontSize = 14.sp) }
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${e.date}", fontSize = 13.sp, color = palette.textPrimary)
+                    e.memo?.let { Text(it, fontSize = 11.sp, color = palette.textSecondary) }
                 }
+                Text("%.1f kg".format(e.weightKg), fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
+                TextButton(onClick = { pendingDelete = e.id }) { Text("🗑", fontSize = 14.sp) }
             }
         }
     }
