@@ -78,23 +78,29 @@ object StreakShareImageRenderer {
             top = canvas.drawCentered(level.headline, cx, top, textPaint(56f, bold = true), gap = 24f)
         }
 
-        // 🔥 行は廃止(iOS 同様、絵文字装飾をやめる)。
-
-        // 大きな連続日数 + 「日連続」。
-        top = canvas.drawCentered(
-            streak.toString(), cx, top,
-            textPaint(220f, black = true).apply { setShadowLayer(16f, 0f, 6f, 0x33000000) },
-            gap = 4f,
-        )
-        top = canvas.drawCentered("日連続", cx, top, textPaint(52f, bold = true), gap = 32f)
-
-        // 猫(円形クリップ + 白枠)+ きらめき。欠損時は絵文字フォールバック。
+        // iOS StreakShareCard の並び順: 称号バッジ → 猫 → 大KPI(N 日連続)→ アプリ名。
+        // 猫を数字の「前」に置く(以前は数字→猫で iOS と逆だった)。
         val diameter = 360f
         val centerY = top + diameter / 2
-        // ✨ 絵文字きらめきは廃止(iOS は紙吹雪。安っぽい絵文字をやめる)。
         drawConfetti(canvas, cx, centerY, diameter)
         drawCat(context, canvas, cx, centerY, diameter, breed, level, poseSeed)
         top = centerY + diameter / 2 + 40f
+
+        // 大KPI: 「N」+「日連続」を 1 行(lastTextBaseline 揃え)で中央寄せ(iOS は HStack)。
+        val numPaint = textPaint(180f, black = true).apply { setShadowLayer(16f, 0f, 6f, 0x33000000) }
+        val sufPaint = textPaint(52f, bold = true)
+        val numStr = streak.toString()
+        val suffix = " 日連続"
+        val numW = numPaint.measureText(numStr)
+        val sufW = sufPaint.measureText(suffix)
+        val fmNum = numPaint.fontMetrics
+        val baseline = top - fmNum.ascent
+        numPaint.textAlign = Paint.Align.LEFT
+        sufPaint.textAlign = Paint.Align.LEFT
+        val startX = cx - (numW + sufW) / 2
+        canvas.drawText(numStr, startX, baseline, numPaint)
+        canvas.drawText(suffix, startX + numW, baseline, sufPaint)
+        top += (fmNum.descent - fmNum.ascent) + 32f
 
         // アプリ名。
         top = canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 8f)

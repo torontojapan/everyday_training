@@ -122,7 +122,7 @@ fun HighlightShareContent(
                 onClick = { scope.launch { HighlightShareImageRenderer.share(context, review, kind, breed, streakLabel, poseSeed) } },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("SNSでシェア")
+                Text("SNSで共有")
             }
 
             // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。

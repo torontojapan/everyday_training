@@ -74,7 +74,6 @@ fun StreakShareContent(
     val palette = LocalAppPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val level = StreakLevel.of(streak)
     // 提示ごとに固定のポーズ seed(プレビューと実シェアで同じハッピーポーズが出るよう共有)。
     val poseSeed = rememberSaveable { (0..9999).random() }
 
@@ -95,13 +94,8 @@ fun StreakShareContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(
-            level.headline,
-            color = palette.textPrimary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        // iOS パリティ: 「○週間つづいた!」見出しは廃止(7〜13日を一律「1週間」と表す不正確さのため)。
+        // 見出しはカード内の称号バッジに統一(StreakShareSheet.swift の注記)。画面上部に重複見出しは置かない。
 
         Box(
             modifier = Modifier
@@ -144,7 +138,7 @@ fun StreakShareContent(
             modifier = Modifier.fillMaxWidth(),
             enabled = streak > 0,
         ) {
-            Text(if (streak > 0) "SNSでシェア" else "まず1日記録してみよう")
+            Text(if (streak > 0) "SNSで共有" else "まず1日記録してみよう")
         }
 
         // 写真に保存(端末ギャラリーへ。iOS saveToPhotos パリティ)。

@@ -155,6 +155,80 @@ final class ScreenshotCaptureUITests: XCTestCase {
         else { shoot(friends, "rank_monthly_MISSING") }
     }
 
+    /// 残タスク一括 golden: 記録空/体重paywall/体重chart/設定premium/連続share/ハイライト3種/rescue/revive/referral/milestone。
+    func testCaptureRemainingStates() {
+        // 1) 記録入力 空/初期(seed 無し → 履歴も空・入力欄初期)。
+        let rec = launch(["--skip-onboarding", "--initial-tab", "home"])
+        let cta = rec.buttons.matching(NSPredicate(format: "label CONTAINS '記録' OR label CONTAINS '種目'")).firstMatch
+        if cta.waitForExistence(timeout: 6) { cta.tap(); sleep(2); shoot(rec, "rem_record_empty") }
+
+        // 2) 体重 paywall(無料)。
+        let wpay = launch(["--skip-onboarding", "--mock-premium-off", "--initial-tab", "weight"] + seed)
+        sleep(2); shoot(wpay, "rem_weight_paywall")
+
+        // 3) 体重 premium chart。
+        let wc = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "weight"] + seed)
+        sleep(2)
+        let trend = wc.buttons.matching(NSPredicate(format: "label CONTAINS '推移'")).firstMatch
+        if trend.waitForExistence(timeout: 4) { trend.tap(); sleep(2) }
+        shoot(wc, "rem_weight_chart")
+
+        // 4) 設定 premium。
+        let setp = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "settings"] + seed)
+        sleep(2); shoot(setp, "rem_settings_premium")
+
+        // 5) 連続シェアカード。
+        let ss = launch(["--skip-onboarding", "--initial-route", "streak-share"] + seed)
+        sleep(3); shoot(ss, "rem_streak_share")
+
+        // 6-8) ハイライト Weekly / Monthly / All-time。
+        for (idn, name) in [("weekly-highlight-entry","rem_hl_weekly"),
+                            ("monthly-review-stats-button","rem_hl_monthly"),
+                            ("lifetime-stats-entry","rem_hl_alltime")] {
+            let st = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+            sleep(2)
+            let e = st.descendants(matching: .any).matching(identifier: idn).firstMatch
+            var t = 0
+            while !e.exists && t < 6 { st.swipeUp(); t += 1; sleep(1) }
+            if e.waitForExistence(timeout: 4) { e.tap(); sleep(3); shoot(st, name) }
+            else { shoot(st, name + "_MISSING") }
+        }
+
+        // 9) フリーズ(rescue)使用画面。
+        let rsc = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2)
+        let hdr = rsc.buttons.matching(NSPredicate(format: "label CONTAINS '保険チケット'")).firstMatch
+        var rt = 0
+        while !hdr.exists && rt < 6 { rsc.swipeUp(); rt += 1; sleep(1) }
+        if hdr.waitForExistence(timeout: 4) {
+            hdr.tap(); sleep(1)
+            let use = rsc.descendants(matching: .any).matching(identifier: "rescue-use-link").firstMatch
+            if use.waitForExistence(timeout: 3) { use.tap(); sleep(2); shoot(rsc, "rem_rescue_use") }
+            else { shoot(rsc, "rem_rescue_use_MISSING") }
+        }
+
+        // 10) ホーム revive overlay(seed revive)。
+        let rev = launch(["--skip-onboarding", "--seed-scenario", "revive", "--initial-tab", "home"])
+        sleep(3); shoot(rev, "rem_home_revive")
+
+        // 11) ホーム referral スター行。
+        let ref = launch(["--skip-onboarding", "--mock-seed-friends", "--mock-referral-stars", "5", "--initial-tab", "home"] + seed)
+        sleep(3); shoot(ref, "rem_home_referral")
+
+        // 12) 節目ダイアログ(milestone-eve → 記録 → milestone)。
+        let mil = launch(["--skip-onboarding", "--seed-scenario", "milestone-eve", "--initial-tab", "home"])
+        let mcta = mil.buttons.matching(NSPredicate(format: "label CONTAINS '記録' OR label CONTAINS '種目'")).firstMatch
+        if mcta.waitForExistence(timeout: 6) {
+            mcta.tap(); sleep(2)
+            let chip = mil.buttons.matching(NSPredicate(format: "label IN {'スクワット','腕立て伏せ','プランク','腹筋','ランニング'}")).firstMatch
+            if chip.waitForExistence(timeout: 4) { chip.tap(); sleep(1) }
+            mil.swipeUp(); sleep(1); mil.swipeUp(); sleep(1)
+            let save = mil.buttons.matching(NSPredicate(format: "label CONTAINS '保存'")).firstMatch
+            if save.waitForExistence(timeout: 3) { save.tap(); sleep(4); shoot(mil, "rem_dialog_milestone") }
+            else { shoot(mil, "rem_dialog_milestone_NOSAVE") }
+        }
+    }
+
     /// 履歴: 保険チケット CollapsibleSection を展開して golden 撮影。
     func testCaptureRescueTicketExpanded() {
         let app = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)

@@ -37,7 +37,7 @@ object HighlightShareImageRenderer {
     enum class Kind(val badgeEmoji: String, val title: String, val gradient: List<Int>) {
         // iOS weeklyGradient(青緑)/ monthlyGradient(紫)/ lifetimeGradient(金)を ARGB 化。
         Weekly("✨", "Weeklyハイライト", listOf(0xFF29A0BD.toInt(), 0xFF38B3A8.toInt(), 0xFF6BCC99.toInt())),
-        Monthly("🗂", "Monthlyハイライト", listOf(0xFF807AEB.toInt(), 0xFF9E6BE0.toInt(), 0xFFD97ACC.toInt())),
+        Monthly("📄", "Monthlyハイライト", listOf(0xFF807AEB.toInt(), 0xFF9E6BE0.toInt(), 0xFFD97ACC.toInt())),
         AllTime("🏆", "All-timeハイライト", listOf(0xFFF5A338.toInt(), 0xFFF08547.toInt(), 0xFFE6666B.toInt())),
     }
 
@@ -171,14 +171,16 @@ object HighlightShareImageRenderer {
 
     // ---- stat 行の組み立て ----
 
-    private data class StatRow(val label: String, val value: String)
+    private data class StatRow(val icon: String, val label: String, val value: String)
 
+    // iOS MonthlyReviewCard.statRow の SF Symbol を共有画像用の emoji に対応付け
+    // (pawprint.fill/clock.fill/list.bullet.rectangle/star.fill/heart.fill)。バッジと同じ emoji 方式。
     private fun buildStatRows(review: MonthlyReviewBuilder.Review, streakLabel: String): List<StatRow> = buildList {
-        add(StatRow(streakLabel, "${review.longestStreak} 日"))
-        add(StatRow("合計時間", "${review.totalDurationMinutes} 分"))
-        add(StatRow("種目数", "${review.totalExerciseCount} 件"))
-        review.topCategory?.let { add(StatRow("イチオシのカテゴリ", it.displayName)) }
-        review.topExerciseName?.let { add(StatRow("推し種目", it)) }
+        add(StatRow("🐾", streakLabel, "${review.longestStreak} 日"))
+        add(StatRow("🕐", "合計時間", "${review.totalDurationMinutes} 分"))
+        add(StatRow("📋", "種目数", "${review.totalExerciseCount} 件"))
+        review.topCategory?.let { add(StatRow("⭐", "イチオシのカテゴリ", it.displayName)) }
+        review.topExerciseName?.let { add(StatRow("❤️", "推し種目", it)) }
     }
 
     // ---- 描画ヘルパ(自己完結。StreakShareImageRenderer を壊さないため独立)----
@@ -235,17 +237,20 @@ object HighlightShareImageRenderer {
         val rect = RectF(left, top, right, top + boxH)
         canvas.drawRoundRect(rect, 28f, 28f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x2EFFFFFF })
 
+        val iconPaint = textPaint(30f).apply { textAlign = Paint.Align.LEFT }
         val labelPaint = textPaint(32f).apply { textAlign = Paint.Align.LEFT; alpha = 220 }
         val valuePaint = textPaint(32f, bold = true).apply { textAlign = Paint.Align.RIGHT }
         val padH = 36f
+        val iconW = 48f // 先頭アイコン + 余白の幅(iOS Label のアイコン列に相当)。
         // ラベルと値が重ならないよう、値が使える最大幅(右カラム)。
         // 推し種目名はユーザー入力で長くなり得るので、はみ出す前に「…」で省略する。
-        val valueMaxW = boxW - padH * 2 - 260f // ラベル側に最低 260px 確保
+        val valueMaxW = boxW - padH * 2 - iconW - 260f // ラベル側に最低 260px 確保
         rows.forEachIndexed { i, row ->
             val rowTop = top + padV + i * rowH
             val fm = labelPaint.fontMetrics
             val baseline = rowTop + rowH / 2 - (fm.ascent + fm.descent) / 2
-            canvas.drawText(row.label, left + padH, baseline, labelPaint)
+            canvas.drawText(row.icon, left + padH, baseline, iconPaint)
+            canvas.drawText(row.label, left + padH + iconW, baseline, labelPaint)
             canvas.drawText(ellipsize(row.value, valuePaint, valueMaxW), right - padH, baseline, valuePaint)
         }
         return rect.bottom + 28f
