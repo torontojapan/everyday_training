@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -344,15 +345,47 @@ private fun WeeklyCalendar(week: List<DailyStatusEntry>, onDayClick: (DailyStatu
                             .background(weeklyCellColor(entry, isToday)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            entry.status.symbol,
-                            style = AppType.headline.copy(fontWeight = FontWeight.Bold),
-                            color = palette.textPrimary,
-                        )
+                        WeekdayStatusMarker(entry.status, palette.textPrimary)
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * 週ストリップの状態マーカー。iOS `WeeklyCalendarView` は `status.symbol`(◎/○/休/×/-/・)を
+ * **SF Rounded(.headline bold)のテキストグリフ**で描く。Android の M PLUS Latin サブセットには
+ * これらの幾何記号が無く端末フォント(Noto)へフォールバックするため、◎ が「細い二重リング(iOS)」では
+ * なく「小さい塗りドット」になり字形が別物だった(2026-06-19 パリティ計測で検出)。
+ * iOS の見た目に合わせ、幾何リング記号(◎/○/・)は **Canvas で SF Rounded 相当の細リング**を描き、
+ * 和文/約物(休/×/-)は従来どおり Text で描く(これらは iOS と字形が一致する)。
+ */
+@Composable
+private fun WeekdayStatusMarker(status: DailyStatus, color: Color) {
+    when (status) {
+        DailyStatus.Achieved, DailyStatus.TodayAchieved ->
+            Canvas(modifier = Modifier.size(38.dp)) {
+                val s = size.minDimension
+                val stroke = Stroke(width = s * 0.042f)
+                drawCircle(color, radius = s * 0.285f, style = stroke)  // 外リング
+                drawCircle(color, radius = s * 0.150f, style = stroke)  // 内リング(◎)
+            }
+        DailyStatus.Rescued ->
+            Canvas(modifier = Modifier.size(38.dp)) {
+                val s = size.minDimension
+                drawCircle(color, radius = s * 0.260f, style = Stroke(width = s * 0.042f))  // ○
+            }
+        DailyStatus.TodayPending ->
+            Canvas(modifier = Modifier.size(38.dp)) {
+                drawCircle(color, radius = size.minDimension * 0.090f)  // ・(塗り)
+            }
+        else ->
+            Text(
+                status.symbol,  // 休 / × / -
+                style = AppType.headline.copy(fontWeight = FontWeight.Bold),
+                color = color,
+            )
     }
 }
 

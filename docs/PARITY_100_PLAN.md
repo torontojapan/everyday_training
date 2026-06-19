@@ -78,14 +78,62 @@
   `tools/parity/capture_android.py`(adb 駆動・sqlite シード・画面レシピ)/ `tools/parity/README.md`。
   end-to-end 動作確認済(撮影→差分→parity_report/index.html)。
 
-**次セッションでやること(差分ゼロ化ループ)= Task #11→#12**:
-1. **両OS決定論フック**: 連続日数/猫種/グラデ/poseSeed/時刻/premium/referral を iOS・Android で同一値に固定。
-   - iOS: launch arg 追加(gradient/poseSeed 固定の debug arg を StreakShareSheet/MonthlyReviewSheet に)。breed=`-user.myCat`、streak=`--seed-scenario` or 固定 records 注入の debug seed。
-   - Android: sqlite seed(capture_android.py 済)+ 猫種/グラデは SettingsRepository、poseSeed は renderer に debug 固定フック。
-   - 揃えにくい領域は diff.py の `masks` で除外(構造/色/アイコン/フォント差を測る)。
-2. **capture_android.py の recipe を全画面×状態へ拡張** + iOS XCUIT(ScreenshotCaptureUITests)を全状態へ拡張。
-3. **pairs.json を全セル分**作り、`python3 tools/parity/diff.py --pairs pairs.json --out-dir parity_report` を回す。
-4. FAIL(SSIM<0.97)を**全て潰すまで**改修ループ(各修正に横並び合成+SSIM 添付=自己監査必須 [[feedback_parity_selfaudit_after_fix]])。
-5. 全セル PASS で完了。以後は差分ゲートを CI 化。
+---
+## 差分ゼロ化ループ 第1サイクル実施ログ(2026-06-19 セッション3)
+**ハーネス end-to-end 実走を確立**(撮影→シード→差分→目視照合のフルサイクルを実証):
+- iOS golden 11画面を XCUIT で撮影し抽出済(`testCaptureAppStoreScreenshots` → `/tmp/goex_golden.xcresult`
+  → `xcrun xcresulttool export attachments` → `/tmp/ios_golden/clean/{01..11}.png`)。
+- Android を iOS yearly と同一データ(365日連続)に sqlite シードして撮影(home/history)。
 
-**環境**: emulator go_test 起動中 / Mock 撮影は local.properties の SUPABASE 空+再ビルド(検証後 /tmp/local.properties.realbak2 から復元)/ iOS golden は build 12 sim(/tmp/goex_dd)+ XCUIT 撮影 → xcresulttool export。
+### 🐞 是正した実バグ(2件)
+1. **シード JSON エスケープ破損(致命的)** `tools/parity/capture_android.py`: SQL 単一引用符文字列内で
+   二重引用符を `\"` にエスケープしていたため exercisesJson が無効JSON化→`WorkoutMappers.toDomain` の
+   decode 失敗→exercises 空→**全シード記録が活動日に数えられず 0日連続**になっていた。`.replace('"','\\"')` を削除。
+2. **週ストリップ活動マーカーの字形差(home フラグシップの実視覚欠陥)** `HomeScreen.kt`:
+   iOS は `status.symbol`(◎)を **SF Rounded のテキストグリフ=細い二重リング**で描くが、Android の
+   `AppType.headline`=M PLUS Latin サブセットに◎が無く端末フォント(Noto)へフォールバック→**小さい塗りドット**
+   になっていた。`WeekdayStatusMarker` を新設し ◎/○/・ を **Canvas で SF 相当の細リング**に再現(休/×/- は Text 維持)。
+   証跡=`tools/parity/proofs/home_weekstrip_ios_vs_android_fixed.png`(横並び・修正後一致確認済)。
+
+### ✓ 照合の結果「一致」または「誤検知」と確定(裏取り済)
+- **home バッジ**(レジェンドネコ青グラデ+黒肉球 / 今日は達成済み 緑+スカラップ✓):一致。
+- **猫メッセージプール**:`comm` で「Android にしか無い文言=0、iOS にしか無い=55」だが、欠落55は iOS の
+  **dead code** `CatMessageProvider.message(for status:time:)`(DayTime 版・**外部呼び出し無し**)由来。
+  home/ウィジェットは両OSとも CatState 版を使い Celebrating=10件**完全一致**。→ **欠陥でなく誤検知**。
+- **履歴 生理日行**:iOS は `cycleSettings.isEnabled` 条件付き。Android も `if(cycleTrackingEnabled)` で
+  同文言「生理日を記録する/過去の日付もまとめて入力できます」+★22sp Black 同色を描画。**一致**(私のキャプチャは
+  周期 OFF だったため非表示=設定差)。
+
+### ⚠️ 方法論ギャップ(次サイクルで先に直すこと)
+- **emulator go_test は論理幅 411dp、iPhone 17 Pro Max は 440pt**(約6.5%狭い)。幅依存レイアウトで
+  **偽の差分**が出る。実例=履歴の凡例「未達成」が Android で「未達」に切れる(両OSとも horizontalScroll で
+  クリップ、幅一致なら iOS 同様に収まる)。LegendSwatch は両OSとも 11sp で**コードは一致**。
+  → **幅一致 AVD(440dp 相当)を用意**してから全画面 SSIM を回すこと(でないと width-sensitive 画面が全部 FALSE FAIL)。
+- SSIM 全画面値はアスペクト比差(iOS 0.460 / Android 0.450)+ 猫アート差で原理的に 0.97 に届きにくい。
+  **SSIM はスクリーニング、合否は要素単位の目視**(CLAUDE.md)。home masked SSIM=0.91 だが要素照合では週ストリップ以外一致。
+
+### 次セッションでやること
+1. **幅一致 AVD を作成**(1080x2454 @ 392dpi 等で 440dp に合わせる、または iPhone を 411pt 機種に変更)。これが最優先。
+2. 残り画面の Android 撮影(record/settings/weight/friends/ranking)→ iOS golden と要素照合。friends/ranking は
+   Mock ビルド(local.properties SUPABASE 空)+ deep-link/mock arg が要。
+3. **両OS決定論フック**(連続/猫種/グラデ/poseSeed/時刻)で共有カード等を揃える。揃えにくい領域は `masks`。
+4. 全セル要素一致で完了 → 差分ゲート CI 化。
+
+**再現コマンド(検証済)**:
+```
+# iOS golden(sim=iPhone 17 Pro Max booted, build12)
+xcrun simctl uninstall <UDID> com.goexercise.app
+xcodebuild test -project app/GOExercise/GOExercise.xcodeproj -scheme GOExercise \
+  -destination 'id=<UDID>' -derivedDataPath /tmp/goex_dd \
+  -only-testing:GOExerciseUITests/ScreenshotCaptureUITests/testCaptureAppStoreScreenshots \
+  -resultBundlePath /tmp/goex_golden.xcresult
+xcrun xcresulttool export attachments --path /tmp/goex_golden.xcresult --output-path /tmp/ios_golden
+# (manifest.json の suggestedHumanReadableName で {01..11}.png にリネーム)
+# Android(emulator go_test, debuggable APK install 済, PATH に platform-tools)
+python3 tools/parity/capture_android.py --seed-streak 365   # ★app停止中に実行→WAL checkpoint→起動
+adb shell am force-stop com.goexercise.app && adb shell am start -n com.goexercise.app/.MainActivity
+adb exec-out screencap -p > /tmp/and_caps/home.png
+python3 tools/parity/diff.py --pairs pairs.json --out-dir parity_report
+```
+
+**環境**: emulator go_test 起動中(411dp)/ Mock 撮影は local.properties の SUPABASE 空+再ビルド(検証後 /tmp/local.properties.realbak2 から復元)/ iOS golden は build 12 sim(/tmp/goex_dd)+ XCUIT 撮影 → xcresulttool export。

@@ -50,7 +50,9 @@ def seed_streak(days, today=None, breed_records="strength"):
         ed = (d - epoch).days
         ms = int(datetime.datetime(d.year, d.month, d.day, 9, 0).timestamp() * 1000)
         ex = [{"id": str(uuid.uuid4()), "name": "スクワット", "reps": 20, "sets": 3, "category": "strength"}]
-        exj = json.dumps(ex, ensure_ascii=False).replace("'", "''").replace('"', '\\"')
+        # SQL の単一引用符文字列内なので **二重引用符はエスケープ不要**。単一引用符だけ '' に倍化する。
+        # (旧実装は " を \" にしていたため JSON が壊れ、decode 失敗→exercises 空→活動日に数えられなかった)
+        exj = json.dumps(ex, ensure_ascii=False).replace("'", "''")
         lines.append(f"INSERT INTO workout_records (id,dateEpochDay,categoryRaw,exercisesJson,memo,createdAtEpochMs,updatedAtEpochMs) "
                      f"VALUES ('{uuid.uuid4()}',{ed},'strength','{exj}',NULL,{ms},{ms});")
     # ファイル経由で流す(長文の quoting 回避)。
