@@ -52,7 +52,8 @@ iOS build 12 を XCUITest で一括撮影(testCaptureRemainingStates)→ Android
 - **日詳細 ✅**: 全6状態メッセージ source 完全一致・未来を実スクショ検証。
 - **設定 premium ✅**(プレミアム部)。
 - **体重 premium/chart ✅(追補)**: 折りたたみ化+順序入替を実装(`WeightCollapsible` 新設・記録する/レポート/推移/履歴 を iOS 順・subtitle 一致・展開でチャート描画確認)。ユニットテスト green。
-- **残 🔶(次セッション・小)**: ①設定 連携ON 認証セクション(削除導線の reactivity[SettingsVM が init 後サインインを再読込せず]・未連携 caption 差。config-gated・低優先) ②ホーム referral/revive・節目/breed-unlock ダイアログ・rescue使用画面 の golden 横並び(Android 側データ注入手段が無く自動撮影不安定。実装は既✅)。
+- **設定 連携ON ✅(追補)**: 削除導線 reactivity を是正(refreshAccountState・Mock 検証で アカウントを削除 表示確認)。
+- **残 🔶(次セッション・小/実装は既✅)**: ホーム referral/revive・節目/breed-unlock ダイアログ・rescue使用画面 の golden **横並び**のみ未(Android 側に referral/revive/節目データの注入手段が無く自動撮影が不安定。実装・コードは session2/3 で ✅・iOS golden は取得済)。設定 未連携 caption の軽微配置差(低優先)。
 - **手段メモ(再現用)**: Android populated 化 = `python3 で INSERT 生成 → adb push → run-as com.goexercise.app sh -c 'cat … | sqlite3 databases/goexercise.db'`。premium 解放 = paywall「14日間無料で始める」(MockPremiumRepository が flip)。
 
 ## ★ 2026-06-19 セッション16: ランキング今月 + 友達 状態別 golden 照合（XCUITest 撮影）
@@ -99,7 +100,7 @@ iOS build 12 を sim にビルド(CFBundleVersion=12 確認)→ XCUITest で状�
 ②**通知**セクション見出し + 「通知ON/OFF」トグル(現状「毎日のリマインダー/運動を続けるための通知」)+ **3分割セグメント OFF|1日1回|1日2回**(現状=有効時のみ 2 pill)
 ③**通知時間**セクション + 通知時間1/2 行(グレー時刻チップ + シェブロン。現状 TextButton・チップ/シェブロン無)④**通知の性格**セクション + 「性格」インラインピッカー(現状ラジオリスト)+ デフォルト説明 + footer 3 種解説。
 | 設定 | プレミアム | ✅(セッション17・「GOプレミアム 加入中」+プレミアム特典・称号一覧 が iOS と一致。premium 解放はモック購入で検証) |
-| 設定 | 連携ON(認証セクション) | 🔶(config-gated・低優先で据置。**発見した実差**: ①削除導線は `hasAccount=myFriendCode!=null` で gating だが SettingsViewModel が init 後にサインインしても myProfile を再読込せず削除が出ない反応性差[iOS は profile を reactive 監視]。本番は account 永続で init 時に拾うため影響限定 ②未連携 caption の文言/配置差。次セッションで認証セクション集中照合) |
+| 設定 | 連携ON(認証セクション) | ✅(セッション17・**削除導線 reactivity を是正**: `SettingsViewModel.refreshAccountState()` を新設し SettingsRoute の LaunchedEffect から毎回呼ぶ→VM 生成後にサインインしても アカウントを削除 が出る[iOS reactive パリティ・5.1.1(v)/Play 削除到達性]。Mock サインイン→設定で削除導線表示を実エミュ検証。残=未連携 caption の軽微な配置差のみ[低優先]) |
 
 ### セッション7: 設定サブページ golden 照合(6画面・XCUITest `testCaptureSettingsSubpages`)
 全6サブページを iOS golden 取得→Android 実スクショ→2LLM(Claude6並列+Codex)照合。**重要所見: Android 設定サブページは

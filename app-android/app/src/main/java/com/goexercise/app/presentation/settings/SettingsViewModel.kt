@@ -312,4 +312,17 @@ class SettingsViewModel @Inject constructor(
             referralStore.refresh()
         }
     }
+
+    /**
+     * 設定画面の表示/再表示ごとに口座状態を再読込する(iOS の friendsStore.profile は reactive で、
+     * 設定を開く前に友達タブでサインインしても削除導線[hasAccount]が出る)。Android の VM は
+     * init 一回読みだと、VM 生成後にサインインした場合に削除が出ない反応性差があったため、
+     * Route 側 LaunchedEffect から毎回呼んで追従させる(5.1.1(v)/Play のアカウント削除到達性)。
+     */
+    fun refreshAccountState() {
+        viewModelScope.launch {
+            _myFriendCode.value = friendsService.myProfile()?.friendCode
+            _linkedProvider.value = friendsService.backupStatus.linkedProvidersDisplay
+        }
+    }
 }

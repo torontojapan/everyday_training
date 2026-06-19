@@ -97,6 +97,8 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 
 @Composable
 fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
+    // 設定を開く/戻るたびに口座状態を再読込(VM 生成後にサインインしても削除導線を出す。iOS reactive パリティ)。
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.refreshAccountState() }
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val trialEligible by viewModel.isTrialEligible.collectAsStateWithLifecycle()
