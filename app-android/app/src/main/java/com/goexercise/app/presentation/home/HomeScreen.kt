@@ -50,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -209,12 +210,16 @@ private fun rankCelebrationDisplay(event: RankUpEvent): Pair<CatRank, String> = 
     is RankUpEvent.Weekly -> CatRank.of(event.streak) to "${event.streak}日連続!"
 }
 
-/** 節目バッジの Material アイコン(iOS の SF Symbol rosette/trophy/medal/crown 相当)。
- *  iOS は「絵文字は安っぽい」とブランド方針で廃止し、金色のシンボルに統一。Android も追従。 */
+/** 節目バッジのアイコン。iOS `MilestoneDetector.badgeSymbol` の段階別シンボルに一致させる:
+ *  anniversary=rosette / lifetime≥365=trophy・他=medal / **streak≥100=crown**・他=rosette / weightLoss≥10=trophy・他=medal。
+ *  (以前は CurrentStreak が一律 WorkspacePremium で ≥100 の crown 段が欠落していた。2026-06-19) */
+@Composable
 private fun milestoneIcon(milestone: Milestone): ImageVector = when (milestone) {
     is Milestone.Anniversary -> Icons.Filled.WorkspacePremium                                          // rosette
     is Milestone.LifetimeDays -> if (milestone.days >= 365) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech  // trophy / medal
-    is Milestone.CurrentStreak -> Icons.Filled.WorkspacePremium                                        // crown→premium seal / rosette
+    is Milestone.CurrentStreak ->
+        if (milestone.days >= 100) ImageVector.vectorResource(com.goexercise.app.R.drawable.ic_crown)  // crown.fill
+        else Icons.Filled.WorkspacePremium                                                            // rosette
     is Milestone.WeightLoss -> if (milestone.kg >= 10) Icons.Filled.EmojiEvents else Icons.Filled.MilitaryTech       // trophy / medal
 }
 

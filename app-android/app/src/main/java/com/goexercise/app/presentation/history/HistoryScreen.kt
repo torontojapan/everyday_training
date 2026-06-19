@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -364,7 +366,8 @@ private fun RescueTicketCollapsible(state: HistoryUiState, palette: AppTheme, on
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
+                        // iOS StatsView は crown.fill。crown ベクターで統一(WorkspacePremium リボンから是正)。
+                        Icon(ImageVector.vectorResource(com.goexercise.app.R.drawable.ic_crown), contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
                         Text("GOプレミアムで保険チケットが月4回に", style = AppType.body, color = palette.primary, modifier = Modifier.weight(1f))
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
                     }
