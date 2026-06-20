@@ -311,4 +311,27 @@ final class ScreenshotCaptureUITests: XCTestCase {
             }
         }
     }
+
+    /// 設定の猫ピッカー golden(Android パリティ照合用)。
+    /// 設定 → カスタマイズ → 「自分のキャラを変更」(user-cat-link)→ UserCatPickerView シート。
+    func testCaptureSettingsCatPicker() {
+        let app = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "settings"] + seed)
+        sleep(2)
+        // カスタマイズ 行をタップ(buttons / staticTexts どちらでも)。
+        func customizeRow() -> XCUIElement {
+            let b = app.buttons["カスタマイズ"]
+            return b.exists ? b : app.staticTexts["カスタマイズ"]
+        }
+        var t = 0
+        while !customizeRow().exists && t < 6 { app.swipeUp(); t += 1; sleep(1) }
+        guard customizeRow().waitForExistence(timeout: 4) else { shoot(app, "set_cat_picker_CUSTOMIZE_MISSING"); return }
+        customizeRow().tap(); sleep(2)
+        // 「自分のキャラを変更」(user-cat-link)→ UserCatPickerView シート。
+        let catLink = app.descendants(matching: .any).matching(identifier: "user-cat-link").firstMatch
+        if catLink.waitForExistence(timeout: 4) {
+            catLink.tap(); sleep(2); shoot(app, "set_cat_picker")
+        } else {
+            shoot(app, "set_cat_picker_LINK_MISSING")
+        }
+    }
 }

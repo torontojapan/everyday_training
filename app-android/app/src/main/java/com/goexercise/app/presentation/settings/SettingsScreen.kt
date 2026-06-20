@@ -93,7 +93,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.CatRank
+import com.goexercise.app.domain.CatState
 import com.goexercise.app.ui.components.CatAvatar
+import com.goexercise.app.ui.components.CatImage
 import com.goexercise.app.ui.components.metalColor
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.AppType
@@ -365,7 +367,7 @@ fun SettingsContent(
                 }
             }
 
-            SettingsPage.CatPicker -> SubPage("自分のキャラ", onBack = { page = SettingsPage.Customize }) {
+            SettingsPage.CatPicker -> SubPage("自分のキャラを選ぶ", onBack = { page = SettingsPage.Customize }) {
                 CatBreedPicker(
                     selected = catBreed, palette = palette, isPremium = isPremium,
                     referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
@@ -720,31 +722,39 @@ private fun CatBreedPicker(
     onSelect: (CatBreed) -> Unit,
     onLockedTap: () -> Unit,
 ) {
-    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CatBreed.entries.chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { breed ->
-                        val locked = CatBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
-                                .clickable { if (locked) onLockedTap() else onSelect(breed) }
-                                .padding(vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                CatAvatar(breed = breed, size = 52.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
-                                if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
-                            }
-                            Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
+    // iOS UserCatPickerView は素背景に「大プレビュー猫 + 名前 + 11種グリッド」。surface カードでは包まない。
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // 選択中の猫の大プレビュー(オンボ猫ピッカーと同一)。
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
+        }
+        Text(
+            selected.displayName,
+            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+        )
+        CatBreed.entries.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { breed ->
+                    val locked = CatBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
+                            .clickable { if (locked) onLockedTap() else onSelect(breed) }
+                            .padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            CatAvatar(breed = breed, size = 56.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
+                            if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
                         }
+                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
                     }
-                    repeat(4 - row.size) { Box(Modifier.weight(1f)) }
                 }
+                repeat(4 - row.size) { Box(Modifier.weight(1f)) }
             }
         }
     }
