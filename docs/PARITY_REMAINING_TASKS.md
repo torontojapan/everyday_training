@@ -2,7 +2,23 @@
 
 > **これが同期残タスクの唯一の動く正本。** 体系立てて 1 項目ずつ消化する。
 > 関連: 方針=`PARITY_100_PLAN.md` / 旧履歴=`android_ios_parity_tracker.md` / 規約=`CLAUDE.md`。
-> 最終更新: 2026-06-19。
+> 最終更新: 2026-06-20。
+
+> ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
+> 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
+> **実ビルド(実 Supabase)+ オンライン状態の実視覚照合が未済**の項目が残る。優先順:
+> 1. **友達 サインイン後「コード画面」の実視覚照合**(=ユーザーが見る初期画面の本体)。今まで Mock-force ヘッダのみで、
+>    コード/コピー/シェア/QR 行の **iOS golden 横並び証跡が無い**。→ **Mock-force ビルド**(SUPABASE 2行コメントアウト)で
+>    density393 撮影 → `/tmp/ios_sub/clean/` の友達 golden と横並び照合。**実ビルドはエミュがネット不達(VPN)だと welcome に落ちるため Mock-force 必須**。
+> 2. **友達 welcome 接続失敗バナー**: 文言を iOS(`FriendsView.swift:242`「うまくつながれませんでした…」)へ統一済(commit 97efe43, 実機オフライン撮影で確認)。
+>    iOS welcome は通常到達不可のため source 照合 + Android 実撮影で担保。**残=最終 sign-off のみ**。
+> 3. **§3 軽微残差**: disclosure/drill 行の chevron グリフ Android `⌄`→ iOS `>`、戻るボタン色の最終統一。
+> 4. **ウィジェット**: iOS 実画像の横並びが拡張ターゲット制約で未取得(値一致+Android 実レンダで担保中)。代替検証法の検討。
+> 5. **全画面 最終回帰 sweep**: §1–§3 を density393 で 1 項目ずつ再走し取りこぼしゼロを確認(旧 ✅ から実バグ多数の前例あり)。
+>
+> ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
+> このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。
+> 視覚パリティだけなら **Mock-force でオフライン検証可**(ネット不要)。
 
 ## 0. 完了の定義 & 検証手順(毎回これを守る)
 1 画面×1 状態の「DONE」= **density 393 で iOS golden と横並び**し、要素(高さ/色/余白/角丸/フォント/整列/アイコン種別/
@@ -148,3 +164,17 @@
 - `ReminderScheduler.nextTrigger` が `Calendar.getInstance()`(system clock)で Clock 未注入=テスト不能(実害なし・将来 extract 推奨)。
 - ステータス色: iOS は opacity 0.3-0.65 の淡色 / Android は solid(同 hue・従来から受容)。
 - 視覚/UX 全状態: §1-§3 で density393 実スクショを全画面で取得済(本 QA でも追加状態を確認)。
+
+---
+## 6. 2026-06-20 セッション(友達 初期画面の挙動 & welcome 文言)
+ユーザー報告:「Android 友達の初期画面が iOS と違う(iOS は最初からコードが見えるが Android は welcome のまま)」。
+
+### 確定したこと
+- **挙動は既に一致**: iOS / Android とも**タブを開く→自動で匿名サインイン→コード画面**(iOS `FriendsView.swift:97-101` / Android `FriendsScreen.kt:138` `LaunchedEffect{ ensureSignedIn() }`)。lazy 廃止のワンステップ化が両 OS 済。
+- **「Android だけ welcome」の真因=エミュのネット不達**(ホスト VPN がエミュ NAT 破壊+ゲスト時計破損)。`signInAnonymously()` がネット不達で例外→ generic error→ welcome 着地。**アプリのバグではない**。Supabase 匿名サインインはホストから HTTP 200 で正常(プロジェクト/anon key OK)。詳細 memory [[gotcha_android_emulator_no_internet_vpn]]。
+
+### 是正(commit 97efe43 → main マージ 55b05e6 → push 済)
+- **友達 welcome 接続失敗の文言を iOS と統一**: 生の `errorMessage`(「通信に失敗しました…」)→ iOS 固定文「うまくつながれませんでした。少し時間をおいて、もう一度お試しください。」(`FriendsView.swift:242`)。**実機オフライン welcome 撮影で文言一致を確認**(`/tmp/and_welcome_fixed.png`)。
+
+### この画面で残ること(§冒頭「真に未完」#1・#2 に反映済)
+- 友達 **サインイン後コード画面**の iOS golden 横並び実視覚照合(**Mock-force ビルドで実施可**=ネット不要)。welcome バナーの最終 sign-off。
