@@ -7,11 +7,17 @@
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
 > **実ビルド(実 Supabase)+ オンライン状態の実視覚照合が未済**の項目が残る。優先順:
-> 1. **友達 サインイン後「コード画面」の実視覚照合**(=ユーザーが見る初期画面の本体)。今まで Mock-force ヘッダのみで、
->    コード/コピー/シェア/QR 行の **iOS golden 横並び証跡が無い**。→ **Mock-force ビルド**(SUPABASE 2行コメントアウト)で
->    density393 撮影 → `/tmp/ios_sub/clean/` の友達 golden と横並び照合。**実ビルドはエミュがネット不達(VPN)だと welcome に落ちるため Mock-force 必須**。
-> 2. **友達 welcome 接続失敗バナー**: 文言を iOS(`FriendsView.swift:242`「うまくつながれませんでした…」)へ統一済(commit 97efe43, 実機オフライン撮影で確認)。
->    iOS welcome は通常到達不可のため source 照合 + Android 実撮影で担保。**残=最終 sign-off のみ**。
+> 1. ✅ **友達 サインイン後「コード画面」の実視覚照合 — 完了(2026-06-20)**。Mock-force ビルド(SUPABASE 2行コメントアウト)で
+>    density393 撮影 → iOS golden `/tmp/ios_golden/clean/08_friends.png` と横並び照合。証跡 `proofs/friends_code_screen_ios_vs_android_FIXED.png`(+QR展開 `proofs/friends_code_qr_expanded_android.png`)。
+>    **是正4件**(横並びで判明): (1) ヘッダ全体を surface カードで包んでいた→iOS は**アバター行をカード化せず**素の背景に置く構造へ
+>    (2) 友達コードカードの塗りが **chipBackground(ピンク)→ iOS は surface(白)・r14→r18**(色反転を修正)
+>    (3) コピー/シェア/QR の円ボタン塗りが **background(クリーム)→ iOS は chipBackground(ピンク)**(同じく反転)
+>    (4) 右上「友達を追加」アイコン tint `primaryDeep`(濃)→ iOS アクセント `primary`(salmon)。
+>    付随: namePrompt「決定」の無効色を灰→ iOS 同様 primaryDeep@0.35(色相維持)、QR 画像 160→140dp(iOS 一致)。unit green 維持。
+> 2. ✅ **友達 welcome 接続失敗バナー — 最終 sign-off 完了(2026-06-20)**。文言は iOS(`FriendsView.swift:242`)へ統一済(commit 97efe43)。
+>    **実ビルド(実 Supabase)+ ネット不達**で友達タブ→サインイン失敗→welcome 着地を**ライブ撮影**し、猫140/「友達と一緒に続けよう」/
+>    body/固定文「うまくつながれませんでした。少し時間をおいて、もう一度お試しください。」/「友達とつながる」(person.2)/シェア行 まで iOS spec と一致を確認。
+>    証跡 `proofs/friends_welcome_signoff_android_realbuild.png`。connecting 状態「準備しています…」も iOS friendsConnectingBody と一致。
 > 3. **§3 軽微残差**: disclosure/drill 行の chevron グリフ Android `⌄`→ iOS `>`、戻るボタン色の最終統一。
 > 4. **ウィジェット**: iOS 実画像の横並びが拡張ターゲット制約で未取得(値一致+Android 実レンダで担保中)。代替検証法の検討。
 > 5. **全画面 最終回帰 sweep**: §1–§3 を density393 で 1 項目ずつ再走し取りこぼしゼロを確認(旧 ✅ から実バグ多数の前例あり)。
