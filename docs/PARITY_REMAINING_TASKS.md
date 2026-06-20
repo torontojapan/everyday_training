@@ -24,10 +24,11 @@
 >    証跡 `proofs/back_button_ios_vs_android_FIXED.png`(設定サブpage 実撮影で色一致確認)。残3箇所は同一共有パターン(source 一致)。
 >    **残(微差・受容)**: drill 行の chevron は既に `>`(KeyboardArrowRight)。iOS は約1px細い `>`(chevron.right)・やや淡灰だが知覚閾値以下のため現状維持。
 >    インライン展開(休養ルール/特典)の `⌄`(ExpandMore)は iOS も下向きで正しい。
-> 4. ⚠️ **ウィジェット — 設計上ブロック(2026-06-20 評価)**。`SmallWidgetView` は widget 拡張ターゲット内・`WidgetSnapshot` 受領で、
->    どの test ターゲットからも `ImageRenderer` で到達不可(@testable import 不可)。実画像取得には Xcode のターゲット membership 変更が必要だが、
->    それは iOS build/Archive を壊すリスク(CLAUDE.md §3)があり自走では不可。**現状の担保**=iOS `SmallWidgetView` への値/レイアウト source 一致 + Android 実レンダ3状態(`proofs/widget_android_*`)で維持。
->    代替案(将来・要承認): 専用 snapshot scheme か、widget view を main へ切出して `ImageRenderer`。
+> 4. ✅ **ウィジェット — 完了(2026-06-20・ユーザー承認の上で実施)**。`SmallWidgetView` の実画像取得を実現:
+>    widget view 3ファイル(SmallWidgetView/WidgetCatView/RecordPromptChipView)を **app target にも追加**(project.yml・WidgetSnapshot と同一モジュール化)し、
+>    `GOExerciseTests/WidgetRenderSnapshotTest` が `ImageRenderer`(170pt@3x=510px・containerBackground グラデ再現)で**実 view・実アセット・実フォント**で 3 状態を描画。
+>    **iOS 実描画 × Android 実レンダを横並び照合し全状態一致**(見出し色/サブ/N/7リング/CTA有無/猫状態)。証跡 `proofs/widget_ios_vs_android_3states.png` / `proofs/ios_widget_golden/`。
+>    安全策: xcodegen 再生成後に **Info.plist がバイト不変**を確認(手動キーは project.yml 宣言で保持)、**Release ビルド成功**で Archive 安全を確認(CLAUDE.md §3)。
 > 5. ✅ **全画面 最終回帰 sweep — 完了(2026-06-20)/ 新規バグゼロ**。density393 実描画で再走:
 >    ホーム(365)/履歴/記録入力/**記録完了**/設定(メイン+サブページ)/友達(コード+welcome)/paywall/**体重 premium HeroCard+推移チャート(weight 30件シード)**/**オンボ猫ピッカー(data clear)**。
 >    差はデータ/通貨ロケール/文脈(paywall=Weight headline 一致)/CJK タイトル折返し(オンボ大見出しのみ・フォントメトリクス由来の微差)のみ。証跡 `proofs/sweep_*`。
