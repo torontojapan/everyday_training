@@ -7,14 +7,36 @@
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
 > **実ビルド(実 Supabase)+ オンライン状態の実視覚照合が未済**の項目が残る。優先順:
-> 1. **友達 サインイン後「コード画面」の実視覚照合**(=ユーザーが見る初期画面の本体)。今まで Mock-force ヘッダのみで、
->    コード/コピー/シェア/QR 行の **iOS golden 横並び証跡が無い**。→ **Mock-force ビルド**(SUPABASE 2行コメントアウト)で
->    density393 撮影 → `/tmp/ios_sub/clean/` の友達 golden と横並び照合。**実ビルドはエミュがネット不達(VPN)だと welcome に落ちるため Mock-force 必須**。
-> 2. **友達 welcome 接続失敗バナー**: 文言を iOS(`FriendsView.swift:242`「うまくつながれませんでした…」)へ統一済(commit 97efe43, 実機オフライン撮影で確認)。
->    iOS welcome は通常到達不可のため source 照合 + Android 実撮影で担保。**残=最終 sign-off のみ**。
-> 3. **§3 軽微残差**: disclosure/drill 行の chevron グリフ Android `⌄`→ iOS `>`、戻るボタン色の最終統一。
-> 4. **ウィジェット**: iOS 実画像の横並びが拡張ターゲット制約で未取得(値一致+Android 実レンダで担保中)。代替検証法の検討。
-> 5. **全画面 最終回帰 sweep**: §1–§3 を density393 で 1 項目ずつ再走し取りこぼしゼロを確認(旧 ✅ から実バグ多数の前例あり)。
+> 1. ✅ **友達 サインイン後「コード画面」の実視覚照合 — 完了(2026-06-20)**。Mock-force ビルド(SUPABASE 2行コメントアウト)で
+>    density393 撮影 → iOS golden `/tmp/ios_golden/clean/08_friends.png` と横並び照合。証跡 `proofs/friends_code_screen_ios_vs_android_FIXED.png`(+QR展開 `proofs/friends_code_qr_expanded_android.png`)。
+>    **是正4件**(横並びで判明): (1) ヘッダ全体を surface カードで包んでいた→iOS は**アバター行をカード化せず**素の背景に置く構造へ
+>    (2) 友達コードカードの塗りが **chipBackground(ピンク)→ iOS は surface(白)・r14→r18**(色反転を修正)
+>    (3) コピー/シェア/QR の円ボタン塗りが **background(クリーム)→ iOS は chipBackground(ピンク)**(同じく反転)
+>    (4) 右上「友達を追加」アイコン tint `primaryDeep`(濃)→ iOS アクセント `primary`(salmon)。
+>    付随: namePrompt「決定」の無効色を灰→ iOS 同様 primaryDeep@0.35(色相維持)、QR 画像 160→140dp(iOS 一致)。unit green 維持。
+> 2. ✅ **友達 welcome 接続失敗バナー — 最終 sign-off 完了(2026-06-20)**。文言は iOS(`FriendsView.swift:242`)へ統一済(commit 97efe43)。
+>    **実ビルド(実 Supabase)+ ネット不達**で友達タブ→サインイン失敗→welcome 着地を**ライブ撮影**し、猫140/「友達と一緒に続けよう」/
+>    body/固定文「うまくつながれませんでした。少し時間をおいて、もう一度お試しください。」/「友達とつながる」(person.2)/シェア行 まで iOS spec と一致を確認。
+>    証跡 `proofs/friends_welcome_signoff_android_realbuild.png`。connecting 状態「準備しています…」も iOS friendsConnectingBody と一致。
+> 3. ✅ **戻るボタン色の最終統一 — 完了(2026-06-20)**。iOS26 サブページ back は **surface(白)円 + textPrimary(charcoal)chevron.left**。
+>    旧 Android は **chipBackground(ピンク)円 + primaryDeep(赤)chevron** で別物だった → surface + textPrimary に統一。
+>    対象4箇所: 設定 SubPage(共有・全設定サブページ)/ 生理日 / 週間ランキング / 記録完了(旧 plain ArrowBack → 同 円形 chevron 化)。
+>    証跡 `proofs/back_button_ios_vs_android_FIXED.png`(設定サブpage 実撮影で色一致確認)。残3箇所は同一共有パターン(source 一致)。
+>    **残(微差・受容)**: drill 行の chevron は既に `>`(KeyboardArrowRight)。iOS は約1px細い `>`(chevron.right)・やや淡灰だが知覚閾値以下のため現状維持。
+>    インライン展開(休養ルール/特典)の `⌄`(ExpandMore)は iOS も下向きで正しい。
+> 4. ✅ **ウィジェット — 完了(2026-06-20・ユーザー承認の上で実施)**。`SmallWidgetView` の実画像取得を実現:
+>    widget view 3ファイル(SmallWidgetView/WidgetCatView/RecordPromptChipView)を **app target にも追加**(project.yml・WidgetSnapshot と同一モジュール化)し、
+>    `GOExerciseTests/WidgetRenderSnapshotTest` が `ImageRenderer`(170pt@3x=510px・containerBackground グラデ再現)で**実 view・実アセット・実フォント**で 3 状態を描画。
+>    **iOS 実描画 × Android 実レンダを横並び照合し全状態一致**(見出し色/サブ/N/7リング/CTA有無/猫状態)。証跡 `proofs/widget_ios_vs_android_3states.png` / `proofs/ios_widget_golden/`。
+>    安全策: xcodegen 再生成後に **Info.plist がバイト不変**を確認(手動キーは project.yml 宣言で保持)、**Release ビルド成功**で Archive 安全を確認(CLAUDE.md §3)。
+> 5. ✅ **全画面 最終回帰 sweep — 完了(2026-06-20)/ 新規バグゼロ**。density393 実描画で再走:
+>    ホーム(365)/履歴/記録入力/**記録完了**/設定(メイン+サブページ)/友達(コード+welcome)/paywall/**体重 premium HeroCard+推移チャート(weight 30件シード)**/**オンボ猫ピッカー(data clear)**。
+>    差はデータ/通貨ロケール/文脈(paywall=Weight headline 一致)/CJK タイトル折返し(オンボ大見出しのみ・フォントメトリクス由来の微差)のみ。証跡 `proofs/sweep_*`。
+>    **体重チャート**: 期間セグメント(1週|1月|3月|半年|全期間)・surface カード・Y軸kgグリッド・X軸日付・折れ線+破線トレンドが §1-A 是正どおり描画を density393 で再確認。
+>    **オンボ猫ピッカー**: ステップ1/2 バッジ・見出し・補足・大プレビュー猫・11種グリッド・招待コード欄まで一致(iOS golden 01)。
+>    ✅ **設定の猫ピッカー — 完了(2026-06-20)**。iOS golden を新規撮影(`testCaptureSettingsCatPicker`)→横並びで是正:
+>    大プレビュー猫+名前を追加(欠落していた)・タイトル「自分のキャラ」→「自分のキャラを選ぶ」・surface カード撤去(iOS 素背景)・グリッド56dp・11種ブレッド名一致。
+>    証跡 `proofs/settings_catpicker_ios_vs_android_FIXED.png` / `proofs/ios_golden_set_cat_picker.png`。残(受容): iOS=sheet(キャンセル/決定) vs Android=push+back(他サブページと統一・即適用)。
 >
 > ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
 > このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。

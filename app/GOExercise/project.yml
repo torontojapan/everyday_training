@@ -49,6 +49,12 @@ targets:
         # IPA に同梱してしまうため(GPT-5.5/Claude 監査)。Debug の StoreKit テストは scheme の
         # run.storeKitConfiguration 参照だけで効く。Info.plist は info: で別管理。
         excludes: ["Resources/Info.plist", "Resources/Products.storekit"]
+      # ウィジェット view を golden 撮影テスト(WidgetRenderSnapshotTest)から ImageRenderer で
+      # 実描画するため app target にも含める(WidgetSnapshot と同一モジュール→ @testable で到達)。
+      # widget 拡張ターゲットにも従来どおり含まれる(別モジュールなので衝突しない)。
+      - path: GOExerciseWidget/Views/SmallWidgetView.swift
+      - path: GOExerciseWidget/Views/WidgetCatView.swift
+      - path: GOExerciseWidget/Views/RecordPromptChipView.swift
     resources:
       - path: GOExercise/Resources/Assets.xcassets
       # Products.storekit は **resources に含めない**(本番IPAに内部メタデータを同梱しない。

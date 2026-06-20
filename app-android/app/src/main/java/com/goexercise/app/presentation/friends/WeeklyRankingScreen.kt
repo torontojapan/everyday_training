@@ -66,13 +66,13 @@ fun WeeklyRankingContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // iOS パリティ: 中央タイトル + 左の円形戻る(chevron・chipBackground 円。設定 SubPage と統一)。
+        // iOS パリティ: 中央タイトル + 左の円形戻る(surface 円 + textPrimary chevron。設定 SubPage と統一)。
         Box(Modifier.fillMaxWidth()) {
             Box(
-                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
+                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).background(palette.surface).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
             }
             Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
         }

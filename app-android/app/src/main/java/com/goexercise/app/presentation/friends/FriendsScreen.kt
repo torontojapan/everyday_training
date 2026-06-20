@@ -886,7 +886,8 @@ private fun SignedInBody(
         Box(Modifier.fillMaxWidth()) {
             Text("友達", style = com.goexercise.app.ui.theme.AppType.screenTitle, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
             androidx.compose.material3.IconButton(onClick = onAddClick, enabled = !locked, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Icon(Icons.Filled.PersonAddAlt1, contentDescription = "友達を追加", tint = if (locked) palette.textSecondary else palette.primaryDeep)
+                // iOS toolbar の追加アイコンはアクセント色(primary・salmon)。primaryDeep だと濃すぎる。
+                Icon(Icons.Filled.PersonAddAlt1, contentDescription = "友達を追加", tint = if (locked) palette.textSecondary else palette.primary)
             }
         }
 
@@ -946,7 +947,8 @@ private fun NamePromptCard(palette: AppTheme, onSubmit: (String) -> Unit, onDism
                     Text(
                         "決定",
                         fontWeight = FontWeight.SemiBold,
-                        color = if (trimmed.isNotEmpty()) palette.primaryDeep else palette.textSecondary.copy(alpha = 0.4f),
+                        // iOS は .disabled でも primaryDeep の色相を保ち薄くするだけ(灰にしない)。
+                        color = if (trimmed.isNotEmpty()) palette.primaryDeep else palette.primaryDeep.copy(alpha = 0.35f),
                     )
                 }
             }
@@ -1008,79 +1010,80 @@ private fun ProfileHeaderCard(
     val context = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                com.goexercise.app.ui.components.CatAvatar(breed = myBreed, size = 56.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        // iOS profileHeader は Typography.title(.largeTitle ~34pt)。AppType.title に一致させる。
-                        Text(profile.displayName, style = AppType.title, color = palette.textPrimary)
-                        Icon(
-                            Icons.Filled.Edit, contentDescription = "名前を編集", tint = palette.textSecondary,
-                            modifier = Modifier.size(16.dp).clickable { showRename = true },
-                        )
-                    }
-                    if (profile.username.isNotBlank()) {
-                        Text("@${profile.username}", fontSize = 13.sp, color = palette.textSecondary)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(15.dp))
-                        Text("${profile.currentStreak} 日連続", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
-                    }
+    // iOS profileHeader はアバター行をカード化せず素の背景に置き、友達コードのみ surface カードに載せる。
+    // 旧 Android は全体を surface カードで包み、内側コードカードを chipBackground(ピンク)にしていた(色反転)。
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            com.goexercise.app.ui.components.CatAvatar(breed = myBreed, size = 56.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // iOS profileHeader は Typography.title(.largeTitle ~34pt)。AppType.title に一致させる。
+                    Text(profile.displayName, style = AppType.title, color = palette.textPrimary)
+                    Icon(
+                        Icons.Filled.Edit, contentDescription = "名前を編集", tint = palette.textSecondary,
+                        modifier = Modifier.size(16.dp).clickable { showRename = true },
+                    )
+                }
+                if (profile.username.isNotBlank()) {
+                    Text("@${profile.username}", fontSize = 13.sp, color = palette.textSecondary)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(15.dp))
+                    Text("${profile.currentStreak} 日連続", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
                 }
             }
+        }
 
-            Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp)) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("あなたの友達コード", fontSize = 12.sp, color = palette.textSecondary)
-                            Text(
-                                profile.friendCode,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = FontFamily.Monospace,
-                                color = palette.primaryDeep,
+        // iOS: 友達コード行は surface(白)カード r18 padding14。ボタン円のみ chipBackground(ピンク)。
+        Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("あなたの友達コード", fontSize = 12.sp, color = palette.textSecondary)
+                        Text(
+                            profile.friendCode,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace,
+                            color = palette.primaryDeep,
+                        )
+                    }
+                    IconChip(Icons.Filled.ContentCopy, palette, "友達コードをコピー") {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(profile.friendCode))
+                        onCopyCode() // iOS: 「招待コードをコピーしました」トースト
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconChip(Icons.Filled.IosShare, palette, "友達コードを共有") {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                friendShareText(profile.friendCode, profile.username, profile.currentStreak),
                             )
                         }
-                        IconChip(Icons.Filled.ContentCopy, palette, "友達コードをコピー") {
-                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(profile.friendCode))
-                            onCopyCode() // iOS: 「招待コードをコピーしました」トースト
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        IconChip(Icons.Filled.IosShare, palette, "友達コードを共有") {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    friendShareText(profile.friendCode, profile.username, profile.currentStreak),
+                        context.startActivity(Intent.createChooser(intent, "友達コードを共有"))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconChip(Icons.Filled.QrCode, palette, "QRコード") { showQr = !showQr }
+                }
+                if (showQr) {
+                    val qr = remember(profile.friendCode) { QrCode.generate(friendInviteUrl(profile.friendCode)) }
+                    if (qr != null) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Surface(color = Color.White, shape = RoundedCornerShape(12.dp)) {
+                                Image(
+                                    bitmap = qr,
+                                    contentDescription = "友達コードの QR",
+                                    modifier = Modifier.padding(8.dp).size(140.dp), // iOS 140pt 一致
                                 )
                             }
-                            context.startActivity(Intent.createChooser(intent, "友達コードを共有"))
                         }
-                        Spacer(Modifier.width(8.dp))
-                        IconChip(Icons.Filled.QrCode, palette, "QRコード") { showQr = !showQr }
-                    }
-                    if (showQr) {
-                        val qr = remember(profile.friendCode) { QrCode.generate(friendInviteUrl(profile.friendCode)) }
-                        if (qr != null) {
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                Surface(color = Color.White, shape = RoundedCornerShape(12.dp)) {
-                                    Image(
-                                        bitmap = qr,
-                                        contentDescription = "友達コードの QR",
-                                        modifier = Modifier.padding(8.dp).size(160.dp),
-                                    )
-                                }
-                            }
-                            // iOS パリティ: QR の下に読み取り手順のキャプション。
-                            Text(
-                                "相手のアプリの 友達 → ＋ →「QRコードを読み取る」で読んでもらうと追加できます。",
-                                fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        // iOS パリティ: QR の下に読み取り手順のキャプション。
+                        Text(
+                            "相手のアプリの 友達 → ＋ →「QRコードを読み取る」で読んでもらうと追加できます。",
+                            fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
@@ -1119,11 +1122,12 @@ private fun cheerIcon(kind: CheerKind): androidx.compose.ui.graphics.vector.Imag
 
 @Composable
 private fun IconChip(icon: androidx.compose.ui.graphics.vector.ImageVector, palette: AppTheme, contentDescription: String?, onClick: () -> Unit) {
+    // iOS: 44pt 円・chipBackground(ピンク)塗り・primaryDeep アイコン。
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(palette.background)
+            .background(palette.chipBackground)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, contentDescription = contentDescription, tint = palette.primaryDeep, modifier = Modifier.size(20.dp)) }
