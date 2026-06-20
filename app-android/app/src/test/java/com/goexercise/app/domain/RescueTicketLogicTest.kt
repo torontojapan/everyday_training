@@ -15,6 +15,18 @@ class RescueTicketLogicTest {
     }
 
     @Test
+    fun forDateAppliesReferralBonusOnlyInCurrentMonth() {
+        val today = LocalDate.of(2026, 6, 2)
+        // 当月の Missed: base(1) + 紹介ボーナス(2) = 3。
+        assertEquals(3, RescueTicketAllowance.forDate(LocalDate.of(2026, 6, 1), today, isPremium = false, referralBonus = 2))
+        // 前月の Missed(月境界救済): 紹介ボーナスは食わせない = base のみ 1。
+        assertEquals(1, RescueTicketAllowance.forDate(LocalDate.of(2026, 5, 31), today, isPremium = false, referralBonus = 2))
+        // premium も同様(当月 4+1=5/cap、前月 4)。
+        assertEquals(5, RescueTicketAllowance.forDate(LocalDate.of(2026, 6, 30), today, isPremium = true, referralBonus = 2))
+        assertEquals(4, RescueTicketAllowance.forDate(LocalDate.of(2026, 5, 1), today, isPremium = true, referralBonus = 2))
+    }
+
+    @Test
     fun usedCountIsPerMonth() {
         val used = setOf(LocalDate.of(2026, 5, 3), LocalDate.of(2026, 5, 20), LocalDate.of(2026, 6, 1))
         assertEquals(2, RescueTicketLogic.usedCountInMonth(used, LocalDate.of(2026, 5, 15)))

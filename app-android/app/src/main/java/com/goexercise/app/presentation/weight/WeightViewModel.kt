@@ -113,7 +113,7 @@ class WeightViewModel @Inject constructor(
     // iOS WeightTabRootView: ロック & cooldown 外なら paywall シートを自動提示。閉じてから 6h は再提示しない。
     val showPaywallSheet: StateFlow<Boolean> =
         combine(premium.isPremiumActive, settings.weightPaywallDismissedAtMs) { isPremium, dismissedAt ->
-            !isPremium && (clock.millis() - dismissedAt >= PAYWALL_COOLDOWN_MS)
+            com.goexercise.app.domain.WeightPaywallGate.shouldAutoPresent(isPremium, clock.millis(), dismissedAt)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** paywall を×/スワイプで閉じた → cooldown 開始(iOS は購入時を除き dismiss で記録)。 */
@@ -141,9 +141,4 @@ class WeightViewModel @Inject constructor(
     fun setHeightCm(cm: Double?) = viewModelScope.launch { health.setHeightCm(cm) }
     fun setIsLossGoal(isLoss: Boolean) = viewModelScope.launch { health.setIsLossGoal(isLoss) }
     fun togglePeriodDay(date: LocalDate) = viewModelScope.launch { menstrual.toggle(date) }
-
-    private companion object {
-        // iOS WeightTabRootView.paywallCooldownSeconds = 6h。
-        const val PAYWALL_COOLDOWN_MS = 6L * 60 * 60 * 1000
-    }
 }

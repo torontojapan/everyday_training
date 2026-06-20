@@ -81,10 +81,15 @@ object HomeStateReducer {
         val todaySummary = ExerciseTrendSummary.today(records, today)
         val weeklySummary = ExerciseTrendSummary.week(records, today)
 
-        // 当月集計(友達BEの月次ランキング用。iOS パリティ)。達成日数は Rest 除外(iOS 月サマリーと一致)。
-        val monthlyAchievedDays = MonthlyCalendarCalculator.achievedDaysInMonth(
-            MonthlyCalendarCalculator.cells(java.time.YearMonth.from(today), records, today, rescuedDates),
-        )
+        // 当月集計(友達BEの月次ランキング用)。iOS `FriendSharingPreferences` は
+        // 「当月に記録のある日数(distinct)」= isAchieved フィルタも救済日も使わない。これに厳密一致させる
+        // (旧 Android は MonthlyCalendarCalculator の達成判定+救済込みで OS 間の月次順位が食い違っていた)。
+        val thisMonth = java.time.YearMonth.from(today)
+        val monthlyAchievedDays = records
+            .filter { java.time.YearMonth.from(it.date) == thisMonth }
+            .map { it.date }
+            .distinct()
+            .count()
         val monthlyTotalMinutes = ExerciseTrendSummary.monthTotalMinutes(records, today)
 
         return HomeUiState(

@@ -15,6 +15,15 @@ object RescueTicketAllowance {
         val base = if (isPremium) 4 else 1
         return minOf(MONTHLY_CAP, base + maxOf(0, referralBonus))
     }
+
+    /**
+     * 指定日の枠。紹介フリーズボーナスは **当月のみ** 加算する(iOS `HomeViewModel.allowance(for:)`)。
+     * 月境界で前月の Missed を救済する際に当月の紹介ボーナスを食わせない/前月へ流用しないための関数。
+     */
+    fun forDate(date: LocalDate, today: LocalDate, isPremium: Boolean, referralBonus: Int): Int {
+        val bonus = if (java.time.YearMonth.from(date) == java.time.YearMonth.from(today)) referralBonus else 0
+        return current(isPremium, bonus)
+    }
 }
 
 /**

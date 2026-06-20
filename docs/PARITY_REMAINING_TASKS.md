@@ -127,5 +127,24 @@
 **根本原因の仕組み化**: density393(幅一致)+ golden 横並び を全画面で徹底(旧 411dp/コード照合が見逃しの主因)。
 
 ---
-## 5. ★ パリティ完了後: Android 単独 包括 QA(ユーザー指示・前提=本書 全☑)
-全パリティ ☑ 後に Android 単体の包括 QA(機能/ロジック/視覚/回帰/堅牢性)。手順=memory [[android_comprehensive_qa_checkpoint]]。
+## 5. ★ Android 単独 包括 QA(2026-06-20 実施中)
+手順=memory [[android_comprehensive_qa_checkpoint]]。3 並列 Claude 監査(ロジック/同期/通知・ウィジェット)+ 実機堅牢性 + Codex 交差検証。
+
+### ✅ 堅牢性(実機 emulator-5554)
+- プロセス死→復帰(am kill→再起動): History タブ復元・クラッシュ無し。
+- 回転(縦↔横): クラッシュ無し・レイアウト適応(縦優先アプリ・横はスクロール)。全タブ sweep 無事。
+- ネット断(wifi/data off)→友達: クラッシュ無し・welcome(再試行 CTA)へ degrade。
+
+### ★是正した実バグ(3件 + テスト追加。unit 343 green)
+1. **紹介確認ポップ取りこぼし**(`SupabaseFriendsService.unseenReferrerConfirmations`): UPDATE が取得行に限定されず、SELECT〜UPDATE 間に届いた confirmed を seen 化して祝祭を永久ロス。`isIn("referee_user_id", refereeIds)` を追加(iOS パリティ)。
+2. **復活が紹介フリーズボーナスを無視**(`HomeViewModel.reviveState`/`applyRevive`): `RescueTicketAllowance.current(isPremium)` の bonus 無し版で「枠不足」誤判定。`referralStore.currentAccountFreezeBonus` を配線。
+   **2b(Codex 交差検証で追加発見)**: ボーナスを全 Missed 日に一律加算していたが iOS は当月のみ(`allowance(for:)`)。月境界で前月 Missed の救済に当月ボーナスを食わせない `RescueTicketAllowance.forDate(date,today,…)` を新設し canReviveAll/applyRevive を per-date 化(境界テスト追加・Codex correct 収束)。
+3. **月次達成日数の OS 間乖離**(`HomeStateReducer.monthlyAchievedDays`): Android=カレンダー達成判定+救済込み / iOS=当月に記録のある distinct 日数。友達月次ランキングが不公平。iOS `FriendSharingPreferences` に厳密一致(distinct 記録日)へ。
+4. **paywall cooldown を純関数化+テスト**(`WeightPaywallGate` 新設・境界4ケース): 新規ロジックの test gap を解消。
+
+**2LLM 収束**: Claude 3並列監査 → 実バグ確定 → 是正 → **Codex 交差検証で月境界の追加バグ(2b)を発見→是正→Codex「No findings」で correct 収束**。unit 344 green。
+
+### 既知の非ブロッキング所見
+- `ReminderScheduler.nextTrigger` が `Calendar.getInstance()`(system clock)で Clock 未注入=テスト不能(実害なし・将来 extract 推奨)。
+- ステータス色: iOS は opacity 0.3-0.65 の淡色 / Android は solid(同 hue・従来から受容)。
+- 視覚/UX 全状態: §1-§3 で density393 実スクショを全画面で取得済(本 QA でも追加状態を確認)。

@@ -249,9 +249,12 @@ class HomeViewModel @Inject constructor(
         repository.observeRecords(),
         rescueTickets.rescuedDates,
         premium.isPremiumActive,
-    ) { records, rescued, isPremium ->
+        // 紹介フリーズボーナスを含めた枠で判定する(RescueViewModel/HistoryViewModel と対称。
+        // これが無いと bonus 保有者の復活が「枠不足」と誤判定される)。iOS rescueAllowance パリティ。
+        referralStore.currentAccountFreezeBonus,
+    ) { records, rescued, isPremium, freezeBonus ->
         val today = LocalDate.now(clock)
-        val allowance = RescueTicketAllowance.current(isPremium)
+        val allowance = RescueTicketAllowance.current(isPremium, freezeBonus)
         val remaining = RescueTicketLogic.remaining(rescued, today, allowance)
         val w = StreakFreezeWindow.evaluate(records, today, rescued, remaining)
         if (!w.revivable) return@combine null
@@ -260,7 +263,8 @@ class HomeViewModel @Inject constructor(
         // シミュレートして判定する(useTicket は Missed 日の月の枠を強制するため、today 月の remaining
         // 比較では月境界で誤判定する)。remaining は表示用に today 月の値を保持する。
         val missedDates = StreakFreezeWindow.missedDatesForOffsets(w.missedOffsets, today)
-        val hasEnough = canReviveAll(missedDates, rescued, allowance)
+        // 各 Missed 日の所属月の枠で判定(紹介ボーナスは当月のみ)。iOS canRevive(allowance(for:))。
+        val hasEnough = canReviveAll(missedDates, rescued, isPremium, freezeBonus, today)
         ReviveState(result = w.copy(hasEnough = hasEnough), potentialStreak = potential, remaining = remaining)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -270,10 +274,11 @@ class HomeViewModel @Inject constructor(
      * 月境界(例: 月初に去年の月末を救済)でも today 月の remaining では拾えない不足を正しく検知する。
      * iOS `RescueTicketStore` の月次集計ミラー。
      */
-    private fun canReviveAll(missed: List<LocalDate>, rescued: Set<LocalDate>, allowance: Int): Boolean {
+    private fun canReviveAll(missed: List<LocalDate>, rescued: Set<LocalDate>, isPremium: Boolean, freezeBonus: Int, today: LocalDate): Boolean {
         val sim = rescued.toMutableSet()
         for (d in missed) {
-            if (!RescueTicketLogic.hasAvailable(sim, d, allowance)) return false
+            // 各日の所属月の枠(紹介ボーナスは当月のみ)= iOS allowance(for:)。
+            if (!RescueTicketLogic.hasAvailable(sim, d, RescueTicketAllowance.forDate(d, today, isPremium, freezeBonus))) return false
             sim.add(d)
         }
         return true
@@ -294,14 +299,16 @@ class HomeViewModel @Inject constructor(
             // 防御: 枠不足なら消費しない(UI 側でも分岐しているが iOS `applyRevive` の guard と対称に)。
             if (!state.result.hasEnough) return@launch
             val today = LocalDate.now(clock)
-            val allowance = RescueTicketAllowance.current(premium.isPremiumActive.value)
+            val isPremium = premium.isPremiumActive.value
+            val freezeBonus = referralStore.currentAccountFreezeBonus.value
             val missedDates = StreakFreezeWindow.missedDatesForOffsets(state.result.missedOffsets, today)
             // ⚠️ 先に markHandled してはいけない: useTicket が一部でも失敗すると streak 未復元のまま
             //    ポップが恒久的に消える。全 Missed 日のチケット使用を**先に**試み、全成功した時だけ handled に積む
             //    (iOS `applyRevive` の `guard applied == missed.count` ミラー)。
+            //    枠は各 Missed 日の所属月で算出(紹介ボーナスは当月のみ)= iOS allowance(for: day)。
             var applied = 0
             for (date in missedDates) {
-                if (rescueTickets.useTicket(date, allowance)) applied += 1
+                if (rescueTickets.useTicket(date, RescueTicketAllowance.forDate(date, today, isPremium, freezeBonus))) applied += 1
             }
             if (applied == missedDates.size) {
                 ReviveDismissStore.breakKey(missedDates)?.let { reviveDismissStore.markHandled(it) }

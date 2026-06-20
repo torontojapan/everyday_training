@@ -309,8 +309,10 @@ class SupabaseFriendsService(
         val refereeIds = rows.map { it.refereeUserId }
         val byId = client.from("profiles").select { filter { isIn("user_id", refereeIds) } }
             .decodeList<ProfileRow>().associateBy { it.userId }
+        // 取得した分だけを seen=true にする(referee_user_id で限定)。SELECT〜UPDATE の間に別の
+        // confirmed が届いても「返していない行」を seen にして祝祭を取りこぼさない(iOS パリティ・select/update レース)。
         client.from("referrals").update(ReferralSeenUpdate(seenByReferrer = true)) {
-            filter { eq("referrer_user_id", uid); eq("status", "confirmed"); eq("seen_by_referrer", false) }
+            filter { eq("referrer_user_id", uid); eq("status", "confirmed"); eq("seen_by_referrer", false); isIn("referee_user_id", refereeIds) }
         }
         return rows.map { r ->
             ReferralConfirmation(id = r.refereeUserId, friendDisplayName = byId[r.refereeUserId]?.displayName ?: "ともだち", role = ReferralConfirmation.Role.REFERRER)
