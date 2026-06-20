@@ -297,12 +297,14 @@ private fun WeeklyMini(state: HomeUiState, onDayClick: (DailyStatusEntry) -> Uni
     val palette = LocalAppPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("今週", style = AppType.headline.copy(fontWeight = FontWeight.Black), color = palette.textPrimary)
+            // iOS: 今週=.subheadline(15) heavy(W800) / 達成数=.subheadline(15) semibold。
+            // 旧 Android は headline(17) Black で iOS より大きく太かった(2026-06-21 density393 実測是正)。
+            Text("今週", style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
             Text(
                 "${state.weeklyProgress.achievedCount} / ${state.weeklyProgress.totalDays} 日達成",
                 // iOS: monospacedDigit。等幅数字で達成数の桁ぶれを防ぐ。
-                style = AppType.headline.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
                 color = palette.textSecondary,
             )
         }
@@ -369,21 +371,24 @@ private fun WeeklyCalendar(week: List<DailyStatusEntry>, onDayClick: (DailyStatu
 @Composable
 private fun WeekdayStatusMarker(status: DailyStatus, color: Color) {
     when (status) {
+        // iOS は ◎/○/・ を .headline(17) bold の SF Rounded テキストグリフで描く。density393 で
+        // iOS golden を実測(外Ø12.5pt/内Ø7.5pt/線~1pt @38pt セル)した比率に Canvas を合わせる
+        // (旧値 0.285/0.150/0.042 は iOS より約1.7倍大きく約2.5倍太かった。2026-06-21 実測是正)。
         DailyStatus.Achieved, DailyStatus.TodayAchieved ->
             Canvas(modifier = Modifier.size(38.dp)) {
                 val s = size.minDimension
-                val stroke = Stroke(width = s * 0.042f)
-                drawCircle(color, radius = s * 0.285f, style = stroke)  // 外リング
-                drawCircle(color, radius = s * 0.150f, style = stroke)  // 内リング(◎)
+                val stroke = Stroke(width = s * 0.025f)
+                drawCircle(color, radius = s * 0.165f, style = stroke)  // 外リング
+                drawCircle(color, radius = s * 0.098f, style = stroke)  // 内リング(◎)
             }
         DailyStatus.Rescued ->
             Canvas(modifier = Modifier.size(38.dp)) {
                 val s = size.minDimension
-                drawCircle(color, radius = s * 0.260f, style = Stroke(width = s * 0.042f))  // ○
+                drawCircle(color, radius = s * 0.150f, style = Stroke(width = s * 0.025f))  // ○
             }
         DailyStatus.TodayPending ->
             Canvas(modifier = Modifier.size(38.dp)) {
-                drawCircle(color, radius = size.minDimension * 0.090f)  // ・(塗り)
+                drawCircle(color, radius = size.minDimension * 0.060f)  // ・(塗り)
             }
         else ->
             Text(

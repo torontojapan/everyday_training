@@ -1080,9 +1080,13 @@ private fun ReferralSection(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(18.dp))
-                Text("紹介した友達: ${starBadges} 人", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+            // iOS: Label("紹介した友達", star.fill) は plain 行 → アイコンは行の既定色(textPrimary)。
+            // 件数は右寄せ textSecondary。旧 Android は amber(0xFFFFC107)で絵文字風に浮いていた。
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Star, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(18.dp))
+                Text("紹介した友達", color = palette.textPrimary)
+                Spacer(Modifier.weight(1f))
+                Text("${starBadges} 人", color = palette.textSecondary)
             }
 
             if (canEnterCodeLater) {
