@@ -24,8 +24,13 @@
 >    証跡 `proofs/back_button_ios_vs_android_FIXED.png`(設定サブpage 実撮影で色一致確認)。残3箇所は同一共有パターン(source 一致)。
 >    **残(微差・受容)**: drill 行の chevron は既に `>`(KeyboardArrowRight)。iOS は約1px細い `>`(chevron.right)・やや淡灰だが知覚閾値以下のため現状維持。
 >    インライン展開(休養ルール/特典)の `⌄`(ExpandMore)は iOS も下向きで正しい。
-> 4. **ウィジェット**: iOS 実画像の横並びが拡張ターゲット制約で未取得(値一致+Android 実レンダで担保中)。代替検証法の検討。
-> 5. **全画面 最終回帰 sweep**: §1–§3 を density393 で 1 項目ずつ再走し取りこぼしゼロを確認(旧 ✅ から実バグ多数の前例あり)。
+> 4. ⚠️ **ウィジェット — 設計上ブロック(2026-06-20 評価)**。`SmallWidgetView` は widget 拡張ターゲット内・`WidgetSnapshot` 受領で、
+>    どの test ターゲットからも `ImageRenderer` で到達不可(@testable import 不可)。実画像取得には Xcode のターゲット membership 変更が必要だが、
+>    それは iOS build/Archive を壊すリスク(CLAUDE.md §3)があり自走では不可。**現状の担保**=iOS `SmallWidgetView` への値/レイアウト source 一致 + Android 実レンダ3状態(`proofs/widget_android_*`)で維持。
+>    代替案(将来・要承認): 専用 snapshot scheme か、widget view を main へ切出して `ImageRenderer`。
+> 5. 🔶 **全画面 最終回帰 sweep — コア完了(2026-06-20)/ 長尾は継続**。density393 実描画でコア無ネット画面を再走し**新規バグゼロ**を確認:
+>    ホーム(365)/履歴/記録入力/**記録完了**/設定(メイン+サブページ)/友達(コード+welcome)/paywall。差はデータ/通貨ロケール/文脈(paywall は Weight 文脈で iOS と同一 headline)のみ。
+>    証跡 `proofs/sweep_*`。残(長尾): カスタマイズ/猫ピッカー・体重 premium チャート(トライアル後)・データ揃えた ranking/friend detail の density393 再撮(いずれも §1 で proof 済)。
 >
 > ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
 > このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。
