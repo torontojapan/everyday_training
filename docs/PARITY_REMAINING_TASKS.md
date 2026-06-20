@@ -45,6 +45,11 @@
 >    原因=ProfileRow を read/write 兼用 + `encodeDefaults=true`。iOS の ProfileWrite は updated_at を送らない。
 >    **修正**(commit/branch `fix/android-friends-profile-updated-at`): `ProfileRow.updatedAt` に `@EncodeDefault(NEVER)` → null 時エンコード除外で DB default に委ねる。
 >    検証: 友達タブ→匿名サインイン→実 friend code(PT3JEG)取得・コード画面表示をライブ確認(`proofs/friends_live_real_supabase_FIXED.png`)。
+>    **2アカウントライブ照合(2026-06-21)**: A=エミュ実サインイン / B=curl で実 Supabase に作成(けんじ・茶トラ・連続12)。
+>    B→A 友達申請→**A で承認(実フロー)**→友達成立→ 友達リスト / ランキング今週・今月(けんじ#1・あなた#2、iOS golden 構造一致)/
+>    友達詳細(hero/今日の運動/週ストリップ=B の weekly_statuses 一致/統計)/ 応援送信(A→B "がんばれ" を Supabase で persist 確認)を全てライブ確認。
+>    証跡 `proofs/friends_live_2account_montage.png` / `proofs/ranking_weekly_live_ios_vs_android.png` / `proofs/ranking_monthly_live_android.png`。
+>    残(任意): 受信応援トーストは transient で撮り逃し(送受信とも DB round-trip は確認済)。テストデータ(けんじ/cheers/friendship)は本番 Supabase に残置=要クリーンアップ。
 >
 > ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
 > このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。
