@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -615,13 +616,16 @@ internal fun DayDetailSheet(
                 com.goexercise.app.ui.components.SheetCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
             }
             if (records.isEmpty()) {
-                // iOS: アイコン円(92dp tint)+ メッセージの空状態。
+                // iOS DayDetailSheet は .medium detent の中央にアイコン円+メッセージを置く
+                // (= 縦中央寄せ・下に余白)。Android も同等の高さの領域に中央寄せして揃える。
                 val (icon, tint) = dayStatusIcon(status, palette)
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(92.dp).clip(CircleShape).background(tint.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(44.dp))
+                Box(Modifier.fillMaxWidth().heightIn(min = 340.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Box(Modifier.size(92.dp).clip(CircleShape).background(tint.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(44.dp))
+                        }
+                        Text(messageForStatus(status), color = palette.textSecondary, style = AppType.body, textAlign = TextAlign.Center)
                     }
-                    Text(messageForStatus(status), color = palette.textSecondary, style = AppType.body, textAlign = TextAlign.Center)
                 }
             } else {
                 // iOS: 記録ごとに HistoryRowView カード(カテゴリ色見出し + 種目行 + 合計 + メモ)。
@@ -637,12 +641,14 @@ internal fun DayDetailSheet(
 }
 
 /** 空状態のアイコン+色(iOS DayDetailSheet: moon.zzz/calendar/pawprint/checkmark.seal/snowflake)。 */
+// iOS iconColor: rest/future=textSecondary、missed/todayPending/achieved/rescued=primary。
+// (旧 Android はカレンダー凡例色=rest/rescue を緑・missed を灰にしていたが iOS と不一致だった)
 private fun dayStatusIcon(status: DailyStatus, palette: AppTheme): Pair<androidx.compose.ui.graphics.vector.ImageVector, Color> = when (status) {
-    DailyStatus.Rest -> Icons.Filled.Bedtime to Color(0.36f, 0.65f, 0.40f)
+    DailyStatus.Rest -> Icons.Filled.Bedtime to palette.textSecondary
     DailyStatus.Future -> Icons.Filled.Event to palette.textSecondary
-    DailyStatus.Rescued -> Icons.Filled.AcUnit to Color(0.36f, 0.65f, 0.40f)
+    DailyStatus.Rescued -> Icons.Filled.AcUnit to palette.primary
     DailyStatus.Achieved, DailyStatus.TodayAchieved -> Icons.Filled.Verified to palette.primary
-    DailyStatus.Missed, DailyStatus.TodayPending -> Icons.Filled.Pets to palette.textSecondary
+    DailyStatus.Missed, DailyStatus.TodayPending -> Icons.Filled.Pets to palette.primary
 }
 
 private fun messageForStatus(status: DailyStatus): String = when (status) {

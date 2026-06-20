@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -76,6 +77,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -872,11 +875,10 @@ private fun SignedInBody(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("友達", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-            Spacer(Modifier.weight(1f))
-            // iOS: トップバーのアイコン(person.crop.circle.badge.plus)。テキストボタンでなくアイコンに。
-            androidx.compose.material3.IconButton(onClick = onAddClick, enabled = !locked) {
+        // iOS navigationTitle("友達") inline = 中央タイトル + 右上の追加アイコン(toolbar)。
+        Box(Modifier.fillMaxWidth()) {
+            Text("友達", style = com.goexercise.app.ui.theme.AppType.screenTitle, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            androidx.compose.material3.IconButton(onClick = onAddClick, enabled = !locked, modifier = Modifier.align(Alignment.CenterEnd)) {
                 Icon(Icons.Filled.PersonAddAlt1, contentDescription = "友達を追加", tint = if (locked) palette.textSecondary else palette.primaryDeep)
             }
         }
@@ -905,7 +907,7 @@ private fun SignedInBody(
             RequestsSection(state.requests, palette, onAccept, onDecline)
         }
 
-        FriendsSection(state, palette, onSetSort, onOpenRanking, onCheer, onRemove, onOpenCheerPicker)
+        FriendsSection(state, palette, onSetSort, onOpenRanking, onCheer, onRemove, onOpenCheerPicker, myBreed)
 
         // iOS build 12: サインアウトは廃止、アカウント削除は設定「アカウントとバックアップ」へ集約。
         // よって友達画面にはどちらも置かない(認証は復元のための「鍵」に過ぎないため)。
@@ -1170,6 +1172,7 @@ private fun FriendsSection(
     onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
+    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1186,7 +1189,7 @@ private fun FriendsSection(
                 Modifier.fillMaxWidth().padding(vertical = 28.dp),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator(color = palette.primary) }
-            state.friends.isEmpty() -> FriendsEmptyState(palette)
+            state.friends.isEmpty() -> FriendsEmptyState(palette, myBreed)
             // 公園(猫グリッド)表示に一本化(iOS FriendsParkView パリティ)。
             // アバタータップ → 応援ピッカー / 長押し → 解除メニュー。
             else -> FriendsParkGrid(
@@ -1367,35 +1370,40 @@ private fun Avatar(palette: AppTheme, size: androidx.compose.ui.unit.Dp) {
 }
 
 @Composable
-private fun FriendsEmptyState(palette: AppTheme) {
-    Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.padding(vertical = 28.dp, horizontal = 16.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // iOS friendsEmptyState: cat 124 + opacity 0.95 / 見出し Typography.headline(17)。
-            com.goexercise.app.ui.components.CatImage(breed = com.goexercise.app.domain.CatBreed.Default, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
-            Text("まだ友達がいません", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
-            Text(
-                "右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。",
-                fontSize = 12.sp,
-                color = palette.textSecondary,
-                textAlign = TextAlign.Center,
-            )
-        }
+private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default) {
+    // iOS friendsEmptyState はカード無しの素の VStack(中央寄せ)。猫はユーザーの選択種を使う。
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // iOS friendsEmptyState: cat 124 + opacity 0.95 / 見出し Typography.headline(17)。
+        com.goexercise.app.ui.components.CatImage(breed = myBreed, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
+        Text("まだ友達がいません", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
+        Text(
+            "右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。",
+            fontSize = 12.sp,
+            color = palette.textSecondary,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
 @Composable
 private fun ErrorBanner(message: String, palette: AppTheme, onClear: () -> Unit, onReload: (() -> Unit)? = null) {
     Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // iOS: 赤を避け primaryDeep。アクションは 更新(reload) + 閉じる。
+        // iOS errorBanner: アイコン + 縦積み(メッセージ上・更新/閉じるを下の行に)。赤を避け primaryDeep。
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Filled.Warning, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
-            Text(message, fontSize = 13.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
-            onReload?.let { TextButton(onClick = it) { Text("更新", color = palette.primaryDeep, fontSize = 13.sp) } }
-            TextButton(onClick = onClear) { Text("閉じる", color = palette.primaryDeep, fontSize = 13.sp) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(message, fontSize = 13.sp, color = palette.textPrimary)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    onReload?.let {
+                        Text("更新", color = palette.primaryDeep, fontSize = 13.sp, modifier = Modifier.clickable(onClick = it))
+                    }
+                    Text("閉じる", color = palette.primaryDeep, fontSize = 13.sp, modifier = Modifier.clickable(onClick = onClear))
+                }
+            }
         }
     }
 }
@@ -1436,83 +1444,126 @@ private fun AddFriendSheet(
             Text("友達を追加", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
             com.goexercise.app.ui.components.SheetCloseButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
         }
-        // iOS Form セクション見出し「友達コードで追加」。
+        // iOS は Form の inset-grouped セクション。白カードに「入力欄/申請を送る/QR」を行で並べ、
+        // hairline divider で区切る(Material の白枠 OutlinedTextField や塗りボタンは使わない=CLAUDE.md)。
+        val valid = FriendCodeValidator.isValid(code)
         Text("友達コードで追加", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textSecondary)
-        OutlinedTextField(
-            value = code,
-            onValueChange = { code = FriendCodeValidator.sanitize(it) },
-            label = { Text("6文字の英数字 (例: ABC123)") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // iOS 順: 申請を送る → QRコードを読み取る。
-        Button(
-            onClick = { onSend(code) },
-            enabled = FriendCodeValidator.isValid(code),
-            colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("申請を送る", color = Color.White)
+        Surface(color = palette.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+            Column {
+                // 入力欄(カード上の素のテキスト行。iOS Form TextField)。
+                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), contentAlignment = Alignment.CenterStart) {
+                    if (code.isEmpty()) Text("6文字の英数字 (例: ABC123)", color = palette.textSecondary, fontSize = 15.sp)
+                    BasicTextField(
+                        value = code,
+                        onValueChange = { code = FriendCodeValidator.sanitize(it) },
+                        singleLine = true,
+                        textStyle = TextStyle(color = palette.textPrimary, fontSize = 15.sp),
+                        cursorBrush = SolidColor(palette.primary),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                FormRowDivider(palette)
+                // 申請を送る(iOS Label paperplane.fill。コード無効時は dim=disabled)。
+                FormActionRow(Icons.AutoMirrored.Filled.Send, "申請を送る", enabled = valid, palette) { if (valid) onSend(code) }
+                FormRowDivider(palette)
+                // QRコードを読み取る(常に活性)。
+                FormActionRow(Icons.Filled.QrCode, "QRコードを読み取る", enabled = true, palette) {
+                    scanLauncher.launch(
+                        com.journeyapps.barcodescanner.ScanOptions().apply {
+                            setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                            setPrompt("友達のQRコードを枠に合わせてください")
+                            setBeepEnabled(false)
+                            setOrientationLocked(false)
+                        },
+                    )
+                }
+            }
         }
-        OutlinedButton(
-            onClick = {
-                scanLauncher.launch(
-                    com.journeyapps.barcodescanner.ScanOptions().apply {
-                        setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
-                        setPrompt("友達のQRコードを枠に合わせてください")
-                        setBeepEnabled(false)
-                        setOrientationLocked(false)
-                    },
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("QRコードを読み取る") }
-        if (code.isNotEmpty() && !FriendCodeValidator.isValid(code)) {
+        if (code.isNotEmpty() && !valid) {
             Text("友達コードは 6 桁の英数字です (O / 0 / I / 1 は使われません)", fontSize = 12.sp, color = palette.textSecondary)
         }
 
         // ユーザー名で検索(部分一致・2文字以上)。iOS FriendAddView の検索セクション パリティ。
         Spacer(Modifier.height(8.dp))
-        Text("ユーザー名で検索", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
         var query by remember { mutableStateOf("") }
         var hasSearched by remember { mutableStateOf(false) }
-        // iOS: ライブ検索でなく明示的「検索」ボタン(2文字以上で活性)。押すまで無結果は出さない。
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("ユーザー名(一部でも可)") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(
-                onClick = { onSearch(query.trim()); hasSearched = true },
-                enabled = query.trim().length >= 2,
-            ) { Text("検索") }
-        }
-        if (isSearching) {
-            CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(20.dp))
-        }
-        searchResults.forEach { p ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(p.displayName, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-                    Text("@${p.username} · ${p.currentStreak}日連続", fontSize = 12.sp, color = palette.textSecondary)
+        Text("ユーザー名で検索", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textSecondary)
+        Surface(color = palette.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+            Column {
+                // 入力欄 + 検索(同一行。iOS Form HStack)。
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (query.isEmpty()) Text("ユーザー名 (一部でも可)", color = palette.textSecondary, fontSize = 15.sp)
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it; if (it.trim().isEmpty()) hasSearched = false },
+                            singleLine = true,
+                            textStyle = TextStyle(color = palette.textPrimary, fontSize = 15.sp),
+                            cursorBrush = SolidColor(palette.primary),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    val canSearch = query.trim().length >= 2
+                    Text(
+                        "検索", fontSize = 15.sp,
+                        color = if (canSearch) palette.primary else palette.textSecondary.copy(alpha = 0.4f),
+                        modifier = Modifier
+                            .clickable(enabled = canSearch) { onSearch(query.trim()); hasSearched = true }
+                            .padding(start = 12.dp),
+                    )
                 }
-                OutlinedButton(onClick = { onSend(p.friendCode) }) { Text("申請") }
+                if (isSearching) {
+                    FormRowDivider(palette)
+                    Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(20.dp))
+                    }
+                }
+                searchResults.forEach { p ->
+                    FormRowDivider(palette)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(p.displayName, fontSize = 15.sp, color = palette.textPrimary)
+                            Text("@${p.username} · ${p.currentStreak}日連続", fontSize = 12.sp, color = palette.textSecondary)
+                        }
+                        Text(
+                            "申請", fontSize = 12.sp, color = Color.White,
+                            modifier = Modifier
+                                .clip(CircleShape).background(palette.primary)
+                                .clickable { onSend(p.friendCode) }
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                        )
+                    }
+                }
+                if (hasSearched && query.trim().length >= 2 && !isSearching && searchResults.isEmpty()) {
+                    FormRowDivider(palette)
+                    Text("該当するユーザーは見つかりませんでした", fontSize = 12.sp, color = palette.textSecondary, modifier = Modifier.padding(16.dp))
+                }
             }
         }
-        if (hasSearched && query.trim().length >= 2 && !isSearching && searchResults.isEmpty()) {
-            Text("該当するユーザーは見つかりませんでした", fontSize = 12.sp, color = palette.textSecondary)
-        }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** iOS Form の行区切り hairline(左 16dp inset)。 */
+@Composable
+private fun FormRowDivider(palette: AppTheme) {
+    Box(Modifier.fillMaxWidth().padding(start = 16.dp).height(1.dp).background(palette.textSecondary.copy(alpha = 0.12f)))
+}
+
+/** iOS Form の Button(Label アイコン+文言・tint 色・左寄せ行)。disabled は淡色。 */
+@Composable
+private fun FormActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, palette: AppTheme, onClick: () -> Unit) {
+    val tint = if (enabled) palette.primary else palette.textSecondary.copy(alpha = 0.4f)
+    Row(
+        Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        Text(label, fontSize = 15.sp, color = tint)
     }
 }
 

@@ -17,8 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,6 +73,20 @@ fun OnboardingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Spacer(Modifier.height(8.dp))
+        // ステップ2 は猫選択へ戻れる(iOS backupStep の toolbar「もどる」パリティ)。
+        if (step == 1) {
+            androidx.compose.material3.TextButton(
+                onClick = { step = 0 },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "もどる", tint = palette.primaryDeep, modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text("もどる", color = palette.primaryDeep, fontWeight = FontWeight.SemiBold)
+            }
+        }
         // ステップバッジ(iOS onboardingHeader「ステップ N/2」パリティ。Android は常に2ステップ)。
         Text(
             "ステップ ${step + 1} / 2",
@@ -82,14 +99,16 @@ fun OnboardingScreen(
         // iOS onboardingHeader は「ステップ + 大見出し(Typography.title=largeTitle)+ 補足」。
         // iOS に無い「ようこそ 🐾」見出しは撤去し、タイトルを iOS と同じ大きさ(AppType.title)に。
         Text(
-            if (step == 0) "一緒にがんばる猫を選ぼう" else "記録をバックアップしよう",
+            // iOS backupStep title="機種変更でも記録を引き継ぐ"。
+            if (step == 0) "一緒にがんばる猫を選ぼう" else "機種変更でも記録を引き継ぐ",
             style = com.goexercise.app.ui.theme.AppType.title, color = palette.textPrimary,
         )
         Text(
             // 猫種は「初回は全解放・以降の変更はプレミアム(or 紹介⭐10)」。オンボで「いつでも変更」と
             // 誤誘導すると有料ゲートに不意打ちされるため、iOS UserCatPicker と同じく制限を明記する。
             if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
-            else "Apple か Google で連携すると、機種変更や再インストールでも記録が戻ります(あとで設定からでも可)。",
+            // iOS backupStep subtitle に一致(自動バックアップ/双方向/メール・パスワード不要)。
+            else "Apple または Google でサインインすると、運動・体重・体調の記録が自動でバックアップされ、機種変更(iPhone↔Android)や再インストールでも元に戻せます。メールやパスワードは不要です。",
             fontSize = 13.sp, color = palette.textSecondary,
         )
 
@@ -150,34 +169,48 @@ fun OnboardingScreen(
         }
       } else {
         // ステップ2: サインイン→バックアップ自動ON(任意・スキップ可)。実機でのみ動作(emulator不可)。
+        // iOS backupStep は step1 と同じ猫ヒーローを置いて2画面の連続性を出す。
         val context = androidx.compose.ui.platform.LocalContext.current
         val linking = viewModel?.isLinkingAccount?.collectAsStateWithLifecycle()?.value ?: false
         val linkErr = viewModel?.linkError?.collectAsStateWithLifecycle()?.value
-        Button(
-            onClick = { viewModel?.linkApple(context) { onFinish(selected) } },
-            enabled = !linking,
-            colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) {
-            AppleLogo(tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text("Apple で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold)
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
-        Button(
-            onClick = { viewModel?.linkGoogle(context) { onFinish(selected) } },
-            enabled = !linking,
-            colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+        Text(selected.displayName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        // ブランド準拠ボタン(iOS AppleIDButton 黒 / GoogleSignInButton 白枠)。設定 BackupSection と統一。
+        Surface(
+            color = Color.Black, shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().then(if (linking) Modifier else Modifier.clickable { viewModel?.linkApple(context) { onFinish(selected) } }),
         ) {
-            GoogleLogo()
-            Spacer(Modifier.width(8.dp))
-            Text("Google で連携してはじめる", color = Color.White, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                AppleLogo(tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Apple でサインイン", color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
         }
+        Surface(
+            color = palette.surface, shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().border(1.dp, palette.textSecondary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                .then(if (linking) Modifier else Modifier.clickable { viewModel?.linkGoogle(context) { onFinish(selected) } }),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                GoogleLogo()
+                Spacer(Modifier.width(8.dp))
+                Text("Google で続ける", color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        // iOS AccountBackupSignIn(showsSkip) のスキップ = 「あとで」。
         androidx.compose.material3.TextButton(
             onClick = { onFinish(selected) },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("あとで(スキップ)", color = palette.textSecondary) }
+        ) { Text("あとで", color = palette.textSecondary) }
         linkErr?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+        // iOS footer caption(中央)。
+        Text(
+            "あとから設定 →「アカウントとバックアップ」でも有効にできます。",
+            fontSize = 12.sp, color = palette.textSecondary,
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+        )
       }
         Spacer(Modifier.height(8.dp))
     }

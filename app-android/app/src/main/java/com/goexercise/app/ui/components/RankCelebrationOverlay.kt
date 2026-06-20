@@ -3,6 +3,7 @@ package com.goexercise.app.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +46,14 @@ fun RankCelebrationOverlay(
         animationSpec = tween(durationMillis = 320),
         label = "rankCelebrationFade",
     )
+    // iOS は上から spring で「降りてくる」(offset -80→8)。Android も同じドロップインで動きを揃える。
+    val dropY by animateFloatAsState(
+        targetValue = if (visible) 0f else -80f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = 0.7f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+        ),
+        label = "rankCelebrationDrop",
+    )
 
     LaunchedEffect(Unit) {
         visible = true
@@ -68,6 +77,7 @@ fun RankCelebrationOverlay(
             shape = RoundedCornerShape(50),
             shadowElevation = 6.dp,
             modifier = Modifier
+                .offset(y = dropY.dp)
                 .alpha(fade)
                 .padding(horizontal = 20.dp),
         ) {

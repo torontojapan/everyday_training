@@ -93,6 +93,14 @@ final class ScreenshotCaptureUITests: XCTestCase {
         sleep(2); shoot(settings, "11_settings")
     }
 
+    /// オンボーディング step2(バックアップ)golden。fresh onboarding → 猫確定(つぎへ)→ backupStep。
+    func testCaptureOnboardingStep2() {
+        let app = launch([])
+        let confirm = app.buttons["user-cat-confirm"]
+        if confirm.waitForExistence(timeout: 14) { confirm.tap(); sleep(2) }
+        shoot(app, "onboard_step2")
+    }
+
     /// サブ画面 golden(Android パリティ照合用): 友達詳細 / 友達追加 / 生理日入力 / 記録完了 / 日詳細シート。
     /// in-sim タップ(accessibility id / label)で到達するため表示座標問題なし。
     func testCaptureSubScreens() {

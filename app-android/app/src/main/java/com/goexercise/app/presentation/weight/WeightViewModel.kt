@@ -110,6 +110,18 @@ class WeightViewModel @Inject constructor(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeightUiState())
 
+    // iOS WeightTabRootView: ロック & cooldown 外なら paywall シートを自動提示。閉じてから 6h は再提示しない。
+    val showPaywallSheet: StateFlow<Boolean> =
+        combine(premium.isPremiumActive, settings.weightPaywallDismissedAtMs) { isPremium, dismissedAt ->
+            !isPremium && (clock.millis() - dismissedAt >= PAYWALL_COOLDOWN_MS)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** paywall を×/スワイプで閉じた → cooldown 開始(iOS は購入時を除き dismiss で記録)。 */
+    fun onPaywallDismissed() = viewModelScope.launch { settings.setWeightPaywallDismissedAt(clock.millis()) }
+
+    /** 購入成功 → cooldown を消す(以後ロックされないので無関係だが iOS と同じく明示クリア)。 */
+    fun onPaywallPurchased() = viewModelScope.launch { settings.clearWeightPaywallDismissed() }
+
     fun setPeriod(period: ChartPeriod) = toggles.update { it.copy(period = period) }
     fun toggleCycleOverlay() = toggles.update { it.copy(showCycle = !it.showCycle) }
 
@@ -129,4 +141,9 @@ class WeightViewModel @Inject constructor(
     fun setHeightCm(cm: Double?) = viewModelScope.launch { health.setHeightCm(cm) }
     fun setIsLossGoal(isLoss: Boolean) = viewModelScope.launch { health.setIsLossGoal(isLoss) }
     fun togglePeriodDay(date: LocalDate) = viewModelScope.launch { menstrual.toggle(date) }
+
+    private companion object {
+        // iOS WeightTabRootView.paywallCooldownSeconds = 6h。
+        const val PAYWALL_COOLDOWN_MS = 6L * 60 * 60 * 1000
+    }
 }

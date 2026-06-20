@@ -107,13 +107,13 @@ fun MenstrualEntryScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // iOS navigationTitle "生理日"(inline)= 中央タイトル + システム戻る。
+        // iOS navigationTitle "生理日"(inline)= 中央タイトル + 左の円形戻る(chevron・chipBackground 円。設定 SubPage と統一)。
         Box(Modifier.fillMaxWidth()) {
             Box(
-                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).clickable(onClick = onBack),
+                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
             }
             Text("生理日", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
         }

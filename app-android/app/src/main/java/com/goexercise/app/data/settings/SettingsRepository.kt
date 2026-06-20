@@ -69,6 +69,11 @@ interface SettingsRepository {
     /** 友達に種目の回数/時間/セット数も共有するか(opt-in・既定 OFF)。iOS `FriendSharingPreferences.includeExerciseDetail`。 */
     val shareExerciseDetail: Flow<Boolean>
     suspend fun setShareExerciseDetail(enabled: Boolean)
+
+    /** 体重タブ paywall を閉じた時刻(epoch ms)。6時間は自動再表示しない。iOS `weightTab.paywallDismissedAt.v1` 相当。未設定=0。 */
+    val weightPaywallDismissedAtMs: Flow<Long>
+    suspend fun setWeightPaywallDismissedAt(epochMs: Long)
+    suspend fun clearWeightPaywallDismissed()
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -109,6 +114,15 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setCatBreed(breed: CatBreed) {
         dataStore.edit { it[catBreedKey] = breed.rawValue }
+    }
+
+    private val weightPaywallDismissedKey = longPreferencesKey("weight_paywall_dismissed_ms")
+    override val weightPaywallDismissedAtMs: Flow<Long> = dataStore.data.map { it[weightPaywallDismissedKey] ?: 0L }
+    override suspend fun setWeightPaywallDismissedAt(epochMs: Long) {
+        dataStore.edit { it[weightPaywallDismissedKey] = epochMs }
+    }
+    override suspend fun clearWeightPaywallDismissed() {
+        dataStore.edit { it.remove(weightPaywallDismissedKey) }
     }
 
     private val shareGradientKey = stringPreferencesKey("share_gradient")

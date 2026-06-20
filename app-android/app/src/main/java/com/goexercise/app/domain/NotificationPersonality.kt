@@ -7,9 +7,10 @@ package com.goexercise.app.domain
  * - FriendDriven: 友達が動いた時だけ(v1 は日常 push を抑制=quiet 相当に degrade)。
  */
 enum class NotificationPersonality(val rawValue: String, val displayName: String, val hint: String) {
-    Quiet("quiet", "静かに待つ", "連続が途切れそうな時だけそっと通知します"),
-    Voice("voice", "ひとこと呼ぶ", "朝と夕にやさしく声をかけます(既定)"),
-    FriendDriven("friendDriven", "友達が動いた時だけ", "日常の通知は控えめにします");
+    // hint は iOS NotificationPersonality.hint に一致させる(2026-06-19 パリティ)。
+    Quiet("quiet", "静かに待つ", "通知は最小限。週末の最後の砦だけ。"),
+    Voice("voice", "ひとこと呼ぶ", "朝と夕方、猫からひとこと呼ぶ (デフォルト)"),
+    FriendDriven("friendDriven", "友達が動いた時だけ", "友達が達成したときだけ反応する");
 
     companion object {
         val Default = Voice

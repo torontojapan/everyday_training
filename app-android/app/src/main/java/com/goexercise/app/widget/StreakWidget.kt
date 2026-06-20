@@ -62,15 +62,17 @@ class StreakWidget : GlanceAppWidget() {
         val now = LocalDateTime.now(ep.clock())
         val state = HomeStateReducer.reduce(records, now, rescuedDates = rescued, firstUseDate = firstUse)
 
-        provideContent {
-            WidgetBody(
-                context = context,
-                breed = breed,
-                catState = state.catState,
-                streak = state.streak.currentStreak,
-                todayAchieved = state.todayStatus.countsAsAchieved,
-            )
-        }
+        val data = StreakWidgetRenderer.Data(
+            catResId = resolveCatRes(context, breed, state.catState),
+            catState = state.catState,
+            streak = state.streak.currentStreak,
+            todayAchieved = state.todayStatus.countsAsAchieved,
+            isRestDay = state.todayStatus == com.goexercise.app.domain.DailyStatus.Rest,
+            weeklyAchieved = state.weeklyProgress.achievedCount,
+            weeklyTotal = state.weeklyProgress.totalDays,
+            hoursLeft = (23 - now.hour).coerceAtLeast(0),
+        )
+        provideContent { WidgetBody(context, data) }
     }
 
     companion object {
@@ -81,31 +83,21 @@ class StreakWidget : GlanceAppWidget() {
 }
 
 @androidx.compose.runtime.Composable
-private fun WidgetBody(context: Context, breed: CatBreed, catState: CatState, streak: Int, todayAchieved: Boolean) {
-    val resId = resolveCatRes(context, breed, catState)
-    Column(
+private fun WidgetBody(context: Context, data: StreakWidgetRenderer.Data) {
+    // iOS SmallWidgetView の構図(猫 halo + 週リング + 見出し/サブ + 未達成 CTA・左寄せ)は Glance では描けない。
+    // 同一構図を Android Canvas で 1 枚の Bitmap に描いて Image として表示する(StreakWidgetRenderer)。
+    val size = androidx.glance.LocalSize.current
+    val density = context.resources.displayMetrics.density
+    val wPx = (size.width.value * density).toInt().coerceIn(120, 1600)
+    val hPx = (size.height.value * density).toInt().coerceIn(120, 1600)
+    val bmp = StreakWidgetRenderer.render(context, wPx, hPx, data)
+    Image(
+        provider = ImageProvider(bmp),
+        contentDescription = "${data.streak}日連続",
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(StreakWidget.bgProvider)
-            .cornerRadius(16.dp)
-            .padding(8.dp)
-            // タップでアプリ(ホーム)を開く。
             .clickable(actionStartActivity(android.content.Intent(context, com.goexercise.app.MainActivity::class.java))),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (resId != 0) {
-            Image(provider = ImageProvider(resId), contentDescription = breed.displayName, modifier = GlanceModifier.size(64.dp))
-        }
-        Text(
-            "🔥 ${streak}日連続",
-            style = TextStyle(color = ColorProvider(Color(0xFFD9663D)), fontWeight = FontWeight.Bold),
-        )
-        Text(
-            if (todayAchieved) "今日 達成" else "今日 まだ",
-            style = TextStyle(color = ColorProvider(if (todayAchieved) Color(0xFF4CAF7D) else Color(0xFF9E8E84))),
-        )
-    }
+    )
 }
 
 /** breed × state の drawable を getIdentifier で解決(欠損は orange→既定にフォールバック)。 */

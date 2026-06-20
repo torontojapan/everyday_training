@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
@@ -65,13 +66,13 @@ fun WeeklyRankingContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // iOS パリティ: 中央タイトル + システム戻る(「戻る」テキストボタンは置かない)。
+        // iOS パリティ: 中央タイトル + 左の円形戻る(chevron・chipBackground 円。設定 SubPage と統一)。
         Box(Modifier.fillMaxWidth()) {
             Box(
-                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).clickable(onClick = onBack),
+                modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
             }
             Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
         }

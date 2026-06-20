@@ -15,6 +15,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -36,7 +37,9 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +73,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -88,10 +93,24 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 import java.time.LocalDate
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeightRoute(onOpenPremium: () -> Unit = {}, viewModel: WeightViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val autoPresent by viewModel.showPaywallSheet.collectAsStateWithLifecycle()
     val palette = LocalAppPalette.current
+    // iOS WeightTabRootView: 未加入 & cooldown 外なら paywall を「シート」で自動提示。
+    // 全画面 navigate はループ footgun なのでシート型(ModalBottomSheet)。閉じると 6h cooldown。
+    var showPaywall by rememberSaveable { mutableStateOf(false) }
+    var purchased by remember { mutableStateOf(false) }
+    LaunchedEffect(autoPresent) { if (autoPresent) showPaywall = true }
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    fun closePaywall() {
+        showPaywall = false
+        if (!purchased) viewModel.onPaywallDismissed()
+        purchased = false
+    }
+
     Box(Modifier.fillMaxSize().background(palette.background)) {
         WeightContent(
             state = state,
@@ -106,7 +125,22 @@ fun WeightRoute(onOpenPremium: () -> Unit = {}, viewModel: WeightViewModel = hil
             blurred = !state.isPremium,
         )
         if (!state.isPremium) {
-            LockedOverlay(palette, state.isTrialEligible, onOpenPremium)
+            // 「GOプレミアムを見る」はシートを開く(手動。閉じれば cooldown)。
+            LockedOverlay(palette, state.isTrialEligible, onOpenPremium = { showPaywall = true })
+        }
+    }
+
+    if (showPaywall && !state.isPremium) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { closePaywall() },
+            sheetState = sheetState,
+            containerColor = palette.background,
+        ) {
+            com.goexercise.app.presentation.premium.PremiumPaywallRoute(
+                context = com.goexercise.app.presentation.premium.PaywallContext.Weight,
+                onClose = { closePaywall() },
+                onPurchased = { purchased = true; viewModel.onPaywallPurchased() },
+            )
         }
     }
 }
@@ -132,7 +166,8 @@ private fun WeightContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("体重", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+        // iOS navigationTitle("体重管理") inline = 中央タイトル(履歴/設定タブと同じ screenTitle・中央)。
+        Text("体重管理", style = com.goexercise.app.ui.theme.AppType.screenTitle, color = palette.textPrimary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         HeroCard(state, palette, onSetTarget)
         BmiStrip(state, palette, onSetHeight)
         // iOS WeightView: HeroCard/BMI の下は CollapsibleSection(既定折りたたみ)で
@@ -344,17 +379,29 @@ private fun WeightAchievementRing(progress: Double?, breed: CatBreed, palette: A
 @Composable
 private fun BmiStrip(state: WeightUiState, palette: AppTheme, onSetHeight: (Double?) -> Unit) {
     var showHeightDialog by remember { mutableStateOf(false) }
-    Surface(color = palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth()) {
+    // iOS bmiInfoStrip: Capsule に surface.opacity(0.6)(ほぼ無地の薄い帯)。chipBackground のピンク
+    // 塗りは iOS と別物に見えるため surface@0.6 へ。先頭は 📏 絵文字ではなく ruler アイコン(絵文字全廃)。
+    Surface(color = palette.surface.copy(alpha = 0.6f), shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("📏 ", fontSize = 13.sp)
+            Icon(Icons.Filled.Straighten, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(8.dp))
             if (state.bmi != null) {
-                Text("BMI %.1f".format(state.bmi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep)
-                state.health.heightCm?.let { Text("  身長 ${it.toInt()}cm", fontSize = 12.sp, color = palette.textSecondary) }
+                Text("BMI", fontSize = 11.sp, color = palette.textSecondary)
+                Spacer(Modifier.width(4.dp))
+                Text("%.1f".format(state.bmi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                state.health.heightCm?.let {
+                    Spacer(Modifier.width(8.dp))
+                    Text("身長 ${it.toInt()}cm", fontSize = 11.sp, color = palette.textSecondary)
+                }
             } else {
-                Text("身長を設定すると BMI が表示されます", fontSize = 12.sp, color = palette.textSecondary)
+                Text("身長を設定すると BMI が表示されます", fontSize = 11.sp, color = palette.textSecondary)
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { showHeightDialog = true }) { Text("編集", color = palette.primaryDeep, fontSize = 12.sp) }
+            TextButton(onClick = { showHeightDialog = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                Icon(Icons.Filled.Edit, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(13.dp))
+                Spacer(Modifier.width(3.dp))
+                Text("身長", color = palette.primaryDeep, fontSize = 11.sp)
+            }
         }
     }
     if (showHeightDialog) {
@@ -436,16 +483,14 @@ private fun EntryBody(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
 @Composable
 private fun ChartBody(state: WeightUiState, palette: AppTheme, onSetPeriod: (ChartPeriod) -> Unit, onToggleCycle: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // 期間チップ(iOS は推移セクション内の期間ピッカー。題はコラプシブルのヘッダへ移動)。
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ChartPeriod.entries.forEach { p ->
-                val sel = p == state.period
-                Surface(color = if (sel) palette.primary else palette.chipBackground, shape = RoundedCornerShape(50), modifier = Modifier.clickable { onSetPeriod(p) }) {
-                    Text(p.shortLabel, fontSize = 11.sp, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                }
-            }
+        // 期間セレクタ。iOS は `.pickerStyle(.segmented)` の一体型セグメントコントロール
+        // (薄いグレーのトラック + 選択中は白いサム)。Android の分割ピル群だと別物に見えるため
+        // iOS と同じ「等幅・全幅・白サム」のセグメントへ寄せる(2026-06-19 パリティ)。
+        PeriodSegmentedControl(state.period, onSetPeriod, palette)
+        // iOS chartSection は Chart を surface カード(角丸18・内側padding16)に載せる。Android も同様に。
+        Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            WeightChart(state, palette, Modifier.fillMaxWidth().height(220.dp).padding(16.dp))
         }
-        WeightChart(state, palette, Modifier.fillMaxWidth().height(200.dp))
         if (state.periodDays.isNotEmpty()) {
             Text(
                 if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
@@ -453,6 +498,60 @@ private fun ChartBody(state: WeightUiState, palette: AppTheme, onSetPeriod: (Cha
             )
         }
     }
+}
+
+/**
+ * iOS `.pickerStyle(.segmented)` 相当の一体型セグメントコントロール。
+ * 薄いグレーのトラックに等幅セグメントを並べ、選択中は白いサム(微かな影)で表す。
+ */
+@Composable
+private fun PeriodSegmentedControl(period: ChartPeriod, onSetPeriod: (ChartPeriod) -> Unit, palette: AppTheme) {
+    val track = palette.textPrimary.copy(alpha = 0.07f)
+    Surface(color = track, shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(2.dp)) {
+            ChartPeriod.entries.forEach { p ->
+                val sel = p == period
+                val seg = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 1.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .clickable { onSetPeriod(p) }
+                if (sel) {
+                    Surface(
+                        color = palette.surface,
+                        shape = RoundedCornerShape(7.dp),
+                        shadowElevation = 1.dp,
+                        modifier = seg,
+                    ) {
+                        Box(Modifier.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                            Text(p.shortLabel, fontSize = 13.sp, color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else {
+                    Box(seg.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                        Text(p.shortLabel, fontSize = 13.sp, color = palette.textPrimary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** catmull-rom を cubic bezier に変換した滑らかなパス(iOS Chart の .catmullRom と同等)。 */
+private fun smoothPath(pts: List<Offset>): Path {
+    val path = Path()
+    if (pts.isEmpty()) return path
+    path.moveTo(pts[0].x, pts[0].y)
+    for (i in 0 until pts.size - 1) {
+        val p0 = pts[if (i - 1 < 0) 0 else i - 1]
+        val p1 = pts[i]
+        val p2 = pts[i + 1]
+        val p3 = pts[if (i + 2 > pts.size - 1) pts.size - 1 else i + 2]
+        val c1 = Offset(p1.x + (p2.x - p0.x) / 6f, p1.y + (p2.y - p0.y) / 6f)
+        val c2 = Offset(p2.x - (p3.x - p1.x) / 6f, p2.y - (p3.y - p1.y) / 6f)
+        path.cubicTo(c1.x, c1.y, c2.x, c2.y, p2.x, p2.y)
+    }
+    return path
 }
 
 @Composable
@@ -468,14 +567,20 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
     val ySpan = (yMax - yMin).coerceAtLeast(0.1)
     val primary = palette.primary
     val primaryDeep = palette.primaryDeep
+    val grid = palette.textSecondary.copy(alpha = 0.18f)
+    val axisLabel = palette.textSecondary
     // タップで最近傍の実測点を選択(再タップ解除)。iOS グラフのタップ選択パリティ。
     var selectedIndex by remember(daily) { mutableStateOf<Int?>(null) }
+    // iOS Charts は軸ラベル分の余白を自動確保する。Canvas でも右(kg)・下(日付)に確保。
+    val rightPad = 64f
+    val bottomPad = 36f
+    val topPad = 10f
 
     Canvas(
         modifier.pointerInput(daily, xMinDay, xSpan) {
             detectTapGestures { tap ->
-                val w = size.width.toFloat()
-                fun pxLocal(day: Float) = (day - xMinDay) / xSpan * w
+                val plotW = (size.width.toFloat() - rightPad)
+                fun pxLocal(day: Float) = (day - xMinDay) / xSpan * plotW
                 val nearest = daily.indices.minByOrNull { i ->
                     kotlin.math.abs(pxLocal(daily[i].date.toEpochDay().toFloat()) - tap.x)
                 }
@@ -485,35 +590,58 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
     ) {
         val w = size.width
         val h = size.height
-        fun px(day: Float) = (day - xMinDay) / xSpan * w
-        fun py(kg: Double) = (h - ((kg - yMin) / ySpan * h)).toFloat()
+        val plotW = w - rightPad
+        val plotTop = topPad
+        val plotBottom = h - bottomPad
+        val plotH = plotBottom - plotTop
+        fun px(day: Float) = (day - xMinDay) / xSpan * plotW
+        fun py(kg: Double) = (plotBottom - ((kg - yMin) / ySpan * plotH)).toFloat()
+
+        val labelPaint = android.graphics.Paint().apply {
+            color = axisLabel.toArgb(); textSize = 26f; isAntiAlias = true
+        }
 
         // 周期帯(背景)
         state.cycleSpans.forEach { span ->
-            val x0 = px(span.startDay.toEpochDay().toFloat()).coerceIn(0f, w)
-            val x1 = px(span.endDay.toEpochDay().toFloat()).coerceIn(0f, w)
+            val x0 = px(span.startDay.toEpochDay().toFloat()).coerceIn(0f, plotW)
+            val x1 = px(span.endDay.toEpochDay().toFloat()).coerceIn(0f, plotW)
             if (x1 > x0) {
-                drawRect(color = Color(span.phase.tintArgb).copy(alpha = 0.13f), topLeft = Offset(x0, 0f), size = androidx.compose.ui.geometry.Size(x1 - x0, h))
+                drawRect(color = Color(span.phase.tintArgb).copy(alpha = 0.13f), topLeft = Offset(x0, plotTop), size = androidx.compose.ui.geometry.Size(x1 - x0, plotH))
             }
         }
-        // 7日移動平均トレンド(破線)
+        // Y 軸: 水平グリッド線 + kg ラベル(右)。iOS AxisMarks 相当に 4 本。
+        val yTicks = 4
+        // ドメインが狭いと整数ラベルが重複する(64,64,65…)。span<4kg は 1 桁小数で区別する。
+        val yFmt = if ((yMax - yMin) < 4.0) "%.1f" else "%.0f"
+        for (t in 0..yTicks) {
+            val kg = yMin + (yMax - yMin) * t / yTicks
+            val y = py(kg)
+            drawLine(grid, start = Offset(0f, y), end = Offset(plotW, y), strokeWidth = 1f)
+            drawContext.canvas.nativeCanvas.drawText(
+                yFmt.format(kg), plotW + 8f, y + 9f, labelPaint,
+            )
+        }
+        // X 軸: 日付ラベル(下)。iOS は month/day を 4 本。
+        val xTicks = 3
+        val xLabelPaint = android.graphics.Paint(labelPaint).apply { textAlign = android.graphics.Paint.Align.CENTER }
+        for (t in 0..xTicks) {
+            val day = xMinDay + xSpan * t / xTicks
+            val x = px(day).coerceIn(0f, plotW)
+            val d = LocalDate.ofEpochDay(day.toLong())
+            drawContext.canvas.nativeCanvas.drawText(
+                "${d.monthValue}/${d.dayOfMonth}", x.coerceIn(28f, plotW - 28f), plotBottom + 28f, xLabelPaint,
+            )
+        }
+        // 7日移動平均トレンド(破線・滑らか)
         if (state.trend.size >= 2) {
-            val path = Path()
-            state.trend.forEachIndexed { i, p ->
-                val x = px(p.date.toEpochDay().toFloat()); val y = py(p.average)
-                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            drawPath(path, color = primaryDeep.copy(alpha = 0.45f), style = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f))))
+            val pts = state.trend.map { Offset(px(it.date.toEpochDay().toFloat()), py(it.average)) }
+            drawPath(smoothPath(pts), color = primaryDeep.copy(alpha = 0.45f), style = Stroke(width = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 7f))))
         }
-        // 日次の実測ライン + 点
-        val raw = Path()
-        daily.forEachIndexed { i, e ->
-            val x = px(e.date.toEpochDay().toFloat()); val y = py(e.weightKg)
-            if (i == 0) raw.moveTo(x, y) else raw.lineTo(x, y)
-        }
-        drawPath(raw, color = primary, style = Stroke(width = 6f))
+        // 日次の実測ライン(滑らか)+ 点
+        val rawPts = daily.map { Offset(px(it.date.toEpochDay().toFloat()), py(it.weightKg)) }
+        drawPath(smoothPath(rawPts), color = primary, style = Stroke(width = 6f))
         daily.forEach { e ->
-            drawCircle(color = primaryDeep, radius = 7f, center = Offset(px(e.date.toEpochDay().toFloat()), py(e.weightKg)))
+            drawCircle(color = primaryDeep, radius = 6f, center = Offset(px(e.date.toEpochDay().toFloat()), py(e.weightKg)))
         }
         // 選択点を強調 + 値ラベル。
         selectedIndex?.let { idx ->
@@ -523,7 +651,7 @@ private fun WeightChart(state: WeightUiState, palette: AppTheme, modifier: Modif
             drawCircle(color = Color.White, radius = 5f, center = Offset(cx, cy))
             drawContext.canvas.nativeCanvas.drawText(
                 "${e.weightKg}kg",
-                cx.coerceIn(40f, w - 40f),
+                cx.coerceIn(40f, plotW - 40f),
                 (cy - 22f).coerceAtLeast(30f),
                 android.graphics.Paint().apply {
                     color = android.graphics.Color.DKGRAY

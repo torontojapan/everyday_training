@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
@@ -406,7 +408,28 @@ fun SettingsContent(
             }
 
             SettingsPage.Notifications -> SubPage("通知設定", onBack = { page = SettingsPage.Main }) {
+                // iOS NotificationSettingsView: 通知未許可なら「通知が許可されていません」バナー(設定アプリ導線)。
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                var notifGranted by remember { mutableStateOf(notificationPermissionGranted(ctx)) }
+                val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                    val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) notifGranted = notificationPermissionGranted(ctx)
+                    }
+                    lifecycleOwner.lifecycle.addObserver(obs)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+                }
+                if (!notifGranted) NotificationPermissionBanner(palette, onOpenSettings = { openAppNotificationSettings(ctx) })
                 ReminderSection(palette, reminder, onToggleReminder, onSetReminderTime, onSetEveningTime, onSetReminderCount, onSetReminderPersonality)
+                // iOS NotificationSettingsView: 即反映だが「確定」感の保存導線 + footer caption。
+                Button(
+                    onClick = { page = SettingsPage.Main },
+                    colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("保存して戻る", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Text("変更はすぐに反映されます。", fontSize = 12.sp, color = palette.textSecondary)
             }
 
             SettingsPage.DataPrivacy -> SubPage("データ & プライバシー", onBack = { page = SettingsPage.Main }) {
@@ -1084,6 +1107,38 @@ private fun shareJsonExport(context: Context, jsonText: String) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(intent, "データをエクスポート"))
+}
+
+/** 通知権限の有無(API33 未満は常に許可扱い)。 */
+private fun notificationPermissionGranted(ctx: android.content.Context): Boolean =
+    android.os.Build.VERSION.SDK_INT < 33 ||
+        ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+/** アプリの通知設定(システム)を開く。iOS「設定アプリを開く」相当。 */
+private fun openAppNotificationSettings(ctx: android.content.Context) {
+    val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { ctx.startActivity(intent) }
+}
+
+/** iOS NotificationSettingsView の未許可バナー(⚠️ 文言 + 設定アプリ導線)。chipBackground・primaryDeep。 */
+@Composable
+private fun NotificationPermissionBanner(palette: AppTheme, onOpenSettings: () -> Unit) {
+    Surface(color = palette.chipBackground, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("通知が許可されていません", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("リマインドを受け取るには、端末の設定で通知を許可してください。", fontSize = 12.sp, color = palette.textSecondary)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clickable(onClick = onOpenSettings)) {
+                    Icon(Icons.Filled.Settings, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(14.dp))
+                    Text("設定アプリを開く", fontSize = 13.sp, color = palette.primaryDeep)
+                }
+            }
+        }
+    }
 }
 
 /** 毎日のリマインダー(ON/OFF + 時刻)。ON は通知権限取得後に有効化される(Route 側で要求)。 */

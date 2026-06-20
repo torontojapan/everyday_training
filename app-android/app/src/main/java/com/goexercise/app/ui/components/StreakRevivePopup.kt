@@ -60,10 +60,11 @@ fun StreakRevivePopup(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                // 文言は iOS StreakRevivePopup に一致。
                 val body = if (hasEnough) {
-                    "保険チケットを使うと、途切れた日を埋めて連続記録を続けられます。(残り${remaining}回)"
+                    "保険チケットを使うと、お休みした日が埋まって連続記録が続きます(残り${remaining}回)。"
                 } else {
-                    "復活には保険チケットが${freezesNeeded}回必要です。GOプレミアムなら毎月4回使えます。"
+                    "連続を守るには保険チケットが${freezesNeeded}回必要です(残り${remaining}回)。GOプレミアムなら毎月4回使えます。"
                 }
                 Text(
                     text = body,
