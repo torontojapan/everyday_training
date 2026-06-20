@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.DailyStatus
 import com.goexercise.app.domain.MonthlyCalendarCalculator.MonthCell
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 import com.goexercise.app.ui.theme.colorForStatus
 import java.time.LocalDate
@@ -70,7 +71,7 @@ fun RescueContent(
         // iOS navigationTitle「保険チケットを使う」(inline)。
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("戻る") }
-            Text("保険チケットを使う", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
+            Text("保険チケットを使う", style = AppType.headline, color = palette.textPrimary)
         }
 
         // summaryCard: チケットアイコン + 残数 + 説明(無料枠のみインラインで「(GOプレミアムで月4回)」)。
@@ -89,9 +90,9 @@ fun RescueContent(
                     )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("今月の保険チケット: ${state.remaining} / ${state.allowance} 回 残り", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                    Text("今月の保険チケット: ${state.remaining} / ${state.allowance} 回 残り", style = AppType.headline, color = palette.textPrimary)
                     val premiumHint = if (state.allowance > 1) "" else " (GOプレミアムで月4回)"
-                    Text("月 ${state.allowance} 回まで$premiumHint。忙しい日に過去にさかのぼって適用できます。", fontSize = 12.sp, color = palette.textSecondary)
+                    Text("月 ${state.allowance} 回まで$premiumHint。忙しい日に過去にさかのぼって適用できます。", style = AppType.caption, color = palette.textSecondary)
                 }
             }
         }
@@ -100,7 +101,7 @@ fun RescueContent(
         Surface(color = palette.chipBackground.copy(alpha = 0.6f), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Filled.TouchApp, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
-                Text("カレンダーで × の日(未達成) をタップ → 確認 → 適用", fontSize = 12.sp, color = palette.textPrimary)
+                Text("カレンダーで × の日(未達成) をタップ → 確認 → 適用", style = AppType.caption, color = palette.textPrimary)
             }
         }
 
@@ -124,7 +125,7 @@ fun RescueContent(
         // これまでに使った日。iOS rescuedHistory(救済済みがある時だけ)。
         if (state.rescuedDates.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("これまでに使った日", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("これまでに使った日", style = AppType.headline, color = palette.textPrimary)
                 state.rescuedDates.forEach { d ->
                     Surface(color = palette.surface, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -155,7 +156,7 @@ fun RescueContent(
 @Composable
 private fun RescueLegend(palette: AppTheme) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("マークの意味", fontSize = 12.sp, color = palette.textSecondary)
+        Text("マークの意味", style = AppType.caption, color = palette.textSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             LegendSymbol("×", "未達成 (適用可)", bordered = true, palette = palette)
             LegendSymbol("○", "達成済み", palette = palette)
@@ -175,8 +176,8 @@ private fun LegendSymbol(symbol: String, label: String, bordered: Boolean = fals
             Modifier.size(22.dp).clip(CircleShape).background(palette.surface)
                 .then(if (bordered) Modifier.border(2.dp, palette.primary, CircleShape) else Modifier),
             contentAlignment = Alignment.Center,
-        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.textPrimary) }
-        Text(label, fontSize = 12.sp, color = palette.textSecondary)
+        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary) }
+        Text(label, style = AppType.caption, color = palette.textSecondary)
     }
 }
 
@@ -184,7 +185,7 @@ private fun LegendSymbol(symbol: String, label: String, bordered: Boolean = fals
 private fun LegendIcon(label: String, palette: AppTheme) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
-        Text(label, fontSize = 12.sp, color = palette.textSecondary)
+        Text(label, style = AppType.caption, color = palette.textSecondary)
     }
 }
 

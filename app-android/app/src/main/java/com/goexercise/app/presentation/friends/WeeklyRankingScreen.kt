@@ -43,6 +43,7 @@ import com.goexercise.app.domain.friends.RankingPeriod
 import com.goexercise.app.domain.friends.WeeklyRankingEntry
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 @Composable
@@ -74,7 +75,7 @@ fun WeeklyRankingContent(
             ) {
                 Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
             }
-            Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
         }
 
         PeriodPicker(state.period, palette, onSetPeriod)
@@ -125,13 +126,13 @@ private fun RulesCard(period: RankingPeriod, palette: AppTheme) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = palette.settingsAccent, modifier = Modifier.size(18.dp))
-                Text(period.rulesTitle, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.settingsAccent)
+                Text(period.rulesTitle, style = AppType.headline, color = palette.settingsAccent)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PriorityPill(1, "連続日数が長い", palette.primary, palette)
                 PriorityPill(2, "運動時間が長い", palette.settingsAccent, palette)
             }
-            Text(period.resetHint, fontSize = 12.sp, color = palette.textSecondary)
+            Text(period.resetHint, style = AppType.caption, color = palette.textSecondary)
         }
     }
 }
@@ -145,9 +146,9 @@ private fun PriorityPill(number: Int, label: String, color: Color, palette: AppT
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(Modifier.size(18.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
-                Text("$number", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                Text("$number", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
             }
-            Text(label, fontSize = 12.sp, color = palette.textPrimary)
+            Text(label, style = AppType.caption, color = palette.textPrimary)
         }
     }
 }
@@ -177,7 +178,7 @@ private fun MySummaryCard(me: WeeklyRankingEntry, total: Int, period: RankingPer
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("あなたは ${me.rank} 位 / 全 $total 人中", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                Text("あなたは ${me.rank} 位 / 全 $total 人中", style = AppType.headline, color = palette.textPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatLabel(Icons.Filled.Pets, "${me.profile.currentStreak} 日連続", palette.primaryDeep)
                     StatLabel(Icons.Filled.Schedule, "${me.totalMinutes} 分", palette.textSecondary)
@@ -202,10 +203,10 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
             CatAvatar(breed = FriendAvatarResolver.resolve(entry.profile), size = 44.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(entry.profile.displayName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary)
+                    Text(entry.profile.displayName, style = AppType.headline, color = palette.textPrimary)
                     if (entry.isMe) {
                         Surface(color = palette.primary, shape = RoundedCornerShape(50)) {
-                            Text("あなた", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            Text("あなた", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
                 }
@@ -238,7 +239,7 @@ private fun RankBadge(rank: Int, palette: AppTheme) {
         modifier = Modifier.size(40.dp).clip(CircleShape).background(medalColor),
         contentAlignment = Alignment.Center,
     ) {
-        Text("$rank", fontSize = 15.sp, fontWeight = FontWeight.Black, color = numberColor)
+        Text("$rank", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = numberColor)
     }
 }
 

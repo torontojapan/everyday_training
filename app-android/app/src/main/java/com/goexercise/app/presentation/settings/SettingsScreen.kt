@@ -282,7 +282,7 @@ fun SettingsContent(
     ) {
         when (page) {
             SettingsPage.Main -> {
-                Text("設定", style = AppType.screenTitle, color = palette.textPrimary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                Text("設定", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
 
                 // アカウントとバックアップ(機種変更の命綱なので最上位)。
                 SectionLabel("アカウントとバックアップ")
@@ -429,9 +429,9 @@ fun SettingsContent(
                     colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("保存して戻る", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("保存して戻る", style = AppType.headline, color = Color.White)
                 }
-                Text("変更はすぐに反映されます。", fontSize = 12.sp, color = palette.textSecondary)
+                Text("変更はすぐに反映されます。", style = AppType.caption, color = palette.textSecondary)
             }
 
             SettingsPage.DataPrivacy -> SubPage("データ & プライバシー", onBack = { page = SettingsPage.Main }) {
@@ -532,7 +532,7 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
         ) {
             Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
         }
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
     }
     content()
 }
@@ -600,7 +600,7 @@ private fun BackupSection(
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("記録をクラウドにバックアップ", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Text("記録をクラウドにバックアップ", style = AppType.body, color = palette.textPrimary)
                     Text(
                         "運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(Android↔iPhone)や再インストールで復元できます。友達には共有されません。",
                         color = palette.textSecondary, fontSize = 12.sp,
@@ -674,7 +674,7 @@ private fun BackupSection(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
-                    Text("アカウントを削除", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                    Text("アカウントを削除", style = AppType.body, color = Color(0xFFD32F2F))
                 }
             }
         }
@@ -932,10 +932,10 @@ private fun WidgetGuideContent(palette: AppTheme) {
         steps.forEachIndexed { i, step ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(24.dp).clip(CircleShape).background(palette.primary), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                    Text("${i + 1}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(step.first, style = AppType.body, color = palette.textPrimary)
+                    Text(step.first, style = AppType.headline, color = palette.textPrimary)
                     Text(step.second, style = AppType.caption, color = palette.textSecondary)
                 }
             }
@@ -975,8 +975,8 @@ private fun ThemeRow(theme: AppTheme, isSelected: Boolean, onClick: () -> Unit) 
                 Swatch(theme.background)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(theme.displayName, color = palette.textPrimary, fontWeight = FontWeight.Bold)
-                Text(theme.hint, color = palette.textSecondary, fontSize = 12.sp)
+                Text(theme.displayName, style = AppType.headline, color = palette.textPrimary)
+                Text(theme.hint, style = AppType.caption, color = palette.textSecondary)
             }
             if (isSelected) Icon(Icons.Filled.Verified, contentDescription = "選択中", tint = theme.primary, modifier = Modifier.size(20.dp))
         }
@@ -1069,7 +1069,7 @@ private fun ReferralSection(
                     ) {
                         Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("友達を招待する", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                            Text("友達を招待する", style = AppType.body, color = palette.textPrimary)
                             Text(
                                 "招待コードを共有すると、お互いに保険チケットがもらえます。",
                                 color = palette.textSecondary, fontSize = 12.sp,
@@ -1091,7 +1091,7 @@ private fun ReferralSection(
 
             if (canEnterCodeLater) {
                 if (laterAccepted) {
-                    Text("招待コードを適用しました！", color = palette.primaryDeep, fontSize = 13.sp)
+                    Text("招待コードを適用しました！", style = AppType.body, color = palette.primaryDeep)
                 } else {
                     com.goexercise.app.presentation.referral.InviteCodeField(
                         code = laterCode,
@@ -1099,7 +1099,7 @@ private fun ReferralSection(
                         isSubmitting = laterSubmitting,
                         onSubmit = onSubmitLaterInvite,
                     )
-                    referralError?.let { Text(it, color = palette.primaryDeep, fontSize = 12.sp) }
+                    referralError?.let { Text(it, style = AppType.caption, color = palette.primaryDeep) }
                 }
             }
         }
@@ -1145,11 +1145,11 @@ private fun NotificationPermissionBanner(palette: AppTheme, onOpenSettings: () -
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Filled.Warning, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("通知が許可されていません", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-                Text("リマインドを受け取るには、端末の設定で通知を許可してください。", fontSize = 12.sp, color = palette.textSecondary)
+                Text("通知が許可されていません", style = AppType.headline, color = palette.textPrimary)
+                Text("リマインドを受け取るには、端末の設定で通知を許可してください。", style = AppType.caption, color = palette.textSecondary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clickable(onClick = onOpenSettings)) {
                     Icon(Icons.Filled.Settings, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(14.dp))
-                    Text("設定アプリを開く", fontSize = 13.sp, color = palette.primaryDeep)
+                    Text("設定アプリを開く", style = AppType.caption, color = palette.primaryDeep)
                 }
             }
         }

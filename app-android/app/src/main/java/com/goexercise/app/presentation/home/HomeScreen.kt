@@ -545,14 +545,15 @@ private fun StatusChip(todayStatus: DailyStatus) {
     when (todayStatus) {
         DailyStatus.TodayAchieved -> ChipCapsule(bg = palette.success.copy(alpha = 0.18f)) {
             Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(15.dp))
-            Text("今日は達成済み", style = AppType.caption.copy(fontWeight = FontWeight.Black), color = palette.success)
+            // iOS statusChip = .footnote(13) heavy。Android は caption(12) Black だった。
+            Text("今日は達成済み", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.success)
         }
         DailyStatus.Rest -> ChipCapsule(bg = palette.restDay.copy(alpha = 0.30f)) {
             Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(15.dp))
-            Text("今日は回復日", style = AppType.caption.copy(fontWeight = FontWeight.Black), color = palette.textPrimary)
+            Text("今日は回復日", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
         }
         else -> ChipCapsule(bg = palette.surface) {
-            Text(remainingTimeText(), style = AppType.caption.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
+            Text(remainingTimeText(), style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
         }
     }
 }
@@ -744,7 +745,8 @@ private fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
         Surface(color = palette.surface, shape = RoundedCornerShape(22.dp)) {
             Text(
                 text = text,
-                style = AppType.body.copy(fontWeight = FontWeight.SemiBold),
+                // iOS speechBubble = .callout(16) semibold。Android は body(17) だった。
+                style = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 color = palette.textPrimary,
                 textAlign = TextAlign.Center,
                 maxLines = 3, // iOS lineLimit(3)
@@ -816,7 +818,8 @@ private fun LargePrimaryCTA(state: HomeUiState, onClick: () -> Unit, modifier: M
         ) {
             Spacer(Modifier.weight(1f))
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
-            Text(title, style = AppType.sectionTitle.copy(fontWeight = FontWeight.Black), color = Color.White)
+            // iOS LargePrimaryCTA = .title3(20) heavy。Black(900)→ExtraBold(800)。
+            Text(title, style = AppType.sectionTitle.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
             Spacer(Modifier.weight(1f))
         }
     }
