@@ -38,9 +38,17 @@
 >    大プレビュー猫+名前を追加(欠落していた)・タイトル「自分のキャラ」→「自分のキャラを選ぶ」・surface カード撤去(iOS 素背景)・グリッド56dp・11種ブレッド名一致。
 >    証跡 `proofs/settings_catpicker_ios_vs_android_FIXED.png` / `proofs/ios_golden_set_cat_picker.png`。残(受容): iOS=sheet(キャンセル/決定) vs Android=push+back(他サブページと統一・即適用)。
 >
+> 6. ✅ **実 Supabase ライブ検証(③)— 完了(2026-06-21)/ 実バグ1件発見・修正**。
+>    エミュ実ネット復旧手順: ①`emulator @go_test ... -dns-server 8.8.8.8`(QEMU の壊れた DNS 転送をバイパス)②Mac を iPhone テザリングから**通常 WiFi** に切替(MTU/NAT ブラックホール解消)→ network VALIDATED。
+>    ブラウザで `https://<host>/auth/v1/health` が JSON 応答=HTTPS 疎通確認。
+>    **発見した出荷ブロッカー**: 匿名サインインは成功するが直後の `profiles` upsert が `updated_at`(NOT NULL)に明示 null を送り **PostgREST 23502** で全失敗 → welcome に落ちていた(実機でも発生)。
+>    原因=ProfileRow を read/write 兼用 + `encodeDefaults=true`。iOS の ProfileWrite は updated_at を送らない。
+>    **修正**(commit/branch `fix/android-friends-profile-updated-at`): `ProfileRow.updatedAt` に `@EncodeDefault(NEVER)` → null 時エンコード除外で DB default に委ねる。
+>    検証: 友達タブ→匿名サインイン→実 friend code(PT3JEG)取得・コード画面表示をライブ確認(`proofs/friends_live_real_supabase_FIXED.png`)。
+>
 > ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
 > このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。
-> 視覚パリティだけなら **Mock-force でオフライン検証可**(ネット不要)。
+> **復旧手段あり**(上記 #6: `-dns-server` + 通常 WiFi)。視覚パリティだけなら **Mock-force でオフライン検証可**(ネット不要)。
 
 ## 0. 完了の定義 & 検証手順(毎回これを守る)
 1 画面×1 状態の「DONE」= **density 393 で iOS golden と横並び**し、要素(高さ/色/余白/角丸/フォント/整列/アイコン種別/

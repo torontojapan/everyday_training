@@ -7,6 +7,7 @@ import com.goexercise.app.domain.friends.FriendRequest
 import com.goexercise.app.domain.friends.FriendCode
 import com.goexercise.app.domain.friends.ReferralConfirmation
 import com.goexercise.app.domain.friends.ReferralSummary
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -34,7 +35,11 @@ data class ProfileRow(
     @SerialName("monthly_total_minutes") val monthlyTotalMinutes: Int? = null,
     @SerialName("monthly_achieved_days") val monthlyAchievedDays: Int? = null,
     @SerialName("my_cat_breed") val myCatBreed: String? = null,
-    /** プロフィール最終更新(timestamptz)。友達詳細「最終更新 N前」。iOS lastUpdated 相当。 */
+    /** プロフィール最終更新(timestamptz)。友達詳細「最終更新 N前」。iOS lastUpdated 相当。
+     *  **読み取り専用**: upsert では送らない(iOS ProfileWrite は updated_at を含めない)。
+     *  encodeDefaults=true のため明示 null を送ると NOT NULL 列(DB default now())を上書きして 23502 になる
+     *  → @EncodeDefault(NEVER) で null 時はエンコード除外し、DB の default/trigger に委ねる。 */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("updated_at") val updatedAt: String? = null,
     /** 今日の種目別詳細(jsonb 配列)。iOS `today_exercise_details`(opt-in 共有・既定 OFF)。
      *  **読み取り専用**: Android は自分の詳細を publish しない(共有 opt-in トグル未導入のため・既定 OFF の iOS と非対称にならない)。
