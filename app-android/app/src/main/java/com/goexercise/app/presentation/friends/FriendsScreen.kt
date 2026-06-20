@@ -752,7 +752,14 @@ private fun WelcomeBody(
             textAlign = TextAlign.Center,
         )
         if (errorMessage != null) {
-            Text(errorMessage, fontSize = 13.sp, color = palette.primaryDeep, textAlign = TextAlign.Center)
+            // iOS パリティ(FriendsView.swift:242): welcome の接続失敗は生のエラー文言を出さず、
+            // やさしい固定文に丸める。下の CTA がそのまま再試行を兼ねる。
+            Text(
+                "うまくつながれませんでした。少し時間をおいて、もう一度お試しください。",
+                fontSize = 13.sp,
+                color = palette.primaryDeep,
+                textAlign = TextAlign.Center,
+            )
         }
         Button(
             onClick = onConnect,
