@@ -521,13 +521,14 @@ private fun PremiumActiveRow() {
 @Composable
 private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalAppPalette.current
-    // iOS のサブページ ナビバー: 中央タイトル(inline ~17pt)+ 左の円形戻る(シェブロン)。
+    // iOS26 のサブページ ナビバー: 中央タイトル(inline ~17pt)+ 左の円形戻る。
+    // iOS は surface(白)円 + charcoal(textPrimary)chevron。chipBackground(ピンク)+ primaryDeep(赤)は別物。
     Box(Modifier.fillMaxWidth()) {
         Box(
-            modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.chipBackground).clickable(onClick = onBack),
+            modifier = Modifier.align(Alignment.CenterStart).size(36.dp).clip(androidx.compose.foundation.shape.CircleShape).background(palette.surface).clickable(onClick = onBack),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.primaryDeep, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
         }
         Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
     }

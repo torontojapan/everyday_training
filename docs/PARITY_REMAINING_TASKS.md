@@ -18,7 +18,12 @@
 >    **実ビルド(実 Supabase)+ ネット不達**で友達タブ→サインイン失敗→welcome 着地を**ライブ撮影**し、猫140/「友達と一緒に続けよう」/
 >    body/固定文「うまくつながれませんでした。少し時間をおいて、もう一度お試しください。」/「友達とつながる」(person.2)/シェア行 まで iOS spec と一致を確認。
 >    証跡 `proofs/friends_welcome_signoff_android_realbuild.png`。connecting 状態「準備しています…」も iOS friendsConnectingBody と一致。
-> 3. **§3 軽微残差**: disclosure/drill 行の chevron グリフ Android `⌄`→ iOS `>`、戻るボタン色の最終統一。
+> 3. ✅ **戻るボタン色の最終統一 — 完了(2026-06-20)**。iOS26 サブページ back は **surface(白)円 + textPrimary(charcoal)chevron.left**。
+>    旧 Android は **chipBackground(ピンク)円 + primaryDeep(赤)chevron** で別物だった → surface + textPrimary に統一。
+>    対象4箇所: 設定 SubPage(共有・全設定サブページ)/ 生理日 / 週間ランキング / 記録完了(旧 plain ArrowBack → 同 円形 chevron 化)。
+>    証跡 `proofs/back_button_ios_vs_android_FIXED.png`(設定サブpage 実撮影で色一致確認)。残3箇所は同一共有パターン(source 一致)。
+>    **残(微差・受容)**: drill 行の chevron は既に `>`(KeyboardArrowRight)。iOS は約1px細い `>`(chevron.right)・やや淡灰だが知覚閾値以下のため現状維持。
+>    インライン展開(休養ルール/特典)の `⌄`(ExpandMore)は iOS も下向きで正しい。
 > 4. **ウィジェット**: iOS 実画像の横並びが拡張ターゲット制約で未取得(値一致+Android 実レンダで担保中)。代替検証法の検討。
 > 5. **全画面 最終回帰 sweep**: §1–§3 を density393 で 1 項目ずつ再走し取りこぼしゼロを確認(旧 ✅ から実バグ多数の前例あり)。
 >

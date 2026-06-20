@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pets
@@ -110,17 +112,24 @@ fun RecordCompletionContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            // インラインタイトル + 左上 戻る(iOS navigationTitle「記録完了」+ 既定の戻るシェブロン相当)。
+            // インラインタイトル + 左上 戻る。iOS26 サブページと統一: surface(白)円 + textPrimary chevron.left。
             androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
-                androidx.compose.material3.Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "戻る",
-                    tint = palette.primaryDeep,
+                androidx.compose.foundation.layout.Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .size(24.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(palette.surface)
                         .clickable { onDone() },
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.Icon(
+                        Icons.Filled.ChevronLeft,
+                        contentDescription = "戻る",
+                        tint = palette.textPrimary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
                 Text("記録完了", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
             }
             // 登場アニメ(iOS contentVisible): 猫 0.85→1 / リボン 0.4→1 / ヒーロー 0.9→1 + フェードイン。
