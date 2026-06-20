@@ -33,7 +33,9 @@
 >    差はデータ/通貨ロケール/文脈(paywall=Weight headline 一致)/CJK タイトル折返し(オンボ大見出しのみ・フォントメトリクス由来の微差)のみ。証跡 `proofs/sweep_*`。
 >    **体重チャート**: 期間セグメント(1週|1月|3月|半年|全期間)・surface カード・Y軸kgグリッド・X軸日付・折れ線+破線トレンドが §1-A 是正どおり描画を density393 で再確認。
 >    **オンボ猫ピッカー**: ステップ1/2 バッジ・見出し・補足・大プレビュー猫・11種グリッド・招待コード欄まで一致(iOS golden 01)。
->    設定の猫ピッカー(自分のキャラ)は iOS 設定版 golden 不在のため直接比較不可(グリッド11種+選択リングは正常描画)。
+>    ✅ **設定の猫ピッカー — 完了(2026-06-20)**。iOS golden を新規撮影(`testCaptureSettingsCatPicker`)→横並びで是正:
+>    大プレビュー猫+名前を追加(欠落していた)・タイトル「自分のキャラ」→「自分のキャラを選ぶ」・surface カード撤去(iOS 素背景)・グリッド56dp・11種ブレッド名一致。
+>    証跡 `proofs/settings_catpicker_ios_vs_android_FIXED.png` / `proofs/ios_golden_set_cat_picker.png`。残(受容): iOS=sheet(キャンセル/決定) vs Android=push+back(他サブページと統一・即適用)。
 >
 > ⚠️ **環境前提**: オンライン依存画面(友達/ランキング/設定サインイン/バックアップ)の**実ビルド**確認は、
 > このエミュがネット不達のとき不可(memory [[gotcha_android_emulator_no_internet_vpn]])。着手前に `adb shell ping -c1 1.1.1.1`。
