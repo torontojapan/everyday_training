@@ -339,13 +339,6 @@ struct MonthlyCalendarView: View {
         }
     }
 
-    private func shouldShowSymbol(for status: DailyStatus) -> Bool {
-        switch status {
-        case .achieved, .todayAchieved, .rescued, .rest, .todayPending, .missed: return true
-        case .future: return false
-        }
-    }
-
     private func textColor(for status: DailyStatus, isToday: Bool) -> Color {
         if isToday { return .white }
         switch status {

@@ -777,42 +777,6 @@ private fun WelcomeBody(
     }
 }
 
-/** welcome の復元入口。以前連携した人が新端末/再インストールで友達/コードを取り戻す。 */
-@Composable
-private fun RestoreSection(
-    palette: AppTheme,
-    linking: FriendsLinkingHandlers,
-    isLinking: Boolean,
-    onRestoreApple: () -> Unit,
-    onRestoreGoogle: () -> Unit,
-) {
-    Column(
-        Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("以前連携した方はこちら", color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
-        if (isLinking) {
-            CircularProgressIndicator(color = palette.primary, modifier = Modifier.size(28.dp))
-        } else {
-            if (linking.appleEnabled) {
-                OutlinedButton(onClick = onRestoreApple, modifier = Modifier.fillMaxWidth()) {
-                    com.goexercise.app.ui.components.AppleLogo(tint = palette.textPrimary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Apple で復元")
-                }
-            }
-            if (linking.googleEnabled) {
-                OutlinedButton(onClick = onRestoreGoogle, modifier = Modifier.fillMaxWidth()) {
-                    com.goexercise.app.ui.components.GoogleLogo()
-                    Spacer(Modifier.width(8.dp))
-                    Text("Google で復元")
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun ShareAppCard(palette: AppTheme) {
     val context = LocalContext.current
@@ -1367,21 +1331,6 @@ private fun SortMenu(current: FriendSortOrder, palette: AppTheme, onSetSort: (Fr
 }
 
 @Composable
-private fun Pill(text: String, fg: Color, bg: Color) {
-    Surface(color = bg, shape = RoundedCornerShape(50)) {
-        Text(text, color = fg, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = AppType.caption.copy(fontWeight = FontWeight.Normal))
-    }
-}
-
-@Composable
-private fun Avatar(palette: AppTheme, size: androidx.compose.ui.unit.Dp) {
-    Box(
-        modifier = Modifier.size(size).clip(CircleShape).background(palette.primary.copy(alpha = 0.20f)),
-        contentAlignment = Alignment.Center,
-    ) { Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(size * 0.5f)) }
-}
-
-@Composable
 private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default) {
     // iOS friendsEmptyState はカード無しの素の VStack(中央寄せ)。猫はユーザーの選択種を使う。
     Column(
@@ -1580,45 +1529,6 @@ private fun FormActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector,
 }
 
 // MARK: - Cheer picker
-
-@Composable
-private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (CheerKind, String?) -> Unit) {
-    // 一言コメント(任意・30字)。プリセットをタップすると欄に反映され、自由入力も可。
-    var message by rememberSaveable { mutableStateOf("") }
-    Column(
-        Modifier.padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("${friend.displayName} に応援を送る", color = palette.textPrimary, style = AppType.subheadline.copy(fontWeight = FontWeight.Bold))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CheerKind.entries.forEach { kind ->
-                Surface(
-                    color = palette.chipBackground,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.weight(1f).clickable { onSend(kind, message.trim().ifBlank { null }) },
-                ) {
-                    Column(
-                        Modifier.padding(vertical = 14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(cheerIcon(kind), contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(26.dp))
-                        Text(kind.label, color = palette.textPrimary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
-                    }
-                }
-            }
-        }
-        OutlinedTextField(
-            value = message,
-            onValueChange = { if (it.length <= 30) message = it },
-            placeholder = { Text("一言そえる(任意・30字)", style = AppType.footnote.copy(fontWeight = FontWeight.Normal)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-    }
-}
 
 // MARK: - Toast
 

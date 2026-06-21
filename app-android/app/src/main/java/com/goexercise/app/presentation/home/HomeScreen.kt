@@ -824,11 +824,3 @@ private fun LargePrimaryCTA(state: HomeUiState, onClick: () -> Unit, modifier: M
         }
     }
 }
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-private fun HomeContentPreview() {
-    GOExerciseTheme(theme = AppTheme.Peach) {
-        HomeContent(state = HomeUiState())
-    }
-}
