@@ -291,8 +291,12 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
     Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // iOS WeightHeroDashboard 上段ヘッダ「最新の体重 · {日付}」。
+            // iOS dateLabel(WeightHeroDashboard.swift:296)に合わせ、時刻が 00:00:00 ちょうどなら
+            // 日付のみ(yyyy/M/d)・それ以外は時刻も(yyyy/M/d HH:mm)。深夜0時シードで偽の「00:00」を出さない。
             val header = state.latest?.let {
-                "最新の体重 · " + it.recordedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d HH:mm"))
+                val t = it.recordedAt
+                val pattern = if (t.hour == 0 && t.minute == 0 && t.second == 0) "yyyy/M/d" else "yyyy/M/d HH:mm"
+                "最新の体重 · " + t.format(java.time.format.DateTimeFormatter.ofPattern(pattern))
             } ?: "最新の体重"
             Text(header, fontSize = 12.sp, color = palette.textSecondary)
             // iOS 中段: 巨大な現在体重(左)+ 達成リング+猫(右)。
