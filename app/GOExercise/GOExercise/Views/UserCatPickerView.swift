@@ -9,7 +9,9 @@ struct UserCatPickerView: View {
     @Environment(ReferralStore.self) private var referralStore
     @Environment(FriendsStore.self) private var friendsStore
     @State private var prefs = UserCatPreferences.shared
-    @State private var selected: CatBreed
+    @State private var selected: PetBreed
+    /// 上部セグメント(猫 / 犬)。選択中キャラの species を初期値にする。
+    @State private var species: PetSpecies
     @State private var showPaywall = false
     @State private var inviteCode = ""
     @State private var isSubmittingInvite = false
@@ -27,7 +29,17 @@ struct UserCatPickerView: View {
 
     init(isOnboarding: Bool = false) {
         self.isOnboarding = isOnboarding
-        _selected = State(initialValue: UserCatPreferences.shared.myCat)
+        let pet = UserCatPreferences.shared.myPet
+        _selected = State(initialValue: pet)
+        _species = State(initialValue: pet.species)
+    }
+
+    /// 現在のセグメント(猫/犬)で表示する候補一覧。
+    private var breedsForSpecies: [PetBreed] {
+        switch species {
+        case .cat: return CatBreed.allCases.map { PetBreed.cat($0) }
+        case .dog: return DogBreed.allCases.map { PetBreed.dog($0) }
+        }
     }
 
     var body: some View {
@@ -78,10 +90,10 @@ struct UserCatPickerView: View {
                     if isOnboarding {
                         onboardingHeader(
                             step: 1,
-                            title: "一緒にがんばる猫を選ぼう",
+                            title: "一緒にがんばる相棒を選ぼう",
                             subtitle: AppFeatureFlags.friendsEnabled
-                                ? "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
-                                : "選んだ猫はホーム画面・達成演出で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+                                ? "選んだ相棒はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+                                : "選んだ相棒はホーム画面・達成演出で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
@@ -90,11 +102,27 @@ struct UserCatPickerView: View {
                     // Big preview of the currently-selected breed (animated by Code)
                     catPreview
 
+                    // 猫 / 犬 のセグメント切替。切替で同 species の現在選択を維持、
+                    // 別 species なら先頭種を仮選択する。
+                    Picker("種別", selection: $species) {
+                        ForEach(PetSpecies.allCases) { sp in
+                            Text(sp.displayName).tag(sp)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .accessibilityIdentifier("pet-species-segment")
+                    .onChange(of: species) { _, newSpecies in
+                        if selected.species != newSpecies {
+                            selected = breedsForSpecies.first ?? .default
+                        }
+                    }
+
                     LazyVGrid(columns: [
                         GridItem(.flexible()), GridItem(.flexible()),
                         GridItem(.flexible()), GridItem(.flexible())
                     ], spacing: 14) {
-                        ForEach(CatBreed.allCases) { breed in
+                        ForEach(breedsForSpecies) { breed in
                             cell(breed)
                         }
                     }
@@ -162,10 +190,10 @@ struct UserCatPickerView: View {
     /// ロック中の猫は無効化して現状維持(=種類変更にはプレミアムが必要)。
     private func commitSelectedCat() {
         if !isOnboarding,
-           CatBreedAccess.isLocked(selected, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
-            selected = prefs.myCat
+           PetBreedAccess.isLocked(selected, current: prefs.myPet, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked) {
+            selected = prefs.myPet
         }
-        prefs.myCat = selected
+        prefs.myPet = selected
     }
 
     private func advanceFromCatSelection() {
@@ -251,12 +279,12 @@ struct UserCatPickerView: View {
         .padding(.bottom, 4)
     }
 
-    private func cell(_ breed: CatBreed) -> some View {
+    private func cell(_ breed: PetBreed) -> some View {
         let isSelected = selected == breed
         // 初期設定(オンボーディング)では全種類を自由に選べる(ロックしない)。
         // 確定後に種類を変えるにはプレミアムが必要 = 設定からの再選択時のみロック判定する。
         let locked = !isOnboarding &&
-            CatBreedAccess.isLocked(breed, current: prefs.myCat, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
+            PetBreedAccess.isLocked(breed, current: prefs.myPet, isPremium: storeKit.isPremiumActive, referralUnlocked: referralUnlocked)
         return Button {
             if locked { showPaywall = true } else { selected = breed }
         } label: {
@@ -296,7 +324,15 @@ struct UserCatPickerView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(locked ? "\(breed.displayName)(プレミアムで解放)" : breed.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("user-cat-\(breed.rawValue)")
+        .accessibilityIdentifier(accessibilityID(for: breed))
+    }
+
+    /// UI テスト用 id。猫は従来どおり "user-cat-<raw>"、犬は "user-dog-<raw>"。
+    private func accessibilityID(for breed: PetBreed) -> String {
+        switch breed {
+        case .cat(let b): return "user-cat-\(b.rawValue)"
+        case .dog(let b): return "user-dog-\(b.rawValue)"
+        }
     }
 
     private func submitInvite() {

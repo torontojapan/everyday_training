@@ -85,9 +85,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.domain.ChartPeriod
 import com.goexercise.app.domain.WeightStats
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.CatState
-import com.goexercise.app.ui.components.CatImage
+import com.goexercise.app.ui.components.PetImage
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -327,7 +327,7 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
                     }
                 }
                 // iOS ringWithCat(達成リング+中央猫+%バッジ)。目標/開始未設定(progress=null)でも空リング+猫は出す。
-                WeightAchievementRing(progress = state.progress, breed = state.breed, palette = palette)
+                WeightAchievementRing(progress = state.progress, pet = state.pet, palette = palette)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 state.health.startKg?.let { Text("開始 %.1f →".format(it), color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
@@ -351,7 +351,7 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
  *       中央 surface円(84)+猫(82, clipCircle) / バッジ "{N}%" white on primaryDeep capsule offset(30,38)+白枠2。
  */
 @Composable
-private fun WeightAchievementRing(progress: Double?, breed: CatBreed, palette: AppTheme) {
+private fun WeightAchievementRing(progress: Double?, pet: PetBreed, palette: AppTheme) {
     val ring = 108.dp
     val line = 9.dp
     Box(modifier = Modifier.size(ring + 12.dp), contentAlignment = Alignment.Center) {
@@ -369,7 +369,7 @@ private fun WeightAchievementRing(progress: Double?, breed: CatBreed, palette: A
         }
         // 中央 surface 円 + 猫。
         Box(modifier = Modifier.size(ring - 24.dp).clip(CircleShape).background(palette.surface), contentAlignment = Alignment.Center) {
-            CatImage(breed = breed, state = CatState.Celebrating, modifier = Modifier.size(ring - 26.dp).clip(CircleShape))
+            PetImage(pet = pet, state = CatState.Celebrating, modifier = Modifier.size(ring - 26.dp).clip(CircleShape))
         }
         // 進捗バッジ(右下)。
         progress?.let { p ->

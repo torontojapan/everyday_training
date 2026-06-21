@@ -176,7 +176,7 @@ struct StreakShareCard: View {
     private var rank: CatRank { CatRank(currentStreak: streak) }
     /// シェアカードの猫はハッピーポーズ3種(celebrating/happy2/happy3)からランダム表示。
     private var poseAsset: String {
-        UserCatPreferences.shared.myCat.randomHappyPoseAsset(
+        UserCatPreferences.shared.myPet.randomHappyPoseAsset(
             seed: poseSeed, exists: { UIImage(named: $0) != nil })
     }
 

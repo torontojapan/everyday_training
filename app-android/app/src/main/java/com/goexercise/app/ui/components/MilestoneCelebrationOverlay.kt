@@ -33,9 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
 import com.goexercise.app.domain.Milestone
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /**
@@ -46,7 +46,7 @@ import com.goexercise.app.ui.theme.LocalAppPalette
 @Composable
 fun MilestoneCelebrationOverlay(
     milestone: Milestone,
-    breed: CatBreed,
+    pet: PetBreed,
     badgeIcon: ImageVector,
     onDismiss: () -> Unit,
 ) {
@@ -78,7 +78,7 @@ fun MilestoneCelebrationOverlay(
                     // 猫(祝福ポーズ)+ 金バッジ。連続更新ポーズ(streakExtended)は炎入りで
                     // ユーザーに「火はださい」と指摘されたため celebrating(炎なし)に変更(2026-06-19)。
                     Box(contentAlignment = Alignment.BottomEnd) {
-                        CatImage(breed = breed, state = CatState.Celebrating, modifier = Modifier.size(180.dp))
+                        PetImage(pet = pet, state = CatState.Celebrating, modifier = Modifier.size(180.dp))
                         Box(
                             Modifier.size(52.dp).clip(CircleShape).background(palette.surface),
                             contentAlignment = Alignment.Center,

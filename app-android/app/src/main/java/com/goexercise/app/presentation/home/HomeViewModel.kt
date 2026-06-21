@@ -101,10 +101,10 @@ class HomeViewModel @Inject constructor(
             timeKeyTicker(),
             settings.firstUseDate,
             rescueTickets.rescuedDates,
-            settings.catBreed,
-        ) { records, _, firstUse, rescued, breed ->
+            combine(settings.catBreed, settings.myPet) { c, p -> c to p },
+        ) { records, _, firstUse, rescued, breedPair ->
             HomeStateReducer.reduce(records, LocalDateTime.now(clock), rescuedDates = rescued, firstUseDate = firstUse)
-                .copy(catBreed = breed)
+                .copy(catBreed = breedPair.first, pet = breedPair.second)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

@@ -12,7 +12,7 @@ import android.graphics.Typeface
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.MonthlyReviewBuilder
 import com.goexercise.app.domain.WorkoutCategory
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +46,7 @@ object HighlightShareImageRenderer {
         context: Context,
         review: MonthlyReviewBuilder.Review,
         kind: Kind,
-        breed: CatBreed,
+        breed: PetBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
@@ -119,7 +119,7 @@ object HighlightShareImageRenderer {
         context: Context,
         review: MonthlyReviewBuilder.Review,
         kind: Kind,
-        breed: CatBreed,
+        breed: PetBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
@@ -151,7 +151,7 @@ object HighlightShareImageRenderer {
         context: Context,
         review: MonthlyReviewBuilder.Review,
         kind: Kind,
-        breed: CatBreed,
+        breed: PetBreed,
         streakLabel: String,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
@@ -279,7 +279,7 @@ object HighlightShareImageRenderer {
         return rect.bottom + 28f
     }
 
-    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, poseSeed: Int) {
+    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: PetBreed, poseSeed: Int) {
         val r = diameter / 2
         val poseAsset = breed.randomHappyPoseAsset(poseSeed) { name ->
             context.resources.getIdentifier(name, "drawable", context.packageName) != 0

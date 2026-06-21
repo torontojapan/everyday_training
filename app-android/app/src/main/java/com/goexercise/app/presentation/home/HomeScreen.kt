@@ -149,7 +149,7 @@ fun HomeRoute(
         // iOS MilestoneCelebrationSheet パリティ: 全画面の祝福(猫+金バッジ+大見出し+共有CTA)。
         com.goexercise.app.ui.components.MilestoneCelebrationOverlay(
             milestone = milestone,
-            breed = state.catBreed,
+            pet = state.pet,
             badgeIcon = milestoneIcon(milestone),
             onDismiss = { viewModel.acknowledgeMilestone(milestone) },
         )
@@ -670,7 +670,7 @@ private fun CatTheater(state: HomeUiState) {
     val sway by idle.animateFloat(-2f, 2f, infiniteRepeatable(tween(4100), RepeatMode.Reverse), label = "sway")
     // タップ bounce(iOS scaleEffect 1.08 + haptic)。
     val bounce = remember { androidx.compose.animation.core.Animatable(1f) }
-    val tint = Color(state.catBreed.tintArgb)
+    val tint = Color(state.pet.tintArgb)
     // 吹き出しの pop-in(scale0.7→1 + fade, delay0.15)。
     var bubbleAppeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(150); bubbleAppeared = true }
@@ -707,8 +707,8 @@ private fun CatTheater(state: HomeUiState) {
                 Modifier.fillMaxSize(0.88f).clip(CircleShape)
                     .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.06f)))),
             )
-            com.goexercise.app.ui.components.CatImage(
-                breed = state.catBreed,
+            com.goexercise.app.ui.components.PetImage(
+                pet = state.pet,
                 state = state.catState,
                 useShaker = !state.todayStatus.countsAsAchieved,
                 modifier = Modifier.fillMaxSize().graphicsLayer {

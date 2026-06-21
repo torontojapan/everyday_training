@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.ShareCardGradient
 import com.goexercise.app.ui.theme.AppTheme
 import java.time.LocalDate
@@ -30,9 +31,16 @@ interface SettingsRepository {
     val firstUseDate: Flow<LocalDate?>
     suspend fun setFirstUseDateIfAbsent(date: LocalDate)
 
-    /** ユーザーが選んだ猫種。未選択は orange。iOS UserCatPreferences.myCat 相当。 */
+    /** ユーザーが選んだ猫種。未選択は orange。iOS UserCatPreferences.myCat 相当。
+     *  友達公開プロフィール / ウィジェットはこちら(猫のみ)を見る。 */
     val catBreed: Flow<CatBreed>
     suspend fun setCatBreed(breed: CatBreed)
+
+    /** ユーザーが選んだキャラ(猫 or 犬)。アプリ内の自分キャラ描画はこちらを使う。
+     *  iOS UserCatPreferences.myPet 相当。未保存(既存ユーザー)は catBreed から移行。 */
+    val myPet: Flow<PetBreed>
+    /** キャラを保存。猫を選んだ時は catBreed も更新(友達/ウィジェット追従)、犬は catBreed 据え置き。 */
+    suspend fun setPet(pet: PetBreed)
 
     /** 共有カードの背景グラデーション選択(既定 Sunset)。永続化。 */
     val shareGradient: Flow<ShareCardGradient>
@@ -114,6 +122,21 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setCatBreed(breed: CatBreed) {
         dataStore.edit { it[catBreedKey] = breed.rawValue }
+    }
+
+    private val petKey = stringPreferencesKey("my_pet")
+    // 未保存(既存ユーザー)は従来の cat_breed から移行(犬は新規キーが無い限り猫として復元)。
+    override val myPet: Flow<PetBreed> = dataStore.data.map { prefs ->
+        prefs[petKey]?.let { PetBreed.fromStorage(it) }
+            ?: PetBreed.Cat(CatBreed.fromRaw(prefs[catBreedKey]))
+    }
+
+    override suspend fun setPet(pet: PetBreed) {
+        dataStore.edit { prefs ->
+            prefs[petKey] = pet.storageValue
+            // 猫を選んだ時だけ cat_breed も更新(友達/ウィジェットは猫のみ対応のため犬では据え置き)。
+            if (pet is PetBreed.Cat) prefs[catBreedKey] = pet.breed.rawValue
+        }
     }
 
     private val weightPaywallDismissedKey = longPreferencesKey("weight_paywall_dismissed_ms")

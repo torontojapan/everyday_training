@@ -113,27 +113,46 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
 @Observable
 final class UserCatPreferences {
     static let key = "user.myCat"
+    static let petKey = "user.myPet"
     static let shared = UserCatPreferences()
 
     private let defaults: UserDefaults
 
-    /// 選択した猫。未選択 (onboarding 未完了) なら orange をデフォルトに。
+    /// 選んだキャラ(猫 or 犬)。アプリ内の自分キャラ描画はすべてこれを使う。
+    var myPet: PetBreed {
+        didSet {
+            defaults.set(myPet.storageValue, forKey: Self.petKey)
+            // 友達公開プロフィール(myCatBreed)は当面 猫種のみ対応。猫を選んだ時だけ
+            // myCat も更新し、犬選択時は直近の猫種を維持(=友達には猫が見える)。
+            if case .cat(let b) = myPet { myCat = b }
+        }
+    }
+
+    /// 友達公開プロフィール / ウィジェット用の猫種(従来互換)。犬選択時も猫として据え置く。
     var myCat: CatBreed {
         didSet { defaults.set(myCat.rawValue, forKey: Self.key) }
     }
 
-    /// onboarding を完了したかどうかの判定。raw value が defaults に
-    /// 書き込まれているか = 1度でも明示的に選んだか で見る。
+    /// onboarding を完了したか。myPet か myCat のどちらかが書かれていれば完了。
     var hasCompletedOnboarding: Bool {
-        defaults.string(forKey: Self.key) != nil
+        defaults.string(forKey: Self.petKey) != nil || defaults.string(forKey: Self.key) != nil
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        // myCat(従来キー)を先に復元(ローカルへ。全 stored property 初期化前に self を読まない)。
+        let initialCat: CatBreed
         if let raw = defaults.string(forKey: Self.key), let breed = CatBreed(rawValue: raw) {
-            self.myCat = breed
+            initialCat = breed
         } else {
-            self.myCat = .orange   // 初期 default
+            initialCat = .orange   // 初期 default
+        }
+        self.myCat = initialCat
+        // myPet を復元。未保存(既存ユーザー)なら myCat から移行。
+        if let raw = defaults.string(forKey: Self.petKey), let pet = PetBreed(storageValue: raw) {
+            self.myPet = pet
+        } else {
+            self.myPet = .cat(initialCat)
         }
     }
 }

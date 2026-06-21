@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.StreakLevel
 import com.goexercise.app.share.StreakShareImageRenderer
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -69,7 +69,7 @@ fun StreakShareRoute(
 @Composable
 fun StreakShareContent(
     streak: Int,
-    breed: CatBreed,
+    breed: PetBreed,
     gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Default,
     onSelectGradient: (com.goexercise.app.domain.ShareCardGradient) -> Unit = {},
     onBack: () -> Unit = {},

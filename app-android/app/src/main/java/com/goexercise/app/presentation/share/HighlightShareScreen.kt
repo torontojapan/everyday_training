@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.MonthlyReviewBuilder
 import com.goexercise.app.share.HighlightShareImageRenderer
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -72,7 +72,7 @@ fun HighlightShareRoute(
 fun HighlightShareContent(
     review: MonthlyReviewBuilder.Review?,
     kind: HighlightShareImageRenderer.Kind,
-    breed: CatBreed,
+    breed: PetBreed,
     streakLabel: String,
     gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     onSelectGradient: (com.goexercise.app.domain.ShareCardGradient) -> Unit = {},

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
+import com.goexercise.app.domain.PetBreed
 
 /**
  * ユーザーの猫(breed × state = 77 画像のうち 1 枚)を描画する。iOS `CatStateView` 相当。
@@ -150,3 +151,87 @@ private fun resolveShakerDrawable(context: Context, breed: CatBreed): Int {
 
 private fun drawableId(context: Context, name: String): Int? =
     context.resources.getIdentifier(name, "drawable", context.packageName).takeIf { it != 0 }
+
+// =====================================================================================
+// PetImage / PetAvatar: 猫 or 犬(PetBreed)を描く。アプリ内の「自分のキャラ」描画はこちら。
+// CatImage(CatBreed) は友達一覧/ウィジェット(猫のみ)用にそのまま残す。
+// =====================================================================================
+
+/**
+ * ユーザーの選んだキャラ(猫 or 犬 × state)を描画する。CatImage の PetBreed 版。
+ * drawable は getIdentifier で動的解決し、欠損時は同種フォールバック → orange 猫へ。
+ */
+@Composable
+fun PetImage(
+    pet: PetBreed,
+    state: CatState,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = state.displayName,
+    useShaker: Boolean = false,
+) {
+    val context = LocalContext.current
+    val resId = remember(pet, state, useShaker) {
+        if (useShaker) resolvePetShakerDrawable(context, pet) else resolvePetDrawable(context, pet, state)
+    }
+    if (resId != 0) {
+        val painter = painterResource(resId)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Box(modifier, contentAlignment = Alignment.Center) {
+                Image(
+                    painter = painter, contentDescription = null, contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(Color.White),
+                    modifier = Modifier.matchParentSize().alpha(0.5f).blur(3.dp),
+                )
+                Image(
+                    painter = painter, contentDescription = null, contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(Color.Black),
+                    modifier = Modifier.matchParentSize().offset(y = 1.5.dp).alpha(0.22f).blur(3.dp),
+                )
+                Image(
+                    painter = painter, contentDescription = contentDescription, contentScale = ContentScale.Fit,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+        } else {
+            Image(painter = painter, contentDescription = contentDescription, contentScale = ContentScale.Fit, modifier = modifier)
+        }
+    } else {
+        Box(modifier, contentAlignment = Alignment.Center) {
+            BasicText(text = state.emoji, style = TextStyle(fontSize = 40.sp))
+        }
+    }
+}
+
+/** 円形アバター(tint 背景 + クリップ)の PetBreed 版。welcome/プロフィール/ピッカー用。 */
+@Composable
+fun PetAvatar(
+    pet: PetBreed,
+    state: CatState = CatState.WaitingMorning,
+    size: Dp = 56.dp,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Color(pet.tintArgb).copy(alpha = 0.22f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        PetImage(pet = pet, state = state, modifier = Modifier.fillMaxSize().padding(size * 0.06f))
+    }
+}
+
+@DrawableRes
+private fun resolvePetDrawable(context: Context, pet: PetBreed, state: CatState): Int {
+    drawableId(context, pet.assetName(state))?.let { return it }
+    drawableId(context, pet.fallbackAssetName(state))?.let { return it }
+    drawableId(context, CatBreed.fallbackAssetName(state))?.let { return it }
+    return drawableId(context, "cat_orange_waitingmorning") ?: 0
+}
+
+@DrawableRes
+private fun resolvePetShakerDrawable(context: Context, pet: PetBreed): Int {
+    drawableId(context, pet.shakerAssetName)?.let { return it }
+    drawableId(context, pet.avatarAssetName)?.let { return it }
+    return resolvePetDrawable(context, pet, CatState.WaitingMorning)
+}

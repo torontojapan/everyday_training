@@ -1,6 +1,7 @@
 package com.goexercise.app.presentation.home
 
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.CatDecoration
 import com.goexercise.app.domain.CatMessage
 import com.goexercise.app.domain.CatState
@@ -23,6 +24,8 @@ data class HomeUiState(
     val todayStatus: DailyStatus = DailyStatus.TodayPending,
     val catState: CatState = CatState.WaitingMorning,
     val catBreed: CatBreed = CatBreed.Default,
+    /** 選択中のキャラ(猫 or 犬)。ホーム主役キャラ描画はこちら。catBreed は友達公開/ウィジェット用。 */
+    val pet: PetBreed = PetBreed.Default,
     val catMessage: CatMessage = CatMessage("🐱", "今日も1分だけやってみよ？"),
     val lifetimeStats: LifetimeStatsCalculator.Stats = LifetimeStatsCalculator.Stats(0, 1),
     val catDecoration: CatDecoration = CatDecoration.None,

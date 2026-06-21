@@ -217,9 +217,9 @@ struct FriendsView: View {
     /// (孤児アカウント/プライバシー対策の lazy 化)。「友達とつながる」= 能動操作の瞬間に初めて
     /// 匿名サインインする (メール/パスワード不要)。壁ではなく opt-in の入口。
     private var friendsWelcomeBody: some View {
-        let breed = UserCatPreferences.shared.myCat
-        let asset = CatState.waitingMorning.assetName(breed: breed)
-        let resolved = UIImage(named: asset) != nil ? asset : CatBreed.fallbackAssetName(for: .waitingMorning)
+        let breed = UserCatPreferences.shared.myPet
+        let asset = breed.assetName(for: .waitingMorning)
+        let resolved = UIImage(named: asset) != nil ? asset : breed.fallbackAssetName(for: .waitingMorning)
         return ScrollView {
             VStack(spacing: 18) {
                 Image(resolved)
@@ -708,7 +708,7 @@ struct FriendsView: View {
 
     private func profileHeader(_ profile: FriendProfile) -> some View {
         // 自分のアイコンは UserCatPreferences の breed を反映 (Phase 6.7)。
-        let myBreed = UserCatPreferences.shared.myCat
+        let myBreed = UserCatPreferences.shared.myPet
         return VStack(spacing: 12) {
             HStack(spacing: 14) {
                 ZStack {
@@ -870,9 +870,9 @@ struct FriendsView: View {
 
     /// 友達0人の空状態。テキストだけでなく「待っている猫」で温かく (トンマナ強化)。
     private var friendsEmptyState: some View {
-        let breed = UserCatPreferences.shared.myCat
-        let asset = CatState.waitingMorning.assetName(breed: breed)
-        let resolved = UIImage(named: asset) != nil ? asset : CatBreed.fallbackAssetName(for: .waitingMorning)
+        let breed = UserCatPreferences.shared.myPet
+        let asset = breed.assetName(for: .waitingMorning)
+        let resolved = UIImage(named: asset) != nil ? asset : breed.fallbackAssetName(for: .waitingMorning)
         return VStack(spacing: 12) {
             Image(resolved)
                 .resizable()

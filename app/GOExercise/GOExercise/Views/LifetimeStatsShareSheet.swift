@@ -240,7 +240,7 @@ struct LifetimeStatsShareCard: View {
     }
 
     private var catImage: some View {
-        let breed = UserCatPreferences.shared.myCat
+        let breed = UserCatPreferences.shared.myPet
         // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
         let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {

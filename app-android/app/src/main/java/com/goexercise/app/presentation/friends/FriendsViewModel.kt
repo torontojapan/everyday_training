@@ -91,9 +91,10 @@ class FriendsViewModel @Inject constructor(
 
     val isMock: Boolean get() = service.isMock
 
-    /** 自分の猫種(welcome / プロフィールのアバター表示用)。友達カードのアバターも breed 共有で実猫化。 */
-    val myBreed: StateFlow<com.goexercise.app.domain.CatBreed> = settings.catBreed
-        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), com.goexercise.app.domain.CatBreed.Default)
+    /** 自分のキャラ(welcome / プロフィールのアバター表示用。猫 or 犬)。
+     *  友達カードは各友達の猫種(CatBreed)を使うが、自分の表示だけは犬対応の myPet を使う。 */
+    val myBreed: StateFlow<com.goexercise.app.domain.PetBreed> = settings.myPet
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), com.goexercise.app.domain.PetBreed.Default)
 
     /** バックアップ促しを「あとで」で閉じてから 30 日以内か(永続)。true の間は BackupCard を出さない。 */
     val backupSuppressed: StateFlow<Boolean> = settings.backupPromptDismissedAt

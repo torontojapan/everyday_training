@@ -13,6 +13,8 @@ import com.goexercise.app.data.settings.ReminderPrefs
 import com.goexercise.app.data.settings.SettingsRepository
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatBreedAccess
+import com.goexercise.app.domain.PetBreed
+import com.goexercise.app.domain.PetBreedAccess
 import com.goexercise.app.domain.StreakCalculator
 import com.goexercise.app.notification.ReminderScheduler
 import com.goexercise.app.ui.theme.AppTheme
@@ -145,6 +147,17 @@ class SettingsViewModel @Inject constructor(
         val unlocked = referralStore.isBreedUnlockedForCurrentAccount()
         if (CatBreedAccess.isLocked(breed, catBreed.value, isPremium.value, unlocked)) return
         viewModelScope.launch { repository.setCatBreed(breed) }
+    }
+
+    /** 選択中のキャラ(猫 or 犬)。猫犬ピッカー用。 */
+    val myPet: StateFlow<PetBreed> = repository.myPet
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PetBreed.Default)
+
+    fun setPet(pet: PetBreed) {
+        // 猫と同じ課金/紹介ゲートをキャラ全体(猫犬)に適用。
+        val unlocked = referralStore.isBreedUnlockedForCurrentAccount()
+        if (PetBreedAccess.isLocked(pet, myPet.value, isPremium.value, unlocked)) return
+        viewModelScope.launch { repository.setPet(pet) }
     }
 
     /** 毎日のリマインダー設定(ON/OFF + 朝/夕時刻 + 回数 + 性格)。 */

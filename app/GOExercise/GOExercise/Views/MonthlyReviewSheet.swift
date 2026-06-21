@@ -242,7 +242,7 @@ struct MonthlyReviewCard: View {
     /// 選択中の猫キャラ (celebrating ポーズ。asset 欠落時は orange fallback、それも
     /// 無ければ emoji)。今週/これまでカードと同じ解決ロジック。
     private var catImage: some View {
-        let breed = UserCatPreferences.shared.myCat
+        let breed = UserCatPreferences.shared.myPet
         // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で1つ選ぶ。
         let resolved = breed.randomHappyPoseAsset(seed: poseSeed, exists: { UIImage(named: $0) != nil })
         return Group {

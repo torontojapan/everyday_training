@@ -82,11 +82,11 @@ enum StreakLevel {
     /// 猫種で出すために CatState 経由で解決する。
     @MainActor
     var catStateAssetName: String {
-        let breed = UserCatPreferences.shared.myCat
-        // 全レベルで celebrating(喜ぶ猫)に統一。streakExtended(炎を背負う猫)は
+        let breed = UserCatPreferences.shared.myPet
+        // 全レベルで celebrating(喜ぶキャラ)に統一。streakExtended(炎を背負う)は
         // 「ダサい」というユーザー指摘で共有カードから廃止。祝祭感は紙吹雪で出す。
         let state: CatState = .celebrating
-        return state.assetName(breed: breed)
+        return breed.assetName(for: state)
     }
 
     var fallbackEmoji: String {

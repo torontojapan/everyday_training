@@ -209,7 +209,7 @@ fun FriendsContent(
     onToastConsumed: () -> Unit = {},
     onClearError: () -> Unit = {},
     linking: FriendsLinkingHandlers = FriendsLinkingHandlers(),
-    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default,
     persistedBackupDismissed: Boolean = false,
     onDismissBackupPersist: () -> Unit = {},
     showNamePrompt: Boolean = false,
@@ -727,7 +727,7 @@ private fun WelcomeBody(
     isLinking: Boolean = false,
     onRestoreApple: () -> Unit = {},
     onRestoreGoogle: () -> Unit = {},
-    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default,
 ) {
     Column(
         modifier = Modifier
@@ -738,8 +738,8 @@ private fun WelcomeBody(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(8.dp))
-        com.goexercise.app.ui.components.CatImage(
-            breed = myBreed,
+        com.goexercise.app.ui.components.PetImage(
+            pet = myBreed,
             state = com.goexercise.app.domain.CatState.WaitingMorning,
             modifier = Modifier.size(140.dp),
         )
@@ -831,7 +831,7 @@ private fun SignedInBody(
     onBackupApple: () -> Unit = {},
     onBackupGoogle: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
-    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default,
     showNamePrompt: Boolean = false,
     onSubmitName: (String) -> Unit = {},
     onDismissNamePrompt: () -> Unit = {},
@@ -967,7 +967,7 @@ private fun ProfileHeaderCard(
     profile: FriendProfile,
     palette: AppTheme,
     onRename: (String) -> Unit,
-    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default,
     onCopyCode: () -> Unit = {},
 ) {
     var showQr by remember { mutableStateOf(false) }
@@ -979,7 +979,7 @@ private fun ProfileHeaderCard(
     // 旧 Android は全体を surface カードで包み、内側コードカードを chipBackground(ピンク)にしていた(色反転)。
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            com.goexercise.app.ui.components.CatAvatar(breed = myBreed, size = 56.dp)
+            com.goexercise.app.ui.components.PetAvatar(pet = myBreed, size = 56.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     // iOS profileHeader は Typography.title(.largeTitle ~34pt)。AppType.title に一致させる。
@@ -1148,7 +1148,7 @@ private fun FriendsSection(
     onCheer: (CheerKind, FriendProfile, String?) -> Unit,
     onRemove: (FriendProfile) -> Unit,
     onOpenCheerPicker: (FriendProfile) -> Unit,
-    myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default,
+    myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1331,7 +1331,7 @@ private fun SortMenu(current: FriendSortOrder, palette: AppTheme, onSetSort: (Fr
 }
 
 @Composable
-private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.domain.CatBreed = com.goexercise.app.domain.CatBreed.Default) {
+private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.domain.PetBreed = com.goexercise.app.domain.PetBreed.Default) {
     // iOS friendsEmptyState はカード無しの素の VStack(中央寄せ)。猫はユーザーの選択種を使う。
     Column(
         Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 16.dp),
@@ -1339,7 +1339,7 @@ private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.dom
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // iOS friendsEmptyState: cat 124 + opacity 0.95 / 見出し Typography.headline(17)。
-        com.goexercise.app.ui.components.CatImage(breed = myBreed, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
+        com.goexercise.app.ui.components.PetImage(pet = myBreed, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
         Text("まだ友達がいません", color = palette.textPrimary, style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
         Text(
             "右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。",

@@ -43,12 +43,12 @@ struct WeightHeroDashboard: View {
         self.onEditTarget = onEditTarget
         // breed × state を 1 回解決し、欠落していれば fallback、それでも無ければ nil。
         // テスト/プレビューで Assets が無い環境でも crash しないよう堅牢に。
-        let breed = UserCatPreferences.shared.myCat
+        let breed = UserCatPreferences.shared.myPet
         let primary = breed.assetName(for: .waitingMorning)
         if UIImage(named: primary) != nil {
             self.cachedCatAssetName = primary
         } else {
-            let fallback = CatBreed.fallbackAssetName(for: .waitingMorning)
+            let fallback = breed.fallbackAssetName(for: .waitingMorning)
             self.cachedCatAssetName = UIImage(named: fallback) != nil ? fallback : nil
         }
     }

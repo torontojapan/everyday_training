@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.SettingsRepository
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.presentation.home.HomeStateReducer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +20,7 @@ import javax.inject.Inject
 /** シェア画面の状態(現在の連続日数 + 猫種 + 背景グラデ選択)。 */
 data class StreakShareUi(
     val streak: Int = 0,
-    val breed: CatBreed = CatBreed.Default,
+    val breed: PetBreed = PetBreed.Default,
     // 連続カード既定は Ocean(iOS shareCard.gradient.streak=.ocean パリティ)。flow 確定までの初期値も合わせる。
     val gradient: com.goexercise.app.domain.ShareCardGradient = com.goexercise.app.domain.ShareCardGradient.Ocean,
 )
@@ -41,7 +41,7 @@ class StreakShareViewModel @Inject constructor(
         repository.observeRecords(),
         rescueTickets.rescuedDates,
         settings.firstUseDate,
-        settings.catBreed,
+        settings.myPet,
         settings.shareGradient,
     ) { records, rescued, firstUse, breed, gradient ->
         val home = HomeStateReducer.reduce(records, LocalDateTime.now(clock), rescuedDates = rescued, firstUseDate = firstUse)

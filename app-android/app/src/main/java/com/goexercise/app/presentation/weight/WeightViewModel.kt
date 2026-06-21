@@ -8,7 +8,7 @@ import com.goexercise.app.data.settings.HealthPrefs
 import com.goexercise.app.data.settings.HealthRepository
 import com.goexercise.app.data.settings.MenstrualRepository
 import com.goexercise.app.data.settings.SettingsRepository
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.ChartPeriod
 import com.goexercise.app.domain.CyclePhaseResolver
 import com.goexercise.app.domain.WeightAnalytics
@@ -47,7 +47,7 @@ data class WeightUiState(
     val forecastDays: Int? = null,
     val bmi: Double? = null,
     /** 選択中の猫種(HeroCard 達成リング中央。iOS WeightHeroDashboard の cachedCatAssetName 相当)。 */
-    val breed: CatBreed = CatBreed.Default,
+    val pet: PetBreed = PetBreed.Default,
     /** 開始→目標の達成率(0..1)。nil=目標/開始未設定。iOS WeightView の progress(ringWithCat 用)。 */
     val progress: Double? = null,
 ) {
@@ -72,13 +72,13 @@ class WeightViewModel @Inject constructor(
     val uiState: StateFlow<WeightUiState> =
         combine(
             // 加入状態 + トライアル適格 + 猫種を 1 入力にまとめる(combine の 5 引数上限に収める)。
-            combine(premium.isPremiumActive, premium.isTrialEligible, settings.catBreed) { p, t, b -> Triple(p, t, b) },
+            combine(premium.isPremiumActive, premium.isTrialEligible, settings.myPet) { p, t, b -> Triple(p, t, b) },
             weightRepo.observeEntries(),
             health.prefs,
             menstrual.periodDays,
             toggles,
         ) { premiumState, entries, healthPrefs, periodDays, tg ->
-            val (isPremium, trialEligible, breed) = premiumState
+            val (isPremium, trialEligible, pet) = premiumState
             val today = LocalDate.now(clock)
             val dailyDesc = WeightAnalytics.dailyLatest(entries, tg.period, today) // 新→古
             val dailyChart = dailyDesc.reversed() // 古→新
@@ -105,7 +105,7 @@ class WeightViewModel @Inject constructor(
                 latest = latest,
                 forecastDays = WeightAnalytics.forecastDaysToTarget(entries, healthPrefs.targetKg, today),
                 bmi = WeightAnalytics.bmi(latest?.weightKg, healthPrefs.heightCm),
-                breed = breed,
+                pet = pet,
                 progress = latest?.let { healthPrefs.progressRatio(it.weightKg) },
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeightUiState())

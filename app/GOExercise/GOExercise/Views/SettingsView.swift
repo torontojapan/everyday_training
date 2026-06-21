@@ -345,7 +345,7 @@ private struct CustomizationSettingsPage: View {
                         Label("自分のキャラを変更", systemImage: "cat.fill")
                             .foregroundStyle(Palette.textPrimary)
                         Spacer()
-                        Text(UserCatPreferences.shared.myCat.displayName)
+                        Text(UserCatPreferences.shared.myPet.displayName)
                             .font(Typography.caption)
                             .foregroundStyle(Palette.textSecondary)
                     }

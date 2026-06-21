@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import com.goexercise.app.data.WorkoutRepository
 import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.SettingsRepository
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.MonthlyReviewBuilder
 import com.goexercise.app.share.HighlightShareImageRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +23,7 @@ import javax.inject.Inject
 data class HighlightShareUi(
     val review: MonthlyReviewBuilder.Review? = null,
     val kind: HighlightShareImageRenderer.Kind = HighlightShareImageRenderer.Kind.Weekly,
-    val breed: CatBreed = CatBreed.Default,
+    val breed: PetBreed = PetBreed.Default,
     val streakLabel: String = "今週の最長連続",
     /** ユーザーが選んだ背景グラデ(null=種別ごとの既定色)。iOS activeGradient と同じ上書き方式。 */
     val gradient: com.goexercise.app.domain.ShareCardGradient? = null,
@@ -59,7 +59,7 @@ class HighlightShareViewModel @Inject constructor(
     val state: StateFlow<HighlightShareUi> = combine(
         repository.observeRecords(),
         rescueTickets.rescuedDates,
-        settings.catBreed,
+        settings.myPet,
         settings.highlightShareGradient,
     ) { records, rescued, breed, gradient ->
         val today = LocalDate.now(clock)

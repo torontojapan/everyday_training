@@ -6,7 +6,7 @@ import com.goexercise.app.analytics.Analytics
 import com.goexercise.app.analytics.AnalyticsEvent
 import com.goexercise.app.data.referral.ReferralStore
 import com.goexercise.app.data.settings.SettingsRepository
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -85,10 +85,10 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    /** 選んだ猫を保存してオンボーディングを完了する。 */
-    fun complete(breed: CatBreed) {
+    /** 選んだキャラ(猫 or 犬)を保存してオンボーディングを完了する。 */
+    fun complete(pet: PetBreed) {
         viewModelScope.launch {
-            settings.setCatBreed(breed)
+            settings.setPet(pet)
             settings.setOnboardingComplete()
             Analytics.track(AnalyticsEvent.OnboardingCompleted)
         }

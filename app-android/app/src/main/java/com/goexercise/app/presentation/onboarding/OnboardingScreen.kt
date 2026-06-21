@@ -41,9 +41,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
+import com.goexercise.app.domain.DogBreed
+import com.goexercise.app.domain.PetBreed
+import com.goexercise.app.domain.PetSpecies
 import com.goexercise.app.ui.components.AppleLogo
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.CatImage
+import com.goexercise.app.ui.components.PetAvatar
+import com.goexercise.app.ui.components.PetImage
 import com.goexercise.app.ui.components.GoogleLogo
 import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -54,14 +59,21 @@ import com.goexercise.app.ui.theme.LocalAppPalette
  */
 @Composable
 fun OnboardingScreen(
-    initialBreed: CatBreed = CatBreed.Default,
-    onFinish: (CatBreed) -> Unit,
+    initialBreed: PetBreed = PetBreed.Default,
+    onFinish: (PetBreed) -> Unit,
     viewModel: OnboardingViewModel? = null,
 ) {
     val palette = LocalAppPalette.current
-    // 回転/Activity 再生成でも選択を保持(rememberSaveable は enum 不可なので rawValue を保存)。
-    var selectedRaw by rememberSaveable { mutableStateOf(initialBreed.rawValue) }
-    val selected = CatBreed.fromRaw(selectedRaw)
+    // 回転/Activity 再生成でも選択を保持(rememberSaveable は sealed 不可なので storageValue を保存)。
+    var selectedRaw by rememberSaveable { mutableStateOf(initialBreed.storageValue) }
+    val selected = PetBreed.fromStorage(selectedRaw)
+    // 猫 / 犬 セグメント(選択中キャラの species を初期値に)。
+    var species by rememberSaveable { mutableStateOf(selected.species.rawValue) }
+    val currentSpecies = PetSpecies.fromRaw(species)
+    val breeds: List<PetBreed> = when (currentSpecies) {
+        PetSpecies.Cat -> CatBreed.entries.map { PetBreed.Cat(it) }
+        PetSpecies.Dog -> DogBreed.entries.map { PetBreed.Dog(it) }
+    }
     // 2ステップ: 0=猫選択 / 1=サインイン(任意)。iOS の2ステップ ウィザード パリティ(#15)。
     var step by rememberSaveable { mutableStateOf(0) }
 
@@ -101,27 +113,46 @@ fun OnboardingScreen(
         // iOS に無い「ようこそ 🐾」見出しは撤去し、タイトルを iOS と同じ大きさ(AppType.title)に。
         Text(
             // iOS backupStep title="機種変更でも記録を引き継ぐ"。
-            if (step == 0) "一緒にがんばる猫を選ぼう" else "機種変更でも記録を引き継ぐ",
+            if (step == 0) "一緒にがんばる相棒を選ぼう" else "機種変更でも記録を引き継ぐ",
             style = com.goexercise.app.ui.theme.AppType.title, color = palette.textPrimary,
         )
         Text(
             // 猫種は「初回は全解放・以降の変更はプレミアム(or 紹介⭐10)」。オンボで「いつでも変更」と
             // 誤誘導すると有料ゲートに不意打ちされるため、iOS UserCatPicker と同じく制限を明記する。
-            if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
+            if (step == 0) "選んだ相棒はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
             // iOS backupStep subtitle に一致(自動バックアップ/双方向/メール・パスワード不要)。
             else "Apple または Google でサインインすると、運動・体重・体調の記録が自動でバックアップされ、機種変更(iPhone↔Android)や再インストールでも元に戻せます。メールやパスワードは不要です。",
             style = AppType.body, color = palette.textSecondary,
         )
 
       if (step == 0) {
-        // 選択中の猫の大プレビュー
+        // 選択中キャラの大プレビュー
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
+            PetImage(pet = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
         Text(selected.displayName, style = AppType.headline, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
 
-        // 11 種グリッド(4 列)
-        CatBreed.entries.chunked(4).forEach { row ->
+        // 猫 / 犬 セグメント切替
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(palette.surface).padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            PetSpecies.entries.forEach { sp ->
+                val isSel = sp == currentSpecies
+                Box(
+                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                        .background(if (isSel) palette.primary else Color.Transparent)
+                        .clickable { species = sp.rawValue }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(sp.displayName, color = if (isSel) Color.White else palette.textSecondary, fontSize = 14.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal) // parity-allow: 猫犬セグメントのラベル(iOS segmented 相当の14)
+                }
+            }
+        }
+
+        // 種別グリッド(4 列)
+        breeds.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { breed ->
                     Column(
@@ -129,12 +160,12 @@ fun OnboardingScreen(
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
                             .then(if (breed == selected) Modifier.border(2.dp, palette.primary, RoundedCornerShape(12.dp)) else Modifier)
-                            .clickable { selectedRaw = breed.rawValue }
+                            .clickable { selectedRaw = breed.storageValue }
                             .padding(vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        CatAvatar(breed = breed, size = 56.dp)
+                        PetAvatar(pet = breed, size = 56.dp)
                         Text(breed.displayName, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = palette.textPrimary, maxLines = 1)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                     }
                 }
@@ -175,7 +206,7 @@ fun OnboardingScreen(
         val linking = viewModel?.isLinkingAccount?.collectAsStateWithLifecycle()?.value ?: false
         val linkErr = viewModel?.linkError?.collectAsStateWithLifecycle()?.value
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
+            PetImage(pet = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
         Text(selected.displayName, style = AppType.headline, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         // ブランド準拠ボタン(iOS AppleIDButton 黒 / GoogleSignInButton 白枠)。設定 BackupSection と統一。

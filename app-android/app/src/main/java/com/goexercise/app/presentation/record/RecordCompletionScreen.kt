@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.CatState
 import com.goexercise.app.domain.ExerciseItem
 import com.goexercise.app.domain.WorkoutCategory
@@ -74,7 +74,7 @@ fun RecordCompletionRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
     RecordCompletionContent(
         streak = state.streak,
-        breed = state.breed,
+        pet = state.pet,
         catState = state.catState,
         exercises = state.exercises,
         streakExtendedThisRun = state.streakExtendedThisRun,
@@ -88,7 +88,7 @@ fun RecordCompletionRoute(
 @Composable
 fun RecordCompletionContent(
     streak: Int,
-    breed: CatBreed,
+    pet: PetBreed,
     catState: CatState,
     exercises: List<ExerciseItem> = emptyList(),
     streakExtendedThisRun: Boolean = false,
@@ -139,8 +139,8 @@ fun RecordCompletionContent(
                 label = "appear",
             )
             // 1. ヒーロー: 大きい祝福猫。
-            com.goexercise.app.ui.components.CatImage(
-                breed = breed,
+            com.goexercise.app.ui.components.PetImage(
+                pet = pet,
                 state = catState,
                 modifier = Modifier.size(210.dp).graphicsLayer { val s = 0.85f + 0.15f * p; scaleX = s; scaleY = s; alpha = p },
                 useShaker = true,

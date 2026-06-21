@@ -94,8 +94,14 @@ import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatBreedAccess
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.CatState
+import com.goexercise.app.domain.DogBreed
+import com.goexercise.app.domain.PetBreed
+import com.goexercise.app.domain.PetBreedAccess
+import com.goexercise.app.domain.PetSpecies
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.CatImage
+import com.goexercise.app.ui.components.PetAvatar
+import com.goexercise.app.ui.components.PetImage
 import com.goexercise.app.ui.components.metalColor
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.AppType
@@ -109,6 +115,7 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val trialEligible by viewModel.isTrialEligible.collectAsStateWithLifecycle()
     val catBreed by viewModel.catBreed.collectAsStateWithLifecycle()
+    val myPet by viewModel.myPet.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val reminder by viewModel.reminder.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
@@ -144,6 +151,8 @@ fun SettingsRoute(onOpenPremium: () -> Unit = {}, viewModel: SettingsViewModel =
         onOpenPremium = onOpenPremium,
         catBreed = catBreed,
         onSelectBreed = viewModel::setCatBreed,
+        pet = myPet,
+        onSelectPet = viewModel::setPet,
         isBusy = isBusy,
         statusMessage = deletedMsg,
         onExport = {
@@ -224,6 +233,8 @@ fun SettingsContent(
     onOpenPremium: () -> Unit = {},
     catBreed: CatBreed = CatBreed.Default,
     onSelectBreed: (CatBreed) -> Unit = {},
+    pet: PetBreed = PetBreed.Default,
+    onSelectPet: (PetBreed) -> Unit = {},
     isBusy: Boolean = false,
     statusMessage: String? = null,
     onExport: () -> Unit = {},
@@ -351,7 +362,7 @@ fun SettingsContent(
                 SettingsCard {
                     EntryRow(Icons.Filled.Palette, "テーマカラー", showChevron = true) { page = SettingsPage.ThemePicker }
                     RowDivider()
-                    EntryRow(Icons.Filled.Pets, "自分のキャラを変更", trailing = catBreed.displayName, showChevron = true) { page = SettingsPage.CatPicker }
+                    EntryRow(Icons.Filled.Pets, "自分のキャラを変更", trailing = pet.displayName, showChevron = true) { page = SettingsPage.CatPicker }
                     RowDivider()
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Filled.Vibration, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(22.dp))
@@ -368,10 +379,10 @@ fun SettingsContent(
             }
 
             SettingsPage.CatPicker -> SubPage("自分のキャラを選ぶ", onBack = { page = SettingsPage.Customize }) {
-                CatBreedPicker(
-                    selected = catBreed, palette = palette, isPremium = isPremium,
+                PetBreedPicker(
+                    selected = pet, palette = palette, isPremium = isPremium,
                     referralUnlocked = CatBreedAccess.referralUnlocked(referralStarBadges),
-                    onSelect = onSelectBreed, onLockedTap = onOpenPremium,
+                    onSelect = onSelectPet, onLockedTap = onOpenPremium,
                 )
             }
 
@@ -709,34 +720,41 @@ private fun AnalyticsSection(palette: AppTheme, enabled: Boolean, onToggle: (Boo
 }
 
 /**
- * 11 種の猫から選ぶピッカー(4 列のグリッド)。verticalScroll 内なので LazyGrid は使わず手動チャンク。
- * 課金/紹介ゲート: 非プレミアムかつ紹介⭐<10 のとき「今の猫」以外はロック(淡色+🔒)、
- * ロック猫タップはペイウォールへ誘導(iOS UserCatPickerView パリティ)。
+ * 猫(11 種)/犬(5 種)から選ぶピッカー(上部に猫/犬セグメント + 4 列グリッド)。
+ * verticalScroll 内なので LazyGrid は使わず手動チャンク。
+ * 課金/紹介ゲート: 非プレミアムかつ紹介⭐<10 のとき「今のキャラ」以外はロック(淡色+🔒)、
+ * ロックタップはペイウォールへ誘導(iOS UserCatPickerView パリティ)。
  */
 @Composable
-private fun CatBreedPicker(
-    selected: CatBreed,
+private fun PetBreedPicker(
+    selected: PetBreed,
     palette: AppTheme,
     isPremium: Boolean,
     referralUnlocked: Boolean,
-    onSelect: (CatBreed) -> Unit,
+    onSelect: (PetBreed) -> Unit,
     onLockedTap: () -> Unit,
 ) {
-    // iOS UserCatPickerView は素背景に「大プレビュー猫 + 名前 + 11種グリッド」。surface カードでは包まない。
+    var species by remember(selected) { mutableStateOf(selected.species) }
+    val breeds: List<PetBreed> = when (species) {
+        PetSpecies.Cat -> CatBreed.entries.map { PetBreed.Cat(it) }
+        PetSpecies.Dog -> DogBreed.entries.map { PetBreed.Dog(it) }
+    }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 選択中の猫の大プレビュー(オンボ猫ピッカーと同一)。
+        // 選択中キャラの大プレビュー(オンボと同一)。
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
+            PetImage(pet = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
         Text(
             selected.displayName,
-            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,  // parity-allow: AppType トークン同値(size16・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
+            style = AppType.headline, color = palette.primaryDeep,
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
-        CatBreed.entries.chunked(4).forEach { row ->
+        // 猫 / 犬 セグメント切替。
+        PetSpeciesSegment(species = species, palette = palette, onSelect = { species = it })
+        breeds.chunked(4).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { breed ->
-                    val locked = CatBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
+                    val locked = PetBreedAccess.isLocked(breed, selected, isPremium, referralUnlocked)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -748,13 +766,45 @@ private fun CatBreedPicker(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            CatAvatar(breed = breed, size = 56.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
+                            PetAvatar(pet = breed, size = 56.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
                             if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
                         }
-                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
+                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1) // parity-allow: iOSピッカーのセル名 system size10 medium に一致
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** 猫 / 犬 の 2 値セグメント切替(Material SegmentedButton を使わず軽量自作)。 */
+@Composable
+private fun PetSpeciesSegment(species: PetSpecies, palette: AppTheme, onSelect: (PetSpecies) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(palette.surface)
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        PetSpecies.entries.forEach { sp ->
+            val isSel = sp == species
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isSel) palette.primary else Color.Transparent)
+                    .clickable { onSelect(sp) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    sp.displayName,
+                    color = if (isSel) Color.White else palette.textSecondary,
+                    fontSize = 14.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal, // parity-allow: 猫犬セグメントのラベル(iOS segmented 相当の14)
+                )
             }
         }
     }

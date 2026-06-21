@@ -12,7 +12,7 @@ import android.graphics.Typeface
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
-import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.MetalKind
 import com.goexercise.app.domain.StreakLevel
@@ -50,7 +50,7 @@ object StreakShareImageRenderer {
     fun render(
         context: Context,
         streak: Int,
-        breed: CatBreed,
+        breed: PetBreed,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
         // 画面プレビュー用のコンパクトカード(iOS StreakShareCard 非 fillFrame ≈ 縦横比 0.84)を描くときは
@@ -124,7 +124,7 @@ object StreakShareImageRenderer {
     suspend fun share(
         context: Context,
         streak: Int,
-        breed: CatBreed,
+        breed: PetBreed,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     ) {
@@ -159,7 +159,7 @@ object StreakShareImageRenderer {
     suspend fun saveToGallery(
         context: Context,
         streak: Int,
-        breed: CatBreed,
+        breed: PetBreed,
         poseSeed: Int = (0..9999).random(),
         gradient: com.goexercise.app.domain.ShareCardGradient? = null,
     ): Boolean {
@@ -285,7 +285,7 @@ object StreakShareImageRenderer {
         return rect.bottom + 28f
     }
 
-    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: CatBreed, level: StreakLevel, poseSeed: Int) {
+    private fun drawCat(context: Context, canvas: Canvas, cx: Float, cy: Float, diameter: Float, breed: PetBreed, level: StreakLevel, poseSeed: Int) {
         val r = diameter / 2
         // ハッピーポーズ3種(celebrating/happy2/happy3)から poseSeed で決定的に選ぶ。
         // 実在チェックは drawable リソース ID の有無で行う(欠損は orange celebrating に縮退)。

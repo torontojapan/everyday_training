@@ -45,10 +45,10 @@ struct MilestoneCelebrationSheet: View {
     /// 該当 asset が無ければ orange の同 state に fallback。
     /// 両方失敗した場合は nil → emoji にフォールバック表示する。
     private var characterAssetName: String? {
-        let breed = UserCatPreferences.shared.myCat
+        let breed = UserCatPreferences.shared.myPet
         let primary = breed.assetName(for: characterState)
         if UIImage(named: primary) != nil { return primary }
-        let fallback = CatBreed.fallbackAssetName(for: characterState)
+        let fallback = breed.fallbackAssetName(for: characterState)
         if UIImage(named: fallback) != nil { return fallback }
         return nil
     }
