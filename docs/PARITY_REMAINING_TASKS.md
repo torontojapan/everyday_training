@@ -1,8 +1,25 @@
 # Android↔iOS パリティ 残タスク・バックログ(動く正本)
 
 > **これが同期残タスクの唯一の動く正本。** 体系立てて 1 項目ずつ消化する。
-> 関連: 方針=`PARITY_100_PLAN.md` / 旧履歴=`android_ios_parity_tracker.md` / 規約=`CLAUDE.md`。
-> 最終更新: 2026-06-20。
+> 関連: 方針=`PARITY_100_PLAN.md` / QA=`QA_MASTER_PLAN.md` / 旧履歴=`android_ios_parity_tracker.md` / 規約=`CLAUDE.md`。
+> 最終更新: 2026-06-21。
+
+> ## ★★★ 最新ハンドオフ(2026-06-21・次セッションはここから)
+> **今セッションでやったこと:**
+> - パリティ実バグ多数是正(友達コード画面の色反転/戻るボタン色/設定猫ピッカー/ウィジェット実画像取得/`profiles.updated_at` 23502 サインインブロッカー)→ **PR #6・#7・#8 は main にマージ済み**。
+> - 実 Supabase 2アカウントライブ照合(申請→承認→リスト→ランキング→詳細→応援)完了。
+> - **全画面フォント総ざらい**: 5並列で Android 生フォント vs iOS ソースを要素突合 → **約150件の weight/size ドリフト是正**。density393 で 9画面 golden 照合済。→ **PR #9(branch `fix/home-fonts-markers-settings-star`)= 未マージ。最初にこれを squash & merge する。**
+> - **恒久強制レイヤ導入(PR #9 に同梱)**: `AppType` を iOS Dynamic Type 全スタイルへ拡張 / `tools/parity/parity_guard.py`(生 fontSize・Color(0x)・FontWeight.Black 禁止・baseline 156)/ `AppTypeParityTest`(iOS値固定)/ `.github/workflows/android-parity.yml` / `.githooks/pre-commit`。
+>
+> **なぜズレが残ったかの真因(`PARITY_100_PLAN.md §D`):** ①トークン化が未強制で生値が散在 ②**SSIM/ピクセル差分は 1段weight・1px差に盲目**でハーネスが全部グリーン判定 ③「✅添付必須」は規律依存。→ 検証を **semantic(値突合)** にし、生値を **書けなくする** のが恒久解。
+>
+> **次セッションの実行手順(全画面・全パターン再検証):**
+> 1. `git checkout fix/home-fonts-markers-settings-star` を **squash & merge**(or `gh pr merge 9 --squash`)→ main 同期。
+> 2. **エミュ起動**(memory [[gotcha_android_emulator_no_internet_vpn]] の復旧手順: `emulator @go_test -gpu swiftshader_indirect -dns-server 8.8.8.8` + 通常WiFi)→ `adb shell wm density 393`。
+> 3. **全画面×全状態を §QA-Aの画面マトリクスで1つずつ**: 状態シード(`tools/parity/capture_android.py --seed-streak/--end-offset/--skip-recent`・Mock-force・debug deep-link)→ density393 撮影 → iOS golden(`/tmp/ios_*` 再生成は `xcodebuild test -only-testing:…/ScreenshotCaptureUITests`)と横並び + **要素単位の size/weight/色/文言突合**(目視でなく値)。差は是正。
+> 4. **生値 token 化**: `parity_guard.py` の baseline 156 を 0 へ減らし、完了後 `--strict` を CI 既定化(= 生値ゼロ恒久強制)。
+> 5. **(本命)semantic UIツリー差分ハーネスを構築**: iOS XCUITest snapshot ツリー + Android semantics ツリーから各 Text の (文言/解決後 size/weight/色トークン) を抽出し**要素等値検証** → 全画面 CI ゲート化。
+> 6. パリティ収束後 → **`QA_MASTER_PLAN.md` の全機能 QA を Phase 0→F で実施**。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
