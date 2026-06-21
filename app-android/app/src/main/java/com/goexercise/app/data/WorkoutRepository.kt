@@ -20,7 +20,6 @@ import javax.inject.Inject
  */
 interface WorkoutRepository {
     fun observeRecords(): Flow<List<WorkoutRecord>>
-    suspend fun recordsInRange(start: LocalDate, end: LocalDate): List<WorkoutRecord>
     suspend fun save(record: WorkoutRecord)
     suspend fun delete(id: String)
 }
@@ -36,8 +35,6 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun observeRecords(): Flow<List<WorkoutRecord>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain(json) } }.flowOn(Dispatchers.Default)
 
-    override suspend fun recordsInRange(start: LocalDate, end: LocalDate): List<WorkoutRecord> =
-        dao.rangeOnce(start.toEpochDay(), end.toEpochDay()).map { it.toDomain(json) }
 
     override suspend fun save(record: WorkoutRecord) {
         val now = Instant.now(clock).toEpochMilli()

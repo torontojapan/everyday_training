@@ -1040,15 +1040,6 @@ struct FriendsView: View {
         return (wd + 5) % 7
     }
 
-    private func tierColor(_ tier: Int) -> Color {
-        switch tier {
-        case 1: return Palette.primary
-        case 2: return Palette.settingsAccent
-        case 3: return Color(red: 0.90, green: 0.60, blue: 0.20)
-        case 4: return Color(red: 1.00, green: 0.82, blue: 0.30)
-        default: return Palette.textSecondary
-        }
-    }
 
     /// 友達追加用 QR にエンコードする招待リンク。アプリ内スキャナ(QRScannerView)が
     /// この `goexercise://friends?code=XXX` から友達コードを取り出して追加する。

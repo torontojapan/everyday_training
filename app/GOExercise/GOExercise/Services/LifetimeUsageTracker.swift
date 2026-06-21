@@ -19,7 +19,4 @@ final class LifetimeUsageTracker {
         return earliest
     }
 
-    func reset() {
-        defaults.removeObject(forKey: Self.firstUseDateKey)
-    }
 }

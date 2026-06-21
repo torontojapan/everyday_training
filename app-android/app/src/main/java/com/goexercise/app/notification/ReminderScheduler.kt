@@ -26,11 +26,6 @@ class ReminderScheduler @Inject constructor(
 ) {
     private val alarmManager get() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    /** 後方互換: 朝1本だけ予約(夕は解除)。 */
-    fun schedule(hour: Int, minute: Int) {
-        scheduleSlot(NotificationSlot.Morning, hour, minute)
-        cancelSlot(NotificationSlot.Evening)
-    }
 
     /**
      * prefs と**性格**に従って予約(iOS scheduleDaily の性格分岐パリティ。Codex R3 是正)。

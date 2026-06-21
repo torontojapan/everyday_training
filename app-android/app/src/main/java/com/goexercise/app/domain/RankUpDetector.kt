@@ -52,11 +52,6 @@ class RankUpDetector(private val store: RankUpStore) {
         return events
     }
 
-    /** 検知状態をリセット(両キーを 0 に戻す)。 */
-    fun reset() {
-        store.putInt(KEY_LAST_RANK, 0)
-        store.putInt(KEY_LAST_WEEKLY_MULTIPLE, 0)
-    }
 
     companion object {
         private const val KEY_LAST_RANK = "rankup.lastRank"

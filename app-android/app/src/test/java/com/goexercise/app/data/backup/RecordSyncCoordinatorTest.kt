@@ -428,8 +428,6 @@ private class RecordingService(val delegate: MockFriendsService) : FriendsServic
 private class FakeWorkoutDao : WorkoutDao {
     val rows = linkedMapOf<String, WorkoutRecordEntity>()
     override fun observeAll(): Flow<List<WorkoutRecordEntity>> = flowOf(rows.values.toList())
-    override suspend fun rangeOnce(startEpochDay: Long, endEpochDay: Long) =
-        rows.values.filter { it.dateEpochDay in startEpochDay..endEpochDay }
     override suspend fun findById(id: String): WorkoutRecordEntity? = rows[id]
     override suspend fun upsert(record: WorkoutRecordEntity) { rows[record.id] = record }
     override suspend fun deleteById(id: String) { rows.remove(id) }
