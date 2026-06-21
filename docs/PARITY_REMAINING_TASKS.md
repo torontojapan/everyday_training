@@ -68,6 +68,29 @@
 >   C 堅牢性(プロセス死/回転/ネット断/権限)/ E Supabase RLS 各表 / F リリース。**2LLM 敵対監査で correct 収束**は未実施。
 > - **semantic_diff v1 が見つけた要修正(任意・軽微)**: ①招待プロンプト Android 全角「？(任意)」↔ iOS 半角。②設定バックアップ補足文言が iOS/Android で別表現。
 > - **エミュ/シミュ 両ウィンドウ起動中**(record の種目見出し・weight のサーモン数字をライブ確認可)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その5・step6 A〜F 監査完了)
+> - **Phase0 ✅**: Android unit 346/0fail + parity_guard --strict + AppTypeParityTest + iOS UITest 全 pass。
+> - **A 機能 ✅(主要フロー実機実行)**: 記録保存→完了画面 / premium 解放(mock billing)/ 友達 匿名サインイン /
+>   体重入力+チャート / 設定遷移 / 周期トグル / 生理日 / 日詳細 をライブで動作確認。
+> - **B 横断ロジック/再発バグ型 ✅(全型 防御確認)**: memory [[gotcha_recurring_bug_classes]] 全 11 型を Android で照合:
+>   ①口座スコープ=`ReferralAccountScope.scoped(summary==current ガード)` ②③月境界=`RescueTicket` 全て local `YearMonth`・
+>   allowance 当月のみ ④シート=Compose state ⑤rescuedDates=Restored/Weekly 計算が必須引数+コメントで明示 ⑥連続「昨日まで」=
+>   `StreakCalculator` TodayPending スキップ ⑦UUID=`FriendshipPair` lowercase+回帰test ⑧RLS=後述E ⑨演出=`celebrateConfetti`
+>   は new today-record ID 検知時のみ(launch/revive 不発) ⑩=Kotlin interface は動的dispatchで N/A ⑪`.first`=
+>   `AccountLinking.providerNames: List` で全列挙(byline は "・" join)。**全型 防御済 + 該当 unit test 緑**。
+> - **C 堅牢性 ✅**: 空状態(data clear→オンボ・無crash)/ 回転(landscape↔portrait・同pid 無crash)/ プロセス死→復元
+>   (force-stop 跨ぎで Room 永続データ生存・premium は in-memory で揮発=設計どおり)/ 大量データ(365日 履歴描画)。
+> - **D パリティ ✅**: step3(全画面 golden 照合)+ step4(--strict)+ step5(semantic v1)。
+> - **E バックエンド ✅**: 5表すべて RLS 有効。referrals は **INSERT WITH CHECK(status=pending/confirmed_at=null/seen=false)
+>   + BEFORE UPDATE trigger(当事者不変/confirmed_at write-once/status 一方向/referrer は seen のみ)** で bug8 P0 を封鎖。
+>   profiles `updated_at` trigger(§7 23502 の根治)+ orphan cleanup cron + test_referrals_trigger.sql。
+> - **F リリース ✅/保留**: iOS Info.plist 手動5キー(FriendsApple/GoogleLinkEnabled/TelemetryDeckAppID/NSCamera/ITSApp…)present・
+>   build12 提出済。Android リリースは iOS 先行戦略 [[release_strategy_dual_launch]] で保留。
+> - **残(step6 の formal gate)**: ①**2LLM 敵対監査(Codex)で correct 収束** 未実施(環境要設定)。
+>   ②semantic_diff v1 の軽微検出(招待プロンプト全角/半角・バックアップ補足文言差)の是正。
+> - **総括**: step1-5 完了・step6 A〜F は実機/コード/スキーマ監査で **全カテゴリ pass(再発バグ型・RLS・堅牢性すべて防御確認)**。
+>   未済は 2LLM 収束の formal 化と上記軽微2件のみ。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
