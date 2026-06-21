@@ -67,13 +67,12 @@
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/settings/SettingsScreen.kt|fontSize = 14.sp,",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/settings/SettingsScreen.kt|fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/settings/SettingsScreen.kt|linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }",
-"raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|Text(\" kg\", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|Text(\"月経周期オーバーレイ\", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|Text(title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) \"目標を設定\" else \"変更\", color = p",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,",
-"raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,",
+"raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primary,",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/weight/WeightScreen.kt|state.health.startKg?.let { Text(\"開始 %.1f →\".format(it), fontSize = 12.sp, color = palette.textSecondary) }"
 ]

@@ -306,9 +306,12 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
-                            fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
+                            // iOS WeightHeroDashboard primaryWeight: Palette.primary(サーモン)・.heavy。
+                            // (旧 Android は primaryDeep=濃赤で iOS golden(254,160,142)と相違=2026-06-21 ピクセル実測是正)
+                            fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primary,
                         )
-                        Text(" kg", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+                        // iOS "kg" 単位 = .title3(20) semibold(旧 Android 18 Normal)。
+                        Text(" kg", style = AppType.sectionTitle.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.remainingToTarget?.let { rem ->
