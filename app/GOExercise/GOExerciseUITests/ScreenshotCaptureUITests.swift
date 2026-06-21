@@ -93,6 +93,25 @@ final class ScreenshotCaptureUITests: XCTestCase {
         sleep(2); shoot(settings, "11_settings")
     }
 
+    /// semantic_diff ハーネス用: 各画面の accessibility 階層(debugDescription)を attachment 保存。
+    /// tools/parity/semantic_diff.py が parse して Android semantics と要素(文言+読み順)を等値検証する。
+    private func dumpTree(_ app: XCUIApplication, _ name: String) {
+        let att = XCTAttachment(string: app.debugDescription)
+        att.name = name; att.lifetime = .keepAlways
+        add(att); print("TREE \(name)")
+    }
+
+    func testDumpSemanticTrees() {
+        let home = launch(["--skip-onboarding", "--initial-tab", "home"] + seed)
+        sleep(2); dumpTree(home, "home.debugdesc")
+        let stats = launch(["--skip-onboarding", "--initial-tab", "stats"] + seed)
+        sleep(2); dumpTree(stats, "history.debugdesc")
+        let settings = launch(["--skip-onboarding", "--initial-tab", "settings"] + seed)
+        sleep(2); dumpTree(settings, "settings.debugdesc")
+        let weight = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "weight"] + seed)
+        sleep(2); dumpTree(weight, "weight.debugdesc")
+    }
+
     /// オンボーディング step2(バックアップ)golden。fresh onboarding → 猫確定(つぎへ)→ backupStep。
     func testCaptureOnboardingStep2() {
         let app = launch([])

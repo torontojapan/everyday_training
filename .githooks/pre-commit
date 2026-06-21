@@ -2,7 +2,7 @@
 # Android↔iOS パリティ: ドリフト源(生 fontSize / ハードコード色 / FontWeight.Black)の
 # 新規混入をコミット前に止める。有効化: git config core.hooksPath .githooks
 # 方針 = docs/PARITY_100_PLAN.md / 実体 = tools/parity/parity_guard.py
-python3 "$(git rev-parse --show-toplevel)/tools/parity/parity_guard.py" || {
+python3 "$(git rev-parse --show-toplevel)/tools/parity/parity_guard.py" --strict || {
   echo "✋ parity_guard: 新規ドリフト源を検出。AppType トークン/パレット経由にするか、正当なら // parity-allow: 理由 を付与。"
   exit 1
 }

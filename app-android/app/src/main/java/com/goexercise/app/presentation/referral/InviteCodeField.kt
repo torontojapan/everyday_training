@@ -25,7 +25,7 @@ fun InviteCodeField(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("招待コードをお持ちですか？（任意）", style = MaterialTheme.typography.titleSmall)
+        Text("招待コードをお持ちですか?(任意)", style = MaterialTheme.typography.titleSmall)
         Text("友達のコードを入れると、お互いに保険チケットが増えます。", style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(

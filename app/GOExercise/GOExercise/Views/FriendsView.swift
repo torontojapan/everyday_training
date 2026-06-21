@@ -546,15 +546,6 @@ struct FriendsView: View {
 
     // MARK: - バックアップ(アカウント連携)カード
 
-    /// バックアップ促しを出すか。連携が有効・未バックアップ・トリガー達成・直近未dismiss。
-    private func showBackupCard(for profile: FriendProfile) -> Bool {
-        guard SupabaseConfig.isAccountLinkingEnabled, !friendsStore.isBackedUp else { return false }
-        let trigger = friendsStore.friends.count >= 1 || profile.currentStreak >= 7
-        guard trigger else { return false }
-        let now = Date().timeIntervalSince1970
-        return now - backupPromptDismissedAt > 30 * 24 * 3600   // dismiss 後30日沈黙
-    }
-
     private var backupCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("友達を機種変でも引き継ぐ")
@@ -1047,24 +1038,6 @@ struct FriendsView: View {
     private var todayWeekdayIndex: Int {
         let wd = Calendar.mondayFirst.component(.weekday, from: Date())
         return (wd + 5) % 7
-    }
-
-    private func relativeUpdated(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.unitsStyle = .short
-        return "更新 \(formatter.localizedString(for: date, relativeTo: Date()))"
-    }
-
-    private func avatar(tier: Int, small: Bool = false) -> some View {
-        let size: CGFloat = small ? 36 : 56
-        return ZStack {
-            Circle()
-                .fill(tierColor(tier).opacity(0.25))
-                .frame(width: size, height: size)
-            Text("🐱")
-                .font(.system(size: small ? 22 : 32))
-        }
     }
 
     private func tierColor(_ tier: Int) -> Color {

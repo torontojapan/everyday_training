@@ -113,8 +113,9 @@ def screenshot(path):
 
 
 # ---- 画面レシピ(タブ座標は 1080x2400 基準。必要に応じ find_text で補正)----
-TABS = {"home": (130, 2280), "history": (324, 2280), "weight": (540, 2280),
-        "friends": (760, 2280), "settings": (970, 2280)}
+# タブの y は ボトムナビ項目の中心(~2250)。2280 はラベル下端(2279)より下でタップが外れる(2026-06-21 実証)。
+TABS = {"home": (108, 2250), "history": (324, 2250), "weight": (540, 2250),
+        "friends": (756, 2250), "settings": (972, 2250)}
 
 
 def recipe(name, out):
@@ -123,7 +124,11 @@ def recipe(name, out):
     elif name == "settings":
         launch(); tap(*TABS["settings"]); screenshot(out)
     elif name == "record_empty":
-        launch(); tap_text("記録する"); screenshot(out)
+        # CTA は状態で文言が変わる(「今日の運動を記録する」/「もう一種目する」/「ただいま記録」)。
+        launch()
+        if not (tap_text("記録する") or tap_text("もう一種目") or tap_text("ただいま記録")):
+            tap_text("記録")
+        screenshot(out)
     elif name == "history":
         launch(); tap(*TABS["history"]); screenshot(out)
     elif name == "weight_paywall":

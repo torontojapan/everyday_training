@@ -89,6 +89,7 @@ import com.goexercise.app.domain.CatBreed
 import com.goexercise.app.domain.CatState
 import com.goexercise.app.ui.components.CatImage
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 import java.time.LocalDate
 import kotlin.math.abs
@@ -214,10 +215,10 @@ private fun WeightCollapsible(
             ) {
                 Icon(icon, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                    Text(title, color = palette.textPrimary, style = AppType.subheadline.copy(fontWeight = FontWeight.Bold))
                     // iOS: 展開時は本文と二重になるので subtitle を隠す。
                     if (!expanded && subtitle.isNotEmpty()) {
-                        Text(subtitle, fontSize = 12.sp, color = palette.textSecondary)
+                        Text(subtitle, color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
                     }
                 }
                 Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = palette.textSecondary)
@@ -266,19 +267,19 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                     // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
                     if (trialEligible) "14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。"
                     else "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。",
-                    fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                    fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,  // parity-allow: AppType トークン同値(size15・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
                 Button(
                     onClick = onOpenPremium,
                     colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
                     shape = RoundedCornerShape(50), // iOS Capsule。
                 ) {
-                    Text("GOプレミアムを見る", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("GOプレミアムを見る", color = Color.White, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
                 }
                 // iOS フッター: ホーム「記録する」からの体重入力は無料(無料導線を明示)。
                 Text(
                     "ホーム画面の「記録する」からの体重入力は\n引き続き無料でご利用いただけます",
-                    fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                    fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             }
         }
@@ -291,19 +292,26 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
     Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // iOS WeightHeroDashboard 上段ヘッダ「最新の体重 · {日付}」。
+            // iOS dateLabel(WeightHeroDashboard.swift:296)に合わせ、時刻が 00:00:00 ちょうどなら
+            // 日付のみ(yyyy/M/d)・それ以外は時刻も(yyyy/M/d HH:mm)。深夜0時シードで偽の「00:00」を出さない。
             val header = state.latest?.let {
-                "最新の体重 · " + it.recordedAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d HH:mm"))
+                val t = it.recordedAt
+                val pattern = if (t.hour == 0 && t.minute == 0 && t.second == 0) "yyyy/M/d" else "yyyy/M/d HH:mm"
+                "最新の体重 · " + t.format(java.time.format.DateTimeFormatter.ofPattern(pattern))
             } ?: "最新の体重"
-            Text(header, fontSize = 12.sp, color = palette.textSecondary)
+            Text(header, color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
             // iOS 中段: 巨大な現在体重(左)+ 達成リング+猫(右)。
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
-                            fontSize = 44.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+                            // iOS WeightHeroDashboard primaryWeight: Palette.primary(サーモン)・.heavy。
+                            // (旧 Android は primaryDeep=濃赤で iOS golden(254,160,142)と相違=2026-06-21 ピクセル実測是正)
+                            fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primary,  // parity-allow: iOS WeightHeroDashboard primaryWeight(size56+minimumScaleFactor)実効同等
                         )
-                        Text(" kg", fontSize = 18.sp, color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+                        // iOS "kg" 単位 = .title3(20) semibold(旧 Android 18 Normal)。
+                        Text(" kg", style = AppType.sectionTitle.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.remainingToTarget?.let { rem ->
@@ -322,11 +330,11 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
                 WeightAchievementRing(progress = state.progress, breed = state.breed, palette = palette)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                state.health.startKg?.let { Text("開始 %.1f →".format(it), fontSize = 12.sp, color = palette.textSecondary) }
+                state.health.startKg?.let { Text("開始 %.1f →".format(it), color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
                 Spacer(Modifier.width(6.dp))
-                Text(state.health.targetKg?.let { "目標 %.1f kg".format(it) } ?: "目標未設定", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep)
+                Text(state.health.targetKg?.let { "目標 %.1f kg".format(it) } ?: "目標未設定", color = palette.primaryDeep, style = AppType.footnote.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) "目標を設定" else "変更", color = palette.primaryDeep, fontSize = 12.sp) }
+                TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) "目標を設定" else "変更", color = palette.primaryDeep, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
             }
         }
     }
@@ -370,7 +378,7 @@ private fun WeightAchievementRing(progress: Double?, breed: CatBreed, palette: A
                     .clip(CircleShape).background(palette.primaryDeep)
                     .border(2.dp, palette.surface, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
             ) {
-                Text("${(p.coerceIn(0.0, 1.0) * 100).toInt()}%", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                Text("${(p.coerceIn(0.0, 1.0) * 100).toInt()}%", color = Color.White, style = AppType.caption2.copy(fontWeight = FontWeight.ExtraBold))
             }
         }
     }
@@ -386,21 +394,21 @@ private fun BmiStrip(state: WeightUiState, palette: AppTheme, onSetHeight: (Doub
             Icon(Icons.Filled.Straighten, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(8.dp))
             if (state.bmi != null) {
-                Text("BMI", fontSize = 11.sp, color = palette.textSecondary)
+                Text("BMI", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
                 Spacer(Modifier.width(4.dp))
-                Text("%.1f".format(state.bmi), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary)
+                Text("%.1f".format(state.bmi), color = palette.textPrimary, style = AppType.caption.copy(fontWeight = FontWeight.ExtraBold))
                 state.health.heightCm?.let {
                     Spacer(Modifier.width(8.dp))
-                    Text("身長 ${it.toInt()}cm", fontSize = 11.sp, color = palette.textSecondary)
+                    Text("身長 ${it.toInt()}cm", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
                 }
             } else {
-                Text("身長を設定すると BMI が表示されます", fontSize = 11.sp, color = palette.textSecondary)
+                Text("身長を設定すると BMI が表示されます", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { showHeightDialog = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                 Icon(Icons.Filled.Edit, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(13.dp))
                 Spacer(Modifier.width(3.dp))
-                Text("身長", color = palette.primaryDeep, fontSize = 11.sp)
+                Text("身長", color = palette.primaryDeep, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
             }
         }
     }
@@ -431,13 +439,13 @@ private fun EntryBody(palette: AppTheme, onAdd: (LocalDate, Double, String?) -> 
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.clickable { if (i == 2) showPicker = true else mode = i },
                     ) {
-                        Text(label, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+                        Text(label, color = if (sel) Color.White else palette.textPrimary, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp), style = AppType.caption.copy(fontWeight = FontWeight.ExtraBold))
                     }
                 }
             }
             // 「その他」選択時は対象日を明示(任意過去日入力。iOS dateSegment パリティ)。
             if (mode == 2) {
-                Text("対象日: ${customDate}", fontSize = 12.sp, color = palette.textSecondary)
+                Text("対象日: ${customDate}", color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
             }
             OutlinedTextField(
                 value = weight, onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
@@ -494,7 +502,7 @@ private fun ChartBody(state: WeightUiState, palette: AppTheme, onSetPeriod: (Cha
         if (state.periodDays.isNotEmpty()) {
             Text(
                 if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
-                fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },
+                fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             )
         }
     }
@@ -524,12 +532,12 @@ private fun PeriodSegmentedControl(period: ChartPeriod, onSetPeriod: (ChartPerio
                         modifier = seg,
                     ) {
                         Box(Modifier.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                            Text(p.shortLabel, fontSize = 13.sp, color = palette.textPrimary, fontWeight = FontWeight.SemiBold)
+                            Text(p.shortLabel, color = palette.textPrimary, style = AppType.footnote.copy(fontWeight = FontWeight.SemiBold))
                         }
                     }
                 } else {
                     Box(seg.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                        Text(p.shortLabel, fontSize = 13.sp, color = palette.textPrimary)
+                        Text(p.shortLabel, color = palette.textPrimary, style = AppType.footnote.copy(fontWeight = FontWeight.Normal))
                     }
                 }
             }
@@ -678,7 +686,7 @@ private fun StatsRow(label: String, s: WeightStats, palette: AppTheme) {
         Row {
             Text(label, style = com.goexercise.app.ui.theme.AppType.caption, color = palette.textSecondary)
             Spacer(Modifier.weight(1f))
-            Text("%+.1f kg".format(s.change), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, color = if (s.change <= 0) palette.success else palette.primaryDeep)
+            Text("%+.1f kg".format(s.change), fontFamily = FontFamily.Monospace, color = if (s.change <= 0) palette.success else palette.primaryDeep, style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCell("最小", s.min, palette)
@@ -691,8 +699,8 @@ private fun StatsRow(label: String, s: WeightStats, palette: AppTheme) {
 @Composable
 private fun StatCell(title: String, value: Double, palette: AppTheme) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)
-        Text("%.1f".format(value), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
+        Text(title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
+        Text("%.1f".format(value), fontFamily = FontFamily.Monospace, color = palette.primaryDeep, style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold))
     }
 }
 
@@ -702,14 +710,14 @@ private fun CyclePanel(state: WeightUiState, palette: AppTheme, onTogglePeriodDa
     val isMarked = today in state.periodDays
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("月経周期オーバーレイ", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
-            Text("生理日を登録すると、グラフ背景に周期の相(月経/卵胞/排卵/黄体)が重なります。黄体期は水分で体重が増えやすい時期です。", fontSize = 11.sp, color = palette.textSecondary)
+            Text("月経周期オーバーレイ", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
+            Text("生理日を登録すると、グラフ背景に周期の相(月経/卵胞/排卵/黄体)が重なります。黄体期は水分で体重が増えやすい時期です。", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
             // 凡例
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 com.goexercise.app.domain.CyclePhase.entries.forEach { phase ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(Modifier.size(12.dp).background(Color(phase.tintArgb).copy(alpha = 0.65f), RoundedCornerShape(2.dp)))
-                        Text(phase.displayName, fontSize = 11.sp, color = palette.textPrimary)
+                        Text(phase.displayName, color = palette.textPrimary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
                     }
                 }
             }
@@ -717,7 +725,7 @@ private fun CyclePanel(state: WeightUiState, palette: AppTheme, onTogglePeriodDa
                 onClick = { onTogglePeriodDay(today) },
                 colors = ButtonDefaults.buttonColors(containerColor = if (isMarked) palette.chipBackground else palette.primary),
             ) {
-                Text(if (isMarked) "今日の生理日登録を解除" else "今日を生理日に登録", color = if (isMarked) palette.textPrimary else Color.White, fontSize = 13.sp)
+                Text(if (isMarked) "今日の生理日登録を解除" else "今日を生理日に登録", color = if (isMarked) palette.textPrimary else Color.White, style = AppType.footnote.copy(fontWeight = FontWeight.Normal))
             }
         }
     }
@@ -734,7 +742,7 @@ private fun HistoryBody(state: WeightUiState, palette: AppTheme, onDelete: (Stri
                     Text("${e.date}", style = com.goexercise.app.ui.theme.AppType.body, color = palette.textPrimary)
                     e.memo?.let { Text(it, style = com.goexercise.app.ui.theme.AppType.caption, color = palette.textSecondary) }
                 }
-                Text("%.1f kg".format(e.weightKg), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace, color = palette.primaryDeep)
+                Text("%.1f kg".format(e.weightKg), fontFamily = FontFamily.Monospace, color = palette.primaryDeep, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
                 // 絵文字 🗑 を Material アイコンに統一(絵文字全廃)。
                 IconButton(onClick = { pendingDelete = e.id }) {
                     Icon(Icons.Outlined.Delete, contentDescription = "削除", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
@@ -756,7 +764,7 @@ private fun HistoryBody(state: WeightUiState, palette: AppTheme, onDelete: (Stri
 @Composable
 private fun Chip(text: String, fg: Color, palette: AppTheme) {
     Surface(color = fg.copy(alpha = 0.12f), shape = RoundedCornerShape(50)) {
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+        Text(text, color = fg, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = AppType.caption.copy(fontWeight = FontWeight.Bold))
     }
 }
 

@@ -299,7 +299,7 @@ private fun MenstrualEntryRow(palette: com.goexercise.app.ui.theme.AppTheme, onC
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("★", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = markColor)
+            Text("★", color = markColor, style = AppType.screenTitle.copy(fontWeight = FontWeight.ExtraBold))
             Column(modifier = Modifier.weight(1f)) {
                 Text("生理日を記録する", style = AppType.headline, color = palette.textPrimary)
                 Text("過去の日付もまとめて入力できます", style = AppType.caption, color = palette.textSecondary)
@@ -537,7 +537,7 @@ private fun LegendSwatch(color: Color, label: String) {
     ) {
         Box(Modifier.size(14.dp).clip(RoundedCornerShape(4.dp)).background(color))
         // iOS は 11pt medium。caption(12sp)だと 4 チップ目がスクロール端で切れるため 11sp に合わせる。
-        Text(label, color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Medium))
     }
 }
 
@@ -572,7 +572,7 @@ private fun DayCell(cell: MonthCell, modifier: Modifier, isToday: Boolean = fals
                 Text(
                     // iOS MonthlyCalendarView day = size 14, today heavy / それ以外 semibold。
                     "${date.dayOfMonth}",
-                    style = AppType.caption.copy(fontSize = 14.sp, fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.SemiBold),
+                    style = AppType.caption.copy(fontSize = 14.sp, fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.SemiBold),  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                     color = if (isToday) Color.White else palette.textPrimary,
                 )
                 if (isPeriod) {

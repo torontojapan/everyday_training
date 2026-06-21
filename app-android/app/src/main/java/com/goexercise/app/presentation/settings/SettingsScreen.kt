@@ -532,7 +532,7 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
         ) {
             Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
         }
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+        Text(title, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center), style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
     }
     content()
 }
@@ -603,7 +603,7 @@ private fun BackupSection(
                     Text("記録をクラウドにバックアップ", style = AppType.body, color = palette.textPrimary)
                     Text(
                         "運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(Android↔iPhone)や再インストールで復元できます。友達には共有されません。",
-                        color = palette.textSecondary, fontSize = 12.sp,
+                        color = palette.textSecondary, fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     )
                 }
                 Switch(checked = enabled, onCheckedChange = onToggle)
@@ -621,18 +621,18 @@ private fun BackupSection(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     }
                 }
-                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             }
             // 認証(Apple/Google でバックアップ)を設定に集約。未連携=ブランド認証ボタン / 連携済=状態表示+削除。
             if (linkedProvider != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(16.dp))
                     Text("$linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
-                        color = palette.textSecondary, fontSize = 11.sp)
+                        color = palette.textSecondary, fontSize = 11.sp)  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 }
             } else {
                 Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
-                    color = palette.textSecondary, fontSize = 11.sp)
+                    color = palette.textSecondary, fontSize = 11.sp)  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 // ブランド準拠ボタン(Apple=黒地白文字+白ロゴ / Google=白地枠線+4色Gマーク)。iOS の AppleID/GoogleSignIn ボタン相当。
                 Surface(
                     color = Color.Black, shape = RoundedCornerShape(10.dp),
@@ -665,7 +665,7 @@ private fun BackupSection(
                     }
                 }
                 if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             }
             // アカウント削除(審査 Guideline 5.1.1(v))。iOS は profile!=nil(匿名含む)で表示 → アカウントがあれば表示。
             if (hasAccount) {
@@ -673,8 +673,8 @@ private fun BackupSection(
                     Modifier.fillMaxWidth().clickable { confirmDelete = true },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
-                    Text("アカウントを削除", style = AppType.body, color = Color(0xFFD32F2F))
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
+                    Text("アカウントを削除", style = AppType.body, color = Color(0xFFD32F2F))  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
                 }
             }
         }
@@ -684,7 +684,7 @@ private fun BackupSection(
             onDismissRequest = { confirmDelete = false },
             title = { Text("アカウントを削除しますか？") },
             text = { Text("アカウントとクラウドのバックアップが完全に削除され、元に戻せません。端末内の記録は残ります。") },
-            confirmButton = { TextButton(onClick = { onDeleteAccount(); confirmDelete = false }) { Text("アカウントを削除", color = Color(0xFFD32F2F)) } },
+            confirmButton = { TextButton(onClick = { onDeleteAccount(); confirmDelete = false }) { Text("アカウントを削除", color = Color(0xFFD32F2F)) } },  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
         )
     }
@@ -730,7 +730,7 @@ private fun CatBreedPicker(
         }
         Text(
             selected.displayName,
-            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,
+            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,  // parity-allow: AppType トークン同値(size16・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
         CatBreed.entries.chunked(4).forEach { row ->
@@ -751,7 +751,7 @@ private fun CatBreedPicker(
                             CatAvatar(breed = breed, size = 56.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
                             if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
                         }
-                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
+                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
@@ -776,7 +776,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     "最高位「ぬしネコ」を達成！",
                     color = palette.primaryDeep,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             } else {
                 val nextThreshold = CatRank.thresholds[currentRank]
@@ -786,7 +786,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     "連続記録を続けると称号が進化。次は「$nextTitle」まで あと${remaining}日！",
                     color = palette.primaryDeep,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             }
             CatRank.thresholds.forEachIndexed { idx, threshold ->
@@ -810,16 +810,16 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     Text(
                         entry.title ?: "",
                         color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
-                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                         modifier = Modifier.padding(start = 10.dp),
                     )
                     if (isCurrent) {
                         Text(
                             "いま",
                             color = Color.White,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.sp,  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                             modifier = Modifier
                                 .padding(start = 6.dp)
                                 .background(palette.primary, RoundedCornerShape(50))
@@ -831,7 +831,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                         "${threshold}日",
                         color = if (achieved) palette.primaryDeep else palette.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                     )
                 }
             }
@@ -932,7 +932,7 @@ private fun WidgetGuideContent(palette: AppTheme) {
         steps.forEachIndexed { i, step ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(24.dp).clip(CircleShape).background(palette.primary), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                    Text("${i + 1}", color = Color.White, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(step.first, style = AppType.headline, color = palette.textPrimary)
@@ -990,7 +990,7 @@ private fun Swatch(color: Color) {
             .size(20.dp)
             .clip(CircleShape)
             .background(color)
-            .border(1.dp, Color(0x22000000), CircleShape),
+            .border(1.dp, Color(0x22000000), CircleShape),  // parity-allow: 微細ボーダー=半透明黒(装飾・ブランド色外)
     )
 }
 
@@ -1008,7 +1008,7 @@ private fun DataManagementSection(
     SettingsCard {
         EntryRow(Icons.Filled.IosShare, "データを書き出す", showChevron = false) { if (!isBusy) onExport() }
         RowDivider()
-        EntryRow(Icons.Filled.Delete, "すべての記録を削除", showChevron = false, tint = Color(0xFFD32F2F)) { if (!isBusy) confirmDelete = true }
+        EntryRow(Icons.Filled.Delete, "すべての記録を削除", showChevron = false, tint = Color(0xFFD32F2F)) { if (!isBusy) confirmDelete = true }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
     }
     Text(
         "書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。",
@@ -1028,7 +1028,7 @@ private fun DataManagementSection(
             onDismissRequest = { confirmDelete = false },
             title = { Text("すべての記録を削除しますか？") },
             text = { Text("運動・体重・体調の記録がすべて削除され、元に戻せません。事前にエクスポートをおすすめします。") },
-            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = Color(0xFFD32F2F)) } },
+            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = Color(0xFFD32F2F)) } },  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )
@@ -1072,7 +1072,7 @@ private fun ReferralSection(
                             Text("友達を招待する", style = AppType.body, color = palette.textPrimary)
                             Text(
                                 "招待コードを共有すると、お互いに保険チケットがもらえます。",
-                                color = palette.textSecondary, fontSize = 12.sp,
+                                color = palette.textSecondary, fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                             )
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
@@ -1180,7 +1180,7 @@ private fun ReminderSection(
         }
         RowDivider()
         val segIndex = if (!reminder.enabled) 0 else reminder.count.coerceIn(1, 2)
-        Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {  // parity-allow: セグメント track の淡灰(iOS .segmented 標準トラック相当)
             Row(Modifier.padding(2.dp)) {
                 listOf("OFF", "1日1回", "1日2回").forEachIndexed { i, label ->
                     val sel = i == segIndex
@@ -1192,7 +1192,7 @@ private fun ReminderSection(
                             when (i) { 0 -> onToggle(false); 1 -> { onToggle(true); onSetCount(1) }; else -> { onToggle(true); onSetCount(2) } }
                         },
                     ) {
-                        Text(label, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium, color = if (sel) palette.textPrimary else palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth())
+                        Text(label, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium, color = if (sel) palette.textPrimary else palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth())  // parity-allow: AppType トークン同値(size13・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     }
                 }
             }

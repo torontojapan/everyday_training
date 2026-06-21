@@ -114,6 +114,10 @@ fun RecordContent(
             Text("今日の記録", style = AppType.headline, color = palette.textPrimary)
         }
 
+        // iOS Form の Section("種目") ヘッダ(RecordEntryView.swift:25)。体調・周期/今日の体重/メモ と同じ
+        // bold-14 見出しで種目リストの上に置く(欠落していた=2026-06-21 density393 横並びで発見)。
+        Text("種目", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
+
         // アコーディオン: 入力中の1種目だけ展開し、他は最小化(iOS ExerciseInputRow パリティ)。
         var expandedId by remember { mutableStateOf(state.drafts.firstOrNull()?.id) }
         androidx.compose.runtime.LaunchedEffect(state.drafts.size) {
@@ -144,7 +148,7 @@ fun RecordContent(
         if (state.cycleTrackingEnabled) {
             Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("体調・周期", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("体調・周期", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("今日は生理日", color = palette.textPrimary, modifier = Modifier.weight(1f))
                         Switch(checked = state.menstrualToday, onCheckedChange = onMenstrualToday)
@@ -156,7 +160,7 @@ fun RecordContent(
         // 今日の体重(任意)。記録と同じ保存操作で永続化(iOS RecordEntryView パリティ)。
         Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("今日の体重 (任意)", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                 FilledField(
                     value = state.weightInput,
                     onValueChange = onWeightInput,
@@ -166,7 +170,7 @@ fun RecordContent(
                     corner = 12.dp,
                     borderColor = if (state.hasWeightInputButInvalid) palette.missed else null,
                     borderWidth = 1.5.dp,
-                    paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                    paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                     keyboardType = KeyboardType.Decimal,
                 )
                 // 無効な体重は理由を info アイコン付きで表示、正常時は前回値ヒント(iOS disabledReason / hint)。
@@ -189,14 +193,14 @@ fun RecordContent(
         // メモ(iOS Section「メモ」。カード内に複数行フィールド)。
         Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("メモ", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("メモ", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                 FilledField(
                     value = state.memo,
                     onValueChange = onMemo,
                     placeholder = "体調や気分など",
                     modifier = Modifier.fillMaxWidth(),
                     fill = palette.chipBackground.copy(alpha = 0.5f),
-                    corner = 12.dp, paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                    corner = 12.dp, paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                     singleLine = false, minLines = 3, maxLines = 5,
                 )
             }
@@ -259,11 +263,11 @@ private fun ExerciseDraftCard(
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // ヘッダ: 「種類」ラベル + 削除(trash) + 最小化(chevron up)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("種類", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text("種類", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                 Spacer(Modifier.weight(1f))
                 if (canRemove) {
                     Icon(
-                        Icons.Filled.Delete, contentDescription = "種目を削除", tint = Color(0xFFD32F2F),
+                        Icons.Filled.Delete, contentDescription = "種目を削除", tint = Color(0xFFD32F2F),  // parity-allow: iOS .red 相当の破壊的アクション色(削除)
                         modifier = Modifier.size(20.dp).clickable { onRemove() },
                     )
                     Spacer(Modifier.size(12.dp))
@@ -280,7 +284,7 @@ private fun ExerciseDraftCard(
                 }
             }
             // 種目名(ラベル + chipBackground@0.5 塗り + primary@0.45 1.5dp 枠の角丸フィールド。iOS ExerciseInputRow)
-            Text("種目名", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("種目名", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
             FilledField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
@@ -288,11 +292,11 @@ private fun ExerciseDraftCard(
                 modifier = Modifier.fillMaxWidth(),
                 fill = palette.chipBackground.copy(alpha = 0.5f),
                 corner = 12.dp, borderColor = palette.primary.copy(alpha = 0.45f), borderWidth = 1.5.dp,
-                paddingH = 12.dp, paddingV = 12.dp, fontSize = 16.sp,
+                paddingH = 12.dp, paddingV = 12.dp, fontSize = 16.sp,  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
             )
             // よく使う種目(履歴+日本語デフォルト)。iOS は候補ありの時だけ見出し。
             if (suggestions.isNotEmpty()) {
-                Text("よく使う種目", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text("よく使う種目", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -309,14 +313,14 @@ private fun ExerciseDraftCard(
                 PickerColumn("セット", draft.sets, setOptions, "", Modifier.weight(1f)) { onChange(draft.copy(sets = if (it == 0) "" else "$it")) }
                 // 重さ(kg): フリー入力。ピッカーと同じ高さ・同じ塗りに揃える(中央寄せ)。
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("重さ (kg)", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text("重さ (kg)", color = palette.textSecondary, maxLines = 1, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                     FilledField(
                         value = draft.loadText,
                         onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
                         placeholder = "0",
                         modifier = Modifier.fillMaxWidth(),
                         fill = palette.chipBackground.copy(alpha = 0.6f),
-                        corner = 10.dp, paddingH = 10.dp, paddingV = 9.dp, fontSize = 15.sp,
+                        corner = 10.dp, paddingH = 10.dp, paddingV = 9.dp, fontSize = 15.sp,  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                         center = true, keyboardType = KeyboardType.Decimal,
                     )
                 }
@@ -336,7 +340,7 @@ private fun ExerciseDraftCard(
                 placeholder = "種目メモ (例: 体調メモ、回数アップ等)",
                 modifier = Modifier.fillMaxWidth(),
                 fill = palette.chipBackground.copy(alpha = 0.6f),
-                corner = 10.dp, paddingH = 10.dp, paddingV = 8.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                corner = 10.dp, paddingH = 10.dp, paddingV = 8.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
             )
         }
     }
@@ -369,7 +373,7 @@ private fun PickerColumn(label: String, value: String, options: List<Int>, unit:
     // iOS labeledPicker: 選択値・項目とも単位付き(例「30分」「3回」)。0 は「—」。
     fun display(n: Int) = if (n == 0) "—" else "$n$unit"
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(label, color = palette.textSecondary, maxLines = 1, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
         Box {
             Row(
                 modifier = Modifier
@@ -472,7 +476,7 @@ private fun CategoryChip(category: WorkoutCategory, selected: Boolean, onClick: 
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Icon(categoryIcon(category), contentDescription = null, tint = if (selected) Color.White else palette.textPrimary, modifier = Modifier.size(14.dp))
-        Text(category.displayName, color = if (selected) Color.White else palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(category.displayName, color = if (selected) Color.White else palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
     }
 }
 
@@ -489,6 +493,6 @@ private fun SuggestionChip(name: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text(name, color = palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(name, color = palette.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
     }
 }

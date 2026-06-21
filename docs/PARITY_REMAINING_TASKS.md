@@ -1,8 +1,25 @@
 # Android↔iOS パリティ 残タスク・バックログ(動く正本)
 
 > **これが同期残タスクの唯一の動く正本。** 体系立てて 1 項目ずつ消化する。
-> 関連: 方針=`PARITY_100_PLAN.md` / QA=`QA_MASTER_PLAN.md` / 旧履歴=`android_ios_parity_tracker.md` / 規約=`CLAUDE.md`。
+> 関連: 方針=`PARITY_100_PLAN.md` / QA=`QA_MASTER_PLAN.md` / **リリース前=`ANDROID_RELEASE_CHECKLIST.md`** / 規約=`CLAUDE.md`。
 > 最終更新: 2026-06-21。
+
+> ## ⚑ ブランチ状態(2026-06-21 セッション末)
+> 作業は全て **branch `parity/tokenize-strict-2026-06-21`(main から 21 commits・未 push・未マージ)** にある。
+> main は `52b7ec8`(PR #9)のまま。次セッション最初に **このブランチを push → PR → main マージ**するのが安全
+> (ローカルのみ=端末故障で消えるリスク)。working tree clean。keystore/keystore.properties は gitignore 済(コミットされない)。
+
+> ## ▶ セッション継続ログ(2026-06-21 その6・Android リリース前 自走分)
+> パリティ(step1-5)+ 全機能QA(step6 A-F)完了後、Play 公開前の自走可能項目を消化(正本=`ANDROID_RELEASE_CHECKLIST.md`)。
+> - **A1-A9 全完了**: version=1.3.0 / R8 release 実行時 smoke PASS / 権限監査(allowBackup→false)/ secrets・keystore テンプレ /
+>   Play スクショ7枚(`tools/parity/proofs/play_screenshots/`)/ L10n(ja単一)/ semantic_diff 拡張+実行 / データセーフティ下書き(`docs/PLAY_DATA_SAFETY.md`)/
+>   **ランチャーアイコン未設定(既定ロボット)を発見・是正**(ブランド猫 adaptive icon)。
+> - **B のうち自走できた分**: B1=アップロード鍵生成+署名 AAB+SHA(`app-android/keystore/upload-keystore.jks`・`app-release.aab`・
+>   SHA-1 `CC:DE:FC:9C…`/SHA-256 `71:8B:DA:98…`。鍵PW は keystore.properties=要バックアップ)。B10=法務 Pages/URL 既稼働を確認。
+> - **B9 Codex 2LLM**: headless ハングで完走不可([[feedback_verification_workflow]])→ 対話 `codex` か `/second-opinion` で要実行。等価の自走敵対検証は実施済。
+> - **追加是正(この回)**: 招待プロンプト全角→半角(iOS 一致)。
+> - **残(ユーザー必須 B2-B8 + B9)**: Play Console 提出 / Google Cloud(SHA 貼付)/ Supabase 設定 / 課金商品 / gating 本番ON(値支給で私が反映可)/
+>   実機 E2E / 本番テストデータ掃除(service鍵支給で私が実行可)/ Codex 対話実行。詳細=`ANDROID_RELEASE_CHECKLIST.md` B 節。
 
 > ## ★★★ 最新ハンドオフ(2026-06-21・次セッションはここから)
 > **今セッションでやったこと:**
@@ -20,6 +37,77 @@
 > 4. **生値 token 化**: `parity_guard.py` の baseline 156 を 0 へ減らし、完了後 `--strict` を CI 既定化(= 生値ゼロ恒久強制)。
 > 5. **(本命)semantic UIツリー差分ハーネスを構築**: iOS XCUITest snapshot ツリー + Android semantics ツリーから各 Text の (文言/解決後 size/weight/色トークン) を抽出し**要素等値検証** → 全画面 CI ゲート化。
 > 6. パリティ収束後 → **`QA_MASTER_PLAN.md` の全機能 QA を Phase 0→F で実施**。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その2・step3 ほぼ完了 / step4 着手)
+> - **step1 ✅** PR #9 マージ済(main=`52b7ec8`、origin 同期)。
+> - **step2 ✅** エミュ復旧+ネット疎通回復(`emulator @go_test -gpu swiftshader_indirect -dns-server 8.8.8.8` / `wm density 393` / `ping 1.1.1.1` 0% loss)。Xcode 26.5・SIM `12A9D608…`。
+> - **iOS golden 再生成 ✅** `testCaptureAppStoreScreenshots`(01〜11)+`testCaptureSubScreens`/`testCaptureRankingStates`(day_detail/menstrual/completion/friend_detail/friend_add/rank_weekly/rank_monthly)を `/tmp/ios_golden/{clean,sub}/` に復元。
+> - **step3 density393 横並び再検証(実機ライブ)— コア+サブ ほぼ全画面 MATCH**:
+>   ホーム/履歴/設定/オンボ猫ピッカー(11種名一致)/paywall(feature7項目一致・通貨は sim ロケール差)/記録完了/日詳細/生理日 = **MATCH**(差は praise・連続数・ロケール・cycle/データゲートのみ)。
+>   友達コード画面=実 anon サインインでライブ確認(`profiles.updated_at` §7 修正が main で有効)。友達populated/ランキング/詳細=§6 で実2アカウントライブ検証済。
+> - **実バグ2件 発見・修正(commit `78dc37f` / `251af06`)**:
+>   1. 記録入力に iOS `Section("種目")` 見出しが欠落 → 追加(`proofs/record_seimoku_header_ios_vs_android_FIXED.png`)。
+>   2. 体重ヒーロー「最新の体重」日付が常時 `HH:mm` 付き → iOS dateLabel に合わせ 00:00 ちょうどは日付のみ(`proofs/weight_premium_date_ios_vs_android_FIXED.png`)。
+> - **step4 着手(commit `4fdc71c`)**: `.copy(fontSize=N)` 上書き6件(HomeScreen)を基底トークン化(headline.copy15→subheadline 等)。**値保存をピクセルで実証**。raw_fontSize **137→131**、baseline を 131(計156)へラチェット。
+> - **撮影ツール改善**(`capture_android.py`): ナビ tap y 2280→2250 / record_empty の達成CTA fallback。
+> - **確立した検証フロー**: iOS golden=`xcrun xcresulttool export attachments --path <xcresult>` → `_0_` で名寄せ。Android=`am start -n …/.MainActivity`→`goexercise://record` 等 deeplink or タブ tap(座標 home108/hist324/wt540/fr756/set972 ・ y2250)→`adb exec-out screencap`。premium=weight タブ→paywall→「14日間無料で始める」(in-memory・再起動で揮発=force-stop 後は再解放要)。体重は sqlite `weight_entries` に midnight(epochDay*86400000)シードで日付のみ表示。猫ピッカー= `pm clear`→オンボ(つぎへ→あとで)。**注意: seed は DB 生成後(=一度アプリ起動後)に流す。未生成だと空ファイルに入り Room 再生成で消える**。
+> - **step4 の正しいやり方(重要)**: bare `Text(fontSize=N,…)` 形(残131)は family(LocalTextStyle 既定≠Rounded)が変わり得る→**画面ごとに tokenize→rebuild→density393 再撮影→golden 突合**してから確定。`.copy(fontSize=)` 形のみ無条件安全。14/10/18/24/44/60.sp は iOS Dynamic Type に無い=iOS ソース確認し snap or `// parity-allow`。記録完了/onbo の `FontWeight.Black` は iOS `.weight(.black)` 準拠=parity-allow。
+> - **残**: step4(残 raw 131+色16+black9 を 0 へ→`--strict`)/ step5(semantic ハーネス)/ step6(全機能QA Phase0→F)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その3・step4 大幅前進 + 追加実バグ是正)
+> - **step4 トークン化を一括前進**: bare `Text(fontSize=)` を AppType トークンへ機械変換(67件・値保存を Friends 画面で前後ピクセル一致実証)。
+>   `FontWeight.Black` 9件を iOS ソース照合で解決(iOS `.heavy`→ExtraBold 7件 / iOS `.weight(.black)` は維持+parity-allow 2件)。
+>   ハードコード色 16件は iOS でも `.red`/`systemOrange`/装飾色=システムセマンティック色のため parity-allow。
+>   → **parity_guard baseline 156 → 58**(raw_fontSize 58 のみ・color 0・black 0)。build+全unit green。
+> - **step4 中に step3 で見落とした要素値ドリフトを追加発見・是正(thumbnail 盲点)**:
+>   1. 体重ヒーロー数字色: primaryDeep(濃赤 214,84,77)→ **iOS Palette.primary(サーモン 254,160,142)**。実機サンプル(255,160,142)で一致確認。
+>   2. 体重 "kg" 単位: 18sp Normal → iOS `.title3`(20) semibold。
+>   3. ホーム連続バッジ等の weight が Black→ExtraBold で iOS `.heavy` 一致(1段過太の是正)。
+>   証跡 proofs/{weight_number_color_salmon_FIXED, home_streak_extrabold_*, friends_tokenize_before_after}.png。
+> - **重要な技術的確定**: `Theme.kt:72` が `LocalTextStyle` に `RoundedFontFamily` を全域付与 → bare `Text(fontSize=)` は既に Rounded。
+>   よって AppType トークン化は family/size/weight 完全保存(機械変換で安全)。tokenize スクリプト= `/tmp/tokenize.py`(単一行 Text 用)。
+> - **step4 残 58(baseline・全て raw_fontSize)の内訳と片付け方**:
+>   ① multi-line/partial の **トークンサイズ Text**(12/17/11/15/13/16・約30): `/tmp/tokenize.py` を multi-line 対応に拡張 or 手動で `style=AppType.<token>.copy(weight)` 化(値保存)。
+>   ② **custom composable param**(FilledField `fontSize=` / TextField `textStyle=TextStyle(fontSize=)`・約10): 入力テキストサイズ。コンポーネントに token 既定を持たせる or iOS TextField サイズ準拠で parity-allow。
+>   ③ **非トークンサイズ**(14 セクション見出し / 10 極小ラベル / 18 / 44 体重数字): iOS Form header 適応・極小ラベル・iOS minScale 由来。iOS 照合の上で parity-allow か snap。
+>   完了後 `parity_guard.py --strict` を CI 既定化。
+> - **エミュ/シミュ**: 両ウィンドウ表示で起動中(record/weight 等で修正をライブ確認可)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その4・step4 完了 + step5 v1 + step6 Phase0)
+> - **step4 完了 ✅**: `parity_guard.py --strict` 違反0(raw_fontSize/色/Black すべて 0)。
+>   tokenize 85件 + iOS根拠 parity-allow 67件。**pre-commit(.githooks)+ CI(android-parity.yml)を --strict 化**、baseline 空=生値を以後一切書けない恒久封鎖。
+>   step4 中の追加実バグ是正: 体重数字色 濃赤→サーモン(iOS Palette.primary・実測一致)/ kg 単位 18→20semibold / streak weight Black→ExtraBold(iOS .heavy)。
+> - **step5 v1 ✅**: `tools/parity/semantic_diff.py`(文言+読み順の iOS↔Android 等値検証)+ iOS dump `testDumpSemanticTrees`。
+>   settings で end-to-end 実証・実検出(招待プロンプト全角半角・バックアップ補足文言差)。
+>   限界: size/weight/色は未対応(--strict が担う)/ iOS Form Cell 未parse / a11y グルーピング偽差分 → 次段改良。
+> - **step6 Phase0 ✅(緑)**: Android unit **346 tests / 0 fail** + parity_guard --strict + AppTypeParityTest + iOS UITest(golden/semantic/sub)全 pass。
+> - **step6 残(A〜F の本体)**: A 全機能×状態の正常/空/エラー/境界4区分(D=パリティは step3-5 で大部分済)/ B 横断ロジック境界値 /
+>   C 堅牢性(プロセス死/回転/ネット断/権限)/ E Supabase RLS 各表 / F リリース。**2LLM 敵対監査で correct 収束**は未実施。
+> - **semantic_diff v1 が見つけた要修正(任意・軽微)**: ①招待プロンプト Android 全角「？(任意)」↔ iOS 半角。②設定バックアップ補足文言が iOS/Android で別表現。
+> - **エミュ/シミュ 両ウィンドウ起動中**(record の種目見出し・weight のサーモン数字をライブ確認可)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その5・step6 A〜F 監査完了)
+> - **Phase0 ✅**: Android unit 346/0fail + parity_guard --strict + AppTypeParityTest + iOS UITest 全 pass。
+> - **A 機能 ✅(主要フロー実機実行)**: 記録保存→完了画面 / premium 解放(mock billing)/ 友達 匿名サインイン /
+>   体重入力+チャート / 設定遷移 / 周期トグル / 生理日 / 日詳細 をライブで動作確認。
+> - **B 横断ロジック/再発バグ型 ✅(全型 防御確認)**: memory [[gotcha_recurring_bug_classes]] 全 11 型を Android で照合:
+>   ①口座スコープ=`ReferralAccountScope.scoped(summary==current ガード)` ②③月境界=`RescueTicket` 全て local `YearMonth`・
+>   allowance 当月のみ ④シート=Compose state ⑤rescuedDates=Restored/Weekly 計算が必須引数+コメントで明示 ⑥連続「昨日まで」=
+>   `StreakCalculator` TodayPending スキップ ⑦UUID=`FriendshipPair` lowercase+回帰test ⑧RLS=後述E ⑨演出=`celebrateConfetti`
+>   は new today-record ID 検知時のみ(launch/revive 不発) ⑩=Kotlin interface は動的dispatchで N/A ⑪`.first`=
+>   `AccountLinking.providerNames: List` で全列挙(byline は "・" join)。**全型 防御済 + 該当 unit test 緑**。
+> - **C 堅牢性 ✅**: 空状態(data clear→オンボ・無crash)/ 回転(landscape↔portrait・同pid 無crash)/ プロセス死→復元
+>   (force-stop 跨ぎで Room 永続データ生存・premium は in-memory で揮発=設計どおり)/ 大量データ(365日 履歴描画)。
+> - **D パリティ ✅**: step3(全画面 golden 照合)+ step4(--strict)+ step5(semantic v1)。
+> - **E バックエンド ✅**: 5表すべて RLS 有効。referrals は **INSERT WITH CHECK(status=pending/confirmed_at=null/seen=false)
+>   + BEFORE UPDATE trigger(当事者不変/confirmed_at write-once/status 一方向/referrer は seen のみ)** で bug8 P0 を封鎖。
+>   profiles `updated_at` trigger(§7 23502 の根治)+ orphan cleanup cron + test_referrals_trigger.sql。
+> - **F リリース ✅/保留**: iOS Info.plist 手動5キー(FriendsApple/GoogleLinkEnabled/TelemetryDeckAppID/NSCamera/ITSApp…)present・
+>   build12 提出済。Android リリースは iOS 先行戦略 [[release_strategy_dual_launch]] で保留。
+> - **残(step6 の formal gate)**: ①**2LLM 敵対監査(Codex)で correct 収束** 未実施(環境要設定)。
+>   ②semantic_diff v1 の軽微検出(招待プロンプト全角/半角・バックアップ補足文言差)の是正。
+> - **総括**: step1-5 完了・step6 A〜F は実機/コード/スキーマ監査で **全カテゴリ pass(再発バグ型・RLS・堅牢性すべて防御確認)**。
+>   未済は 2LLM 収束の formal 化と上記軽微2件のみ。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。

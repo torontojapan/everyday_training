@@ -54,12 +54,4 @@ final class ExerciseHistoryProvider {
         return Array(suggestions.prefix(limit)).map(\.name)
     }
 
-    private func score(for suggestion: ExerciseHistorySuggestion) -> Double {
-        let days = max(
-            0,
-            calendar.dateComponents([.day], from: suggestion.lastUsedDate, to: nowProvider()).day ?? 0
-        )
-        let recency = exp(-Double(days) / 30.0)
-        return Double(suggestion.count) + recency
-    }
 }

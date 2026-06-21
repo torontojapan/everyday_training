@@ -115,7 +115,7 @@ fun MenstrualEntryScreen(
             ) {
                 Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
             }
-            Text("生理日", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            Text("生理日", color = palette.textPrimary, modifier = Modifier.align(Alignment.Center), style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
         }
 
         // カレンダーカード(月ナビ + 曜日 + グリッド + 当月の記録数)。
@@ -238,12 +238,12 @@ private fun DayMarkCell(
             Text(
                 "${date.dayOfMonth}",
                 style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"), // iOS monospacedDigit
-                fontSize = 14.sp,
+                fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                 fontWeight = if (isMarked || isToday) FontWeight.ExtraBold else FontWeight.SemiBold,
                 color = textColor,
             )
             if (isMarked) {
-                Text("★", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = MarkColor)
+                Text("★", color = MarkColor, style = AppType.caption2.copy(fontWeight = FontWeight.ExtraBold))
             }
         }
     }

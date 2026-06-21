@@ -299,12 +299,12 @@ private fun WeeklyMini(state: HomeUiState, onDayClick: (DailyStatusEntry) -> Uni
         Row(verticalAlignment = Alignment.CenterVertically) {
             // iOS: 今週=.subheadline(15) heavy(W800) / 達成数=.subheadline(15) semibold。
             // 旧 Android は headline(17) Black で iOS より大きく太かった(2026-06-21 density393 実測是正)。
-            Text("今週", style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
+            Text("今週", style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
             Text(
                 "${state.weeklyProgress.achievedCount} / ${state.weeklyProgress.totalDays} 日達成",
                 // iOS: monospacedDigit。等幅数字で達成数の桁ぶれを防ぐ。
-                style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                style = AppType.subheadline.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
                 color = palette.textSecondary,
             )
         }
@@ -457,7 +457,7 @@ private fun StreakBadge(streak: Int, onShareClick: () -> Unit, modifier: Modifie
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
-            Text("${streak}日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Black), color = palette.textPrimary)
+            Text("${streak}日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
             if (streak > 0) {
                 Icon(Icons.Filled.IosShare, contentDescription = "共有", tint = palette.textSecondary, modifier = Modifier.size(16.dp))
             }
@@ -468,7 +468,7 @@ private fun StreakBadge(streak: Int, onShareClick: () -> Unit, modifier: Modifie
 // MARK: - 紹介スター行 (iOS ReferralStarsRow) -------------------------------------
 
 /** 金の星は「ご褒美」感を出すため常に暖色のゴールド(iOS Color.orange = systemOrange #FF9500)。 */
-private val ReferralStarGold = Color(0xFFFF9500)
+private val ReferralStarGold = Color(0xFFFF9500)  // parity-allow: iOS systemOrange(FF9500)準拠の紹介スター金色
 
 /**
  * ホーム上段3行目の紹介スター行。星(上)+キャプション(下)を縦積みし、全幅をタップで招待を共有する。
@@ -502,7 +502,7 @@ private fun ReferralStarsRow(row: ReferralRowUi) {
                 ReferralStar(filled = true)
                 Text(
                     "$count",
-                    style = AppType.headline.copy(fontWeight = FontWeight.Black),
+                    style = AppType.headline.copy(fontWeight = FontWeight.ExtraBold),
                     color = palette.textPrimary,
                 )
             }
@@ -546,14 +546,14 @@ private fun StatusChip(todayStatus: DailyStatus) {
         DailyStatus.TodayAchieved -> ChipCapsule(bg = palette.success.copy(alpha = 0.18f)) {
             Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(15.dp))
             // iOS statusChip = .footnote(13) heavy。Android は caption(12) Black だった。
-            Text("今日は達成済み", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.success)
+            Text("今日は達成済み", style = AppType.footnote.copy(fontWeight = FontWeight.ExtraBold), color = palette.success)
         }
         DailyStatus.Rest -> ChipCapsule(bg = palette.restDay.copy(alpha = 0.30f)) {
             Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(15.dp))
-            Text("今日は回復日", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
+            Text("今日は回復日", style = AppType.footnote.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
         }
         else -> ChipCapsule(bg = palette.surface) {
-            Text(remainingTimeText(), style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
+            Text(remainingTimeText(), style = AppType.footnote.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
         }
     }
 }
@@ -746,7 +746,7 @@ private fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
             Text(
                 text = text,
                 // iOS speechBubble = .callout(16) semibold。Android は body(17) だった。
-                style = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                style = AppType.callout.copy(fontWeight = FontWeight.SemiBold),
                 color = palette.textPrimary,
                 textAlign = TextAlign.Center,
                 maxLines = 3, // iOS lineLimit(3)
@@ -822,13 +822,5 @@ private fun LargePrimaryCTA(state: HomeUiState, onClick: () -> Unit, modifier: M
             Text(title, style = AppType.sectionTitle.copy(fontWeight = FontWeight.ExtraBold), color = Color.White)
             Spacer(Modifier.weight(1f))
         }
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-private fun HomeContentPreview() {
-    GOExerciseTheme(theme = AppTheme.Peach) {
-        HomeContent(state = HomeUiState())
     }
 }

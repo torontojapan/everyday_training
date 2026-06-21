@@ -130,7 +130,7 @@ fun RescueContent(
                     Surface(color = palette.surface, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
-                            Text("${d.year}年${d.monthValue}月${d.dayOfMonth}日", fontSize = 17.sp, color = palette.textPrimary)
+                            Text("${d.year}年${d.monthValue}月${d.dayOfMonth}日", color = palette.textPrimary, style = AppType.body.copy(fontWeight = FontWeight.Normal))
                         }
                     }
                 }
@@ -176,7 +176,7 @@ private fun LegendSymbol(symbol: String, label: String, bordered: Boolean = fals
             Modifier.size(22.dp).clip(CircleShape).background(palette.surface)
                 .then(if (bordered) Modifier.border(2.dp, palette.primary, CircleShape) else Modifier),
             contentAlignment = Alignment.Center,
-        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary) }
+        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary) }  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
         Text(label, style = AppType.caption, color = palette.textSecondary)
     }
 }
@@ -208,7 +208,7 @@ private fun DayCell(cell: MonthCell, hasTickets: Boolean, onUse: (LocalDate) -> 
             ) {
                 Text(
                     text = if (rescuable) "${date.dayOfMonth}+" else "${date.dayOfMonth}",
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     color = palette.textPrimary,
                     fontWeight = if (rescuable) FontWeight.Bold else FontWeight.Normal,
                 )
