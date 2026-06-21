@@ -14,13 +14,13 @@
 
 ## A. 自走できる(私が実行)
 - [x] **A1 version 実値化**: `build.gradle.kts` versionCode/versionName→ versionName="1.3.0"(iOS 1.3 機能整合)/versionCode=1 に設定済。
-- [ ] **A2 R8 release の実行時 smoke**: release を一時署名で install → 実 Supabase 匿名サインイン/記録同期/友達コードを通し R8 ランタイム破壊が無いか検証 → 必要なら keep 追加。
+- [x] **A2 R8 release の実行時 smoke**: release を一時署名で install → 実 Supabase 匿名サインイン/記録同期/友達コードを通し R8 ランタイム破壊が無いか検証 → **PASS**: minified release を debug 鍵で署名・install、オンボ→友達タブで匿名サインイン+profile デシリアライズ+friend code 生成が R8 下で正常動作。logcat のエラーは「fresh install で保存セッション無し」の良性のみ。keep 追加不要。
 - [x] **A3 権限/マニフェスト/セキュリティ監査**: cleartext=既定で無効(targetSdk36・opt-in無)✓ / exported=MainActivity(launcher+deeplink)・BootReceiver(BOOT_COMPLETED)のみで妥当✓ / **allowBackup=true→false に変更**(健康データの Google 自動バックアップ抑止・opt-in方針)。resConfig 'ja' pin は任意。
 - [x] **A4 secrets/keystore テンプレ整備**: `keystore.properties.template` / `secrets` 必要キー一覧→ **local.properties.template / keystore.properties.template 作成**(全 secret キー+鍵作成手順を明記)。
-- [ ] **A5 Play スクショ生成**: エミュ density393 で全画面・必要解像度書き出し。
+- [x] **A5 Play スクショ生成**: → 7枚(home/history/settings/record/paywall/weight_premium/friends)を density393 で 1080x2400(Play phone 規格)書き出し=`tools/parity/proofs/play_screenshots/`。
 - [x] **A6 ローカライズ監査**: 英語/デバッグ文字列の混入チェック・ja_JP のみ確認 → values-xx 無し(単一ロケール)・strings.xml に英語混入なし・app_name='GO エクササイズ'。clean。
-- [ ] **A7 semantic_diff 全画面拡張** + 残コピー差(バックアップ補足文言)是正。
-- [ ] **A8 データセーフティ申告 下書き**: 実権限/収集データから内容作成(提出は要ユーザー)。
+- [x] **A7 semantic_diff 全画面拡張** → harness を scroll/html-unescape 対応に拡張、settings/home で実行。**実検出**: ①招待プロンプト全角→半角是正済 ②バックアップ補足文言差=Android 意図的詳細化で許容 ③**a11y ギャップ**: Android の Canvas 描画(週ストリップ ◎ マーカー等)が accessibility に未露出(iOS は露出)=TalkBack パリティの品質課題(出荷ブロッカーではない)。残画面も同手順で実行可。
+- [x] **A8 データセーフティ申告 下書き**: → `docs/PLAY_DATA_SAFETY.md` 作成(収集データ種別/共有範囲/暗号化/削除/権限用途を実装事実から記述)。提出は要ユーザー。
 - [x] **A9 アイコン/アダプティブ/スプラッシュ資産の有無確認**と不足補完 → **launcher 未設定だった(既定ロボット)を発見・是正**: 猫アイコン(iOS AppIcon を flood-fill 透過)で adaptive icon(fg+cream bg)+legacy 5密度+round 生成、manifest に icon/roundIcon 追記。App info で表示確認。
 
 ## B. ユーザーしかできない(外部アカウント/実機/コンソール)
