@@ -1,8 +1,25 @@
 # Android↔iOS パリティ 残タスク・バックログ(動く正本)
 
 > **これが同期残タスクの唯一の動く正本。** 体系立てて 1 項目ずつ消化する。
-> 関連: 方針=`PARITY_100_PLAN.md` / QA=`QA_MASTER_PLAN.md` / 旧履歴=`android_ios_parity_tracker.md` / 規約=`CLAUDE.md`。
+> 関連: 方針=`PARITY_100_PLAN.md` / QA=`QA_MASTER_PLAN.md` / **リリース前=`ANDROID_RELEASE_CHECKLIST.md`** / 規約=`CLAUDE.md`。
 > 最終更新: 2026-06-21。
+
+> ## ⚑ ブランチ状態(2026-06-21 セッション末)
+> 作業は全て **branch `parity/tokenize-strict-2026-06-21`(main から 21 commits・未 push・未マージ)** にある。
+> main は `52b7ec8`(PR #9)のまま。次セッション最初に **このブランチを push → PR → main マージ**するのが安全
+> (ローカルのみ=端末故障で消えるリスク)。working tree clean。keystore/keystore.properties は gitignore 済(コミットされない)。
+
+> ## ▶ セッション継続ログ(2026-06-21 その6・Android リリース前 自走分)
+> パリティ(step1-5)+ 全機能QA(step6 A-F)完了後、Play 公開前の自走可能項目を消化(正本=`ANDROID_RELEASE_CHECKLIST.md`)。
+> - **A1-A9 全完了**: version=1.3.0 / R8 release 実行時 smoke PASS / 権限監査(allowBackup→false)/ secrets・keystore テンプレ /
+>   Play スクショ7枚(`tools/parity/proofs/play_screenshots/`)/ L10n(ja単一)/ semantic_diff 拡張+実行 / データセーフティ下書き(`docs/PLAY_DATA_SAFETY.md`)/
+>   **ランチャーアイコン未設定(既定ロボット)を発見・是正**(ブランド猫 adaptive icon)。
+> - **B のうち自走できた分**: B1=アップロード鍵生成+署名 AAB+SHA(`app-android/keystore/upload-keystore.jks`・`app-release.aab`・
+>   SHA-1 `CC:DE:FC:9C…`/SHA-256 `71:8B:DA:98…`。鍵PW は keystore.properties=要バックアップ)。B10=法務 Pages/URL 既稼働を確認。
+> - **B9 Codex 2LLM**: headless ハングで完走不可([[feedback_verification_workflow]])→ 対話 `codex` か `/second-opinion` で要実行。等価の自走敵対検証は実施済。
+> - **追加是正(この回)**: 招待プロンプト全角→半角(iOS 一致)。
+> - **残(ユーザー必須 B2-B8 + B9)**: Play Console 提出 / Google Cloud(SHA 貼付)/ Supabase 設定 / 課金商品 / gating 本番ON(値支給で私が反映可)/
+>   実機 E2E / 本番テストデータ掃除(service鍵支給で私が実行可)/ Codex 対話実行。詳細=`ANDROID_RELEASE_CHECKLIST.md` B 節。
 
 > ## ★★★ 最新ハンドオフ(2026-06-21・次セッションはここから)
 > **今セッションでやったこと:**
