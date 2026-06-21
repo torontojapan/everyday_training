@@ -54,8 +54,20 @@
 >   ② **custom composable param**(FilledField `fontSize=` / TextField `textStyle=TextStyle(fontSize=)`・約10): 入力テキストサイズ。コンポーネントに token 既定を持たせる or iOS TextField サイズ準拠で parity-allow。
 >   ③ **非トークンサイズ**(14 セクション見出し / 10 極小ラベル / 18 / 44 体重数字): iOS Form header 適応・極小ラベル・iOS minScale 由来。iOS 照合の上で parity-allow か snap。
 >   完了後 `parity_guard.py --strict` を CI 既定化。
-> - **未着手**: step5(semantic ハーネス)・step6(全機能QA Phase0→F)。
 > - **エミュ/シミュ**: 両ウィンドウ表示で起動中(record/weight 等で修正をライブ確認可)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その4・step4 完了 + step5 v1 + step6 Phase0)
+> - **step4 完了 ✅**: `parity_guard.py --strict` 違反0(raw_fontSize/色/Black すべて 0)。
+>   tokenize 85件 + iOS根拠 parity-allow 67件。**pre-commit(.githooks)+ CI(android-parity.yml)を --strict 化**、baseline 空=生値を以後一切書けない恒久封鎖。
+>   step4 中の追加実バグ是正: 体重数字色 濃赤→サーモン(iOS Palette.primary・実測一致)/ kg 単位 18→20semibold / streak weight Black→ExtraBold(iOS .heavy)。
+> - **step5 v1 ✅**: `tools/parity/semantic_diff.py`(文言+読み順の iOS↔Android 等値検証)+ iOS dump `testDumpSemanticTrees`。
+>   settings で end-to-end 実証・実検出(招待プロンプト全角半角・バックアップ補足文言差)。
+>   限界: size/weight/色は未対応(--strict が担う)/ iOS Form Cell 未parse / a11y グルーピング偽差分 → 次段改良。
+> - **step6 Phase0 ✅(緑)**: Android unit **346 tests / 0 fail** + parity_guard --strict + AppTypeParityTest + iOS UITest(golden/semantic/sub)全 pass。
+> - **step6 残(A〜F の本体)**: A 全機能×状態の正常/空/エラー/境界4区分(D=パリティは step3-5 で大部分済)/ B 横断ロジック境界値 /
+>   C 堅牢性(プロセス死/回転/ネット断/権限)/ E Supabase RLS 各表 / F リリース。**2LLM 敵対監査で correct 収束**は未実施。
+> - **semantic_diff v1 が見つけた要修正(任意・軽微)**: ①招待プロンプト Android 全角「？(任意)」↔ iOS 半角。②設定バックアップ補足文言が iOS/Android で別表現。
+> - **エミュ/シミュ 両ウィンドウ起動中**(record の種目見出し・weight のサーモン数字をライブ確認可)。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
