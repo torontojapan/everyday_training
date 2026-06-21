@@ -13,7 +13,7 @@
 - iOS↔Android データ互換=記録 payload クロスOS契約一致・friend code 同一仕様・RLS/状態機械防御済(本セッション検証)。
 
 ## A. 自走できる(私が実行)
-- [ ] **A1 version 実値化**: `build.gradle.kts` versionCode/versionName(現 1 / "0.1.0" が仮)。
+- [x] **A1 version 実値化**: `build.gradle.kts` versionCode/versionName→ versionName="1.3.0"(iOS 1.3 機能整合)/versionCode=1 に設定済。
 - [ ] **A2 R8 release の実行時 smoke**: release を一時署名で install → 実 Supabase 匿名サインイン/記録同期/友達コードを通し R8 ランタイム破壊が無いか検証 → 必要なら keep 追加。
 - [ ] **A3 権限/マニフェスト/セキュリティ監査**: cleartext 無効・exported 妥当・不要権限なし。
 - [ ] **A4 secrets/keystore テンプレ整備**: `keystore.properties.template` / `secrets` 必要キー一覧(どのフラグに何を入れるか)。
@@ -21,7 +21,7 @@
 - [ ] **A6 ローカライズ監査**: 英語/デバッグ文字列の混入チェック・ja_JP のみ確認。
 - [ ] **A7 semantic_diff 全画面拡張** + 残コピー差(バックアップ補足文言)是正。
 - [ ] **A8 データセーフティ申告 下書き**: 実権限/収集データから内容作成(提出は要ユーザー)。
-- [ ] **A9 アイコン/アダプティブ/スプラッシュ資産の有無確認**と不足補完。
+- [x] **A9 アイコン/アダプティブ/スプラッシュ資産の有無確認**と不足補完 → **launcher 未設定だった(既定ロボット)を発見・是正**: 猫アイコン(iOS AppIcon を flood-fill 透過)で adaptive icon(fg+cream bg)+legacy 5密度+round 生成、manifest に icon/roundIcon 追記。App info で表示確認。
 
 ## B. ユーザーしかできない(外部アカウント/実機/コンソール)
 - [ ] **B1 アップロード鍵生成 + Play App Signing 登録**。
