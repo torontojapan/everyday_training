@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run parity guard (fails on NEW raw fontSize / Color(0x) / FontWeight.Black)
-        run: python3 tools/parity/parity_guard.py
+        run: python3 tools/parity/parity_guard.py --strict
 
   token-parity:
     name: AppType tokens == iOS build 12

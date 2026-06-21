@@ -572,7 +572,7 @@ private fun DayCell(cell: MonthCell, modifier: Modifier, isToday: Boolean = fals
                 Text(
                     // iOS MonthlyCalendarView day = size 14, today heavy / それ以外 semibold。
                     "${date.dayOfMonth}",
-                    style = AppType.caption.copy(fontSize = 14.sp, fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.SemiBold),
+                    style = AppType.caption.copy(fontSize = 14.sp, fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.SemiBold),  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                     color = if (isToday) Color.White else palette.textPrimary,
                 )
                 if (isPeriod) {

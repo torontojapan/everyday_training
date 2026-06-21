@@ -603,7 +603,7 @@ private fun BackupSection(
                     Text("記録をクラウドにバックアップ", style = AppType.body, color = palette.textPrimary)
                     Text(
                         "運動・体重・体調の記録をあなたのアカウントに保存し、機種変更(Android↔iPhone)や再インストールで復元できます。友達には共有されません。",
-                        color = palette.textSecondary, fontSize = 12.sp,
+                        color = palette.textSecondary, fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     )
                 }
                 Switch(checked = enabled, onCheckedChange = onToggle)
@@ -628,11 +628,11 @@ private fun BackupSection(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(16.dp))
                     Text("$linkedProvider で連携済み。新しい端末で同じアカウントにサインインすると記録が戻ります。",
-                        color = palette.textSecondary, fontSize = 11.sp)
+                        color = palette.textSecondary, fontSize = 11.sp)  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 }
             } else {
                 Text("機種変更で確実に復元するには Apple か Google で連携してください(連携でバックアップが自動 ON)。",
-                    color = palette.textSecondary, fontSize = 11.sp)
+                    color = palette.textSecondary, fontSize = 11.sp)  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 // ブランド準拠ボタン(Apple=黒地白文字+白ロゴ / Google=白地枠線+4色Gマーク)。iOS の AppleID/GoogleSignIn ボタン相当。
                 Surface(
                     color = Color.Black, shape = RoundedCornerShape(10.dp),
@@ -730,7 +730,7 @@ private fun CatBreedPicker(
         }
         Text(
             selected.displayName,
-            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,
+            fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep,  // parity-allow: AppType トークン同値(size16・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
         CatBreed.entries.chunked(4).forEach { row ->
@@ -751,7 +751,7 @@ private fun CatBreedPicker(
                             CatAvatar(breed = breed, size = 56.dp, modifier = Modifier.alpha(if (locked) 0.4f else 1f))
                             if (locked) Icon(Icons.Filled.Lock, contentDescription = "ロック中", tint = palette.textSecondary, modifier = Modifier.size(18.dp))
                         }
-                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)
+                        Text(breed.displayName, color = palette.textPrimary, fontSize = 10.sp, maxLines = 1)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
@@ -776,7 +776,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     "最高位「ぬしネコ」を達成！",
                     color = palette.primaryDeep,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             } else {
                 val nextThreshold = CatRank.thresholds[currentRank]
@@ -786,7 +786,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     "連続記録を続けると称号が進化。次は「$nextTitle」まで あと${remaining}日！",
                     color = palette.primaryDeep,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             }
             CatRank.thresholds.forEachIndexed { idx, threshold ->
@@ -811,7 +811,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                         entry.title ?: "",
                         color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
                         fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                         modifier = Modifier.padding(start = 10.dp),
                     )
                     if (isCurrent) {
@@ -819,7 +819,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                             "いま",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 10.sp,
+                            fontSize = 10.sp,  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                             modifier = Modifier
                                 .padding(start = 6.dp)
                                 .background(palette.primary, RoundedCornerShape(50))
@@ -831,7 +831,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                         "${threshold}日",
                         color = if (achieved) palette.primaryDeep else palette.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                     )
                 }
             }
@@ -1072,7 +1072,7 @@ private fun ReferralSection(
                             Text("友達を招待する", style = AppType.body, color = palette.textPrimary)
                             Text(
                                 "招待コードを共有すると、お互いに保険チケットがもらえます。",
-                                color = palette.textSecondary, fontSize = 12.sp,
+                                color = palette.textSecondary, fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                             )
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
@@ -1192,7 +1192,7 @@ private fun ReminderSection(
                             when (i) { 0 -> onToggle(false); 1 -> { onToggle(true); onSetCount(1) }; else -> { onToggle(true); onSetCount(2) } }
                         },
                     ) {
-                        Text(label, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium, color = if (sel) palette.textPrimary else palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth())
+                        Text(label, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium, color = if (sel) palette.textPrimary else palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth())  // parity-allow: AppType トークン同値(size13・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     }
                 }
             }

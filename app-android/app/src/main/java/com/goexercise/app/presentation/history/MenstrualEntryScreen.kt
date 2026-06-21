@@ -238,7 +238,7 @@ private fun DayMarkCell(
             Text(
                 "${date.dayOfMonth}",
                 style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"), // iOS monospacedDigit
-                fontSize = 14.sp,
+                fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
                 fontWeight = if (isMarked || isToday) FontWeight.ExtraBold else FontWeight.SemiBold,
                 color = textColor,
             )

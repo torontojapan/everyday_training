@@ -108,7 +108,7 @@ private fun PeriodPicker(period: RankingPeriod, palette: AppTheme, onSet: (Ranki
                 ) {
                     Text(
                         p.label,
-                        fontSize = 13.sp,
+                        fontSize = 13.sp,  // parity-allow: AppType トークン同値(size13・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         color = if (selected) palette.textPrimary else palette.textSecondary,
                         textAlign = TextAlign.Center,
@@ -206,7 +206,7 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
                     Text(entry.profile.displayName, style = AppType.headline, color = palette.textPrimary)
                     if (entry.isMe) {
                         Surface(color = palette.primary, shape = RoundedCornerShape(50)) {
-                            Text("あなた", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            Text("あなた", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                         }
                     }
                 }

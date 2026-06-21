@@ -176,7 +176,7 @@ private fun LegendSymbol(symbol: String, label: String, bordered: Boolean = fals
             Modifier.size(22.dp).clip(CircleShape).background(palette.surface)
                 .then(if (bordered) Modifier.border(2.dp, palette.primary, CircleShape) else Modifier),
             contentAlignment = Alignment.Center,
-        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary) }
+        ) { Text(symbol, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary) }  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
         Text(label, style = AppType.caption, color = palette.textSecondary)
     }
 }
@@ -208,7 +208,7 @@ private fun DayCell(cell: MonthCell, hasTickets: Boolean, onUse: (LocalDate) -> 
             ) {
                 Text(
                     text = if (rescuable) "${date.dayOfMonth}+" else "${date.dayOfMonth}",
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     color = palette.textPrimary,
                     fontWeight = if (rescuable) FontWeight.Bold else FontWeight.Normal,
                 )

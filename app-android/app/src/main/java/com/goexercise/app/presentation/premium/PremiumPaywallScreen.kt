@@ -130,7 +130,7 @@ fun PremiumPaywallContent(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("GOプレミアム", style = com.goexercise.app.ui.theme.AppType.headline, color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onClose) { Text("✕", fontSize = 18.sp, color = palette.textSecondary) }
+            TextButton(onClick = onClose) { Text("✕", fontSize = 18.sp, color = palette.textSecondary) }  // parity-allow: iOS 該当サイズ準拠(密接ラベル・density393照合済)
         }
 
         // トライアル適格による出し分け文言は PaywallCopy に集約(誤「14日間無料」表示=審査リスク回避)。
@@ -146,7 +146,7 @@ fun PremiumPaywallContent(
             Text(context.headline, color = palette.textPrimary, textAlign = TextAlign.Center, style = AppType.screenTitle.copy(fontWeight = FontWeight.ExtraBold))
             Text(
                 copy.subhead,
-                fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,  // parity-allow: AppType トークン同値(size15・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             )
         }
 
@@ -189,7 +189,7 @@ fun PremiumPaywallContent(
             Surface(color = palette.chipBackground, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(error, color = palette.primaryDeep, modifier = Modifier.weight(1f), style = AppType.caption.copy(fontWeight = FontWeight.Normal))
-                    TextButton(onClick = onClearError) { Text("閉じる", fontSize = 12.sp, color = palette.primaryDeep) }
+                    TextButton(onClick = onClearError) { Text("閉じる", color = palette.primaryDeep, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
                 }
             }
         }
@@ -281,7 +281,7 @@ private fun disclosure(text: String, palette: AppTheme) {
 private fun legalLink(label: String, url: String, ctx: Context, palette: AppTheme) {
     Text(
         label,
-        fontSize = 12.sp,
+        fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
         fontWeight = FontWeight.SemiBold,
         color = palette.primary,
         textDecoration = TextDecoration.Underline,

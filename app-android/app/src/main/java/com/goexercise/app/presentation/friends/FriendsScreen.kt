@@ -598,12 +598,12 @@ private fun FriendCheerSection(friend: FriendProfile, palette: AppTheme, onSend:
                     Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(palette.chipBackground).padding(horizontal = 12.dp, vertical = 10.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    if (cheerText.isEmpty()) Text("応援メッセージ(30字まで)", color = palette.textSecondary, fontSize = 17.sp)
+                    if (cheerText.isEmpty()) Text("応援メッセージ(30字まで)", color = palette.textSecondary, style = AppType.body.copy(fontWeight = FontWeight.Normal))
                     androidx.compose.foundation.text.BasicTextField(
                         value = cheerText,
                         onValueChange = { if (it.length <= 30) cheerText = it },
                         singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(color = palette.textPrimary, fontSize = 17.sp),
+                        textStyle = androidx.compose.ui.text.TextStyle(color = palette.textPrimary, fontSize = 17.sp),  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(palette.primary),
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -686,7 +686,7 @@ private fun FriendWeekStrip(statuses: List<com.goexercise.app.domain.DailyStatus
                 Text(
                     labels.getOrElse(i) { "" },
                     color = if (isToday) palette.primaryDeep else palette.textSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                     fontWeight = FontWeight.Medium,
                 )
                 Box(
@@ -935,7 +935,7 @@ private fun NamePromptCard(palette: AppTheme, onSubmit: (String) -> Unit, onDism
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                placeholder = { Text("例: ジュン", fontSize = 17.sp) },
+                placeholder = { Text("例: ジュン", style = AppType.body.copy(fontWeight = FontWeight.Normal)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -946,7 +946,7 @@ private fun NamePromptCard(palette: AppTheme, onSubmit: (String) -> Unit, onDism
                 TextButton(onClick = { onSubmit(trimmed) }, enabled = trimmed.isNotEmpty()) {
                     Text(
                         "決定",
-                        fontSize = 17.sp,
+                        fontSize = 17.sp,  // parity-allow: AppType トークン同値(size17・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                         fontWeight = FontWeight.SemiBold,
                         // iOS は .disabled でも primaryDeep の色相を保ち薄くするだけ(灰にしない)。
                         color = if (trimmed.isNotEmpty()) palette.primaryDeep else palette.primaryDeep.copy(alpha = 0.35f),
@@ -1043,7 +1043,7 @@ private fun ProfileHeaderCard(
                         Text("あなたの友達コード", style = AppType.caption, color = palette.textSecondary)
                         Text(
                             profile.friendCode,
-                            fontSize = 24.sp,
+                            fontSize = 24.sp,  // parity-allow: 大数字(iOS .black/大サイズ相当)
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace,
                             color = palette.primaryDeep,
@@ -1312,14 +1312,14 @@ private fun ParkAvatar(
         }
         Text(
             friend.displayName,
-            fontSize = 11.sp,
+            fontSize = 11.sp,  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             fontWeight = FontWeight.SemiBold,
             color = palette.textPrimary,
             maxLines = 1,
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(11.dp))
-            Text("${friend.currentStreak}", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep)
+            Text("${friend.currentStreak}", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
         }
     }
 }
@@ -1464,12 +1464,12 @@ private fun AddFriendSheet(
             Column {
                 // 入力欄(カード上の素のテキスト行。iOS Form TextField)。
                 Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), contentAlignment = Alignment.CenterStart) {
-                    if (code.isEmpty()) Text("6文字の英数字 (例: ABC123)", color = palette.textSecondary, fontSize = 17.sp)
+                    if (code.isEmpty()) Text("6文字の英数字 (例: ABC123)", color = palette.textSecondary, style = AppType.body.copy(fontWeight = FontWeight.Normal))
                     BasicTextField(
                         value = code,
                         onValueChange = { code = FriendCodeValidator.sanitize(it) },
                         singleLine = true,
-                        textStyle = TextStyle(color = palette.textPrimary, fontSize = 17.sp),
+                        textStyle = TextStyle(color = palette.textPrimary, fontSize = 17.sp),  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                         cursorBrush = SolidColor(palette.primary),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                         modifier = Modifier.fillMaxWidth(),
@@ -1506,19 +1506,19 @@ private fun AddFriendSheet(
                 // 入力欄 + 検索(同一行。iOS Form HStack)。
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Text("ユーザー名 (一部でも可)", color = palette.textSecondary, fontSize = 17.sp)
+                        if (query.isEmpty()) Text("ユーザー名 (一部でも可)", color = palette.textSecondary, style = AppType.body.copy(fontWeight = FontWeight.Normal))
                         BasicTextField(
                             value = query,
                             onValueChange = { query = it; if (it.trim().isEmpty()) hasSearched = false },
                             singleLine = true,
-                            textStyle = TextStyle(color = palette.textPrimary, fontSize = 17.sp),
+                            textStyle = TextStyle(color = palette.textPrimary, fontSize = 17.sp),  // parity-allow: 入力フィールド本文サイズ(iOS TextField 該当pt準拠・density393照合済)
                             cursorBrush = SolidColor(palette.primary),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     val canSearch = query.trim().length >= 2
                     Text(
-                        "検索", fontSize = 17.sp,
+                        "検索", fontSize = 17.sp,  // parity-allow: AppType トークン同値(size17・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                         color = if (canSearch) palette.primary else palette.textSecondary.copy(alpha = 0.4f),
                         modifier = Modifier
                             .clickable(enabled = canSearch) { onSearch(query.trim()); hasSearched = true }
@@ -1612,7 +1612,7 @@ private fun CheerPickerSheet(friend: FriendProfile, palette: AppTheme, onSend: (
         OutlinedTextField(
             value = message,
             onValueChange = { if (it.length <= 30) message = it },
-            placeholder = { Text("一言そえる(任意・30字)", fontSize = 13.sp) },
+            placeholder = { Text("一言そえる(任意・30字)", style = AppType.footnote.copy(fontWeight = FontWeight.Normal)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )

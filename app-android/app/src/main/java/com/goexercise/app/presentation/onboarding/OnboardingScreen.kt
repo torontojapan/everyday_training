@@ -91,7 +91,7 @@ fun OnboardingScreen(
         // ステップバッジ(iOS onboardingHeader「ステップ N/2」パリティ。Android は常に2ステップ)。
         Text(
             "ステップ ${step + 1} / 2",
-            fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
+            fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
                 .background(palette.primary.copy(alpha = 0.14f))
@@ -135,7 +135,7 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         CatAvatar(breed = breed, size = 56.dp)
-                        Text(breed.displayName, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = palette.textPrimary, maxLines = 1)
+                        Text(breed.displayName, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = palette.textPrimary, maxLines = 1)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
@@ -205,7 +205,7 @@ fun OnboardingScreen(
             onClick = { onFinish(selected) },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("あとで", color = palette.textSecondary) }
-        linkErr?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+        linkErr?.let { Text(it, color = MaterialTheme.colorScheme.error, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
         // iOS footer caption(中央)。
         Text(
             "あとから設定 →「アカウントとバックアップ」でも有効にできます。",

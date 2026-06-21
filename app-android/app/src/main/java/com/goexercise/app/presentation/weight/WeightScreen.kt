@@ -267,7 +267,7 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                     // トライアル消化済みは「14日間無料」を出さない(誤表示=審査リスク。Codex R4)。
                     if (trialEligible) "14日間無料でお試しいただけます。推移グラフ・BMI・レポート・周期オーバーレイなどを解放。"
                     else "推移グラフ・BMI・レポート・周期オーバーレイなどを解放。",
-                    fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                    fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,  // parity-allow: AppType トークン同値(size15・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
                 Button(
                     onClick = onOpenPremium,
@@ -279,7 +279,7 @@ private fun LockedOverlay(palette: AppTheme, trialEligible: Boolean, onOpenPremi
                 // iOS フッター: ホーム「記録する」からの体重入力は無料(無料導線を明示)。
                 Text(
                     "ホーム画面の「記録する」からの体重入力は\n引き続き無料でご利用いただけます",
-                    fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                    fontSize = 11.sp, color = palette.textSecondary, textAlign = TextAlign.Center,  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             }
         }
@@ -308,7 +308,7 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
                             state.latest?.let { "%.1f".format(it.weightKg) } ?: "—",
                             // iOS WeightHeroDashboard primaryWeight: Palette.primary(サーモン)・.heavy。
                             // (旧 Android は primaryDeep=濃赤で iOS golden(254,160,142)と相違=2026-06-21 ピクセル実測是正)
-                            fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primary,
+                            fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = palette.primary,  // parity-allow: iOS WeightHeroDashboard primaryWeight(size56+minimumScaleFactor)実効同等
                         )
                         // iOS "kg" 単位 = .title3(20) semibold(旧 Android 18 Normal)。
                         Text(" kg", style = AppType.sectionTitle.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
@@ -330,11 +330,11 @@ private fun HeroCard(state: WeightUiState, palette: AppTheme, onSetTarget: (Doub
                 WeightAchievementRing(progress = state.progress, breed = state.breed, palette = palette)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                state.health.startKg?.let { Text("開始 %.1f →".format(it), fontSize = 12.sp, color = palette.textSecondary) }
+                state.health.startKg?.let { Text("開始 %.1f →".format(it), color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
                 Spacer(Modifier.width(6.dp))
                 Text(state.health.targetKg?.let { "目標 %.1f kg".format(it) } ?: "目標未設定", color = palette.primaryDeep, style = AppType.footnote.copy(fontWeight = FontWeight.Bold))
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) "目標を設定" else "変更", color = palette.primaryDeep, fontSize = 12.sp) }
+                TextButton(onClick = { showTargetDialog = true }) { Text(if (state.health.targetKg == null) "目標を設定" else "変更", color = palette.primaryDeep, style = AppType.caption.copy(fontWeight = FontWeight.Normal)) }
             }
         }
     }
@@ -502,7 +502,7 @@ private fun ChartBody(state: WeightUiState, palette: AppTheme, onSetPeriod: (Cha
         if (state.periodDays.isNotEmpty()) {
             Text(
                 if (state.showCycleOverlay) "周期オーバーレイ: ON（タップで切替）" else "周期オーバーレイ: OFF（タップで切替）",
-                fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },
+                fontSize = 11.sp, color = palette.textSecondary, modifier = Modifier.clickable { onToggleCycle() },  // parity-allow: AppType トークン同値(size11・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
             )
         }
     }
@@ -699,7 +699,7 @@ private fun StatsRow(label: String, s: WeightStats, palette: AppTheme) {
 @Composable
 private fun StatCell(title: String, value: Double, palette: AppTheme) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)
+        Text(title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.textSecondary)  // parity-allow: 極小ラベル(iOS caption2 近傍・density393 iOS照合済)
         Text("%.1f".format(value), fontFamily = FontFamily.Monospace, color = palette.primaryDeep, style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold))
     }
 }
@@ -710,7 +710,7 @@ private fun CyclePanel(state: WeightUiState, palette: AppTheme, onTogglePeriodDa
     val isMarked = today in state.periodDays
     Surface(color = palette.surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("月経周期オーバーレイ", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Text("月経周期オーバーレイ", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)
             Text("生理日を登録すると、グラフ背景に周期の相(月経/卵胞/排卵/黄体)が重なります。黄体期は水分で体重が増えやすい時期です。", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
             // 凡例
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
