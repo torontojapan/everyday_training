@@ -24,13 +24,13 @@
 - [x] **A9 アイコン/アダプティブ/スプラッシュ資産の有無確認**と不足補完 → **launcher 未設定だった(既定ロボット)を発見・是正**: 猫アイコン(iOS AppIcon を flood-fill 透過)で adaptive icon(fg+cream bg)+legacy 5密度+round 生成、manifest に icon/roundIcon 追記。App info で表示確認。
 
 ## B. ユーザーしかできない(外部アカウント/実機/コンソール)
-- [ ] **B1 アップロード鍵生成 + Play App Signing 登録**。
+- [~] **B1 アップロード鍵 + Play App Signing** — **鍵生成・署名 AAB・SHA は完了(私)**: `app-android/keystore/upload-keystore.jks`(gitignore済)/ 署名 AAB=`app/build/outputs/bundle/release/app-release.aab`/ SHA-1=CC:DE:FC:9C:D3:19:7D:34:41:3B:4B:2B:78:B1:06:2E:F9:32:4B:5A / SHA-256=71:8B:DA:98:5F:7D:95:B6:4A:1C:14:52:11:E8:FE:FE:05:2D:FB:1C:72:AE:7D:2F:44:21:66:A5:FE:C0:39:26。**残=Play App Signing 登録 + AAB アップロード(あなた)**。鍵パスワードは keystore.properties(ローカル)に保存・要バックアップ。
 - [ ] **B2 Play Console**: アプリ作成・データセーフティ提出・コンテンツレーティング・ストア掲載(説明/スクショ)・価格/配信国(日本)・段階公開・提出。
-- [ ] **B3 Google Cloud**: アプリ SHA-1/256 登録 + `GOOGLE_WEB_CLIENT_ID`(Google ネイティブサインイン)。
+- [ ] **B3 Google Cloud**: アプリ SHA-1/256 登録(**SHA は B1 で算出済→貼るだけ**) + `GOOGLE_WEB_CLIENT_ID`(Google ネイティブサインイン)。
 - [ ] **B4 Supabase**: Android 用 Apple Web/PKCE redirect URL allowlist・Google provider 設定確認。
 - [ ] **B5 Play 課金商品作成**: `com.goexercise.app.premium_monthly` / `_yearly`(コード側 `PremiumRepository.kt` と一致させる)。
 - [ ] **B6 gating 本番 ON**: `FRIENDS_APPLE_LINK_ENABLED` / `FRIENDS_GOOGLE_LINK_ENABLED` / `PLAY_BILLING_ENABLED` を secrets で true(実インフラ完成後)。
 - [ ] **B7 実 Android 端末 E2E**: 機種変更(同 Apple/Google ID で記録復元)・実課金購入/復元・通知発火・QR カメラ。
 - [ ] **B8 本番 Supabase テストデータ掃除**: §6 で残した けんじ/cheers/friendship。
-- [ ] **B9 2LLM 敵対監査(Codex)で correct 収束**(QA 合格基準の formal gate)。
-- [ ] **B10 privacy/terms/support の公開 URL 化**(GitHub Pages 等)。
+- [~] **B9 Codex 2LLM 監査** — 実行中/結果反映(本セッション差分に対し read-only 敵対レビュー)。
+- [x] **B10 privacy/terms/support 公開 URL** — **完了**: GitHub Pages 稼働中(main/docs・public repo)、Android 設定が iOS と同一 URL(`torontojapan.github.io/everyday_training/{privacy,terms,support}/`)を参照。
