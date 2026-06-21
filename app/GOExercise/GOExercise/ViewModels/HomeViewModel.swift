@@ -210,12 +210,6 @@ final class HomeViewModel {
         pendingMilestone = nil
     }
 
-    func useRescueTicketToday() -> Bool {
-        let today = calendar.startOfDay(for: dateProvider.currentDate())
-        let used = rescueTicketStore.useTicket(on: today, allowance: rescueAllowance)
-        rescueTicketAvailable = rescueTicketStore.hasTicketAvailable(today: today, allowance: rescueAllowance)
-        return used
-    }
 
     /// 「昨日達成済みか」を rescue ticket 補完込みで判定。
     /// `yesterdayStatus` と同じパスを使って isComebackToday と catState の
