@@ -468,7 +468,7 @@ private fun StreakBadge(streak: Int, onShareClick: () -> Unit, modifier: Modifie
 // MARK: - 紹介スター行 (iOS ReferralStarsRow) -------------------------------------
 
 /** 金の星は「ご褒美」感を出すため常に暖色のゴールド(iOS Color.orange = systemOrange #FF9500)。 */
-private val ReferralStarGold = Color(0xFFFF9500)
+private val ReferralStarGold = Color(0xFFFF9500)  // parity-allow: iOS systemOrange(FF9500)準拠の紹介スター金色
 
 /**
  * ホーム上段3行目の紹介スター行。星(上)+キャプション(下)を縦積みし、全幅をタップで招待を共有する。

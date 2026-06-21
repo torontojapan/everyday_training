@@ -621,7 +621,7 @@ private fun BackupSection(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     }
                 }
-                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+                error?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             }
             // 認証(Apple/Google でバックアップ)を設定に集約。未連携=ブランド認証ボタン / 連携済=状態表示+削除。
             if (linkedProvider != null) {
@@ -665,7 +665,7 @@ private fun BackupSection(
                     }
                 }
                 if (isLinking) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }
+                linkError?.let { Text(it, color = Color(0xFFD32F2F), fontSize = 12.sp) }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             }
             // アカウント削除(審査 Guideline 5.1.1(v))。iOS は profile!=nil(匿名含む)で表示 → アカウントがあれば表示。
             if (hasAccount) {
@@ -673,8 +673,8 @@ private fun BackupSection(
                     Modifier.fillMaxWidth().clickable { confirmDelete = true },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))
-                    Text("アカウントを削除", style = AppType.body, color = Color(0xFFD32F2F))
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(18.dp))  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
+                    Text("アカウントを削除", style = AppType.body, color = Color(0xFFD32F2F))  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
                 }
             }
         }
@@ -684,7 +684,7 @@ private fun BackupSection(
             onDismissRequest = { confirmDelete = false },
             title = { Text("アカウントを削除しますか？") },
             text = { Text("アカウントとクラウドのバックアップが完全に削除され、元に戻せません。端末内の記録は残ります。") },
-            confirmButton = { TextButton(onClick = { onDeleteAccount(); confirmDelete = false }) { Text("アカウントを削除", color = Color(0xFFD32F2F)) } },
+            confirmButton = { TextButton(onClick = { onDeleteAccount(); confirmDelete = false }) { Text("アカウントを削除", color = Color(0xFFD32F2F)) } },  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
         )
     }
@@ -990,7 +990,7 @@ private fun Swatch(color: Color) {
             .size(20.dp)
             .clip(CircleShape)
             .background(color)
-            .border(1.dp, Color(0x22000000), CircleShape),
+            .border(1.dp, Color(0x22000000), CircleShape),  // parity-allow: 微細ボーダー=半透明黒(装飾・ブランド色外)
     )
 }
 
@@ -1008,7 +1008,7 @@ private fun DataManagementSection(
     SettingsCard {
         EntryRow(Icons.Filled.IosShare, "データを書き出す", showChevron = false) { if (!isBusy) onExport() }
         RowDivider()
-        EntryRow(Icons.Filled.Delete, "すべての記録を削除", showChevron = false, tint = Color(0xFFD32F2F)) { if (!isBusy) confirmDelete = true }
+        EntryRow(Icons.Filled.Delete, "すべての記録を削除", showChevron = false, tint = Color(0xFFD32F2F)) { if (!isBusy) confirmDelete = true }  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
     }
     Text(
         "書き出しは運動・体重・体調の記録を JSON ファイルにまとめます。削除は記録のみが対象で、購入やサブスクリプションには影響しません。",
@@ -1028,7 +1028,7 @@ private fun DataManagementSection(
             onDismissRequest = { confirmDelete = false },
             title = { Text("すべての記録を削除しますか？") },
             text = { Text("運動・体重・体調の記録がすべて削除され、元に戻せません。事前にエクスポートをおすすめします。") },
-            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = Color(0xFFD32F2F)) } },
+            confirmButton = { TextButton(onClick = { onDeleteAll(); confirmDelete = false }) { Text("削除", color = Color(0xFFD32F2F)) } },  // parity-allow: iOS .red 相当の破壊的アクション色(削除/エラー)
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("キャンセル") } },
             containerColor = palette.surface,
         )
@@ -1180,7 +1180,7 @@ private fun ReminderSection(
         }
         RowDivider()
         val segIndex = if (!reminder.enabled) 0 else reminder.count.coerceIn(1, 2)
-        Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {  // parity-allow: セグメント track の淡灰(iOS .segmented 標準トラック相当)
             Row(Modifier.padding(2.dp)) {
                 listOf("OFF", "1日1回", "1日2回").forEachIndexed { i, label ->
                     val sel = i == segIndex

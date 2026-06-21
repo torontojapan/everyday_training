@@ -443,8 +443,8 @@ private fun FriendDetailScreen(
                 // 解除: bordered red + person.crop.circle.badge.minus(iOS パリティ)。
                 OutlinedButton(
                     onClick = { confirmRemove = true },
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F)),
-                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F)),  // parity-allow: iOS .red 相当の破壊的アクション色(システムセマンティック・ブランドパレット外)
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F)),  // parity-allow: iOS .red 相当の破壊的アクション色(システムセマンティック・ブランドパレット外)
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Filled.PersonRemove, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -459,7 +459,7 @@ private fun FriendDetailScreen(
             onDismissRequest = { confirmRemove = false },
             title = { Text("${friend.displayName} を友達から外しますか？") },
             text = { Text("再度つながるには友達コードで申請が必要です。") },
-            confirmButton = { TextButton(onClick = { confirmRemove = false; onRemove() }) { Text("友達を解除", color = Color(0xFFD32F2F)) } },
+            confirmButton = { TextButton(onClick = { confirmRemove = false; onRemove() }) { Text("友達を解除", color = Color(0xFFD32F2F)) } },  // parity-allow: iOS .red 相当の破壊的アクション色(システムセマンティック・ブランドパレット外)
             dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("キャンセル") } },
         )
     }
@@ -1228,7 +1228,7 @@ private fun FriendsParkGrid(
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = Color(0xFFEFF6E6), // 公園らしい淡い緑
+        color = Color(0xFFEFF6E6), // 公園らしい淡い緑  // parity-allow: 友達公園の淡緑装飾背景(iOS FriendsParkView 同系・ブランドパレット外)
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(

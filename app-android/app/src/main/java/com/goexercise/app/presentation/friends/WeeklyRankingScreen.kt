@@ -96,7 +96,7 @@ fun WeeklyRankingContent(
 private fun PeriodPicker(period: RankingPeriod, palette: AppTheme, onSet: (RankingPeriod) -> Unit) {
     // iOS `.pickerStyle(.segmented)` パリティ: 薄いライトグレーのトラック + 白の選択ピル(微小な影)+
     // 濃色テキスト。旧 coral 塗りピルは iOS のセグメント表現と別物だったため是正(角丸も pill→小角丸)。
-    Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = Color(0xFFEDE8E2), shape = RoundedCornerShape(9.dp), modifier = Modifier.fillMaxWidth()) {  // parity-allow: セグメント track の淡灰(iOS .segmented 標準トラック相当)
         Row(Modifier.padding(2.dp)) {
             RankingPeriod.entries.forEach { p ->
                 val selected = p == period

@@ -267,7 +267,7 @@ private fun ExerciseDraftCard(
                 Spacer(Modifier.weight(1f))
                 if (canRemove) {
                     Icon(
-                        Icons.Filled.Delete, contentDescription = "種目を削除", tint = Color(0xFFD32F2F),
+                        Icons.Filled.Delete, contentDescription = "種目を削除", tint = Color(0xFFD32F2F),  // parity-allow: iOS .red 相当の破壊的アクション色(削除)
                         modifier = Modifier.size(20.dp).clickable { onRemove() },
                     )
                     Spacer(Modifier.size(12.dp))
