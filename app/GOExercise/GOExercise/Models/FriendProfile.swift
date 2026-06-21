@@ -34,10 +34,10 @@ struct FriendProfile: Identifiable, Hashable, Sendable, Codable {
     var monthlyTotalMinutes: Int?
     /// 今月の達成日数。月間ランキングの tiebreak で使う。
     var monthlyAchievedDays: Int?
-    /// 友達自身が設定している猫キャラ。Phase 6.7 で導入。nil なら
-    /// friendCode の安定 hash で default を表示する (古い payload との
-    /// 互換性のため optional)。
-    var myCatBreed: CatBreed?
+    /// 友達自身が設定しているキャラ(猫 or 犬)。Phase 6.7 で導入、2026-06 で犬対応。
+    /// nil なら friendCode の安定 hash で default を表示する(古い payload 互換のため optional)。
+    /// Supabase の `my_cat_breed` text 列に [[PetBreed]] の friendBreedString で載る。
+    var myPet: PetBreed?
 
     var weeklyAchievementsOrEmpty: [Bool] {
         let raw = weeklyAchievements ?? []

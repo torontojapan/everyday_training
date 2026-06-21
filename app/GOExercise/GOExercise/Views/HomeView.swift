@@ -290,7 +290,8 @@ struct HomeView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {
                 if CatRank(currentStreak: viewModel.streak.currentStreak).rank > 0 {
-                    RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak))
+                    RankBadge(rank: CatRank(currentStreak: viewModel.streak.currentStreak),
+                              species: UserCatPreferences.shared.myPet.species)
                 }
                 statusChip
             }
@@ -662,7 +663,7 @@ struct HomeView: View {
         let weekly = weeklyStatuses.map { $0.countsAsAchieved }
         let minutes = viewModel.weeklySummary.totalDurationSeconds / 60
         let tier = CatRank(currentStreak: streak).rank
-        let breed = UserCatPreferences.shared.myCat
+        let pet = UserCatPreferences.shared.myPet
         // 今日の活動 (カテゴリ/種目名/詳細=opt-in) と月次集計を記録から組み立てる。
         let activity = FriendSharedActivity.build(
             records: store.records, today: Date(), calendar: .mondayFirst,
@@ -677,7 +678,7 @@ struct HomeView: View {
            current.weeklyStatuses == weeklyStatuses,
            current.weeklyTotalMinutes == minutes,
            current.decorationTier == tier,
-           current.myCatBreed == breed,
+           current.myPet == pet,
            current.todayCategoryName == activity.todayCategoryName,
            current.todayExerciseNames == activity.todayExerciseNames,
            Self.detailSignature(current.todayExerciseDetails) == Self.detailSignature(activity.todayExerciseDetails),
@@ -693,7 +694,7 @@ struct HomeView: View {
         updated.weeklyStatuses = weeklyStatuses
         updated.weeklyTotalMinutes = minutes
         updated.decorationTier = tier
-        updated.myCatBreed = breed
+        updated.myPet = pet
         updated.todayCategoryName = activity.todayCategoryName
         updated.todayExerciseNames = activity.todayExerciseNames
         updated.todayExerciseDetails = activity.todayExerciseDetails

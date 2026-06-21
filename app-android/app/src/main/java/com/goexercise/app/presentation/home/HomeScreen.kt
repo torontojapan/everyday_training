@@ -133,6 +133,7 @@ fun HomeRoute(
                 rank = rank,
                 message = message,
                 onFinished = { viewModel.clearRankEvent() },
+                species = state.pet.species,
             )
         }
         // 機能D: 復活成功後の「連続復活!」祝福(applyRevive 成功で VM が点火)。iOS HomeView.swift:96-104 パリティ。
@@ -141,6 +142,7 @@ fun HomeRoute(
                 rank = rank,
                 message = "連続復活!",
                 onFinished = { viewModel.consumeReviveCelebration() },
+                species = state.pet.species,
             )
         }
     }
@@ -434,7 +436,7 @@ private fun TopStatusBar(state: HomeUiState, onShareClick: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val rank = CatRank.of(state.streak.currentStreak)
-            if (rank.rank > 0) com.goexercise.app.ui.components.CatRankChip(rank = rank)
+            if (rank.rank > 0) com.goexercise.app.ui.components.CatRankChip(rank = rank, species = state.pet.species)
             StatusChip(state.todayStatus)
         }
     }

@@ -257,7 +257,8 @@ class SupabaseFriendsService(
             weeklyTotalMinutes = profile.weeklyTotalMinutes,
             monthlyTotalMinutes = profile.monthlyTotalMinutes,
             monthlyAchievedDays = profile.monthlyAchievedDays,
-            myCatBreed = profile.myCatBreed?.rawValue,
+            // 猫=従来 rawValue("orange")/犬="dog:shiba"。旧クライアントは犬を既定猫にフォールバック(列追加不要)。
+            myCatBreed = profile.myPet?.friendBreedString,
             // 種目詳細の共有(opt-in 時のみ非 null)。OFF なら null を書いて列をクリア(=共有停止)。iOS パリティ。
             todayExerciseDetails = profile.todayExerciseDetails?.map {
                 SharedExerciseDetailRow(name = it.name, durationMinutes = it.durationMinutes, reps = it.reps, sets = it.sets)

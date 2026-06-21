@@ -1,14 +1,15 @@
 package com.goexercise.app.domain.friends
 
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 
 /**
- * 友達アバターの猫種解決。iOS `FriendAvatarResolver` (BuddyAvatar.swift) の移植。
- * 相手が共有している `myCatBreed` を使い、未設定なら friendCode から決定論的に 1 種を当てる。
- * iOS と同一の FNV-1a(32bit) ハッシュ + CatBreed 並び順なので、同じ友達は両 OS で同じ猫になる。
+ * 友達アバターのキャラ解決。iOS `FriendAvatarResolver` (BuddyAvatar.swift) の移植。
+ * 相手が共有している `myPet`(猫 or 犬)を使い、未設定なら friendCode から決定論的に 1 種を当てる。
+ * iOS と同一の FNV-1a(32bit) ハッシュ + CatBreed 並び順なので、同じ友達は両 OS で同じキャラになる。
  */
 object FriendAvatarResolver {
-    fun resolve(profile: FriendProfile): CatBreed = profile.myCatBreed ?: defaultBreed(profile.friendCode)
+    fun resolve(profile: FriendProfile): PetBreed = profile.myPet ?: PetBreed.Cat(defaultBreed(profile.friendCode))
 
     fun defaultBreed(friendCode: String): CatBreed {
         val all = CatBreed.entries

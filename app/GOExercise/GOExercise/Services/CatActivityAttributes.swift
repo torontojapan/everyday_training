@@ -17,6 +17,11 @@ struct CatActivityAttributes: ActivityAttributes {
         var catStateRaw: String
         /// ユーザーが選んでいる猫種 (CatBreed.rawValue)。
         var catBreedRaw: String
+        /// 今週の達成数 / 日数(2026-06 改修: ロック画面は肉球+今週ストリップ表示)。
+        var weeklyAchieved: Int = 0
+        var weeklyTotal: Int = 7
+        /// 今週(月→日)の状態 (DailyStatus.rawValue) 7 個。
+        var weeklyStatusesRaw: [String] = []
     }
 
     /// activity 開始時に固定される。猫種は途中で変えてもこの activity の

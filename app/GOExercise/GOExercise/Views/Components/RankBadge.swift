@@ -4,6 +4,8 @@ import SwiftUI
 /// `animateShimmer` を true にすると、表示時に斜めハイライトが一度流れ + 軽い pop。
 struct RankBadge: View {
     let rank: CatRank
+    /// 称号の種別(犬なら「○○犬」)。既定は猫。
+    var species: PetSpecies = .cat
     /// 昇格直後など、初表示で shimmer/pop を一度だけ流すか。
     var animateShimmer: Bool = false
     var compact: Bool = false
@@ -13,7 +15,7 @@ struct RankBadge: View {
     @State private var popped = false
 
     var body: some View {
-        if rank.rank > 0, let title = rank.title, let metal = rank.metalKind {
+        if rank.rank > 0, let title = rank.title(species: species), let metal = rank.metalKind {
             content(title: title, metal: metal)
                 .scaleEffect(popped ? 1.0 : (animateShimmer && !reduceMotion ? 0.92 : 1.0))
                 .onAppear { runEntranceIfNeeded() }

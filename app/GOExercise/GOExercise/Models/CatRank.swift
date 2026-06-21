@@ -28,7 +28,7 @@ struct CatRank: Equatable, Sendable {
     /// 0..1。背景 richness 等の連続的な濃さ。
     var richness: Double { Double(rank) / Double(Self.thresholds.count) }
 
-    /// 称号(案B「ねこ仕立て」)。rank0 は nil。
+    /// 称号(案B「ねこ仕立て」)。rank0 は nil。猫の既定。
     var title: String? {
         switch rank {
         case 1: return "みならいネコ"
@@ -43,6 +43,16 @@ struct CatRank: Equatable, Sendable {
         case 10: return "レジェンドネコ"
         case 11: return "ぬしネコ"
         default: return nil
+        }
+    }
+
+    /// 種別を考慮した称号。犬のときは「ネコ→犬」に置換(みならいネコ→みならい犬)。
+    /// 猫はそのまま。rank0 は nil。
+    func title(species: PetSpecies) -> String? {
+        guard let base = title else { return nil }
+        switch species {
+        case .cat: return base
+        case .dog: return base.hasSuffix("ネコ") ? String(base.dropLast(2)) + "犬" : base
         }
     }
 

@@ -24,8 +24,9 @@ data class FriendProfile(
     val weeklyTotalMinutes: Int? = null,
     val monthlyTotalMinutes: Int? = null,
     val monthlyAchievedDays: Int? = null,
-    /** 共有する猫の種類(友達一覧のアバター表示用)。未設定は emoji フォールバック。iOS `myCatBreed` 相当。 */
-    val myCatBreed: com.goexercise.app.domain.CatBreed? = null,
+    /** 共有するキャラ(猫 or 犬。友達一覧のアバター表示用)。未設定は hash 既定。iOS `myPet` 相当。
+     * Supabase の `my_cat_breed` text 列に [[PetBreed.friendBreedString]] で載る(犬対応・移行不要)。 */
+    val myPet: com.goexercise.app.domain.PetBreed? = null,
     /** プロフィール最終更新時刻。友達詳細の「最終更新 N分前」。iOS `lastUpdated` 相当。 */
     val lastUpdated: java.time.Instant? = null,
     /** 友達になった日時。詳細の「つながって N日」タイル。iOS `connectedSince` 相当。 */

@@ -481,8 +481,8 @@ private fun FriendDetailHero(friend: FriendProfile, rank: com.goexercise.app.dom
                     .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.50f), tint.copy(alpha = 0.15f)))),
                 contentAlignment = Alignment.Center,
             ) {
-                com.goexercise.app.ui.components.CatImage(
-                    breed = breed,
+                com.goexercise.app.ui.components.PetImage(
+                    pet = breed,
                     state = com.goexercise.app.domain.CatState.WaitingMorning,
                     modifier = Modifier.fillMaxSize().padding(10.dp),
                 )
@@ -494,7 +494,7 @@ private fun FriendDetailHero(friend: FriendProfile, rank: com.goexercise.app.dom
                 Text("·", color = palette.textSecondary)
                 Text(friend.friendCode, color = palette.primaryDeep, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, style = AppType.caption.copy(fontWeight = FontWeight.SemiBold))
             }
-            if (rank.title != null) com.goexercise.app.ui.components.CatRankChip(rank)
+            if (rank.title != null) com.goexercise.app.ui.components.CatRankChip(rank, species = friend.myPet?.species ?: com.goexercise.app.domain.PetSpecies.Cat)
             friend.lastUpdated?.let { Text("最終更新 ${relativeJa(it)}", style = AppType.caption, color = palette.textSecondary) }
         }
     }
@@ -1115,8 +1115,8 @@ private fun RequestsSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     // iOS: 申請者の実猫アバター(paw プレースホルダでなく決定論的猫)。
-                    com.goexercise.app.ui.components.CatAvatar(
-                        breed = com.goexercise.app.domain.friends.FriendAvatarResolver.resolve(request.fromProfile),
+                    com.goexercise.app.ui.components.PetAvatar(
+                        pet = com.goexercise.app.domain.friends.FriendAvatarResolver.resolve(request.fromProfile),
                         size = 36.dp,
                     )
                     Column(Modifier.weight(1f)) {

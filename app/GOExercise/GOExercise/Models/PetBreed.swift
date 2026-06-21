@@ -156,6 +156,17 @@ enum PetBreed: Hashable, Codable, Sendable, Identifiable {
         }
     }
 
+    /// 友達公開プロフィール(Supabase `my_cat_breed` text 列)に載せる文字列。
+    /// 猫は**従来どおり素の rawValue**("orange")で旧クライアント互換を保ち、
+    /// 犬だけ "dog:shiba" 形式にする(旧クライアントはパース不能→既定猫にフォールバック=破綻なし)。
+    /// 列追加マイグレーション不要でそのまま犬対応できる。
+    var friendBreedString: String {
+        switch self {
+        case .cat(let b): return b.rawValue
+        case .dog(let b): return "dog:\(b.rawValue)"
+        }
+    }
+
     init?(storageValue raw: String) {
         let parts = raw.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2 else {

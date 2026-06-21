@@ -40,6 +40,7 @@ enum WidgetSnapshotPublisher {
             currentStreak: streak,
             weeklyAchieved: progress.achievedCount,
             weeklyTotal: progress.totalDays,
+            weeklyStatuses: statuses.map { $0.status },   // 月→日の7日分(今週ストリップ用)
             catState: catState,
             message: message,
             calendar: calendar

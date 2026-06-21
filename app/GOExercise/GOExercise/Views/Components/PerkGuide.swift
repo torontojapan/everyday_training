@@ -105,7 +105,7 @@ struct CatRankGuideView: View {
                 .foregroundStyle(Palette.primaryDeep)
         } else {
             let nextThreshold = CatRank.thresholds[currentRank]
-            let nextTitle = CatRank(currentStreak: nextThreshold).title ?? ""
+            let nextTitle = CatRank(currentStreak: nextThreshold).title(species: UserCatPreferences.shared.myPet.species) ?? ""
             let remaining = max(0, nextThreshold - currentStreak)
             Text("連続記録を続けると称号が進化。次は「\(nextTitle)」まで あと\(remaining)日！")
                 .font(.system(.caption, design: .rounded, weight: .semibold))

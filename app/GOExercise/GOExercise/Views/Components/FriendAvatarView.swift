@@ -6,7 +6,7 @@ struct FriendAvatarView: View {
     var size: CGFloat = 44
     var showsDecorationBorder: Bool = false
 
-    private var breed: CatBreed { FriendAvatarResolver.resolve(for: friend) }
+    private var breed: PetBreed { FriendAvatarResolver.resolve(for: friend) }
 
     private var resolvedAsset: String {
         // アバターアイテム画像(MilestoneItem: オレンジ専用 shaker/crown)は退役。

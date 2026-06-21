@@ -5,35 +5,40 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
-import com.goexercise.app.domain.CatState
+import com.goexercise.app.domain.DailyStatus
 
 /**
  * ホーム画面ウィジェット(systemSmall 相当)を 1 枚の Bitmap に描画する。
  *
- * Glance は任意 Canvas 描画ができず、iOS `SmallWidgetView`(猫 halo + 週達成リング + 見出し/サブ +
- * 未達成 CTA・左寄せ)を忠実に再現できない。そこで Android Canvas で iOS と同じ構図を描き、Glance では
- * その Bitmap を Image として表示する。同じ関数を instrumented test で render → PNG 化し iOS golden と照合する。
- *
- * 配色・寸法は iOS の各 View(SmallWidgetView / WidgetCatView / RecordPromptChipView /
- * GOExerciseWidget.containerBackground)に一致させている。
+ * 2026-06 改修: キャラ表示を廃止し、アプリアイコンと同じ**肉球マーク + 今週の達成度(X/7)+ 月〜日の
+ * 達成ストリップ**にした(ユーザー要望)。iOS `WidgetWeekStrip` と同一構図。Glance は任意 Canvas 描画が
+ * できないため、Android Canvas で描いた Bitmap を Image として表示する。
  */
 object StreakWidgetRenderer {
 
     data class Data(
-        val catResId: Int,
-        val catState: CatState,
+        /** 今週(月→日)の7日分の状態。 */
+        val weeklyStatuses: List<DailyStatus>,
         val streak: Int,
         val todayAchieved: Boolean,
         val isRestDay: Boolean,
         val weeklyAchieved: Int,
         val weeklyTotal: Int,
         val hoursLeft: Int,
+        /** 肉球マーク drawable(ic_stat_paw)。0 なら円で簡易描画。 */
+        val pawResId: Int = 0,
     )
+
+    private val dayLabels = listOf("月", "火", "水", "木", "金", "土", "日")
+    // アプリアイコン/ライブアクティビティの肉球色 #FF8C4C。
+    private fun pawColor() = rgb(1.00, 0.55, 0.30)
 
     private fun rgb(r: Double, g: Double, b: Double, a: Double = 1.0) =
         android.graphics.Color.argb((a * 255).toInt(), (r * 255).toInt(), (g * 255).toInt(), (b * 255).toInt())
@@ -49,7 +54,7 @@ object StreakWidgetRenderer {
         val radius = dp(16f)
         val full = RectF(0f, 0f, w, h)
 
-        // 背景: 温かいリニアグラデ + 右上のラジアル光彩(iOS containerBackground)。
+        // 背景: 温かいリニアグラデ + 右上のラジアル光彩(iOS containerBackground と同一)。
         val bg = Paint(Paint.ANTI_ALIAS_FLAG)
         bg.shader = LinearGradient(0f, 0f, w, h, rgb(1.00, 0.95, 0.86), rgb(1.00, 0.89, 0.78), Shader.TileMode.CLAMP)
         c.drawRoundRect(full, radius, radius, bg)
@@ -57,16 +62,43 @@ object StreakWidgetRenderer {
         halo.shader = RadialGradient(w, 0f, dp(120f), rgb(1.00, 0.78, 0.55, 0.55), android.graphics.Color.TRANSPARENT, Shader.TileMode.CLAMP)
         c.drawRoundRect(full, radius, radius, halo)
 
-        val pad = dp(10f)
-        val catSize = dp(58f)
-        // 猫(halo 円 + 白枠 + キャラ画像)。iOS WidgetCatView。
-        drawHaloCat(c, context, pad, pad, catSize, data, ::dp)
-        // 週達成リング(右上)。iOS progressRing。
-        val ringSize = dp(44f)
-        drawRing(c, w - pad - ringSize, pad + dp(7f), ringSize, data, ::dp)
+        val pad = dp(12f)
+        val paw = pawColor()
 
-        // 見出し + サブ(左寄せ)。
-        var y = pad + catSize + dp(10f)
+        // --- ヘッダ: 肉球 + 「今週」 + X/7(右) ---
+        val pawSize = dp(18f)
+        drawPaw(c, context, pad, pad, pawSize, paw, data.pawResId)
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = rgb(0.40, 0.34, 0.28); textSize = dp(12f)
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        val headerBaseline = pad + pawSize / 2f - (titlePaint.fontMetrics.ascent + titlePaint.fontMetrics.descent) / 2f
+        c.drawText("今週", pad + pawSize + dp(5f), headerBaseline, titlePaint)
+        val total = data.weeklyTotal.coerceAtLeast(7)
+        val countPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = paw; textSize = dp(14f); textAlign = Paint.Align.RIGHT
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        c.drawText("${data.weeklyAchieved}/$total", w - pad, headerBaseline, countPaint)
+
+        // --- 7日ストリップ(月〜日 + ドット) ---
+        val statuses = normalize(data.weeklyStatuses)
+        val stripTop = pad + pawSize + dp(8f)
+        val dotSize = dp(16f)
+        val colW = (w - pad * 2f) / 7f
+        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = rgb(0.60, 0.54, 0.47); textSize = dp(9f); textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        for (i in 0 until 7) {
+            val cxc = pad + colW * i + colW / 2f
+            drawDot(c, cxc, stripTop + dotSize / 2f, dotSize, statuses[i], paw, ::dp)
+            val ly = stripTop + dotSize + dp(2f) - labelPaint.fontMetrics.ascent
+            c.drawText(dayLabels[i], cxc, ly, labelPaint)
+        }
+
+        // --- 見出し(達成済み/回復日/1分だけでも) ---
+        var y = stripTop + dotSize + dp(20f)
         val headline = when {
             data.todayAchieved -> "達成済み！"
             data.isRestDay -> "回復日"
@@ -74,83 +106,80 @@ object StreakWidgetRenderer {
         }
         val headlineColor = if (data.todayAchieved) rgb(0.20, 0.55, 0.28) else rgb(0.95, 0.42, 0.30)
         val hp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = headlineColor; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textSize = dp(16f)
+            color = headlineColor; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textSize = dp(15f)
         }
         c.drawText(headline, pad, y - hp.fontMetrics.ascent * 0.85f, hp)
         y += dp(20f)
-        val sub = when {
-            data.todayAchieved -> "また明日も続けよう"
-            data.isRestDay -> "むりせず整えよう"
-            else -> "23:59まであと${data.hoursLeft}時間"
-        }
-        val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = rgb(0.54, 0.47, 0.39); textSize = dp(11f)
-        }
-        c.drawText(sub, pad, y - sp.fontMetrics.ascent * 0.85f, sp)
-        y += dp(16f)
 
-        // 未達成 & 非回復日 のみ CTA チップ(iOS RecordPromptChipView)。
-        if (!data.todayAchieved && !data.isRestDay) {
+        // --- 未達成 & 非回復日 のみ CTA チップ ---
+        if (!data.todayAchieved && !data.isRestDay && y + dp(28f) < h) {
             drawCtaChip(c, pad, y, "運動を記録", ::dp)
         }
         return bmp
     }
 
-    private fun haloColor(state: CatState): Int = when (state) {
-        CatState.Celebrating, CatState.StreakExtended -> rgb(0.58, 0.85, 0.55)
-        CatState.Resting -> rgb(0.72, 0.83, 0.98)
-        CatState.BeggingNight -> rgb(0.70, 0.80, 0.95)
-        CatState.WorriedNoon -> rgb(1.00, 0.80, 0.62)
-        else -> rgb(1.00, 0.86, 0.66)
-    }
-
-    private fun drawHaloCat(c: Canvas, context: Context, left: Float, top: Float, size: Float, data: Data, dp: (Float) -> Float) {
-        val cx = left + size / 2f
-        val cy = top + size / 2f
-        val base = haloColor(data.catState)
-        // halo: 中心濃→外薄のラジアル。
-        val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val withA = { col: Int, a: Double -> android.graphics.Color.argb((a * 255).toInt(), android.graphics.Color.red(col), android.graphics.Color.green(col), android.graphics.Color.blue(col)) }
-        haloPaint.shader = RadialGradient(cx, cy, size * 0.6f, withA(base, 0.9), withA(base, 0.35), Shader.TileMode.CLAMP)
-        c.drawCircle(cx, cy, size / 2f, haloPaint)
-        // 白枠。
-        val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = dp(1.5f); color = withA(android.graphics.Color.WHITE, 0.7)
+    private fun normalize(list: List<DailyStatus>): List<DailyStatus> =
+        when {
+            list.size == 7 -> list
+            list.size > 7 -> list.take(7)
+            else -> list + List(7 - list.size) { DailyStatus.TodayPending }
         }
-        c.drawCircle(cx, cy, size / 2f - dp(0.75f), border)
-        // キャラ画像(0.78 倍・中央)。
-        if (data.catResId != 0) {
-            runCatching {
-                val drawable = androidx.core.content.ContextCompat.getDrawable(context, data.catResId)
-                val target = (size * 0.78f).toInt().coerceAtLeast(1)
-                val catBmp = drawable?.toBitmap(target, target)
-                if (catBmp != null) {
-                    c.drawBitmap(catBmp, cx - target / 2f, cy - target / 2f, Paint(Paint.FILTER_BITMAP_FLAG))
+
+    /** 状態ドット。iOS WidgetWeekStrip.dot と同方針。 */
+    private fun drawDot(c: Canvas, cx: Float, cy: Float, size: Float, status: DailyStatus, paw: Int, dp: (Float) -> Float) {
+        when (status) {
+            DailyStatus.Achieved, DailyStatus.TodayAchieved -> {
+                c.drawCircle(cx, cy, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paw })
+            }
+            DailyStatus.Rescued -> {
+                c.drawCircle(cx, cy, size / 2f - dp(1f), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE; strokeWidth = dp(2f); color = paw
+                })
+            }
+            DailyStatus.Rest -> {
+                val blue = rgb(0.45, 0.62, 0.85)
+                c.drawCircle(cx, cy, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = rgb(0.45, 0.62, 0.85, 0.16) })
+                val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = blue; textSize = dp(10f); textAlign = Paint.Align.CENTER
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 }
+                c.drawText("休", cx, cy - (tp.fontMetrics.ascent + tp.fontMetrics.descent) / 2f, tp)
+            }
+            DailyStatus.Missed -> {
+                val xp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = rgb(0.80, 0.45, 0.40); style = Paint.Style.STROKE; strokeWidth = dp(2f); strokeCap = Paint.Cap.ROUND
+                }
+                val r = size * 0.28f
+                c.drawLine(cx - r, cy - r, cx + r, cy + r, xp)
+                c.drawLine(cx - r, cy + r, cx + r, cy - r, xp)
+            }
+            DailyStatus.Future, DailyStatus.TodayPending -> {
+                c.drawCircle(cx, cy, size * 0.25f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = rgb(0.88, 0.83, 0.77) })
             }
         }
     }
 
-    private fun drawRing(c: Canvas, left: Float, top: Float, size: Float, data: Data, dp: (Float) -> Float) {
-        val stroke = dp(5f)
-        val rect = RectF(left + stroke / 2f, top + stroke / 2f, left + size - stroke / 2f, top + size - stroke / 2f)
-        val bgRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = stroke; color = rgb(0.96, 0.85, 0.74)
+    /** 肉球マーク。ic_stat_paw drawable を orange で tint(無ければ円で簡易)。 */
+    private fun drawPaw(c: Canvas, context: Context, left: Float, top: Float, size: Float, color: Int, pawResId: Int) {
+        if (pawResId != 0) {
+            runCatching {
+                val d = ContextCompat.getDrawable(context, pawResId)
+                d?.setTint(color)
+                val s = size.toInt().coerceAtLeast(1)
+                val pawBmp = d?.toBitmap(s, s)
+                if (pawBmp != null) {
+                    c.drawBitmap(pawBmp, left, top, Paint(Paint.FILTER_BITMAP_FLAG))
+                    return
+                }
+            }
         }
-        c.drawArc(rect, 0f, 360f, false, bgRing)
-        val total = data.weeklyTotal.coerceAtLeast(1)
-        val progress = (data.weeklyAchieved.toFloat() / total).coerceIn(0f, 1f)
-        val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = stroke; strokeCap = Paint.Cap.ROUND; color = rgb(1.00, 0.62, 0.55)
-        }
-        c.drawArc(rect, -90f, 360f * progress, false, arc)
-        val label = "${data.weeklyAchieved}/$total"
-        val lp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = rgb(0.30, 0.25, 0.20); textSize = dp(11f); textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        }
-        val midY = top + size / 2f - (lp.fontMetrics.ascent + lp.fontMetrics.descent) / 2f
-        c.drawText(label, left + size / 2f, midY, lp)
+        // フォールバック: 肉球を円で簡易描画(主肉球 + 3 趾)。
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        val cx = left + size / 2f
+        c.drawCircle(cx, top + size * 0.66f, size * 0.30f, p)
+        c.drawCircle(cx - size * 0.28f, top + size * 0.30f, size * 0.13f, p)
+        c.drawCircle(cx, top + size * 0.20f, size * 0.14f, p)
+        c.drawCircle(cx + size * 0.28f, top + size * 0.30f, size * 0.13f, p)
     }
 
     private fun drawCtaChip(c: Canvas, left: Float, top: Float, text: String, dp: (Float) -> Float) {
@@ -167,20 +196,18 @@ object StreakWidgetRenderer {
         val grad = Paint(Paint.ANTI_ALIAS_FLAG)
         grad.shader = LinearGradient(rect.left, rect.top, rect.right, rect.bottom, rgb(1.00, 0.58, 0.38), rgb(0.99, 0.45, 0.42), Shader.TileMode.CLAMP)
         c.drawRoundRect(rect, chipH / 2f, chipH / 2f, grad)
-        // チェック丸アイコン。
         val cyy = rect.centerY()
         val icx = left + padH + iconR
         c.drawCircle(icx, cyy, iconR, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE })
         val check = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = rgb(0.99, 0.45, 0.42); style = Paint.Style.STROKE; strokeWidth = dp(1.6f); strokeCap = Paint.Cap.ROUND
         }
-        val p = android.graphics.Path().apply {
+        val p = Path().apply {
             moveTo(icx - iconR * 0.45f, cyy)
             lineTo(icx - iconR * 0.1f, cyy + iconR * 0.4f)
             lineTo(icx + iconR * 0.5f, cyy - iconR * 0.4f)
         }
         c.drawPath(p, check)
-        // テキスト。
         val ty = cyy - (tp.fontMetrics.ascent + tp.fontMetrics.descent) / 2f
         c.drawText(text, icx + iconR + dp(5f), ty, tp)
     }

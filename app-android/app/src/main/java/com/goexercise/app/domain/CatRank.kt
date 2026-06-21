@@ -49,6 +49,18 @@ class CatRank private constructor(val rank: Int) {
             else -> null
         }
 
+    /**
+     * 種別を考慮した称号。犬のときは「ネコ→犬」に置換(みならいネコ→みならい犬)。猫はそのまま。
+     * rank0 は null。iOS `CatRank.title(species:)` 相当。
+     */
+    fun title(species: PetSpecies): String? {
+        val base = title ?: return null
+        return when (species) {
+            PetSpecies.Cat -> base
+            PetSpecies.Dog -> if (base.endsWith("ネコ")) base.dropLast(2) + "犬" else base
+        }
+    }
+
     /** 称号メタル種別。rank0 は null。 */
     val metalKind: MetalKind?
         get() = when (rank) {

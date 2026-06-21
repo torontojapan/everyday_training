@@ -8,9 +8,9 @@ enum FriendAvatarResolver {
     /// 相手が CloudKit (or Mock) に登録している猫を返す。未設定の場合は
     /// friendCode から決定論的に default を当てる (こちらは旧友達 / 古い
     /// payload の救済用)。
-    static func resolve(for friend: FriendProfile) -> CatBreed {
-        if let breed = friend.myCatBreed { return breed }
-        return defaultBreed(for: friend.friendCode)
+    static func resolve(for friend: FriendProfile) -> PetBreed {
+        if let pet = friend.myPet { return pet }
+        return .cat(defaultBreed(for: friend.friendCode))
     }
 
     static func defaultBreed(for friendCode: String) -> CatBreed {

@@ -42,6 +42,7 @@ class MyFriendProfileBuilderTest {
             weekStatuses = week,
             todayStatus = DailyStatus.TodayAchieved,
             catBreed = CatBreed.Black,
+            pet = com.goexercise.app.domain.PetBreed.Cat(CatBreed.Black),
             lifetimeStats = LifetimeStatsCalculator.Stats(achievedDays = 23, usedDays = 30),
             catDecoration = CatDecoration.of(23),
             todaySummary = ExerciseTrendSummary.DailySummary(
@@ -68,7 +69,7 @@ class MyFriendProfileBuilderTest {
         assertEquals(5, p.currentStreak)
         assertEquals(23, p.totalAchievedDays)
         assertEquals(true, p.todayAchieved)
-        assertEquals(CatBreed.Black, p.myCatBreed)
+        assertEquals(com.goexercise.app.domain.PetBreed.Cat(CatBreed.Black), p.myPet)
         assertEquals(30, p.weeklyTotalMinutes) // 1800s / 60
         assertEquals(240, p.monthlyTotalMinutes)
         assertEquals(12, p.monthlyAchievedDays)

@@ -38,6 +38,7 @@ fun RankCelebrationOverlay(
     rank: CatRank,
     message: String,
     onFinished: () -> Unit,
+    species: com.goexercise.app.domain.PetSpecies = com.goexercise.app.domain.PetSpecies.Cat,
 ) {
     val palette = LocalAppPalette.current
     var visible by remember { mutableStateOf(false) }
@@ -87,7 +88,7 @@ fun RankCelebrationOverlay(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (rank.rank > 0) {
-                    CatRankChip(rank = rank, compact = true)
+                    CatRankChip(rank = rank, compact = true, species = species)
                 }
                 Text(
                     text = message,

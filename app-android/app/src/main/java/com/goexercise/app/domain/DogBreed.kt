@@ -110,6 +110,17 @@ sealed class PetBreed {
             is Dog -> "dog:${breed.rawValue}"
         }
 
+    /**
+     * 友達公開プロフィール(Supabase `my_cat_breed` text 列)に載せる文字列。iOS `friendBreedString` 相当。
+     * 猫は**従来どおり素の rawValue**("orange")で旧クライアント互換を保ち、犬だけ "dog:shiba" 形式にする
+     * (旧クライアントはパース不能→既定猫にフォールバック=破綻なし)。列追加マイグレーション不要。
+     */
+    val friendBreedString: String
+        get() = when (this) {
+            is Cat -> breed.rawValue
+            is Dog -> "dog:${breed.rawValue}"
+        }
+
     companion object {
         val Default: PetBreed = Cat(CatBreed.Default)
 

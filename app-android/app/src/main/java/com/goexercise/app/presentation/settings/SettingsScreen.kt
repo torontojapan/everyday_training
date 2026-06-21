@@ -459,7 +459,7 @@ fun SettingsContent(
                 SectionLabel("プレミアム特典")
                 PerkGuideSection(palette)
                 SectionLabel("称号一覧（連続で進化）")
-                CatRankLadderSection(palette, currentStreak)
+                CatRankLadderSection(palette, currentStreak, pet.species)
             }
         }
     }
@@ -816,21 +816,21 @@ private fun PetSpeciesSegment(species: PetSpecies, palette: AppTheme, onSelect: 
  * 現在の称号に「いま」バッジ、到達済みは強調。目標を可視化して前進動機を作る。
  */
 @Composable
-private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
+private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int, species: com.goexercise.app.domain.PetSpecies) {
     val currentRank = CatRank.of(currentStreak).rank
     Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             // 次の目標（最高位なら賞賛）
             if (currentRank >= CatRank.thresholds.size) {
                 Text(
-                    "最高位「ぬしネコ」を達成！",
+                    "最高位「${CatRank.of(CatRank.thresholds.last()).title(species)}」を達成！",
                     color = palette.primaryDeep,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,  // parity-allow: AppType トークン同値(size12・Rounded全域・weight明示/既定Normal・density393 iOS照合済)
                 )
             } else {
                 val nextThreshold = CatRank.thresholds[currentRank]
-                val nextTitle = CatRank.of(nextThreshold).title ?: ""
+                val nextTitle = CatRank.of(nextThreshold).title(species) ?: ""
                 val remaining = (nextThreshold - currentStreak).coerceAtLeast(0)
                 Text(
                     "連続記録を続けると称号が進化。次は「$nextTitle」まで あと${remaining}日！",
@@ -858,7 +858,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                             .border(0.5.dp, Color.White.copy(alpha = 0.55f), CircleShape),
                     )
                     Text(
-                        entry.title ?: "",
+                        entry.title(species) ?: "",
                         color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
                         fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
                         fontSize = 14.sp,  // parity-allow: Android カードセクション/チップ見出し適応(iOS Form header/chip 相当・density393照合済)

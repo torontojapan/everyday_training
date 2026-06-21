@@ -3,6 +3,7 @@ package com.goexercise.app.share
 import android.graphics.Bitmap
 import androidx.test.platform.app.InstrumentationRegistry
 import com.goexercise.app.domain.CatBreed
+import com.goexercise.app.domain.PetBreed
 import com.goexercise.app.domain.MonthlyReviewBuilder
 import com.goexercise.app.domain.WorkoutCategory
 import kotlinx.coroutines.runBlocking
@@ -33,12 +34,12 @@ class HighlightShareRenderTest {
         HighlightShareImageRenderer.Kind.entries.forEach { kind ->
             // サイズ検証(最低限のアサーション)。
             val bmp: Bitmap = HighlightShareImageRenderer.render(
-                ctx, sampleReview(), kind, CatBreed.Default, "最長連続", poseSeed = 42,
+                ctx, sampleReview(), kind, PetBreed.Cat(CatBreed.Default), "最長連続", poseSeed = 42,
             )
             assert(bmp.width == 1080 && bmp.height == 2340)
             // MediaStore(Pictures/GOExercise)へ保存。アンインストール後も残り adb pull で取り出せる。
             val ok = HighlightShareImageRenderer.saveToGallery(
-                ctx, sampleReview(), kind, CatBreed.Default, "最長連続", poseSeed = 42,
+                ctx, sampleReview(), kind, PetBreed.Cat(CatBreed.Default), "最長連続", poseSeed = 42,
             )
             assert(ok)
         }

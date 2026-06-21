@@ -94,7 +94,7 @@ struct FriendDetailView: View {
             }
 
             if friend.rank.rank > 0 {
-                RankBadge(rank: friend.rank)
+                RankBadge(rank: friend.rank, species: friend.myPet?.species ?? .cat)
             }
 
             Text(lastUpdatedText)

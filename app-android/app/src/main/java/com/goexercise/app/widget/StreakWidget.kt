@@ -58,19 +58,19 @@ class StreakWidget : GlanceAppWidget() {
         val records = ep.workoutRepository().observeRecords().first()
         val rescued = ep.rescueRepository().rescuedDates.first()
         val firstUse = ep.settingsRepository().firstUseDate.first()
-        val breed = ep.settingsRepository().catBreed.first()
         val now = LocalDateTime.now(ep.clock())
         val state = HomeStateReducer.reduce(records, now, rescuedDates = rescued, firstUseDate = firstUse)
 
+        // 2026-06 改修: キャラ廃止 → 肉球 + 今週ストリップ表示。
         val data = StreakWidgetRenderer.Data(
-            catResId = resolveCatRes(context, breed, state.catState),
-            catState = state.catState,
+            weeklyStatuses = state.weekStatuses.map { it.status },
             streak = state.streak.currentStreak,
             todayAchieved = state.todayStatus.countsAsAchieved,
             isRestDay = state.todayStatus == com.goexercise.app.domain.DailyStatus.Rest,
             weeklyAchieved = state.weeklyProgress.achievedCount,
             weeklyTotal = state.weeklyProgress.totalDays,
             hoursLeft = (23 - now.hour).coerceAtLeast(0),
+            pawResId = context.resources.getIdentifier("ic_stat_paw", "drawable", context.packageName),
         )
         provideContent { WidgetBody(context, data) }
     }
@@ -98,14 +98,6 @@ private fun WidgetBody(context: Context, data: StreakWidgetRenderer.Data) {
             .fillMaxSize()
             .clickable(actionStartActivity(android.content.Intent(context, com.goexercise.app.MainActivity::class.java))),
     )
-}
-
-/** breed × state の drawable を getIdentifier で解決(欠損は orange→既定にフォールバック)。 */
-private fun resolveCatRes(context: Context, breed: CatBreed, state: CatState): Int {
-    fun id(name: String) = context.resources.getIdentifier(name, "drawable", context.packageName)
-    return id(breed.assetName(state)).takeIf { it != 0 }
-        ?: id(CatBreed.fallbackAssetName(state)).takeIf { it != 0 }
-        ?: id(CatBreed.FALLBACK_AVATAR)
 }
 
 /** ウィジェットの BroadcastReceiver。AndroidManifest に登録する。 */

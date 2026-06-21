@@ -18,11 +18,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goexercise.app.domain.CatRank
 import com.goexercise.app.domain.MetalKind
+import com.goexercise.app.domain.PetSpecies
 
-/** メタリック称号チップ。rank0(連続7日未満)は何も描かない。iOS RankBadge 相当。*/
+/** メタリック称号チップ。rank0(連続7日未満)は何も描かない。iOS RankBadge 相当。
+ *  犬を選んでいる時は称号が「○○犬」になる(species)。*/
 @Composable
-fun CatRankChip(rank: CatRank, modifier: Modifier = Modifier, compact: Boolean = false) {
-    val title = rank.title ?: return
+fun CatRankChip(rank: CatRank, modifier: Modifier = Modifier, compact: Boolean = false, species: PetSpecies = PetSpecies.Cat) {
+    val title = rank.title(species) ?: return
     val metal = rank.metalKind ?: return
     val (hi, lo) = metalColors(metal)
     Row(

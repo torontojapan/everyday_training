@@ -187,7 +187,7 @@ struct StreakShareCard: View {
             // (rank のメタル色カプセル+肉球+称号)を大きく見せる(ユーザー要望 2026-06-13)。
             // ImageRenderer は静止画なので shimmer アニメは off。
             if rank.rank > 0 {
-                RankBadge(rank: rank, animateShimmer: false)
+                RankBadge(rank: rank, species: UserCatPreferences.shared.myPet.species, animateShimmer: false)
                     .scaleEffect(1.2)
                     .frame(height: 36)
                     .padding(.top, 6)

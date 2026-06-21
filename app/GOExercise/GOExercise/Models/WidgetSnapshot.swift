@@ -7,9 +7,46 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     let currentStreak: Int
     let weeklyAchieved: Int
     let weeklyTotal: Int
+    /// 今週(月→日)の7日分の状態。ウィジェット/ライブアクティビティの「今週ストリップ」用。
+    /// 古いスナップショットに無い場合は decode 時に空配列で許容(描画側で 7 個に補完)。
+    let weeklyStatuses: [DailyStatus]
     let catState: String
     let message: String
     let nightDeadlineHoursLeft: Int
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt, todayAchieved, isRestDay, currentStreak, weeklyAchieved, weeklyTotal
+        case weeklyStatuses, catState, message, nightDeadlineHoursLeft
+    }
+
+    init(generatedAt: Date, todayAchieved: Bool, isRestDay: Bool, currentStreak: Int,
+         weeklyAchieved: Int, weeklyTotal: Int, weeklyStatuses: [DailyStatus] = [],
+         catState: String, message: String, nightDeadlineHoursLeft: Int) {
+        self.generatedAt = generatedAt
+        self.todayAchieved = todayAchieved
+        self.isRestDay = isRestDay
+        self.currentStreak = currentStreak
+        self.weeklyAchieved = weeklyAchieved
+        self.weeklyTotal = weeklyTotal
+        self.weeklyStatuses = weeklyStatuses
+        self.catState = catState
+        self.message = message
+        self.nightDeadlineHoursLeft = nightDeadlineHoursLeft
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        generatedAt = try c.decode(Date.self, forKey: .generatedAt)
+        todayAchieved = try c.decode(Bool.self, forKey: .todayAchieved)
+        isRestDay = try c.decode(Bool.self, forKey: .isRestDay)
+        currentStreak = try c.decode(Int.self, forKey: .currentStreak)
+        weeklyAchieved = try c.decode(Int.self, forKey: .weeklyAchieved)
+        weeklyTotal = try c.decode(Int.self, forKey: .weeklyTotal)
+        weeklyStatuses = try c.decodeIfPresent([DailyStatus].self, forKey: .weeklyStatuses) ?? []
+        catState = try c.decode(String.self, forKey: .catState)
+        message = try c.decode(String.self, forKey: .message)
+        nightDeadlineHoursLeft = try c.decode(Int.self, forKey: .nightDeadlineHoursLeft)
+    }
 
     /// タイムラインの各 entry は同一スナップショットを使い回すため、生成日と異なる「翌日以降」の
     /// entry では当日状態(達成/休養/締切)が古くなる。日付が変わった entry は「新しい日・未記録」
@@ -38,6 +75,7 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
             currentStreak: currentStreak,
             weeklyAchieved: weeklyAchieved,
             weeklyTotal: weeklyTotal,
+            weeklyStatuses: weeklyStatuses,   // 週ストリップは据え置き(翌日でも今週の達成は不変)
             catState: state.rawValue,
             message: msg,
             nightDeadlineHoursLeft: hoursLeft
@@ -51,6 +89,7 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
         currentStreak: Int,
         weeklyAchieved: Int,
         weeklyTotal: Int,
+        weeklyStatuses: [DailyStatus] = [],
         catState: CatState,
         message: String,
         calendar: Calendar = .current
@@ -67,6 +106,7 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
             currentStreak: currentStreak,
             weeklyAchieved: weeklyAchieved,
             weeklyTotal: weeklyTotal,
+            weeklyStatuses: weeklyStatuses,
             catState: catState.rawValue,
             message: message,
             nightDeadlineHoursLeft: hoursLeft

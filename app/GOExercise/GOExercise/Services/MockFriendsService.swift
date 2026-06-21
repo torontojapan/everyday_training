@@ -316,7 +316,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 180,
                           monthlyTotalMinutes: 620,
                           monthlyAchievedDays: 22,
-                          myCatBreed: .silvertabby),
+                          myPet: .dog(.shiba)),
             FriendProfile(id: "YUKINA", friendCode: "YUKINA",
                           username: "yukina", displayName: "ゆきな",
                           currentStreak: 9, totalAchievedDays: 35,
@@ -330,7 +330,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 95,
                           monthlyTotalMinutes: 340,
                           monthlyAchievedDays: 15,
-                          myCatBreed: .calico),   // 詳細共有 OFF の友達
+                          myPet: .cat(.calico)),   // 詳細共有 OFF の友達
             FriendProfile(id: "HARUTO", friendCode: "HARUTO",
                           username: "haruto88", displayName: "はると",
                           currentStreak: 16, totalAchievedDays: 21,
@@ -344,7 +344,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 60,
                           monthlyTotalMinutes: 210,
                           monthlyAchievedDays: 11,
-                          myCatBreed: .tuxedo),
+                          myPet: .dog(.bulldog)),
             FriendProfile(id: "MOMOKA", friendCode: "MOMOKA",
                           username: "momo", displayName: "ももか",
                           currentStreak: 35, totalAchievedDays: 312,
@@ -360,7 +360,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 225,
                           monthlyTotalMinutes: 880,
                           monthlyAchievedDays: 26,
-                          myCatBreed: .persian),
+                          myPet: .dog(.toypoodle)),
             // 以下、フルフル demo (10 名) 用に追加した 7 名。
             // streak / 達成日 / 今日達成有無 / 詳細共有 OFF パターンをばらつかせて、
             // 友達タブの並び替え・ソート・カテゴリ別表示などが豊富に見えるようにする。
@@ -380,7 +380,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 210,
                           monthlyTotalMinutes: 740,
                           monthlyAchievedDays: 24,
-                          myCatBreed: .browntabby),
+                          myPet: .cat(.browntabby)),
             FriendProfile(id: "SAKURA", friendCode: "SAKURA",
                           username: "sakura_y", displayName: "さくら",
                           currentStreak: 90, totalAchievedDays: 58,
@@ -394,7 +394,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 75,
                           monthlyTotalMinutes: 260,
                           monthlyAchievedDays: 13,
-                          myCatBreed: .white),
+                          myPet: .cat(.white)),
             FriendProfile(id: "DAICHI", friendCode: "DAICHI",
                           username: "daichi_p", displayName: "だいち",
                           currentStreak: 120, totalAchievedDays: 102,
@@ -411,7 +411,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 90,
                           monthlyTotalMinutes: 380,
                           monthlyAchievedDays: 18,
-                          myCatBreed: .gray),
+                          myPet: .cat(.gray)),
             FriendProfile(id: "MIKAKO", friendCode: "MIKAKO",
                           username: "mikako", displayName: "みかこ",
                           currentStreak: 180, totalAchievedDays: 240,
@@ -425,7 +425,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 175,
                           monthlyTotalMinutes: 700,
                           monthlyAchievedDays: 25,
-                          myCatBreed: .siamese),
+                          myPet: .cat(.siamese)),
             FriendProfile(id: "TAKUYA", friendCode: "TAKUYA",
                           username: "takuya_b", displayName: "たくや",
                           currentStreak: 250, totalAchievedDays: 14,
@@ -439,7 +439,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 15,
                           monthlyTotalMinutes: 65,
                           monthlyAchievedDays: 4,
-                          myCatBreed: .black),
+                          myPet: .cat(.black)),
             FriendProfile(id: "EMIRIN", friendCode: "EMIRIN",
                           username: "emi_run", displayName: "えみ",
                           currentStreak: 320, totalAchievedDays: 130,
@@ -455,7 +455,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 165,
                           monthlyTotalMinutes: 540,
                           monthlyAchievedDays: 19,
-                          myCatBreed: .scottish),
+                          myPet: .dog(.golden)),
             FriendProfile(id: "KENJI1", friendCode: "KENJI1",
                           username: "kenji_z", displayName: "けんじ",
                           currentStreak: 400, totalAchievedDays: 410,
@@ -475,7 +475,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 245,
                           monthlyTotalMinutes: 980,
                           monthlyAchievedDays: 30,
-                          myCatBreed: .orange),
+                          myPet: .cat(.orange)),
             // --- 以下 3 名は「追加/検索候補」として温存される (友達には自動シードしない)。
             // friend code でこれらを検索・申請するとデモで友達追加フローを試せる。
             FriendProfile(id: "NANAMI", friendCode: "NANAMI",
@@ -491,7 +491,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 80,
                           monthlyTotalMinutes: 300,
                           monthlyAchievedDays: 14,
-                          myCatBreed: .calico),
+                          myPet: .cat(.calico)),
             FriendProfile(id: "SOTA22", friendCode: "SOTA22",
                           username: "sota", displayName: "そうた",
                           currentStreak: 530, totalAchievedDays: 40,
@@ -505,7 +505,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 110,
                           monthlyTotalMinutes: 360,
                           monthlyAchievedDays: 16,
-                          myCatBreed: .browntabby),
+                          myPet: .cat(.browntabby)),
             FriendProfile(id: "YUZUKI", friendCode: "YUZUKI",
                           username: "yuzu", displayName: "ゆずき",
                           currentStreak: 55, totalAchievedDays: 160,
@@ -519,7 +519,7 @@ final class MockFriendsService: FriendsService {
                           weeklyTotalMinutes: 150,
                           monthlyTotalMinutes: 560,
                           monthlyAchievedDays: 21,
-                          myCatBreed: .white)
+                          myPet: .cat(.white))
         ]
     }
 }

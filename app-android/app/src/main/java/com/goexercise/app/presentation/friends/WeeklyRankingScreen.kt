@@ -42,6 +42,7 @@ import com.goexercise.app.domain.friends.FriendAvatarResolver
 import com.goexercise.app.domain.friends.RankingPeriod
 import com.goexercise.app.domain.friends.WeeklyRankingEntry
 import com.goexercise.app.ui.components.CatAvatar
+import com.goexercise.app.ui.components.PetAvatar
 import com.goexercise.app.ui.theme.AppTheme
 import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
@@ -200,7 +201,7 @@ private fun RankRow(entry: WeeklyRankingEntry, palette: AppTheme) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RankBadge(entry.rank, palette)
             // iOS は常に猫アバター(未設定は friendCode 由来の決定論的猫)。アイコンfallbackは置かない。
-            CatAvatar(breed = FriendAvatarResolver.resolve(entry.profile), size = 44.dp)
+            PetAvatar(pet = FriendAvatarResolver.resolve(entry.profile), size = 44.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(entry.profile.displayName, style = AppType.headline, color = palette.textPrimary)

@@ -113,6 +113,12 @@ final class CatLiveActivityController {
             calendar: calendar
         )
         let streak = StreakCalculator.currentStreak(records: records, today: today, rescuedDates: rescuedDates, calendar: calendar)
+        // 今週ストリップ(月→日の7日)。ロック画面の肉球+グラフ表示に使う。
+        let weekStatuses = WeeklyProgressCalculator.statuses(
+            forWeekContaining: today, records: records, today: today,
+            rescuedDates: rescuedDates, calendar: calendar
+        )
+        let weekProgress = WeeklyProgressCalculator.progress(from: weekStatuses)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: today) ?? Date()
         let hoursLeft = max(0, calendar.dateComponents([.hour], from: Date(), to: endOfDay).hour ?? 0)
         let catState = CatStateResolver.resolve(
@@ -127,7 +133,10 @@ final class CatLiveActivityController {
             currentStreak: streak,
             hoursLeftToday: hoursLeft,
             catStateRaw: catState.rawValue,
-            catBreedRaw: catBreed.rawValue
+            catBreedRaw: catBreed.rawValue,
+            weeklyAchieved: weekProgress.achievedCount,
+            weeklyTotal: weekProgress.totalDays,
+            weeklyStatusesRaw: weekStatuses.map { $0.status.rawValue }
         )
     }
 }

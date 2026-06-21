@@ -48,7 +48,7 @@ object MyFriendProfileBuilder {
             weeklyTotalMinutes = state.weeklySummary.totalMinutes,
             monthlyTotalMinutes = state.monthlyTotalMinutes,
             monthlyAchievedDays = state.monthlyAchievedDays,
-            myCatBreed = state.catBreed,
+            myPet = state.pet,
         )
     }
 
@@ -70,7 +70,7 @@ object MyFriendProfileBuilder {
         // publish される decorationTier(= CatRank.rank, 連続記録ベース 0..11)に合わせる。
         // currentStreak は既に含まれるが、publish 値を直接署名に反映して再 publish 判定を正しく保つ。
         CatRank.of(state.streak.currentStreak).rank,
-        state.catBreed,
+        state.pet,
         // 共有 opt-in と今日の種目詳細(変化で再 publish。reps/sets 編集も検知)。
         shareDetail,
         todayDetails(state, shareDetail),

@@ -40,7 +40,7 @@ struct RankCelebrationOverlay: View {
 
     private var toast: some View {
         HStack(spacing: 8) {
-            RankBadge(rank: rank, animateShimmer: true)
+            RankBadge(rank: rank, species: UserCatPreferences.shared.myPet.species, animateShimmer: true)
             Text(message ?? "達成!")
                 .font(.system(.subheadline, design: .rounded, weight: .heavy))
                 .foregroundStyle(Palette.textPrimary)
@@ -49,7 +49,7 @@ struct RankCelebrationOverlay: View {
         .background(.ultraThinMaterial, in: Capsule())
         .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("称号 \(rank.title ?? "") を達成")
+        .accessibilityLabel("称号 \(rank.title(species: UserCatPreferences.shared.myPet.species) ?? "") を達成")
     }
 
     private func run() {

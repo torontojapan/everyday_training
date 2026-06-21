@@ -78,7 +78,7 @@ object StreakShareImageRenderer {
         // 見出しは「称号バッジ」: 連続日数で決まる CatRank 称号(みならいネコ〜ぬしネコ)を
         // メタル色カプセル+肉球で描く(iOS の RankBadge パリティ)。rank0(7日未満)は称賛文を出す。
         val rank = CatRank.of(streak)
-        val rankTitle = rank.title
+        val rankTitle = rank.title(breed.species)   // 犬選択時は「○○犬」
         if (rankTitle != null && rank.metalKind != null) {
             top = drawRankBadge(context, canvas, cx, top, rankTitle, rank.metalKind!!)
         } else {

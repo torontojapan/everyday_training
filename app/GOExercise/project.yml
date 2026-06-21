@@ -54,6 +54,7 @@ targets:
       # widget 拡張ターゲットにも従来どおり含まれる(別モジュールなので衝突しない)。
       - path: GOExerciseWidget/Views/SmallWidgetView.swift
       - path: GOExerciseWidget/Views/WidgetCatView.swift
+      - path: GOExerciseWidget/Views/WidgetWeekStrip.swift
       - path: GOExerciseWidget/Views/RecordPromptChipView.swift
     resources:
       - path: GOExercise/Resources/Assets.xcassets
@@ -131,6 +132,7 @@ targets:
       - path: GOExercise/Models/CatState.swift
       - path: GOExercise/Models/CatBreed.swift
       - path: GOExercise/Models/PetBreed.swift
+      - path: GOExercise/Models/DailyStatus.swift
       - path: GOExercise/Models/WidgetSnapshot.swift
       - path: GOExercise/Models/WorkoutRecord.swift
       - path: GOExercise/Models/ExerciseItem.swift

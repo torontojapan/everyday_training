@@ -910,7 +910,7 @@ final class SupabaseFriendsService: FriendsService {
             weeklyTotalMinutes: r.weekly_total_minutes,
             monthlyTotalMinutes: r.monthly_total_minutes,
             monthlyAchievedDays: r.monthly_achieved_days,
-            myCatBreed: r.my_cat_breed.flatMap { CatBreed(rawValue: $0) }
+            myPet: r.my_cat_breed.flatMap { PetBreed(storageValue: $0) }
         )
     }
 
@@ -929,7 +929,7 @@ final class SupabaseFriendsService: FriendsService {
             weeklyTotalMinutes: w.weekly_total_minutes,
             monthlyTotalMinutes: w.monthly_total_minutes,
             monthlyAchievedDays: w.monthly_achieved_days,
-            myCatBreed: w.my_cat_breed.flatMap { CatBreed(rawValue: $0) }
+            myPet: w.my_cat_breed.flatMap { PetBreed(storageValue: $0) }
         )
     }
 }
@@ -993,7 +993,8 @@ private struct ProfileWrite: Encodable {
         weekly_total_minutes = p.weeklyTotalMinutes
         monthly_total_minutes = p.monthlyTotalMinutes
         monthly_achieved_days = p.monthlyAchievedDays
-        my_cat_breed = p.myCatBreed?.rawValue
+        // 猫=従来 rawValue("orange")/犬="dog:shiba"。旧クライアントは犬を既定猫にフォールバック。
+        my_cat_breed = p.myPet?.friendBreedString
     }
 
     init(user_id: String, friend_code: String, username: String, display_name: String,

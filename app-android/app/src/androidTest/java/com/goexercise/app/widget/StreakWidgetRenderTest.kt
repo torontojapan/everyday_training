@@ -15,12 +15,16 @@ class StreakWidgetRenderTest {
 
     private val ctx = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun catRes(state: CatState): Int {
-        fun id(name: String) = ctx.resources.getIdentifier(name, "drawable", ctx.packageName)
-        return id(CatBreed.Default.assetName(state)).takeIf { it != 0 }
-            ?: id(CatBreed.fallbackAssetName(state)).takeIf { it != 0 }
-            ?: id(CatBreed.FALLBACK_AVATAR)
-    }
+    // 全ドット種別(達成/休/フリーズ/未達/今日/未来)を1枚で確認できる代表的な週ストリップ。
+    private val weekStrip = listOf(
+        com.goexercise.app.domain.DailyStatus.Achieved,
+        com.goexercise.app.domain.DailyStatus.Rest,
+        com.goexercise.app.domain.DailyStatus.Rescued,
+        com.goexercise.app.domain.DailyStatus.Missed,
+        com.goexercise.app.domain.DailyStatus.TodayAchieved,
+        com.goexercise.app.domain.DailyStatus.Future,
+        com.goexercise.app.domain.DailyStatus.Future,
+    )
 
     // connectedAndroidTest はテスト後にアプリを uninstall するため filesDir は消える。
     // MediaStore(Pictures/GOExercise)へ保存して adb pull で取り出せるようにする(共有ストレージは残る)。
@@ -44,17 +48,17 @@ class StreakWidgetRenderTest {
         val cases = listOf(
             Triple(
                 "widget_pending",
-                StreakWidgetRenderer.Data(catRes(CatState.WaitingMorning), CatState.WaitingMorning, 12, todayAchieved = false, isRestDay = false, weeklyAchieved = 4, weeklyTotal = 7, hoursLeft = 9),
+                StreakWidgetRenderer.Data(weekStrip, 12, todayAchieved = false, isRestDay = false, weeklyAchieved = 4, weeklyTotal = 7, hoursLeft = 9),
                 Unit,
             ),
             Triple(
                 "widget_achieved",
-                StreakWidgetRenderer.Data(catRes(CatState.Celebrating), CatState.Celebrating, 13, todayAchieved = true, isRestDay = false, weeklyAchieved = 5, weeklyTotal = 7, hoursLeft = 9),
+                StreakWidgetRenderer.Data(weekStrip, 13, todayAchieved = true, isRestDay = false, weeklyAchieved = 5, weeklyTotal = 7, hoursLeft = 9),
                 Unit,
             ),
             Triple(
                 "widget_rest",
-                StreakWidgetRenderer.Data(catRes(CatState.Resting), CatState.Resting, 12, todayAchieved = false, isRestDay = true, weeklyAchieved = 4, weeklyTotal = 7, hoursLeft = 9),
+                StreakWidgetRenderer.Data(weekStrip, 12, todayAchieved = false, isRestDay = true, weeklyAchieved = 4, weeklyTotal = 7, hoursLeft = 9),
                 Unit,
             ),
         )

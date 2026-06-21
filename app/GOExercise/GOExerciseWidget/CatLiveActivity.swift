@@ -1,6 +1,5 @@
 import ActivityKit
 import SwiftUI
-import UIKit
 import WidgetKit
 
 /// 朝〜夜の間、ロック画面 + Dynamic Island に猫が常駐する Live Activity。
@@ -35,24 +34,13 @@ struct CatLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 8) {
-                        Text(context.state.todayAchieved
-                             ? "今日も達成、お疲れさま"
-                             : "1分だけでも運動しよう")
-                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        Spacer()
-                        if !context.state.todayAchieved {
-                            // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
-                            Link(destination: URL(string: "goexercise://home")!) {
-                                Text("運動を記録")
-                                    .font(.system(.caption, design: .rounded, weight: .heavy))
-                                    .lineLimit(1)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12).padding(.vertical, 6)
-                                    .background(Color(red: 1.00, green: 0.55, blue: 0.42), in: Capsule())
-                            }
-                        }
-                    }
+                    // 肉球 + 今週の達成度(X/7)+ 月〜日ストリップ。
+                    WidgetWeekStrip(
+                        statuses: context.state.weeklyStatusesRaw.compactMap { DailyStatus(rawValue: $0) },
+                        weeklyAchieved: context.state.weeklyAchieved,
+                        weeklyTotal: context.state.weeklyTotal,
+                        compact: true
+                    )
                 }
             } compactLeading: {
                 // 極小スロットは画像より記号が綺麗・確実なので肉球マークで統一。
@@ -82,102 +70,56 @@ struct CatLiveActivity: Widget {
     }
 }
 
-/// ロック画面 / 拡張表示用の、ブランドのオレンジ猫画像 (状態別)。
-/// アセット欠落時は肉球記号にフォールバックして空白描画を防ぐ (Codex 指摘)。
-struct LiveActivityCatImage: View {
-    let stateRaw: String
-    var size: CGFloat = 34
-
-    var body: some View {
-        Group {
-            if UIImage(named: assetName) != nil {
-                Image(assetName)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(systemName: "pawprint.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Color(red: 1.00, green: 0.55, blue: 0.30))
-                    .padding(size * 0.15)
-            }
-        }
-        .frame(width: size, height: size)
-    }
-
-    private var assetName: String {
-        "cat_orange_\(CatState(rawValue: stateRaw)?.rawValue ?? CatState.waitingMorning.rawValue)"
-    }
-}
-
-/// Lock Screen の banner 風 layout。アプリの世界観 (オレンジ + 黒) を踏襲。
+/// Lock Screen の banner。キャラ廃止 → 肉球マーク + 今週の達成度(X/7)+ 月〜日ストリップ。
 struct CatLockScreenView: View {
     let state: CatActivityAttributes.ContentState
 
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(red: 1.00, green: 0.86, blue: 0.60).opacity(0.85),
-                                Color(red: 1.00, green: 0.85, blue: 0.55).opacity(0.25),
-                            ],
-                            center: .center, startRadius: 2, endRadius: 28
-                        )
-                    )
-                    .frame(width: 50, height: 50)
-                LiveActivityCatImage(stateRaw: state.catStateRaw, size: 38)
-            }
+    private var weekStatuses: [DailyStatus] {
+        state.weeklyStatusesRaw.compactMap { DailyStatus(rawValue: $0) }
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Image(systemName: "pawprint.fill")
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                if state.currentStreak > 0 {
+                    Image(systemName: "flame.fill")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
+                        .foregroundStyle(Color(red: 0.95, green: 0.42, blue: 0.30))
                     Text("\(state.currentStreak) 日連続")
                         .font(.system(.subheadline, design: .rounded, weight: .heavy))
                         .monospacedDigit()
-                        // 背景がクリーム色固定なので、文字色もダーク固定にして
-                        // ダークモードのロック画面でも白文字化せず読めるようにする。
                         .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.08))
                 }
-                Text(state.todayAchieved
-                     ? "今日も達成"
-                     : "1分だけでも・残り \(state.hoursLeftToday) 時間")
-                    .font(.caption)
-                    .foregroundStyle(Color.black.opacity(0.58))
-            }
-
-            Spacer()
-
-            if !state.todayAchieved {
-                // Live Activity からの直接記録は提供しない(ユーザー要望)。タップでホームタブを開いて記録する。
-                Link(destination: URL(string: "goexercise://home")!) {
-                    Text("運動を記録")
+                Spacer()
+                if state.todayAchieved {
+                    Label("今日も達成", systemImage: "checkmark.seal.fill")
                         .font(.system(.caption, design: .rounded, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.00, green: 0.58, blue: 0.38),
-                                    Color(red: 0.99, green: 0.45, blue: 0.42),
-                                ],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            ),
-                            in: Capsule()
-                        )
+                        .foregroundStyle(.green)
+                } else {
+                    // タップでホームを開いて記録(Live Activity からの直接記録は提供しない)。
+                    Link(destination: URL(string: "goexercise://home")!) {
+                        Text("運動を記録")
+                            .font(.system(.caption, design: .rounded, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 1.00, green: 0.58, blue: 0.38),
+                                             Color(red: 0.99, green: 0.45, blue: 0.42)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: Capsule()
+                            )
+                    }
                 }
-            } else {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.green)
             }
+            WidgetWeekStrip(
+                statuses: weekStatuses,
+                weeklyAchieved: state.weeklyAchieved,
+                weeklyTotal: state.weeklyTotal,
+                compact: true
+            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
