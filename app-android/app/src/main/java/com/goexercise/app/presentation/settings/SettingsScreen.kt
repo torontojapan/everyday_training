@@ -532,7 +532,7 @@ private fun SubPage(title: String, onBack: () -> Unit, content: @Composable () -
         ) {
             Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
         }
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+        Text(title, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center), style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
     }
     content()
 }
@@ -810,7 +810,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                     Text(
                         entry.title ?: "",
                         color = if (achieved || isCurrent) palette.textPrimary else palette.textSecondary,
-                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
+                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(start = 10.dp),
                     )
@@ -818,7 +818,7 @@ private fun CatRankLadderSection(palette: AppTheme, currentStreak: Int) {
                         Text(
                             "いま",
                             color = Color.White,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .padding(start = 6.dp)
@@ -932,7 +932,7 @@ private fun WidgetGuideContent(palette: AppTheme) {
         steps.forEachIndexed { i, step ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(24.dp).clip(CircleShape).background(palette.primary), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                    Text("${i + 1}", color = Color.White, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(step.first, style = AppType.headline, color = palette.textPrimary)

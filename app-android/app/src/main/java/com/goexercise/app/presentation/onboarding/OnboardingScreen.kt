@@ -166,7 +166,7 @@ fun OnboardingScreen(
             colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
-            Text("つぎへ", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("つぎへ", color = Color.White, style = AppType.callout.copy(fontWeight = FontWeight.Bold))
         }
       } else {
         // ステップ2: サインイン→バックアップ自動ON(任意・スキップ可)。実機でのみ動作(emulator不可)。

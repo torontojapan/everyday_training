@@ -457,7 +457,7 @@ private fun StreakBadge(streak: Int, onShareClick: () -> Unit, modifier: Modifie
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(20.dp))
-            Text("${streak}日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Black), color = palette.textPrimary)
+            Text("${streak}日連続", style = AppType.sectionTitle.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
             if (streak > 0) {
                 Icon(Icons.Filled.IosShare, contentDescription = "共有", tint = palette.textSecondary, modifier = Modifier.size(16.dp))
             }
@@ -502,7 +502,7 @@ private fun ReferralStarsRow(row: ReferralRowUi) {
                 ReferralStar(filled = true)
                 Text(
                     "$count",
-                    style = AppType.headline.copy(fontWeight = FontWeight.Black),
+                    style = AppType.headline.copy(fontWeight = FontWeight.ExtraBold),
                     color = palette.textPrimary,
                 )
             }

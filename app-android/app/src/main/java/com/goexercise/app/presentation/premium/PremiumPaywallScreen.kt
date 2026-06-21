@@ -58,6 +58,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goexercise.app.data.billing.ProductIds
 import com.goexercise.app.ui.theme.AppTheme
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /** ペイウォールを開いた文脈で見出しを出し分ける。iOS PremiumPaywallSheet.Context。 */
@@ -142,7 +143,7 @@ fun PremiumPaywallContent(
                 painter = androidx.compose.ui.res.painterResource(com.goexercise.app.R.drawable.ic_crown),
                 contentDescription = null, tint = palette.primary, modifier = Modifier.size(48.dp),
             )
-            Text(context.headline, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary, textAlign = TextAlign.Center)
+            Text(context.headline, color = palette.textPrimary, textAlign = TextAlign.Center, style = AppType.screenTitle.copy(fontWeight = FontWeight.ExtraBold))
             Text(
                 copy.subhead,
                 fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
@@ -180,26 +181,26 @@ fun PremiumPaywallContent(
             if (isWorking) {
                 CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
             } else {
-                Text(copy.cta, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = androidx.compose.ui.graphics.Color.White)
+                Text(copy.cta, color = androidx.compose.ui.graphics.Color.White, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
             }
         }
 
         if (error != null) {
             Surface(color = palette.chipBackground, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(error, fontSize = 12.sp, color = palette.primaryDeep, modifier = Modifier.weight(1f))
+                    Text(error, color = palette.primaryDeep, modifier = Modifier.weight(1f), style = AppType.caption.copy(fontWeight = FontWeight.Normal))
                     TextButton(onClick = onClearError) { Text("閉じる", fontSize = 12.sp, color = palette.primaryDeep) }
                 }
             }
         }
 
         TextButton(onClick = onRestore, enabled = !isWorking, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("購入を復元", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primary)
+            Text("購入を復元", color = palette.primary, style = AppType.subheadline.copy(fontWeight = FontWeight.SemiBold))
         }
 
         // サブスク開示(審査必須: 価格・周期・自動更新・トライアル後課金・解約方法)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("サブスクリプションについて", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary)
+            Text("サブスクリプションについて", color = palette.textPrimary, style = AppType.caption.copy(fontWeight = FontWeight.ExtraBold))
             disclosure(copy.autoRenewDisclosure, palette)
             disclosure("・自動更新: 期間終了の24時間前までに解約しない限り自動で更新されます", palette)
             disclosure("・解約方法: Google Play ストア > メニュー > 定期購入 からいつでも解約できます", palette)
@@ -220,7 +221,7 @@ fun PremiumPaywallContent(
 private fun benefit(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, palette: AppTheme) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = palette.primary, modifier = Modifier.size(20.dp))
-        Text(text, fontSize = 15.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
+        Text(text, color = palette.textPrimary, modifier = Modifier.weight(1f), style = AppType.subheadline.copy(fontWeight = FontWeight.Normal))
     }
 }
 
@@ -260,20 +261,20 @@ private fun planCard(
                     Text(title, style = com.goexercise.app.ui.theme.AppType.headline, color = palette.textPrimary)
                     if (badge != null) {
                         Surface(color = palette.primary, shape = RoundedCornerShape(50)) {
-                            Text(badge, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            Text(badge, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = AppType.caption2.copy(fontWeight = FontWeight.ExtraBold))
                         }
                     }
                 }
-                Text(caption, fontSize = 12.sp, color = palette.textSecondary)
+                Text(caption, color = palette.textSecondary, style = AppType.caption.copy(fontWeight = FontWeight.Normal))
             }
-            Text(price, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep)
+            Text(price, color = palette.primaryDeep, style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold))
         }
     }
 }
 
 @Composable
 private fun disclosure(text: String, palette: AppTheme) {
-    Text(text, fontSize = 11.sp, color = palette.textSecondary)
+    Text(text, color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.Normal))
 }
 
 @Composable

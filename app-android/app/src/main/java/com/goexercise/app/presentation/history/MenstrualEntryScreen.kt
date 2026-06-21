@@ -115,7 +115,7 @@ fun MenstrualEntryScreen(
             ) {
                 Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
             }
-            Text("生理日", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            Text("生理日", color = palette.textPrimary, modifier = Modifier.align(Alignment.Center), style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
         }
 
         // カレンダーカード(月ナビ + 曜日 + グリッド + 当月の記録数)。
@@ -243,7 +243,7 @@ private fun DayMarkCell(
                 color = textColor,
             )
             if (isMarked) {
-                Text("★", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = MarkColor)
+                Text("★", color = MarkColor, style = AppType.caption2.copy(fontWeight = FontWeight.ExtraBold))
             }
         }
     }

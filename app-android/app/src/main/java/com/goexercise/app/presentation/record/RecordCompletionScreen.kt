@@ -156,7 +156,7 @@ fun RecordCompletionContent(
             ) {
                 Text(
                     ribbon,
-                    style = AppType.screenTitle.copy(fontWeight = FontWeight.Black),
+                    style = AppType.screenTitle.copy(fontWeight = FontWeight.ExtraBold),
                     color = Color.White,
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                 )
@@ -248,8 +248,8 @@ private fun StreakHeroCard(streak: Int, streakExtendedThisRun: Boolean = false) 
                 Spacer(Modifier.size(8.dp))
                 Text(
                     "$streak",
-                    fontSize = 60.sp,
-                    fontWeight = FontWeight.Black,
+                    fontSize = 60.sp, // parity-allow: iOS RecordCompletionView streak hero size60(.system size:60)
+                    fontWeight = FontWeight.Black, // parity-allow: iOS .weight(.black)
                     style = TextStyle(brush = Brush.verticalGradient(listOf(HeroOrange, RibbonPink))),
                 )
                 Spacer(Modifier.size(8.dp))

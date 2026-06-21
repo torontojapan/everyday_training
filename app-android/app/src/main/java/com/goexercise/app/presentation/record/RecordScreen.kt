@@ -263,7 +263,7 @@ private fun ExerciseDraftCard(
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // ヘッダ: 「種類」ラベル + 削除(trash) + 最小化(chevron up)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("種類", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text("種類", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                 Spacer(Modifier.weight(1f))
                 if (canRemove) {
                     Icon(
@@ -284,7 +284,7 @@ private fun ExerciseDraftCard(
                 }
             }
             // 種目名(ラベル + chipBackground@0.5 塗り + primary@0.45 1.5dp 枠の角丸フィールド。iOS ExerciseInputRow)
-            Text("種目名", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("種目名", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
             FilledField(
                 value = draft.name,
                 onValueChange = { onChange(draft.copy(name = it)) },
@@ -296,7 +296,7 @@ private fun ExerciseDraftCard(
             )
             // よく使う種目(履歴+日本語デフォルト)。iOS は候補ありの時だけ見出し。
             if (suggestions.isNotEmpty()) {
-                Text("よく使う種目", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text("よく使う種目", color = palette.textSecondary, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -313,7 +313,7 @@ private fun ExerciseDraftCard(
                 PickerColumn("セット", draft.sets, setOptions, "", Modifier.weight(1f)) { onChange(draft.copy(sets = if (it == 0) "" else "$it")) }
                 // 重さ(kg): フリー入力。ピッカーと同じ高さ・同じ塗りに揃える(中央寄せ)。
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("重さ (kg)", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text("重さ (kg)", color = palette.textSecondary, maxLines = 1, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
                     FilledField(
                         value = draft.loadText,
                         onValueChange = { onChange(draft.copy(loadText = RecordUiState.clampDecimal(it))) },
@@ -373,7 +373,7 @@ private fun PickerColumn(label: String, value: String, options: List<Int>, unit:
     // iOS labeledPicker: 選択値・項目とも単位付き(例「30分」「3回」)。0 は「—」。
     fun display(n: Int) = if (n == 0) "—" else "$n$unit"
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(label, color = palette.textSecondary, maxLines = 1, style = AppType.caption2.copy(fontWeight = FontWeight.SemiBold))
         Box {
             Row(
                 modifier = Modifier

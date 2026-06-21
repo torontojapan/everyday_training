@@ -130,7 +130,7 @@ fun RescueContent(
                     Surface(color = palette.surface, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.ConfirmationNumber, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(18.dp))
-                            Text("${d.year}年${d.monthValue}月${d.dayOfMonth}日", fontSize = 17.sp, color = palette.textPrimary)
+                            Text("${d.year}年${d.monthValue}月${d.dayOfMonth}日", color = palette.textPrimary, style = AppType.body.copy(fontWeight = FontWeight.Normal))
                         }
                     }
                 }

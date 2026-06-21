@@ -75,7 +75,7 @@ fun WeeklyRankingContent(
             ) {
                 Icon(Icons.Filled.ChevronLeft, contentDescription = "戻る", tint = palette.textPrimary, modifier = Modifier.size(22.dp))
             }
-            Text("ランキング", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+            Text("ランキング", color = palette.textPrimary, modifier = Modifier.align(Alignment.Center), style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
         }
 
         PeriodPicker(state.period, palette, onSetPeriod)
@@ -146,7 +146,7 @@ private fun PriorityPill(number: Int, label: String, color: Color, palette: AppT
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(Modifier.size(18.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
-                Text("$number", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                Text("$number", color = Color.White, style = AppType.caption2.copy(fontWeight = FontWeight.ExtraBold))
             }
             Text(label, style = AppType.caption, color = palette.textPrimary)
         }
@@ -173,8 +173,8 @@ private fun MySummaryCard(me: WeeklyRankingEntry, total: Int, period: RankingPer
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Box(Modifier.size(64.dp).clip(CircleShape).background(palette.primary.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${me.rank}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
-                    Text("位", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep)
+                    Text("${me.rank}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep) // parity-allow: iOS WeeklyRankingView 自分順位 size24 .black 準拠
+                    Text("位", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = palette.primaryDeep) // parity-allow: iOS 順位ラベル小サイズ
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -239,7 +239,7 @@ private fun RankBadge(rank: Int, palette: AppTheme) {
         modifier = Modifier.size(40.dp).clip(CircleShape).background(medalColor),
         contentAlignment = Alignment.Center,
     ) {
-        Text("$rank", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = numberColor)
+        Text("$rank", color = numberColor, style = AppType.body.copy(fontWeight = FontWeight.ExtraBold))
     }
 }
 
@@ -261,7 +261,7 @@ private fun RankingEmptyState(message: String, palette: AppTheme) {
             ) {
                 Icon(Icons.Filled.Pets, contentDescription = null, tint = palette.primary, modifier = Modifier.size(34.dp))
             }
-            Text(message, fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+            Text(message, color = palette.textSecondary, textAlign = TextAlign.Center, style = AppType.subheadline.copy(fontWeight = FontWeight.Normal))
         }
     }
 }
@@ -271,6 +271,6 @@ private fun RankingEmptyState(message: String, palette: AppTheme) {
 private fun StatLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, tint: Color) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = tint)
+        Text(text, color = tint, style = AppType.caption.copy(fontWeight = FontWeight.SemiBold))
     }
 }
