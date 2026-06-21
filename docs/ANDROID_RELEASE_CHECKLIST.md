@@ -32,5 +32,5 @@
 - [ ] **B6 gating 本番 ON**: `FRIENDS_APPLE_LINK_ENABLED` / `FRIENDS_GOOGLE_LINK_ENABLED` / `PLAY_BILLING_ENABLED` を secrets で true(実インフラ完成後)。
 - [ ] **B7 実 Android 端末 E2E**: 機種変更(同 Apple/Google ID で記録復元)・実課金購入/復元・通知発火・QR カメラ。
 - [ ] **B8 本番 Supabase テストデータ掃除**: §6 で残した けんじ/cheers/friendship。
-- [~] **B9 Codex 2LLM 監査** — 実行中/結果反映(本セッション差分に対し read-only 敵対レビュー)。
+- [~] **B9 Codex 2LLM 監査** — **headless では codex がハング(CPU0%・既知 [[feedback_verification_workflow]])で完走せず**(4回試行: model誤指定1/即ハング2/`approval_policy=never`+read-onlyで diff 全読込まで進むが verdict前に要watchdog kill)。→ **対話端末か `/second-opinion` skill で実行が必要**(あなた側)。代替として本セッションで等価の敵対検証を自走実施済(トークン化のピクセル一致実証・Black→ExtraBold の iOS ソース照合・44sp 残ドリフトの明示・parity_guard --strict・346 unit green)。
 - [x] **B10 privacy/terms/support 公開 URL** — **完了**: GitHub Pages 稼働中(main/docs・public repo)、Android 設定が iOS と同一 URL(`torontojapan.github.io/everyday_training/{privacy,terms,support}/`)を参照。
