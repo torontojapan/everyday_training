@@ -36,6 +36,26 @@
 > - **確立した検証フロー**: iOS golden=`xcrun xcresulttool export attachments --path <xcresult>` → `_0_` で名寄せ。Android=`am start -n …/.MainActivity`→`goexercise://record` 等 deeplink or タブ tap(座標 home108/hist324/wt540/fr756/set972 ・ y2250)→`adb exec-out screencap`。premium=weight タブ→paywall→「14日間無料で始める」(in-memory・再起動で揮発=force-stop 後は再解放要)。体重は sqlite `weight_entries` に midnight(epochDay*86400000)シードで日付のみ表示。猫ピッカー= `pm clear`→オンボ(つぎへ→あとで)。**注意: seed は DB 生成後(=一度アプリ起動後)に流す。未生成だと空ファイルに入り Room 再生成で消える**。
 > - **step4 の正しいやり方(重要)**: bare `Text(fontSize=N,…)` 形(残131)は family(LocalTextStyle 既定≠Rounded)が変わり得る→**画面ごとに tokenize→rebuild→density393 再撮影→golden 突合**してから確定。`.copy(fontSize=)` 形のみ無条件安全。14/10/18/24/44/60.sp は iOS Dynamic Type に無い=iOS ソース確認し snap or `// parity-allow`。記録完了/onbo の `FontWeight.Black` は iOS `.weight(.black)` 準拠=parity-allow。
 > - **残**: step4(残 raw 131+色16+black9 を 0 へ→`--strict`)/ step5(semantic ハーネス)/ step6(全機能QA Phase0→F)。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その3・step4 大幅前進 + 追加実バグ是正)
+> - **step4 トークン化を一括前進**: bare `Text(fontSize=)` を AppType トークンへ機械変換(67件・値保存を Friends 画面で前後ピクセル一致実証)。
+>   `FontWeight.Black` 9件を iOS ソース照合で解決(iOS `.heavy`→ExtraBold 7件 / iOS `.weight(.black)` は維持+parity-allow 2件)。
+>   ハードコード色 16件は iOS でも `.red`/`systemOrange`/装飾色=システムセマンティック色のため parity-allow。
+>   → **parity_guard baseline 156 → 58**(raw_fontSize 58 のみ・color 0・black 0)。build+全unit green。
+> - **step4 中に step3 で見落とした要素値ドリフトを追加発見・是正(thumbnail 盲点)**:
+>   1. 体重ヒーロー数字色: primaryDeep(濃赤 214,84,77)→ **iOS Palette.primary(サーモン 254,160,142)**。実機サンプル(255,160,142)で一致確認。
+>   2. 体重 "kg" 単位: 18sp Normal → iOS `.title3`(20) semibold。
+>   3. ホーム連続バッジ等の weight が Black→ExtraBold で iOS `.heavy` 一致(1段過太の是正)。
+>   証跡 proofs/{weight_number_color_salmon_FIXED, home_streak_extrabold_*, friends_tokenize_before_after}.png。
+> - **重要な技術的確定**: `Theme.kt:72` が `LocalTextStyle` に `RoundedFontFamily` を全域付与 → bare `Text(fontSize=)` は既に Rounded。
+>   よって AppType トークン化は family/size/weight 完全保存(機械変換で安全)。tokenize スクリプト= `/tmp/tokenize.py`(単一行 Text 用)。
+> - **step4 残 58(baseline・全て raw_fontSize)の内訳と片付け方**:
+>   ① multi-line/partial の **トークンサイズ Text**(12/17/11/15/13/16・約30): `/tmp/tokenize.py` を multi-line 対応に拡張 or 手動で `style=AppType.<token>.copy(weight)` 化(値保存)。
+>   ② **custom composable param**(FilledField `fontSize=` / TextField `textStyle=TextStyle(fontSize=)`・約10): 入力テキストサイズ。コンポーネントに token 既定を持たせる or iOS TextField サイズ準拠で parity-allow。
+>   ③ **非トークンサイズ**(14 セクション見出し / 10 極小ラベル / 18 / 44 体重数字): iOS Form header 適応・極小ラベル・iOS minScale 由来。iOS 照合の上で parity-allow か snap。
+>   完了後 `parity_guard.py --strict` を CI 既定化。
+> - **未着手**: step5(semantic ハーネス)・step6(全機能QA Phase0→F)。
+> - **エミュ/シミュ**: 両ウィンドウ表示で起動中(record/weight 等で修正をライブ確認可)。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
