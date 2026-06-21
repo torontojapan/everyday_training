@@ -11,9 +11,6 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_records ORDER BY dateEpochDay DESC, updatedAtEpochMs DESC, id")
     fun observeAll(): Flow<List<WorkoutRecordEntity>>
 
-    @Query("SELECT * FROM workout_records WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay, updatedAtEpochMs, id")
-    suspend fun rangeOnce(startEpochDay: Long, endEpochDay: Long): List<WorkoutRecordEntity>
-
     @Query("SELECT * FROM workout_records WHERE id = :id")
     suspend fun findById(id: String): WorkoutRecordEntity?
 

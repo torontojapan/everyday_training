@@ -27,7 +27,6 @@ class RecordViewModelAddSetTest {
 
     private class FakeRepo : WorkoutRepository {
         override fun observeRecords(): Flow<List<WorkoutRecord>> = flowOf(emptyList())
-        override suspend fun recordsInRange(start: LocalDate, end: LocalDate): List<WorkoutRecord> = emptyList()
         override suspend fun save(record: WorkoutRecord) {}
         override suspend fun delete(id: String) {}
     }

@@ -25,6 +25,5 @@ enum class CatDecoration(val rawValue: String, val tier: Int, val displayName: S
             else -> Crown
         }
 
-        fun fromTier(tier: Int): CatDecoration = entries.firstOrNull { it.tier == tier } ?: None
     }
 }

@@ -89,7 +89,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun clearLinkError() { _linkError.value = null }
 
     /** アカウント削除(審査 Guideline 5.1.1(v))。本人データを完全消去し、ローカルのアカウント表示も初期化する。 */
     fun deleteAccount(onDone: (Boolean) -> Unit = {}) {

@@ -36,7 +36,6 @@ class RecordViewModelHealthSaveTest {
     private class FakeWorkoutRepo : WorkoutRepository {
         val saved = mutableListOf<WorkoutRecord>()
         override fun observeRecords(): Flow<List<WorkoutRecord>> = flowOf(emptyList())
-        override suspend fun recordsInRange(start: LocalDate, end: LocalDate): List<WorkoutRecord> = emptyList()
         override suspend fun save(record: WorkoutRecord) { saved += record }
         override suspend fun delete(id: String) {}
     }
