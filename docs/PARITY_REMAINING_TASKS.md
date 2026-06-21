@@ -21,19 +21,21 @@
 > 5. **(本命)semantic UIツリー差分ハーネスを構築**: iOS XCUITest snapshot ツリー + Android semantics ツリーから各 Text の (文言/解決後 size/weight/色トークン) を抽出し**要素等値検証** → 全画面 CI ゲート化。
 > 6. パリティ収束後 → **`QA_MASTER_PLAN.md` の全機能 QA を Phase 0→F で実施**。
 >
-> ### ▶ セッション継続ログ(2026-06-21 その2・step3 着手)
-> - **step1 ✅** PR #9 は既にマージ済(main=`52b7ec8`、origin と同期)。
-> - **step2 ✅** エミュ復旧成功: `emulator @go_test -gpu swiftshader_indirect -dns-server 8.8.8.8 -no-window` →
->   `wm density 393` → **`ping 1.1.1.1` 0% loss(ネット疎通も回復)**。Xcode 26.5・SIM iPhone17ProMax `12A9D608…`。
-> - **iOS golden 再生成 ✅** `testCaptureAppStoreScreenshots` → `xcresulttool export` で 01〜11 を `/tmp/ios_golden/clean/` に復元。
-> - **step3 着手(コア4画面 density393 横並び再検証)**:
->   - ホーム(365seed)/ 履歴 / 設定 = **MATCH**(差は praise文言・ロケール・スクロール位置・cycle OFF データゲートのみ)。証跡 `proofs/sweep_*_2026-06-21_ios_vs_android.png`。
->   - 記録入力 = **実バグ1件発見・修正**: iOS `Section("種目")` 見出しが Android に欠落 → sibling と同じ bold-14 で追加(commit `78dc37f`)。実機 density393 で一致確認 `proofs/record_seimoku_header_ios_vs_android_FIXED.png`。
->   - 体重タブ非課金 teaser = 描画OK(iOS 非課金 teaser golden は本セッション未生成=要素突合は次回)。
-> - **撮影ツール修正**(`capture_android.py`): ナビ tap y 2280→2250(外れ修正)/ record_empty が達成CTA「もう一種目」を拾えず home に留まる不具合修正。
-> - **step4 知見**: 生 fontSize 136件の大半は `Text(fontSize=N.sp,…)` の**直接パラメータ**で、AppType トークン化は font-family/weight が変わり得る(LocalTextStyle 既定≠Rounded)→ **値保存の機械変換ではない=step3 の視覚照合とセットで行う必要**。`.copy(fontSize=)` 形(7件のみ)は安全。
-> - **次にやる**: step3 残画面(オンボ猫ピッカー/記録完了/体重premium/paywall/友達 welcome・code・connecting/ランキング/友達詳細 + B/C 状態群)を density393 で要素値突合 → step4 トークン化(視覚照合済から)→ step5 semantic ハーネス → step6 全機能QA。
-> - **環境メモ**: 起動コマンドは上記。golden 復元は `xcrun xcresulttool export attachments --path /tmp/golden_result.xcresult` → `_0_` で名寄せ。
+> ### ▶ セッション継続ログ(2026-06-21 その2・step3 ほぼ完了 / step4 着手)
+> - **step1 ✅** PR #9 マージ済(main=`52b7ec8`、origin 同期)。
+> - **step2 ✅** エミュ復旧+ネット疎通回復(`emulator @go_test -gpu swiftshader_indirect -dns-server 8.8.8.8` / `wm density 393` / `ping 1.1.1.1` 0% loss)。Xcode 26.5・SIM `12A9D608…`。
+> - **iOS golden 再生成 ✅** `testCaptureAppStoreScreenshots`(01〜11)+`testCaptureSubScreens`/`testCaptureRankingStates`(day_detail/menstrual/completion/friend_detail/friend_add/rank_weekly/rank_monthly)を `/tmp/ios_golden/{clean,sub}/` に復元。
+> - **step3 density393 横並び再検証(実機ライブ)— コア+サブ ほぼ全画面 MATCH**:
+>   ホーム/履歴/設定/オンボ猫ピッカー(11種名一致)/paywall(feature7項目一致・通貨は sim ロケール差)/記録完了/日詳細/生理日 = **MATCH**(差は praise・連続数・ロケール・cycle/データゲートのみ)。
+>   友達コード画面=実 anon サインインでライブ確認(`profiles.updated_at` §7 修正が main で有効)。友達populated/ランキング/詳細=§6 で実2アカウントライブ検証済。
+> - **実バグ2件 発見・修正(commit `78dc37f` / `251af06`)**:
+>   1. 記録入力に iOS `Section("種目")` 見出しが欠落 → 追加(`proofs/record_seimoku_header_ios_vs_android_FIXED.png`)。
+>   2. 体重ヒーロー「最新の体重」日付が常時 `HH:mm` 付き → iOS dateLabel に合わせ 00:00 ちょうどは日付のみ(`proofs/weight_premium_date_ios_vs_android_FIXED.png`)。
+> - **step4 着手(commit `4fdc71c`)**: `.copy(fontSize=N)` 上書き6件(HomeScreen)を基底トークン化(headline.copy15→subheadline 等)。**値保存をピクセルで実証**。raw_fontSize **137→131**、baseline を 131(計156)へラチェット。
+> - **撮影ツール改善**(`capture_android.py`): ナビ tap y 2280→2250 / record_empty の達成CTA fallback。
+> - **確立した検証フロー**: iOS golden=`xcrun xcresulttool export attachments --path <xcresult>` → `_0_` で名寄せ。Android=`am start -n …/.MainActivity`→`goexercise://record` 等 deeplink or タブ tap(座標 home108/hist324/wt540/fr756/set972 ・ y2250)→`adb exec-out screencap`。premium=weight タブ→paywall→「14日間無料で始める」(in-memory・再起動で揮発=force-stop 後は再解放要)。体重は sqlite `weight_entries` に midnight(epochDay*86400000)シードで日付のみ表示。猫ピッカー= `pm clear`→オンボ(つぎへ→あとで)。**注意: seed は DB 生成後(=一度アプリ起動後)に流す。未生成だと空ファイルに入り Room 再生成で消える**。
+> - **step4 の正しいやり方(重要)**: bare `Text(fontSize=N,…)` 形(残131)は family(LocalTextStyle 既定≠Rounded)が変わり得る→**画面ごとに tokenize→rebuild→density393 再撮影→golden 突合**してから確定。`.copy(fontSize=)` 形のみ無条件安全。14/10/18/24/44/60.sp は iOS Dynamic Type に無い=iOS ソース確認し snap or `// parity-allow`。記録完了/onbo の `FontWeight.Black` は iOS `.weight(.black)` 準拠=parity-allow。
+> - **残**: step4(残 raw 131+色16+black9 を 0 へ→`--strict`)/ step5(semantic ハーネス)/ step6(全機能QA Phase0→F)。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
