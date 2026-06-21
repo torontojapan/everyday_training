@@ -20,6 +20,20 @@
 > 4. **生値 token 化**: `parity_guard.py` の baseline 156 を 0 へ減らし、完了後 `--strict` を CI 既定化(= 生値ゼロ恒久強制)。
 > 5. **(本命)semantic UIツリー差分ハーネスを構築**: iOS XCUITest snapshot ツリー + Android semantics ツリーから各 Text の (文言/解決後 size/weight/色トークン) を抽出し**要素等値検証** → 全画面 CI ゲート化。
 > 6. パリティ収束後 → **`QA_MASTER_PLAN.md` の全機能 QA を Phase 0→F で実施**。
+>
+> ### ▶ セッション継続ログ(2026-06-21 その2・step3 着手)
+> - **step1 ✅** PR #9 は既にマージ済(main=`52b7ec8`、origin と同期)。
+> - **step2 ✅** エミュ復旧成功: `emulator @go_test -gpu swiftshader_indirect -dns-server 8.8.8.8 -no-window` →
+>   `wm density 393` → **`ping 1.1.1.1` 0% loss(ネット疎通も回復)**。Xcode 26.5・SIM iPhone17ProMax `12A9D608…`。
+> - **iOS golden 再生成 ✅** `testCaptureAppStoreScreenshots` → `xcresulttool export` で 01〜11 を `/tmp/ios_golden/clean/` に復元。
+> - **step3 着手(コア4画面 density393 横並び再検証)**:
+>   - ホーム(365seed)/ 履歴 / 設定 = **MATCH**(差は praise文言・ロケール・スクロール位置・cycle OFF データゲートのみ)。証跡 `proofs/sweep_*_2026-06-21_ios_vs_android.png`。
+>   - 記録入力 = **実バグ1件発見・修正**: iOS `Section("種目")` 見出しが Android に欠落 → sibling と同じ bold-14 で追加(commit `78dc37f`)。実機 density393 で一致確認 `proofs/record_seimoku_header_ios_vs_android_FIXED.png`。
+>   - 体重タブ非課金 teaser = 描画OK(iOS 非課金 teaser golden は本セッション未生成=要素突合は次回)。
+> - **撮影ツール修正**(`capture_android.py`): ナビ tap y 2280→2250(外れ修正)/ record_empty が達成CTA「もう一種目」を拾えず home に留まる不具合修正。
+> - **step4 知見**: 生 fontSize 136件の大半は `Text(fontSize=N.sp,…)` の**直接パラメータ**で、AppType トークン化は font-family/weight が変わり得る(LocalTextStyle 既定≠Rounded)→ **値保存の機械変換ではない=step3 の視覚照合とセットで行う必要**。`.copy(fontSize=)` 形(7件のみ)は安全。
+> - **次にやる**: step3 残画面(オンボ猫ピッカー/記録完了/体重premium/paywall/友達 welcome・code・connecting/ランキング/友達詳細 + B/C 状態群)を density393 で要素値突合 → step4 トークン化(視覚照合済から)→ step5 semantic ハーネス → step6 全機能QA。
+> - **環境メモ**: 起動コマンドは上記。golden 復元は `xcrun xcresulttool export attachments --path /tmp/golden_result.xcresult` → `_0_` で名寄せ。
 
 > ## 🔲 真に未完の残タスク(2026-06-20 時点・ここを上から潰す)
 > 下の §1–§5 はほぼ ✅ だが、その多くは **Mock-force ビルド or source 照合**での確認。
