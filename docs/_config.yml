@@ -3,3 +3,19 @@ description: 猫キャラと一緒に毎日1分から運動を習慣化するiOS
 theme: jekyll-theme-cayman
 markdown: kramdown
 permalink: pretty
+
+# 公開するのは法務/サポートページ(privacy/terms/support/account-deletion)と index のみ。
+# 内部の開発/QA/監査ドキュメントは GitHub Pages から除外する(リポには残すが公開しない)。
+exclude:
+  - ANDROID_RELEASE_CHECKLIST.md
+  - AUDIT_RUNBOOK.md
+  - CAT_ART_AUDIT.md
+  - DEVICE_QA_RUNBOOK.md
+  - PARITY_100_PLAN.md
+  - PARITY_REMAINING_TASKS.md
+  - PLAY_DATA_SAFETY.md
+  - QA_MASTER_PLAN.md
+  - SPEC_iOS.md
+  - friends_backend_crossplatform.md
+  - friends_release_keyowner_runbook.md
+  - superpowers

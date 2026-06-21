@@ -106,7 +106,7 @@ Phase A が出す `needs-info`(実機/動的確認要)を重点的に消化。
 
 ## Phase D — 正本マトリクス生成 + ギャップ閉鎖
 
-1. Phase A の `matrixMarkdown` を `docs/AUDIT_MATRIX_2026-06-13.md`(マトリクス正本)に反映(機能×プラットフォーム×層、各セルに担当/証拠/最終検証コミット)。
+1. Phase A の `matrixMarkdown` を マトリクス成果物に反映(機能×プラットフォーム×層、各セルに担当/証拠/最終検証コミット)。
 2. confirmed 所見を修正。
 3. テストギャップに iOS/Android のユニット/UIテストを追加 → Phase 0 を再実行して緑を確認。
 4. 実機限定セル(IAP/Sandbox・プッシュ・QRカメラ・サインイン往復・ハプティク・iOS↔Android実機バックアップ往復)は

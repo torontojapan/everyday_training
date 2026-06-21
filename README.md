@@ -24,7 +24,7 @@
 ```
 serial_training/
 ├── README.md                    ← このファイル
-├── docs/REMAINING_TASKS.md      ← 残タスクの正本(現況はここ)
+├── docs/PARITY_REMAINING_TASKS.md      ← 残タスクの正本(現況はここ)
 ├── STORE_SUBMISSION_ANSWERS.md  ← 両OS共通の Data safety / App Privacy 回答
 ├── IOS_SUBMISSION.md            ← iOS 提出シート(ASC 転記用)
 ├── ANDROID_SUBMISSION.md        ← Android 提出シート(Play 転記用・将来用)
@@ -54,7 +54,7 @@ serial_training/
 
 | 探しもの | 場所 |
 |---|---|
-| 現況・残タスク | `docs/REMAINING_TASKS.md` |
+| 現況・残タスク | `docs/PARITY_REMAINING_TASKS.md` |
 | 猫キャラの画像 | `app/GOExercise/GOExercise/Resources/Assets.xcassets/CatCharacter/` |
 | iOS の画面コード | `app/GOExercise/GOExercise/Views/` |
 | Android の画面コード | `app-android/app/src/main/java/com/goexercise/app/presentation/` |
@@ -84,4 +84,4 @@ cd app-android
 
 ## 進捗・残タスク
 
-現況と残タスクの正本は [`docs/REMAINING_TASKS.md`](docs/REMAINING_TASKS.md)(担当 [Me]/[User]・優先度つき)。横断監査の再現手順は [`docs/AUDIT_RUNBOOK.md`](docs/AUDIT_RUNBOOK.md)。
+現況と残タスクの正本は [`docs/PARITY_REMAINING_TASKS.md`](docs/PARITY_REMAINING_TASKS.md)(担当 [Me]/[User]・優先度つき)。横断監査の再現手順は [`docs/AUDIT_RUNBOOK.md`](docs/AUDIT_RUNBOOK.md)。
