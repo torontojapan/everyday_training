@@ -130,7 +130,7 @@ fun RecordCompletionContent(
                         modifier = Modifier.size(22.dp),
                     )
                 }
-                Text("記録完了", style = AppType.sectionTitle.copy(fontWeight = FontWeight.Bold), color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
+                Text("記録完了", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.align(Alignment.Center))
             }
             // 登場アニメ(iOS contentVisible): 猫 0.85→1 / リボン 0.4→1 / ヒーロー 0.9→1 + フェードイン。
             val p by androidx.compose.animation.core.animateFloatAsState(

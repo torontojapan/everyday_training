@@ -45,6 +45,7 @@ import com.goexercise.app.ui.components.AppleLogo
 import com.goexercise.app.ui.components.CatAvatar
 import com.goexercise.app.ui.components.CatImage
 import com.goexercise.app.ui.components.GoogleLogo
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 
 /**
@@ -90,7 +91,7 @@ fun OnboardingScreen(
         // ステップバッジ(iOS onboardingHeader「ステップ N/2」パリティ。Android は常に2ステップ)。
         Text(
             "ステップ ${step + 1} / 2",
-            fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep,
+            fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
                 .background(palette.primary.copy(alpha = 0.14f))
@@ -109,7 +110,7 @@ fun OnboardingScreen(
             if (step == 0) "選んだ猫はホーム画面・達成演出・友達一覧で使われます。今だけ全種類から自由に選べます(あとで種類を変えるにはプレミアムが必要)。"
             // iOS backupStep subtitle に一致(自動バックアップ/双方向/メール・パスワード不要)。
             else "Apple または Google でサインインすると、運動・体重・体調の記録が自動でバックアップされ、機種変更(iPhone↔Android)や再インストールでも元に戻せます。メールやパスワードは不要です。",
-            fontSize = 13.sp, color = palette.textSecondary,
+            style = AppType.body, color = palette.textSecondary,
         )
 
       if (step == 0) {
@@ -117,7 +118,7 @@ fun OnboardingScreen(
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
-        Text(selected.displayName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Text(selected.displayName, style = AppType.headline, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
 
         // 11 種グリッド(4 列)
         CatBreed.entries.chunked(4).forEach { row ->
@@ -134,7 +135,7 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         CatAvatar(breed = breed, size = 56.dp)
-                        Text(breed.displayName, fontSize = 10.sp, color = palette.textPrimary, maxLines = 1)
+                        Text(breed.displayName, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = palette.textPrimary, maxLines = 1)
                     }
                 }
                 repeat(4 - row.size) { Box(Modifier.weight(1f)) }
@@ -176,7 +177,7 @@ fun OnboardingScreen(
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             CatImage(breed = selected, state = CatState.WaitingMorning, modifier = Modifier.size(160.dp))
         }
-        Text(selected.displayName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Text(selected.displayName, style = AppType.headline, color = palette.primaryDeep, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         // ブランド準拠ボタン(iOS AppleIDButton 黒 / GoogleSignInButton 白枠)。設定 BackupSection と統一。
         Surface(
             color = Color.Black, shape = RoundedCornerShape(10.dp),
@@ -208,7 +209,7 @@ fun OnboardingScreen(
         // iOS footer caption(中央)。
         Text(
             "あとから設定 →「アカウントとバックアップ」でも有効にできます。",
-            fontSize = 12.sp, color = palette.textSecondary,
+            style = AppType.caption, color = palette.textSecondary,
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
       }

@@ -286,3 +286,32 @@ python3 tools/parity/diff.py --pairs pairs.json --out-dir parity_report
 ```
 
 **環境**: emulator go_test 起動中(411dp)/ Mock 撮影は local.properties の SUPABASE 空+再ビルド(検証後 /tmp/local.properties.realbak2 から復元)/ iOS golden は build 12 sim(/tmp/goex_dd)+ XCUIT 撮影 → xcresulttool export。
+
+---
+## D. 恒久化した強制レイヤ(2026-06-21・約150件のフォントドリフト発覚を受けて)
+
+### なぜ §B/§C があっても ~150 件のズレが残ったか(真因の更新)
+1. **§B の「デザイントークン」は提案止まりで未強制**だった。コードに生 `fontSize` 136 / 生 `fontWeight` 101 /
+   ハードコード色 16 が残存し、毎回手打ちでドリフトしていた(iOS 値と機械的に結ばれていない)。
+2. **★ §B-2 の SSIM/ピクセル差分は、今回の不具合を原理的に検出できない。** `.heavy`(800)↔`Black`(900) の
+   1段差や 12↔13sp の 1px 差は **SSIM ≥ 0.97 を通過**する。perceptual 検証は微小タイポグラフィに盲目で、
+   ハーネスは ~150 件を全部グリーン判定していた。→ **検証は perceptual でなく semantic(値そのものの突合)にすべき。**
+3. **「✅ は横並び添付必須」は規律依存**で、規律は繰り返し破れた。
+
+### 実装済みの強制(コミット済・これで新規ドリフトは構造的に不可能)
+- **トークン拡張** `ui/theme/Font.kt`: iOS Dynamic Type 全スタイルを `AppType` に追加
+  (callout16 / subheadline15 / footnote13 / caption2:11 / largeTitleXL28 / navTitle=headline)。「正しいトークンが無く近似」を解消。
+- **ドリフト源ガード** `tools/parity/parity_guard.py`: presentation 配下で 生 `fontSize` / `Color(0x…)` /
+  `FontWeight.Black` を**禁止**。正当例外は行末 `// parity-allow: 理由`。baseline 方式で**新規違反のみ fail**。
+- **iOS 値固定テスト** `AppTypeParityTest`: AppType の (size, weight) が iOS build 12 の値と一致しなければ CI fail。
+- **CI ゲート** `.github/workflows/android-parity.yml`(guard + token テスト)。**ローカル** `.githooks/pre-commit`
+  (`git config core.hooksPath .githooks` で有効化)。
+
+### 残ロードマップ(完全一致=baseline 0 までの funded 作業)
+1. **既存 156 ベースラインの token 化**: 各生 fontSize を、iOS ソースの該当要素を実測して対応 `AppType.X` に置換し
+   baseline を減らす。完了後 `parity_guard.py --strict` を CI 既定にする(= 生値ゼロを恒久強制)。
+2. **★ semantic UI ツリー差分ハーネス(本命の検証)**: iOS snapshot ツリー(XCUITest)と Android semantics ツリーから
+   各 Text の (文言 / 解決後 size / 解決後 weight / 色トークン) を抽出し**要素単位で等値検証**。
+   SSIM が盲目な 1段・1px 差を決定論的に検出する。これを全画面×状態で CI ゲート化したら「個別指摘」は不要になる。
+3. **フォント監査ワークフローの保存**: 本セッションの「5並列で Android 生フォント vs iOS ソースを要素突合」を
+   名前付きワークフロー化し pre-merge 必須にする。

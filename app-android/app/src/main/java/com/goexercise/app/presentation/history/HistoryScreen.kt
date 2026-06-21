@@ -112,8 +112,9 @@ fun HistoryContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
+            // iOS は .navigationTitle inline(17pt semibold)。screenTitle(22 Bold)は大きすぎ → headline。
             "履歴",
-            style = AppType.screenTitle,
+            style = AppType.headline,
             color = palette.textPrimary,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
@@ -126,7 +127,8 @@ fun HistoryContent(
                     MonthNavButton(Icons.Filled.ChevronLeft, "前月", enabled = true, onClick = onPrev)
                     Text(
                         "${state.month.year}年${state.month.monthValue}月",
-                        style = AppType.sectionTitle,
+                        // iOS MonthlyCalendarView month title = Typography.headline(17 SemiBold)。
+                        style = AppType.headline,
                         color = palette.textPrimary,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
@@ -297,7 +299,7 @@ private fun MenstrualEntryRow(palette: com.goexercise.app.ui.theme.AppTheme, onC
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("★", fontSize = 22.sp, fontWeight = FontWeight.Black, color = markColor)
+            Text("★", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = markColor)
             Column(modifier = Modifier.weight(1f)) {
                 Text("生理日を記録する", style = AppType.headline, color = palette.textPrimary)
                 Text("過去の日付もまとめて入力できます", style = AppType.caption, color = palette.textSecondary)
@@ -356,7 +358,7 @@ private fun RescueTicketCollapsible(state: HistoryUiState, palette: AppTheme, on
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(Icons.Filled.EventAvailable, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Text("使う日を選んで適用", style = AppType.body, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.weight(1f))
+                    Text("使う日を選んで適用", style = AppType.body, fontWeight = FontWeight.ExtraBold, color = Color.White, modifier = Modifier.weight(1f))
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
                 }
                 // 非Premium 向け訴求(GOプレミアムで月4回)。iOS: Divider + 塗り無しの primary 文字行。
@@ -369,7 +371,7 @@ private fun RescueTicketCollapsible(state: HistoryUiState, palette: AppTheme, on
                     ) {
                         // iOS StatsView は crown.fill。crown ベクターで統一(WorkspacePremium リボンから是正)。
                         Icon(ImageVector.vectorResource(com.goexercise.app.R.drawable.ic_crown), contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
-                        Text("GOプレミアムで保険チケットが月4回に", style = AppType.body, color = palette.primary, modifier = Modifier.weight(1f))
+                        Text("GOプレミアムで保険チケットが月4回に", style = AppType.body, fontWeight = FontWeight.SemiBold, color = palette.primary, modifier = Modifier.weight(1f))
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = palette.primary, modifier = Modifier.size(16.dp))
                     }
                 }
@@ -568,8 +570,9 @@ private fun DayCell(cell: MonthCell, modifier: Modifier, isToday: Boolean = fals
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
+                    // iOS MonthlyCalendarView day = size 14, today heavy / それ以外 semibold。
                     "${date.dayOfMonth}",
-                    style = AppType.caption.copy(fontWeight = if (isToday) FontWeight.Black else FontWeight.Normal),
+                    style = AppType.caption.copy(fontSize = 14.sp, fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.SemiBold),
                     color = if (isToday) Color.White else palette.textPrimary,
                 )
                 if (isPeriod) {

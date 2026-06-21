@@ -53,6 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import com.goexercise.app.domain.WorkoutCategory
+import com.goexercise.app.ui.theme.AppType
 import com.goexercise.app.ui.theme.LocalAppPalette
 import com.goexercise.app.ui.theme.categoryIcon
 
@@ -110,7 +111,7 @@ fun RecordContent(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("閉じる") }
-            Text("今日の記録", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = palette.textPrimary)
+            Text("今日の記録", style = AppType.headline, color = palette.textPrimary)
         }
 
         // アコーディオン: 入力中の1種目だけ展開し、他は最小化(iOS ExerciseInputRow パリティ)。
@@ -165,7 +166,7 @@ fun RecordContent(
                     corner = 12.dp,
                     borderColor = if (state.hasWeightInputButInvalid) palette.missed else null,
                     borderWidth = 1.5.dp,
-                    paddingH = 12.dp, paddingV = 12.dp, fontSize = 16.sp,
+                    paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
                     keyboardType = KeyboardType.Decimal,
                 )
                 // 無効な体重は理由を info アイコン付きで表示、正常時は前回値ヒント(iOS disabledReason / hint)。
@@ -173,13 +174,13 @@ fun RecordContent(
                 if (reason != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(Icons.Filled.Info, contentDescription = null, tint = palette.missed, modifier = Modifier.size(14.dp))
-                        Text(reason, color = palette.missed, fontSize = 12.sp)
+                        Text(reason, color = palette.missed, style = AppType.caption)
                     }
                 } else {
                     Text(
                         state.latestWeightKg?.let { "前回: ${"%.1f".format(it)} kg" }
                             ?: "体重を入れるとグラフに反映されます",
-                        color = palette.textSecondary, fontSize = 12.sp,
+                        color = palette.textSecondary, style = AppType.caption,
                     )
                 }
             }
@@ -195,7 +196,7 @@ fun RecordContent(
                     placeholder = "体調や気分など",
                     modifier = Modifier.fillMaxWidth(),
                     fill = palette.chipBackground.copy(alpha = 0.5f),
-                    corner = 12.dp, paddingH = 12.dp, paddingV = 12.dp, fontSize = 15.sp,
+                    corner = 12.dp, paddingH = 12.dp, paddingV = 12.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
                     singleLine = false, minLines = 3, maxLines = 5,
                 )
             }
@@ -212,9 +213,9 @@ fun RecordContent(
             }
             Text(if (state.isSaving) "保存中…" else "保存")
         }
-        state.errorMessage?.let { Text(it, color = palette.missed, fontSize = 12.sp) }
+        state.errorMessage?.let { Text(it, color = palette.missed, style = AppType.caption) }
         if (state.validExercises().isEmpty()) {
-            Text("種目名を1つ以上入力してください", color = palette.textSecondary, fontSize = 12.sp)
+            Text("種目名を1つ以上入力してください", color = palette.textSecondary, style = AppType.caption)
         }
     }
 }
@@ -247,9 +248,9 @@ private fun ExerciseDraftCard(
                     Text(
                         draft.name.ifBlank { "種目名 未入力" },
                         color = if (draft.name.isBlank()) palette.textSecondary else palette.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
+                        style = AppType.body,
                     )
-                    Text(collapsedSummary(draft), color = palette.textSecondary, fontSize = 12.sp)
+                    Text(collapsedSummary(draft), color = palette.textSecondary, style = AppType.caption)
                 }
                 Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "展開", tint = palette.textSecondary, modifier = Modifier.size(20.dp))
             }
@@ -299,7 +300,7 @@ private fun ExerciseDraftCard(
                     suggestions.forEach { name -> SuggestionChip(name) { onChange(draft.copy(name = name)) } }
                 }
             } else {
-                Text("履歴がたまると、ここによく使う種目が出ます", color = palette.textSecondary, fontSize = 12.sp)
+                Text("履歴がたまると、ここによく使う種目が出ます", color = palette.textSecondary, style = AppType.caption)
             }
             // 時間/回数/セット/重さ を1行(iOS 4列)。各列=ラベル上 + 同一スタイル/同一高さの chipBackground@0.6 角丸ボックス。
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
@@ -335,7 +336,7 @@ private fun ExerciseDraftCard(
                 placeholder = "種目メモ (例: 体調メモ、回数アップ等)",
                 modifier = Modifier.fillMaxWidth(),
                 fill = palette.chipBackground.copy(alpha = 0.6f),
-                corner = 10.dp, paddingH = 10.dp, paddingV = 8.dp, fontSize = 15.sp,
+                corner = 10.dp, paddingH = 10.dp, paddingV = 8.dp, fontSize = 17.sp, fontWeight = FontWeight.Normal,
             )
         }
     }
@@ -382,7 +383,7 @@ private fun PickerColumn(label: String, value: String, options: List<Int>, unit:
                 Text(
                     display(current),
                     color = if (current == 0) palette.textSecondary else palette.textPrimary,
-                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f),
+                    style = AppType.body, maxLines = 1, modifier = Modifier.weight(1f),
                 )
                 Icon(Icons.Filled.UnfoldMore, contentDescription = null, tint = palette.textSecondary, modifier = Modifier.size(14.dp))
             }
@@ -413,6 +414,7 @@ private fun FilledField(
     paddingH: androidx.compose.ui.unit.Dp = 10.dp,
     paddingV: androidx.compose.ui.unit.Dp = 9.dp,
     fontSize: androidx.compose.ui.unit.TextUnit = 15.sp,
+    fontWeight: FontWeight = FontWeight.SemiBold,
     center: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     singleLine: Boolean = true,
@@ -428,7 +430,7 @@ private fun FilledField(
         singleLine = singleLine,
         minLines = minLines,
         maxLines = maxLines,
-        textStyle = androidx.compose.ui.text.TextStyle(color = palette.textPrimary, fontSize = fontSize, fontWeight = FontWeight.SemiBold, textAlign = align),
+        textStyle = androidx.compose.ui.text.TextStyle(color = palette.textPrimary, fontSize = fontSize, fontWeight = fontWeight, textAlign = align),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(palette.primary),
         modifier = modifier,
@@ -444,7 +446,7 @@ private fun FilledField(
             ) {
                 if (value.isEmpty()) {
                     Text(
-                        placeholder, color = palette.textSecondary, fontSize = fontSize, fontWeight = FontWeight.SemiBold,
+                        placeholder, color = palette.textSecondary, fontSize = fontSize, fontWeight = fontWeight,
                         textAlign = align, modifier = if (center) Modifier.fillMaxWidth() else Modifier,
                     )
                 }

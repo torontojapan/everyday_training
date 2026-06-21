@@ -127,7 +127,7 @@ fun PremiumPaywallContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("GOプレミアム", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+            Text("GOプレミアム", style = com.goexercise.app.ui.theme.AppType.headline, color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onClose) { Text("✕", fontSize = 18.sp, color = palette.textSecondary) }
         }
@@ -142,10 +142,10 @@ fun PremiumPaywallContent(
                 painter = androidx.compose.ui.res.painterResource(com.goexercise.app.R.drawable.ic_crown),
                 contentDescription = null, tint = palette.primary, modifier = Modifier.size(48.dp),
             )
-            Text(context.headline, fontSize = 20.sp, fontWeight = FontWeight.Black, color = palette.textPrimary, textAlign = TextAlign.Center)
+            Text(context.headline, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary, textAlign = TextAlign.Center)
             Text(
                 copy.subhead,
-                fontSize = 13.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
+                fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center,
             )
         }
 
@@ -180,7 +180,7 @@ fun PremiumPaywallContent(
             if (isWorking) {
                 CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
             } else {
-                Text(copy.cta, fontSize = 16.sp, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White)
+                Text(copy.cta, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = androidx.compose.ui.graphics.Color.White)
             }
         }
 
@@ -194,12 +194,12 @@ fun PremiumPaywallContent(
         }
 
         TextButton(onClick = onRestore, enabled = !isWorking, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("購入を復元", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.primary)
+            Text("購入を復元", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.primary)
         }
 
         // サブスク開示(審査必須: 価格・周期・自動更新・トライアル後課金・解約方法)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("サブスクリプションについて", fontSize = 12.sp, fontWeight = FontWeight.Black, color = palette.textPrimary)
+            Text("サブスクリプションについて", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = palette.textPrimary)
             disclosure(copy.autoRenewDisclosure, palette)
             disclosure("・自動更新: 期間終了の24時間前までに解約しない限り自動で更新されます", palette)
             disclosure("・解約方法: Google Play ストア > メニュー > 定期購入 からいつでも解約できます", palette)
@@ -220,7 +220,7 @@ fun PremiumPaywallContent(
 private fun benefit(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, palette: AppTheme) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = palette.primary, modifier = Modifier.size(20.dp))
-        Text(text, fontSize = 14.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
+        Text(text, fontSize = 15.sp, color = palette.textPrimary, modifier = Modifier.weight(1f))
     }
 }
 
@@ -257,16 +257,16 @@ private fun planCard(
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = palette.textPrimary)
+                    Text(title, style = com.goexercise.app.ui.theme.AppType.headline, color = palette.textPrimary)
                     if (badge != null) {
                         Surface(color = palette.primary, shape = RoundedCornerShape(50)) {
-                            Text(badge, fontSize = 10.sp, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            Text(badge, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                         }
                     }
                 }
                 Text(caption, fontSize = 12.sp, color = palette.textSecondary)
             }
-            Text(price, fontSize = 14.sp, fontWeight = FontWeight.Black, color = palette.primaryDeep)
+            Text(price, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep)
         }
     }
 }
