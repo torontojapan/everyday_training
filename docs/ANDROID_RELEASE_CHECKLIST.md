@@ -34,3 +34,25 @@
 - [ ] **B8 本番 Supabase テストデータ掃除**: §6 で残した けんじ/cheers/friendship。
 - [~] **B9 Codex 2LLM 監査** — **headless では codex がハング(CPU0%・既知 [[feedback_verification_workflow]])で完走せず**(4回試行: model誤指定1/即ハング2/`approval_policy=never`+read-onlyで diff 全読込まで進むが verdict前に要watchdog kill)。→ **対話端末か `/second-opinion` skill で実行が必要**(あなた側)。代替として本セッションで等価の敵対検証を自走実施済(トークン化のピクセル一致実証・Black→ExtraBold の iOS ソース照合・44sp 残ドリフトの明示・parity_guard --strict・346 unit green)。
 - [x] **B10 privacy/terms/support 公開 URL** — **完了**: GitHub Pages 稼働中(main/docs・public repo)、Android 設定が iOS と同一 URL(`torontojapan.github.io/everyday_training/{privacy,terms,support}/`)を参照。
+
+## C. 残存リスク・未検証領域(出荷判断の材料・2026-06-21)
+> 「バグは起きないか?」への正直な回答 = **バグゼロは保証できない**。下記を出荷前に踏まえること。
+
+### 強く担保済み(バグが出にくい)
+- 再発バグの**全11型**([[gotcha_recurring_bug_classes]])を Android で防御確認 + 回帰テスト。
+- ロジック **346 unit tests green**、RLS 状態機械(報酬捏造防止)、`parity_guard --strict`(見た目ドリフトの構造封鎖)。
+- R8(難読化)実行時 smoke で主要 Supabase 経路の健全性を確認。
+- iOS↔Android データ互換(記録 payload 契約・friend code)をコード/契約レベルで一致確認。
+
+### まだ未検証=バグが残りうる(リスク順)
+1. **実機が1台も未テスト**(全てエミュ+シミュ)。OEM スキン/OS 8〜15/画面/メモリ依存の**端末依存バグ**は未知。**最大リスク**。
+2. **実課金・実 OAuth が end-to-end 未実施**(dev は Mock)。実 Play 課金購入/復元・実機 Apple/Google サインイン連携は未通し(B5/B3/B6 未完)。
+3. **機種変更(記録引き継ぎ)が実機間で未検証**(契約一致は確認済だが実物未通し)。
+4. **2LLM 敵対監査(Codex)未完走**(独立レビュー1層が欠落)。
+5. **a11y ギャップ**(週ストリップ等 Canvas 描画が TalkBack 未露出)= クラッシュではない品質バグ。
+6. 並行処理/低速回線/低メモリ/特定ロケール・時計の端は部分カバーのみ。
+
+### ギャップを閉じる手段(出荷前推奨)
+- **B7 実機 E2E を1周**(課金購入・OAuth・機種変更)= 最も効く。
+- **段階公開**(Play internal testing → クローズドβ)で端末多様性に当てる。
+- **B9 Codex 対話 or `/second-opinion`** で独立レビューを追加。
