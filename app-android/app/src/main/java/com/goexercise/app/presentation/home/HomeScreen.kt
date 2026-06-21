@@ -299,12 +299,12 @@ private fun WeeklyMini(state: HomeUiState, onDayClick: (DailyStatusEntry) -> Uni
         Row(verticalAlignment = Alignment.CenterVertically) {
             // iOS: 今週=.subheadline(15) heavy(W800) / 達成数=.subheadline(15) semibold。
             // 旧 Android は headline(17) Black で iOS より大きく太かった(2026-06-21 density393 実測是正)。
-            Text("今週", style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
+            Text("今週", style = AppType.subheadline.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
             Spacer(Modifier.weight(1f))
             Text(
                 "${state.weeklyProgress.achievedCount} / ${state.weeklyProgress.totalDays} 日達成",
                 // iOS: monospacedDigit。等幅数字で達成数の桁ぶれを防ぐ。
-                style = AppType.headline.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                style = AppType.subheadline.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
                 color = palette.textSecondary,
             )
         }
@@ -546,14 +546,14 @@ private fun StatusChip(todayStatus: DailyStatus) {
         DailyStatus.TodayAchieved -> ChipCapsule(bg = palette.success.copy(alpha = 0.18f)) {
             Icon(Icons.Filled.Verified, contentDescription = null, tint = palette.success, modifier = Modifier.size(15.dp))
             // iOS statusChip = .footnote(13) heavy。Android は caption(12) Black だった。
-            Text("今日は達成済み", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.success)
+            Text("今日は達成済み", style = AppType.footnote.copy(fontWeight = FontWeight.ExtraBold), color = palette.success)
         }
         DailyStatus.Rest -> ChipCapsule(bg = palette.restDay.copy(alpha = 0.30f)) {
             Icon(Icons.Filled.Bedtime, contentDescription = null, tint = palette.textPrimary, modifier = Modifier.size(15.dp))
-            Text("今日は回復日", style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
+            Text("今日は回復日", style = AppType.footnote.copy(fontWeight = FontWeight.ExtraBold), color = palette.textPrimary)
         }
         else -> ChipCapsule(bg = palette.surface) {
-            Text(remainingTimeText(), style = AppType.caption.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
+            Text(remainingTimeText(), style = AppType.footnote.copy(fontWeight = FontWeight.SemiBold), color = palette.textSecondary)
         }
     }
 }
@@ -746,7 +746,7 @@ private fun SpeechBubble(text: String, modifier: Modifier = Modifier) {
             Text(
                 text = text,
                 // iOS speechBubble = .callout(16) semibold。Android は body(17) だった。
-                style = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                style = AppType.callout.copy(fontWeight = FontWeight.SemiBold),
                 color = palette.textPrimary,
                 textAlign = TextAlign.Center,
                 maxLines = 3, // iOS lineLimit(3)
