@@ -40,9 +40,4 @@ struct RankUpDetector {
         return events
     }
 
-    /// テスト/ログアウト用リセット。
-    func reset() {
-        defaults.removeObject(forKey: rankKey)
-        defaults.removeObject(forKey: weeklyKey)
-    }
 }
