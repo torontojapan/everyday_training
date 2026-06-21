@@ -114,6 +114,10 @@ fun RecordContent(
             Text("今日の記録", style = AppType.headline, color = palette.textPrimary)
         }
 
+        // iOS Form の Section("種目") ヘッダ(RecordEntryView.swift:25)。体調・周期/今日の体重/メモ と同じ
+        // bold-14 見出しで種目リストの上に置く(欠落していた=2026-06-21 density393 横並びで発見)。
+        Text("種目", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+
         // アコーディオン: 入力中の1種目だけ展開し、他は最小化(iOS ExerciseInputRow パリティ)。
         var expandedId by remember { mutableStateOf(state.drafts.firstOrNull()?.id) }
         androidx.compose.runtime.LaunchedEffect(state.drafts.size) {

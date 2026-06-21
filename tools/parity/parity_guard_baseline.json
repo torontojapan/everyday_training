@@ -99,6 +99,7 @@
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"メモ\", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"今日の体重 (任意)\", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"体調・周期\", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)",
+"raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"種目\", color = palette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"種目名\", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"種類\", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)",
 "raw_fontSize|app-android/app/src/main/java/com/goexercise/app/presentation/record/RecordScreen.kt|Text(\"重さ (kg)\", color = palette.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)",
