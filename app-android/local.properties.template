@@ -1,0 +1,20 @@
+# local.properties テンプレート(実体 local.properties は .gitignore)。
+# build.gradle.kts の secret() が読み、BuildConfig へ注入する。dev は空でも Mock 経路で動く。
+# ── SDK(Android Studio が自動生成。手動なら自分の SDK パス)
+sdk.dir=/Users/<you>/Library/Android/sdk
+
+# ── Supabase(iOS と同一プロジェクト。未設定だと友達/同期は Mock にフォールバック)
+SUPABASE_HOST=zgwreglvlueiuvmwtntk.supabase.co
+SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxx
+
+# ── アカウント連携ゲート(リリースで true。実インフラ=B3/B4 完成後に ON)
+FRIENDS_APPLE_LINK_ENABLED=false
+FRIENDS_GOOGLE_LINK_ENABLED=false
+# Google ネイティブ id_token サインインの Web クライアント ID(Google Cloud Console・B3)
+GOOGLE_WEB_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+
+# ── Play 課金(リリースで true。商品 com.goexercise.app.premium_monthly/_yearly を Play で作成=B5)
+PLAY_BILLING_ENABLED=false
+
+# ── 分析(TelemetryDeck・匿名・opt-out 可)
+TELEMETRYDECK_APP_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
