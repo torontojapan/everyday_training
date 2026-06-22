@@ -76,8 +76,9 @@ class PetBreedTest {
                 assertTrue("invalid resource name: $name", pattern.matches(name))
             }
         }
-        // 5 dogs × 7 states = 35(+ happy2/happy3/shaker は別名で計 50 枚)。
-        assertEquals(35, DogBreed.entries.size * CatState.entries.size)
+        // 犬9種 × 7 states = 63(+ happy2/happy3/shaker は別名で各犬種計 10 枚 = 90 枚)。
+        assertEquals(9, DogBreed.entries.size)
+        assertEquals(63, DogBreed.entries.size * CatState.entries.size)
     }
 
     @Test
