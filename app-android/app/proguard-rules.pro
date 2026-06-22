@@ -29,6 +29,15 @@
 -dontwarn kotlinx.datetime.Clock$System
 -dontwarn kotlinx.datetime.Instant
 
+# ---- 保存時暗号化(2026-06-22 セキュリティ強化)----
+# SQLCipher: JNI ネイティブメソッドを持つため、クラス/メソッドを保持しないと UnsatisfiedLinkError。
+-keep class net.zetetic.database.** { *; }
+-dontwarn net.zetetic.database.**
+# Tink(androidx.security:security-crypto が内部利用)はリフレクションで鍵マネージャを登録する。
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+-keep class androidx.security.crypto.** { *; }
+
 # ---- 動的リソース解決(getIdentifier)----
 # 猫 77 画像は cat_<breed>_<state> を resources.getIdentifier で解決するため、コード参照が無く
 # R8 のコード解析からは未使用に見える。リソース保持は res/raw/keep.xml(tools:keep)で行う。

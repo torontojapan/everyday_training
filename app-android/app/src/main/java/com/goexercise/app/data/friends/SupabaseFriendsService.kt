@@ -64,6 +64,16 @@ class SupabaseFriendsService(
     // ロジックは FriendshipPair に集約し回帰テスト([FriendshipPairTest])で担保。
     private fun orderedPair(a: String, b: String): Pair<String, String> = FriendshipPair.ordered(a, b)
 
+    // プロフィール文字列の最終サニタイズ(送信直前)。制御文字を除去し最大長でクランプする。
+    // sendCheer のコメントクランプ(下記 .take(30))と同型の多層防御。DB の長さ check と二重ガード。
+    private fun sanitizeField(s: String, max: Int): String =
+        s.trim().filter { !it.isISOControl() }.take(max)
+
+    // LIKE/ILIKE メタ文字 (\ % _) をエスケープ (順序重要: \ を先に)。'%foo%' のワイルドカード注入で
+    // 全件列挙されるのを防ぐ。iOS searchByUsername(escapeLikePattern)と同型。
+    private fun escapeLike(s: String): String =
+        s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     override suspend fun myProfile(): FriendProfile? {
         val uid = client.auth.currentUserOrNull()?.id ?: return null
         return profileRow(uid)?.toProfile()
@@ -76,8 +86,9 @@ class SupabaseFriendsService(
         val row = ProfileRow(
             userId = uid,
             friendCode = generateUniqueCode(),
-            username = username.trim(),
-            displayName = displayName.trim().ifEmpty { "あなた" },
+            // 制御文字除去 + 長さクランプ(username 24 / display_name 40)。DB check と二重ガード。
+            username = sanitizeField(username, 24),
+            displayName = sanitizeField(displayName, 40).ifEmpty { "あなた" },
         )
         client.from("profiles").upsert(row) { onConflict = "user_id" }
     }
@@ -120,8 +131,10 @@ class SupabaseFriendsService(
         if (q.isEmpty()) return emptyList()
         val uid = client.auth.currentUserOrNull()?.id
         // username 部分一致(大小無視 ilike)。自分自身は除外。最大 25 件。iOS searchByUsername パリティ。
+        // ユーザー入力の LIKE メタ文字をエスケープ(% / _ のワイルドカード注入で全件列挙されるのを防ぐ)。
+        val escaped = escapeLike(q)
         return client.from("profiles").select {
-            filter { ilike("username", "%$q%") }
+            filter { ilike("username", "%$escaped%") }
             limit(25)
         }.decodeList<ProfileRow>()
             .filter { it.userId != uid }
@@ -245,8 +258,9 @@ class SupabaseFriendsService(
         val row = ProfileRow(
             userId = uid,
             friendCode = profile.friendCode,
-            username = profile.username,
-            displayName = profile.displayName,
+            // 制御文字除去 + 長さクランプ(username 24 / display_name 40)。DB check と二重ガード。
+            username = sanitizeField(profile.username, 24),
+            displayName = sanitizeField(profile.displayName, 40),
             currentStreak = profile.currentStreak,
             totalAchievedDays = profile.totalAchievedDays,
             todayAchieved = profile.todayAchieved,
@@ -276,10 +290,24 @@ class SupabaseFriendsService(
         if (me?.friendCode == target) throw FriendsError.CannotAddSelf
         val referrer = profileRowByCode(target) ?: throw FriendsError.CodeNotFound
         if (referrer.userId == uid) throw FriendsError.CannotAddSelf
+        // 1人1紹介者: 既に referee 行があるかを確認。
         val existing = client.from("referrals").select {
             filter { eq("referee_user_id", uid) }; limit(1)
         }.decodeList<ReferralRow>()
-        if (existing.isNotEmpty()) throw FriendsError.DuplicateRequest
+        existing.firstOrNull()?.let { row ->
+            // 既に紹介者が記録済み。同じ紹介者なら friendship 補完のみ行って冪等に収束させ
+            // (一過性失敗のリトライ安全)、別の紹介者なら「1人1紹介者」で不可。
+            if (row.referrerUserId.lowercase() == referrer.userId.lowercase()) {
+                val (a, b) = orderedPair(uid, referrer.userId)
+                client.from("friendships").upsert(FriendshipRow(userA = a, userB = b, status = "active")) { onConflict = "user_a,user_b" }
+                return
+            }
+            throw FriendsError.DuplicateRequest
+        }
+        // ★順序: referral を **先に** 作る(referee = 自分)。サーバの friendships_insert_guard (V1) が
+        // 「自分が referee の referral 行」(または incoming friend_request)の存在を friendship insert 時に
+        // 要求するため、friendship より先に referral を確定させる必要がある。friendship upsert が一過性に
+        // 失敗しても、再試行は上の「同じ紹介者なら friendship 補完のみ」分岐で冪等に収束する(iOS パリティ)。
         client.from("referrals").insert(ReferralInsert(referrerUserId = referrer.userId, refereeUserId = uid))
         val (a, b) = orderedPair(uid, referrer.userId)
         client.from("friendships").upsert(FriendshipRow(userA = a, userB = b, status = "active")) { onConflict = "user_a,user_b" }

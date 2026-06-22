@@ -48,6 +48,11 @@ class RealAccountAuthCoordinator : AccountAuthCoordinator {
 
     override fun appleWebFlow(context: Context): WebAuthFlow = { authUrl ->
         // 認可 URL を Custom Tabs で開き、redirect(goexercise://auth-callback)の URL を待つ。
+        // 多層防御(And-5): CSRF/code 注入の **一次防御は PKCE(code_verifier)**。OAuth の `state` は
+        // GoTrue/supabase-kt が /authorize URL 内で採番・管理する(SDK 所有)ため、アプリは state を
+        // 注入も検証もしない(GoTrue が返す state とアプリ独自値を突き合わせると正規 callback を誤って
+        // 弾く。GPT-5.5 監査 High)。アプリ側の防御は「進行中フローが無ければ callback を無視する」
+        // (想定外/二重 callback の拒否)に留め、state 検証は PKCE/SDK に委ねる。
         val deferred = CompletableDeferred<String>()
         synchronized(lock) {
             // 旧フローが残っていればキャンセル扱いで畳む(leak / 二重待ち回避)。
@@ -59,7 +64,11 @@ class RealAccountAuthCoordinator : AccountAuthCoordinator {
             deferred.await() // callback 配達 or キャンセルまで待機
         } finally {
             // コルーチン完了/キャンセル時、自分が現役なら掃除して static 参照を残さない。
-            synchronized(lock) { if (pendingCallback === deferred) pendingCallback = null }
+            synchronized(lock) {
+                if (pendingCallback === deferred) {
+                    pendingCallback = null
+                }
+            }
         }
     }
 
@@ -70,10 +79,16 @@ class RealAccountAuthCoordinator : AccountAuthCoordinator {
         @Volatile
         private var pendingCallback: CompletableDeferred<String>? = null
 
-        /** auth-callback の deep link を受けたら呼ぶ(MainActivity から)。 */
+        /**
+         * auth-callback の deep link を受けたら呼ぶ(MainActivity から)。
+         * 進行中フローが無ければ無視する(想定外/二重 callback の拒否)。state 検証は PKCE/SDK に委ねる
+         * (アプリ独自 state を注入していないため、GoTrue 返却の state と突き合わせると正規 callback を
+         * 誤って弾く)。
+         */
         fun deliverCallback(url: String) {
             synchronized(lock) {
-                pendingCallback?.complete(url)
+                val pending = pendingCallback ?: return // 進行中フロー無し=想定外 callback は無視(多層防御)
+                pending.complete(url)
                 pendingCallback = null
             }
         }

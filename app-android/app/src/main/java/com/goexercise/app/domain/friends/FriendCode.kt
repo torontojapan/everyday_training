@@ -1,6 +1,7 @@
 package com.goexercise.app.domain.friends
 
 import kotlin.random.Random
+import kotlin.random.asKotlinRandom
 
 /**
  * 友達コードの生成。iOS `FriendCode`(FriendProfile.swift)の 1:1 移植。
@@ -16,7 +17,9 @@ object FriendCode {
     val allowedCharacters: Set<Char> = ALPHABET.toSet()
 
     /** 紛らわしい文字を除いたランダム 6 文字コード。実際の重複回避(UNIQUE リトライ)は repo 層。 */
-    fun generate(random: Random = Random): String =
+    // 既定は CSPRNG(SecureRandom)。kotlin.random.Random は非暗号論的で予測され得るため、
+    // 友達コードのような推測耐性が要る値は SecureRandom を使う。テスト時は random を注入して決定化する。
+    fun generate(random: Random = java.security.SecureRandom().asKotlinRandom()): String =
         (0 until LENGTH).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
 
     /** 入力補正。[FriendCodeValidator.sanitize] への委譲(ReferralStore など呼び出し側の利便性)。 */

@@ -14,6 +14,7 @@ import com.goexercise.app.data.rescue.RescueTicketRepository
 import com.goexercise.app.data.settings.MenstrualEntryRecord
 import com.goexercise.app.data.settings.MenstrualRepository
 import com.goexercise.app.data.settings.MenstrualRepositoryImpl
+import com.goexercise.app.data.security.IdentityStringCipher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -77,7 +78,7 @@ class RecordSyncCoordinatorTest {
         val store = RecordBackupStore(ds)
         val workoutDao = FakeWorkoutDao()
         val weightDao = FakeWeightDao()
-        val menstrual = MenstrualRepositoryImpl(ds, store, json, clock)
+        val menstrual = MenstrualRepositoryImpl(ds, store, json, clock, IdentityStringCipher)
         val rescue = FakeRescueRepository()
         val sync = RecordSyncCoordinator(service, store, workoutDao, weightDao, menstrual, rescue, json, clock)
         return Env(service, store, workoutDao, weightDao, menstrual, rescue, sync)

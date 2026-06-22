@@ -36,9 +36,23 @@ enum AppModelContainer {
         let schema = Schema([WorkoutRecord.self, WeightEntry.self, MenstrualEntry.self])
 
         if let url = sharedStoreURL {
+            // ストアを **開く前に** 親ディレクトリの既定ファイル保護を .completeUnlessOpen に設定する。
+            // iOS ではディレクトリの protectionKey が「以後そこに作られるファイルの既定保護クラス」に
+            // なるため、SwiftData が後から生成する -wal/-shm も弱い既定 (App Group 既定) を継承せず
+            // 確実に保護される (Codex/GPT-5.5 監査)。開いた後の個別ファイル設定 (applyFileProtection) と二段構え。
+            applyDirectoryProtection(forStoreAt: url)
             let shared = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
             do {
-                return try ModelContainer(for: schema, configurations: shared)
+                let container = try ModelContainer(for: schema, configurations: shared)
+                // 保存時のファイル保護 (健康データの at-rest 暗号化)。iOS 既定の
+                // completeUntilFirstUserAuthentication は初回アンロック後はファイルが
+                // 復号可能なまま残る。WorkoutRecord/WeightEntry/MenstrualEntry は機微なので
+                // ファイルを閉じている間は保護する .completeUnlessOpen に引き上げる。
+                // .complete ではなく .completeUnlessOpen を選ぶのは、Widget Extension が
+                // ロック画面 (初回アンロック後の再ロック中) でもストアを開いて読めるように
+                // するため (.complete だと施錠中はファイルを開けず Widget が更新できない)。
+                applyFileProtection(to: url)
+                return container
             } catch {
                 // App Group ストアが開けない場合のみフォールバックする。これは
                 // entitlement/provisioning の異常 (= ビルド構成ミス) を意味し、
@@ -69,5 +83,26 @@ enum AppModelContainer {
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         // swiftlint:disable:next force_try
         return try! ModelContainer(for: schema, configurations: local)
+    }
+
+    /// 共有ストア (.sqlite) と SQLite の同伴ファイル (-wal / -shm) に
+    /// `.completeUnlessOpen` のファイル保護属性を付与する。存在しないファイルは
+    /// `try?` で握り潰す (新規作成直後は -wal/-shm が無いことがある)。
+    private static func applyFileProtection(to storeURL: URL) {
+        let storePath = storeURL.path
+        let paths = [storePath, storePath + "-wal", storePath + "-shm"]
+        let attributes: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUnlessOpen]
+        for path in paths where FileManager.default.fileExists(atPath: path) {
+            try? FileManager.default.setAttributes(attributes, ofItemAtPath: path)
+        }
+    }
+
+    /// ストアの親ディレクトリの既定ファイル保護を `.completeUnlessOpen` に設定する。
+    /// ストアを開く前に呼ぶことで、後から生成される -wal/-shm を含む新規ファイルが
+    /// この保護クラスを既定で継承する (個別ファイル設定だけでは取りこぼす後発ファイルを塞ぐ)。
+    private static func applyDirectoryProtection(forStoreAt storeURL: URL) {
+        let dir = storeURL.deletingLastPathComponent().path
+        let attributes: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUnlessOpen]
+        try? FileManager.default.setAttributes(attributes, ofItemAtPath: dir)
     }
 }

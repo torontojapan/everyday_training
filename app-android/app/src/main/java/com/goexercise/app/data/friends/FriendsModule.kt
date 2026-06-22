@@ -1,11 +1,13 @@
 package com.goexercise.app.data.friends
 
+import android.content.Context
 import com.goexercise.app.presentation.friends.AccountAuthCoordinator
 import com.goexercise.app.presentation.friends.MockAccountAuthCoordinator
 import com.goexercise.app.presentation.friends.RealAccountAuthCoordinator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -19,10 +21,14 @@ import javax.inject.Singleton
 object FriendsModule {
     @Provides
     @Singleton
-    fun provideFriendsService(watermarkStore: CheerWatermarkStore): FriendsService =
+    fun provideFriendsService(
+        @ApplicationContext context: Context,
+        watermarkStore: CheerWatermarkStore,
+    ): FriendsService =
         if (SupabaseConfig.isConfigured) {
             SupabaseFriendsService(
-                SupabaseClientFactory.create(SupabaseConfig.url!!, SupabaseConfig.anonKey),
+                // Context は EncryptedSessionManager(JWT 暗号化保存)用に必要。
+                SupabaseClientFactory.create(context, SupabaseConfig.url!!, SupabaseConfig.anonKey),
                 watermarkStore,
             )
         } else {

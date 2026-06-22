@@ -766,7 +766,18 @@ struct FriendsView: View {
                     Spacer()
                     // ワンタップでコードをコピー(ユーザー要望)。共有シートより手軽。
                     Button {
-                        UIPasteboard.general.string = profile.friendCode
+                        // 友達コードはこの端末内のみ・60 秒で失効するようコピーする。
+                        // localOnly で Handoff/ユニバーサルクリップボードへの流出を防ぎ、
+                        // expirationDate で他アプリのペーストボード覗き見の窓を狭める。
+                        if let data = profile.friendCode.data(using: .utf8) {
+                            UIPasteboard.general.setItems(
+                                [["public.utf8-plain-text": data]],
+                                options: [
+                                    .localOnly: true,
+                                    .expirationDate: Date().addingTimeInterval(60)
+                                ]
+                            )
+                        }
                         hapticFeedback.success()
                         showCopyToast()
                     } label: {

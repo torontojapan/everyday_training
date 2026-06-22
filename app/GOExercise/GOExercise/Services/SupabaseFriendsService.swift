@@ -349,8 +349,11 @@ final class SupabaseFriendsService: FriendsService {
         // 「この端末で始める」を押しても Apple プロフィールを潰さない (Codex)。
         // gate OFF 時は linking 無効=常に匿名セッションなので挙動不変 = バイト互換。
         let isAnonymousSession = (try? await client.auth.session)?.user.isAnonymous ?? true
-        let displayName = isAnonymousSession ? rawDisplayName.trimmingCharacters(in: .whitespacesAndNewlines) : ""
-        let username = isAnonymousSession ? rawUsername.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        // trim に加えて制御文字を除去し、長さをクランプする (cheer message と同じ多層ガード)。
+        // 過大入力 / 改行・制御文字混入で表示崩れ・upsert 拒否・なりすまし表示を防ぐ。
+        // username は識別子なので 24 字、display_name はユーザー可視名なので 40 字に制限。
+        let displayName = isAnonymousSession ? Self.sanitize(rawDisplayName, maxLength: 40) : ""
+        let username = isAnonymousSession ? Self.sanitize(rawUsername, maxLength: 24) : ""
 
         // 既存プロフィール (同一 uid) があれば stats を引き継ぐ。
         let existing: [ProfileRow] = try await client.from("profiles")
@@ -626,9 +629,30 @@ final class SupabaseFriendsService: FriendsService {
         _ = try await ensureUID()
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return [] }
+        // LIKE/ILIKE のメタ文字 (% _ \) をエスケープし、ユーザー入力をパターンとして
+        // 解釈させない (例: "%" 入力で全件マッチ等を防ぐ)。Postgres の LIKE 既定
+        // エスケープ文字は "\" なので、それを使う。
+        let escaped = Self.escapeLikePattern(q)
         let rows: [ProfileRow] = try await client.from("profiles")
-            .select().ilike("username", pattern: "%\(q)%").limit(25).execute().value
+            .select().ilike("username", pattern: "%\(escaped)%").limit(25).execute().value
         return rows.map { profile(from: $0) }.filter { $0.friendCode != myCode }
+    }
+
+    /// LIKE/ILIKE パターン中のメタ文字をエスケープする。`\` を最初に置換しないと
+    /// 後続で挿入する `\` まで二重エスケープされてしまうため、順序を `\` → `%` → `_` にする。
+    private static func escapeLikePattern(_ input: String) -> String {
+        input
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+    }
+
+    /// 表示名/ユーザー名のサニタイズ: 前後空白トリム → 制御文字(改行/タブ含む)を除去 →
+    /// 指定文字数でクランプする。バックエンドへ送る前の最終ガード (cheer message と同方針)。
+    private static func sanitize(_ input: String, maxLength: Int) -> String {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutControls = String(trimmed.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })
+        return String(withoutControls.prefix(maxLength))
     }
 
     func sendCheer(_ kind: CheerKind, to friendCode: String, message: String? = nil) async throws {
@@ -667,21 +691,27 @@ final class SupabaseFriendsService: FriendsService {
             .select().eq("friend_code", value: target).limit(1).execute().value
         guard let referrer = rows.first else { throw FriendsServiceError.codeNotFound }
         if referrer.user_id.lowercased() == uid.uuidString.lowercased() { throw FriendsServiceError.cannotAddSelf }
-        // 1人1紹介者: 既に referee 行があれば不可。
+        // 1人1紹介者: 既に referee 行があるかを確認。
         let existing: [ReferralRow] = try await client.from("referrals")
             .select().eq("referee_user_id", value: uid.uuidString).limit(1).execute().value
-        if !existing.isEmpty { throw FriendsServiceError.duplicateRequest }
-        // 自動友達化を **先に** 行う(承認フロースキップ・upsert は冪等)。
-        // referral insert を先にすると、直後の friendship upsert が一過性に失敗したとき、
-        // 再試行が上の duplicate-referee guard(referrals に行あり)で弾かれ friendship が永久に
-        // 作られない=「報酬はあるが友達でない」状態が残る(GPT-5.5/Claude 監査)。順序を逆にすれば
-        // referral insert 失敗時の再試行でも friendship は冪等に再作成され、最悪でも
-        // 「友達だが紹介報酬なし」(安全側)に収束する。
-        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
-        // pending 紹介を作成(referee = 自分。RLS で referee 本人のみ insert 可)。
+        if let row = existing.first {
+            // 既に紹介者が記録済み。同じ紹介者なら friendship 補完のみ行って冪等に収束させ
+            // (一過性失敗のリトライ安全)、別の紹介者なら「1人1紹介者」で不可。
+            if row.referrer_user_id.lowercased() == referrer.user_id.lowercased() {
+                try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
+                return
+            }
+            throw FriendsServiceError.duplicateRequest
+        }
+        // ★順序: referral を **先に** 作る(referee = 自分。RLS で referee 本人のみ insert 可)。
+        // friendships_insert_guard (V1) が「自分が referee の referral 行」の存在を要求するため、
+        // friendship より先に referral を確定させる必要がある。friendship upsert が一過性に
+        // 失敗しても、再試行は上の「同じ紹介者なら friendship 補完のみ」分岐で冪等に収束する
+        // (最悪でも「友達だが紹介報酬未確定」= 安全側)。
         try await client.from("referrals")
             .insert(ReferralInsert(referrer_user_id: referrer.user_id, referee_user_id: uid.uuidString))
             .execute()
+        try await upsertFriendship(client: client, a: uid.uuidString, b: referrer.user_id)
     }
 
     func confirmReferralIfEligible(hasFirstRecord: Bool) async throws -> ReferralConfirmation? {

@@ -145,6 +145,14 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
 
+    // セキュリティ強化(2026-06-22): 保存時暗号化。
+    // - SQLCipher: Room DB(goexercise.db)を暗号化(SupportFactory)。
+    // - androidx.sqlite-ktx: SupportSQLiteOpenHelper の API(SupportFactory が依存)。
+    // - androidx.security-crypto: Keystore 連動の MasterKey / EncryptedSharedPreferences。
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite.ktx)
+    implementation(libs.androidx.security.crypto)
+
     // Supabase(friends バックエンド, iOS と同一プロジェクト共有)。
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.auth)

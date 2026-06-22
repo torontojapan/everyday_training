@@ -24,6 +24,10 @@ telemetrydeck = "6.3.0"
 junit = "4.13.2"
 androidxTestRunner = "1.6.2"
 androidxTestExtJunit = "1.2.1"
+# セキュリティ強化(2026-06-22): SQLCipher で Room DB を暗号化 + EncryptedSharedPreferences で鍵/トークンを保護。
+sqlcipher = "4.6.1"
+sqliteKtx = "2.4.0"
+securityCrypto = "1.1.0-alpha06"
 
 [libraries]
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
@@ -54,6 +58,12 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
+# Room DB の保存時暗号化(SQLCipher AAR + androidx SQLite サポート)。SupportFactory(passphrase) で適用。
+sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
+androidx-sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sqliteKtx" }
+# Keystore 連動の暗号化ストレージ(MasterKey + EncryptedSharedPreferences)。androidx.security は
+# メンテナンスモードだが現役・標準で利用可。DB パスフレーズ / 生理データ鍵 / Supabase セッションを保護。
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }

@@ -308,3 +308,166 @@ create policy user_records_update on public.user_records
 drop policy if exists user_records_delete on public.user_records;
 create policy user_records_delete on public.user_records
   for delete to authenticated using (auth.uid() = user_id);
+
+-- ============================================================================
+-- セキュリティ堅牢化 2026-06-22 (脆弱性評価の所見 V1/V3/V2 対応)
+-- docs/SECURITY_HARDENING_2026-06-22.md 参照。**この区画は後方互換**:
+--  - V1/V3 のトリガは不正な write のみ拒否し、正規の accept/referral/cheer は通る。
+--  - V2 の RPC は discovery 用の追加 API（既存の eq()/ilike() クエリは温存）。
+--    profiles SELECT の封鎖は配信済みクライアント互換のため**コメントで同梱**し、
+--    全クライアントが新版に上がってからカットオーバーする。
+-- ============================================================================
+
+-- ---- [V1] friendships の一方的作成を遮断 (同意バイパス/嫌がらせ対策) ----
+-- 所見: friendships の insert ポリシーは「当事者の片方であること」しか要求せず、
+--   被害者の承認なしに friendship 行を直接挿入 → cheers(メッセージ) を送りつけられた。
+-- 対策: BEFORE INSERT で「自分宛の friend_request」か「自分が referee の referral」が
+--   存在する時のみ INSERT を許可する。
+--   - accept 経路: client は friendship を upsert した直後に request を delete するため、
+--     insert 時点では request(from=相手, to=自分) が必ず存在する → 許可。
+--   - referral 経路: client を **referral 先・friendship 後** に並べ替え済み
+--     (iOS/Android とも)。insert 時点で referral(referee=自分, referrer=相手) が存在 → 許可。
+--   既存の friend を remove→再追加する場合も新たな request/referral が必要 (正しい挙動)。
+-- SECURITY DEFINER: RLS をバイパスして request/referral の存在を確実に判定する。
+--   auth.uid() は JWT クレーム由来でロールに依存しないため DEFINER 下でも呼び出し本人を指す。
+create or replace function public.friendships_insert_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  other uuid;
+begin
+  if auth.uid() = new.user_a then
+    other := new.user_b;
+  elsif auth.uid() = new.user_b then
+    other := new.user_a;
+  else
+    raise exception 'friendships: inserter must be a party';
+  end if;
+
+  if exists (
+    select 1 from public.friend_requests fr
+     where fr.to_user = auth.uid() and fr.from_user = other
+  ) then
+    return new;
+  end if;
+  if exists (
+    select 1 from public.referrals r
+     where r.referee_user_id = auth.uid() and r.referrer_user_id = other
+  ) then
+    return new;
+  end if;
+  raise exception 'friendships: requires an incoming friend_request or referral (no unilateral friend)';
+end$$;
+drop trigger if exists friendships_insert_guard_trg on public.friendships;
+create trigger friendships_insert_guard_trg before insert on public.friendships
+  for each row execute function public.friendships_insert_guard();
+
+-- ---- [V3] cheers / friend_requests のレート制限 (スパム/嫌がらせ・濫用対策) ----
+-- 自分が送信する cheers / friend_requests を直近1時間で上限件数に制限する。
+-- 正規利用には十分な余裕 (cheers 60/h, requests 30/h) を取りつつ、自動化スパムを遮断。
+-- SECURITY DEFINER で自分の全行を数える (RLS 上は自分の行は見えるが DEFINER で確実に)。
+create or replace function public.cheers_rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare cnt int;
+begin
+  -- created_at をサーバ時刻で上書き (クライアントが過去日時を詐称して時間窓カウントを
+  -- すり抜ける回避を防ぐ)。
+  new.created_at := now();
+  select count(*) into cnt from public.cheers
+   where from_user = auth.uid() and created_at > now() - interval '1 hour';
+  if cnt >= 60 then
+    raise exception 'cheers: hourly rate limit exceeded';
+  end if;
+  return new;
+end$$;
+drop trigger if exists cheers_rate_limit_trg on public.cheers;
+create trigger cheers_rate_limit_trg before insert on public.cheers
+  for each row execute function public.cheers_rate_limit();
+
+create or replace function public.friend_requests_rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare cnt int;
+begin
+  new.created_at := now();  -- 過去日時詐称による時間窓すり抜けを防ぐ。
+  select count(*) into cnt from public.friend_requests
+   where from_user = auth.uid() and created_at > now() - interval '1 hour';
+  if cnt >= 30 then
+    raise exception 'friend_requests: hourly rate limit exceeded';
+  end if;
+  return new;
+end$$;
+drop trigger if exists friend_requests_rate_limit_trg on public.friend_requests;
+create trigger friend_requests_rate_limit_trg before insert on public.friend_requests
+  for each row execute function public.friend_requests_rate_limit();
+
+-- ---- [入力 DB CHECK] display_name / username の長さ上限 (防御多層) ----
+-- クライアントでも clamp 済 (iOS/Android)。DB 側でも最終ガード。
+-- NOT VALID: 既存行は検査せず、新規/更新の write にのみ適用 (後方互換・既存値は短い)。
+alter table public.profiles drop constraint if exists profiles_display_name_len;
+alter table public.profiles add constraint profiles_display_name_len
+  check (char_length(display_name) <= 40) not valid;
+alter table public.profiles drop constraint if exists profiles_username_len;
+alter table public.profiles add constraint profiles_username_len
+  check (char_length(username) <= 24) not valid;
+
+-- ---- [V2] profiles の discovery 用 RPC (一括スクレイピング縮小の段階移行) ----
+-- 所見: profiles_select using(true) で全認証ユーザーが全プロフィール(表示名・当日の運動種目
+--   詳細・連続日数等)を一括取得できた。
+-- 段階移行: discovery (friend_code 完全一致 / username 部分一致) を **非機微列のみ返す**
+--   SECURITY DEFINER RPC に寄せる。新クライアントはこれを使い、本番の profiles_select を
+--   下記コメントの「自分 or 友達 or 当事者」版に封鎖すれば、第三者は活動詳細を読めなくなる。
+--   ※ today_exercise_names/details・weekly/monthly minutes・weekly_statuses 等は返さない。
+-- ★SECURITY DEFINER 関数は CREATE 時に EXECUTE が PUBLIC へ既定付与される。anon は schema usage を
+--   持つため、revoke しないと未認証(anon)呼び出しで RLS を迂回して profiles を引ける(GPT-5.5 監査 High)。
+--   PUBLIC/anon から剥奪し authenticated のみへ付与。関数内でも auth.uid() 必須を多層防御で課す。
+create or replace function public.find_profile_by_code(p_code text)
+returns table(
+  user_id uuid, friend_code text, username text, display_name text,
+  current_streak int, total_achieved_days int, decoration_tier int, my_cat_breed text
+) language sql security definer set search_path = public stable as $$
+  select p.user_id, p.friend_code, p.username, p.display_name,
+         p.current_streak, p.total_achieved_days, p.decoration_tier, p.my_cat_breed
+  from public.profiles p
+  where p.friend_code = p_code and auth.uid() is not null
+  limit 1;
+$$;
+revoke all on function public.find_profile_by_code(text) from public, anon;
+grant execute on function public.find_profile_by_code(text) to authenticated;
+
+create or replace function public.search_profiles_by_username(p_query text)
+returns table(
+  user_id uuid, friend_code text, username text, display_name text,
+  current_streak int, total_achieved_days int, decoration_tier int, my_cat_breed text
+) language sql security definer set search_path = public stable as $$
+  -- LIKE メタ文字 (\ % _) をエスケープしてから部分一致 (ワイルドカード注入防止)。
+  select p.user_id, p.friend_code, p.username, p.display_name,
+         p.current_streak, p.total_achieved_days, p.decoration_tier, p.my_cat_breed
+  from public.profiles p
+  where auth.uid() is not null
+    and p.username ilike '%' ||
+        replace(replace(replace(p_query, '\', '\\'), '%', '\%'), '_', '\_') || '%'
+  limit 25;
+$$;
+revoke all on function public.search_profiles_by_username(text) from public, anon;
+grant execute on function public.search_profiles_by_username(text) to authenticated;
+
+-- ▼▼▼ カットオーバー用 (全クライアントが RPC 対応版へ更新された後に適用) ▼▼▼
+-- これを適用すると、第三者は profiles の全列直読みができなくなり (discovery は上記 RPC 経由)、
+-- 当日の運動種目詳細などの活動データが友達以外から見えなくなる。
+-- 配信済み(旧)クライアントは eq()/ilike() 直読みに依存するため、min-version ゲート後に有効化する。
+--
+-- drop policy if exists profiles_select on public.profiles;
+-- create policy profiles_select on public.profiles
+--   for select to authenticated using (
+--     auth.uid() = user_id
+--     or exists (select 1 from public.friendships f
+--                where f.status = 'active'
+--                  and ((f.user_a = auth.uid() and f.user_b = profiles.user_id)
+--                    or (f.user_b = auth.uid() and f.user_a = profiles.user_id)))
+--     or exists (select 1 from public.friend_requests fr
+--                where (fr.to_user = auth.uid() and fr.from_user = profiles.user_id)
+--                   or (fr.from_user = auth.uid() and fr.to_user = profiles.user_id))
+--     or exists (select 1 from public.referrals r
+--                where (r.referee_user_id = auth.uid() and r.referrer_user_id = profiles.user_id)
+--                   or (r.referrer_user_id = auth.uid() and r.referee_user_id = profiles.user_id))
+--   );
+-- ▲▲▲ カットオーバー用ここまで ▲▲▲

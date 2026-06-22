@@ -1,14 +1,19 @@
 package com.goexercise.app.data.settings
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.goexercise.app.data.backup.RecordBackupStore
+import com.goexercise.app.data.security.FieldCipher
+import com.goexercise.app.data.security.StringCipher
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -62,6 +67,7 @@ class MenstrualRepositoryImpl @Inject constructor(
     private val backupStore: RecordBackupStore,
     private val json: Json,
     private val clock: java.time.Clock,
+    @MenstrualCipher private val cipher: StringCipher,
 ) : MenstrualRepository {
 
     private val legacyKey = stringSetPreferencesKey("menstrual_period_epoch_days")
@@ -122,8 +128,11 @@ class MenstrualRepositoryImpl @Inject constructor(
 
     /** v2 エントリ + 未統合の旧 Set(決定的 UUID 付与)のマージビュー。 */
     private fun mergedEntries(prefs: Preferences): List<MenstrualEntryRecord> {
-        val v2 = prefs[entriesKey]?.let { raw ->
-            runCatching { json.decodeFromString(serializer, raw) }.getOrDefault(emptyList())
+        val v2 = prefs[entriesKey]?.let { stored ->
+            // 暗号化済み(2026-06-22 以降)を優先で復号。失敗したら旧平文 JSON とみなして直接 parse
+            // (初回起動の後方互換)。次の write で暗号化形式へ統合される。
+            val jsonStr = cipher.decryptOrNull(stored) ?: stored
+            runCatching { json.decodeFromString(serializer, jsonStr) }.getOrDefault(emptyList())
         } ?: emptyList()
         val v2Days = v2.map { it.epochDay }.toSet()
         val legacy = (prefs[legacyKey] ?: emptySet())
@@ -133,9 +142,9 @@ class MenstrualRepositoryImpl @Inject constructor(
         return v2 + legacy
     }
 
-    /** v2 へ書き戻し、旧キーは破棄(以後は v2 が単一の正)。 */
+    /** v2 へ書き戻し、旧キーは破棄(以後は v2 が単一の正)。値は保存時暗号化する。 */
     private fun write(prefs: androidx.datastore.preferences.core.MutablePreferences, entries: List<MenstrualEntryRecord>) {
-        prefs[entriesKey] = json.encodeToString(serializer, entries)
+        prefs[entriesKey] = cipher.encrypt(json.encodeToString(serializer, entries))
         prefs.remove(legacyKey)
     }
 
@@ -150,10 +159,27 @@ class MenstrualRepositoryImpl @Inject constructor(
     }
 }
 
+/** 生理(reproductive health)データ専用の FieldCipher を区別する Hilt 修飾子。 */
+@javax.inject.Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MenstrualCipher
+
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class MenstrualModule {
     @Binds
     @Singleton
     abstract fun bindMenstrualRepository(impl: MenstrualRepositoryImpl): MenstrualRepository
+
+    companion object {
+        /**
+         * 生理データ用の AES-256 鍵を Keystore 連動ストアに保持し、それで FieldCipher を生成。
+         * DB パスフレーズとは別ファイル/別鍵名で分離(用途ごと独立)。
+         */
+        @Provides
+        @Singleton
+        @MenstrualCipher
+        fun provideMenstrualCipher(@ApplicationContext context: Context): StringCipher =
+            FieldCipher.create(context, prefsFile = "secure_health_keys", keyName = "menstrual_aes_key")
+    }
 }
