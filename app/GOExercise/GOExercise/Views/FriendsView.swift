@@ -667,7 +667,7 @@ struct FriendsView: View {
             Text("友達に表示される名前です。あとからいつでも変更できます。")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
-            TextField("例: ジュン", text: $namePromptText)
+            TextField("例: ココ", text: $namePromptText)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("friends-name-prompt-field")
             HStack {

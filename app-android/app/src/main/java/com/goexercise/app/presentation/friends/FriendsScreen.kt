@@ -899,7 +899,7 @@ private fun NamePromptCard(palette: AppTheme, onSubmit: (String) -> Unit, onDism
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                placeholder = { Text("例: ジュン", style = AppType.body.copy(fontWeight = FontWeight.Normal)) },
+                placeholder = { Text("例: ココ", style = AppType.body.copy(fontWeight = FontWeight.Normal)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
