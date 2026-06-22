@@ -59,6 +59,8 @@ struct CatRankGuideView: View {
     let currentStreak: Int
 
     private var currentRank: Int { CatRank(currentStreak: currentStreak).rank }
+    /// 称号の種別(犬なら「○○犬」)。設定で選んでいるキャラに追従。
+    private var species: PetSpecies { UserCatPreferences.shared.myPet.species }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -73,7 +75,7 @@ struct CatRankGuideView: View {
 
                 HStack(spacing: 10) {
                     metalDot(entry.metalKind ?? .bronze)
-                    Text(entry.title ?? "")
+                    Text(entry.title(species: species) ?? "")
                         .font(.system(.subheadline, design: .rounded, weight: isCurrent ? .heavy : .semibold))
                         .foregroundStyle(achieved || isCurrent ? Palette.textPrimary : Palette.textSecondary)
                     if isCurrent {
@@ -100,7 +102,8 @@ struct CatRankGuideView: View {
     /// 次の目標(あとN日)を示すヒント。最高位なら賞賛。
     @ViewBuilder private var targetHint: some View {
         if currentRank >= CatRank.thresholds.count {
-            Label("最高位「ぬしネコ」を達成！", systemImage: "crown.fill")
+            let topTitle = CatRank(currentStreak: CatRank.thresholds.last ?? 500).title(species: species) ?? ""
+            Label("最高位「\(topTitle)」を達成！", systemImage: "crown.fill")
                 .font(.system(.caption, design: .rounded, weight: .bold))
                 .foregroundStyle(Palette.primaryDeep)
         } else {
