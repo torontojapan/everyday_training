@@ -21,7 +21,7 @@ struct ReferralStarsRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 content
                 if case let .progress(filled, total) = ReferralStarsDisplay.style(count: count), filled < total {
-                    Text("あと\(total - filled)人で猫が解放")
+                    Text("あと\(total - filled)人でキャラ解放")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(Palette.textSecondary)
                 }

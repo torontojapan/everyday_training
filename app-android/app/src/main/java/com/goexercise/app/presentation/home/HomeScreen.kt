@@ -168,7 +168,7 @@ fun HomeRoute(
                     TextButton(onClick = { viewModel.consumeBreedUnlock() }) { Text("やったね!") }
                 },
                 title = { Text("星10達成！") },
-                text = { Text("友達を10人紹介しました!設定や猫選びの画面から、好きな猫が無料で選べるようになりました。") },
+                text = { Text("友達を10人紹介しました!設定やキャラ選びの画面から、好きなキャラが無料で選べるようになりました。") },
             )
         }
     }
@@ -515,7 +515,7 @@ private fun ReferralStarsRow(row: ReferralRowUi) {
         }
         if (count in 1 until total) {
             Text(
-                "あと${total - count}人で猫が解放",
+                "あと${total - count}人でキャラ解放",
                 style = AppType.caption.copy(fontWeight = FontWeight.Medium),
                 color = palette.textSecondary,
             )

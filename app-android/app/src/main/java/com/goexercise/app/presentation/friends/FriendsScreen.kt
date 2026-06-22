@@ -1342,7 +1342,7 @@ private fun FriendsEmptyState(palette: AppTheme, myBreed: com.goexercise.app.dom
         com.goexercise.app.ui.components.PetImage(pet = myBreed, state = com.goexercise.app.domain.CatState.WaitingMorning, modifier = Modifier.size(124.dp).alpha(0.95f))
         Text("まだ友達がいません", color = palette.textPrimary, style = AppType.body.copy(fontWeight = FontWeight.SemiBold))
         Text(
-            "右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。",
+            "右上の + から、友達コードでつながろう。\n相棒があなたの友達を待っています。",
             style = AppType.caption,
             color = palette.textSecondary,
             textAlign = TextAlign.Center,

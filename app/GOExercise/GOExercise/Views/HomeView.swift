@@ -266,7 +266,7 @@ struct HomeView: View {
             )) {
                 Button("やったね!", role: .cancel) { referralStore.consumeBreedUnlock() }
             } message: {
-                Text("友達を10人紹介しました!設定や猫選びの画面から、好きな猫が無料で選べるようになりました。")
+                Text("友達を10人紹介しました!設定やキャラ選びの画面から、好きなキャラが無料で選べるようになりました。")
             }
         }
     }
@@ -392,7 +392,7 @@ struct HomeView: View {
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .shadow(color: .black.opacity(0.06), radius: 5, y: 2)
         }
-        .accessibilityLabel("猫からのメッセージ: \(viewModel.catMessage.text)")
+        .accessibilityLabel("相棒からのメッセージ: \(viewModel.catMessage.text)")
     }
 
     // MARK: - Weekly mini
@@ -754,7 +754,7 @@ struct BigCatView: View {
         .offset(y: reduceMotion ? 0 : (floating ? -8 : 4))
         .rotationEffect(reduceMotion ? .zero : .degrees(swaying ? 2 : -2))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("今日の猫: \(state.displayName)")
+        .accessibilityLabel("今日の相棒: \(state.displayName)")
         .accessibilityHint("二本指でダブルタップすると反応します")
         .onAppear {
             guard !reduceMotion else { return }

@@ -23,7 +23,7 @@ enum NotificationPersonality: String, CaseIterable, Sendable, Codable {
     var hint: String {
         switch self {
         case .quiet:        return "通知は最小限。週末の最後の砦だけ。"
-        case .voice:        return "朝と夕方、猫からひとこと呼ぶ (デフォルト)"
+        case .voice:        return "朝と夕方、相棒からひとこと呼ぶ (デフォルト)"
         case .friendDriven: return "友達が達成したときだけ反応する"
         }
     }

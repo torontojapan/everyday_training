@@ -882,7 +882,7 @@ struct FriendsView: View {
             Text("まだ友達がいません")
                 .font(Typography.headline)
                 .foregroundStyle(Palette.textPrimary)
-            Text("右上の + から、友達コードでつながろう。\n猫があなたの友達を待っています。")
+            Text("右上の + から、友達コードでつながろう。\n相棒があなたの友達を待っています。")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)

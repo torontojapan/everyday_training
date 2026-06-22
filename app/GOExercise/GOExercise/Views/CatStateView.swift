@@ -18,7 +18,7 @@ struct CatStateView: View {
         .offset(y: Motion.offset(verticalOffset, reduceMotion: reduceMotion))
         .scaleEffect(Motion.scale(scale, reduceMotion: reduceMotion))
         .rotationEffect(.degrees(Motion.rotation(rotation, reduceMotion: reduceMotion)))
-        .accessibilityLabel("猫キャラクター \(state.displayName)")
+        .accessibilityLabel("相棒キャラクター \(state.displayName)")
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(animation.repeatForever(autoreverses: true)) {

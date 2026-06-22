@@ -934,9 +934,9 @@ private fun PerkGuideSection(palette: AppTheme) {
     data class Perk(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val detail: String)
     val perks = listOf(
         Perk(Icons.Filled.AcUnit, "保険チケット", "無料は月1 / プレミアムは月4。友達紹介で +1(上限5)。招待された人はウェルカム +1。"),
-        Perk(Icons.Filled.Star, "友達紹介", "1人紹介ごとに⭐と保険チケット。⭐10個で好きな猫が無料で選べるようになります。"),
-        Perk(Icons.Filled.MilitaryTech, "称号 & 背景の進化", "連続記録を続けると猫の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
-        Perk(Icons.Filled.Pets, "猫種", "無料はオレンジ。プレミアム、または⭐10で全11種から選べます。"),
+        Perk(Icons.Filled.Star, "友達紹介", "1人紹介ごとに⭐と保険チケット。⭐10個で好きなキャラが無料で選べるようになります。"),
+        Perk(Icons.Filled.MilitaryTech, "称号 & 背景の進化", "連続記録を続けると相棒の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
+        Perk(Icons.Filled.Pets, "キャラの種類", "無料は最初に選んだ相棒のまま。プレミアム、または⭐10で猫11種・犬9種から自由に選べます。"),
         Perk(Icons.Filled.Pets, "連続記録の節目", "連続記録のマイルストーンでお祝い演出が出ます。"), // iOS pawprint.fill
     )
     SettingsCard {
@@ -991,7 +991,7 @@ private fun WidgetGuideContent(palette: AppTheme) {
             }
         }
         Text("ウィジェットに表示される内容", style = AppType.headline, color = palette.textPrimary, modifier = Modifier.padding(top = 4.dp))
-        listOf("今日の残り時間(深夜0時まで)", "週間達成率と進捗リング", "猫キャラのひとことメッセージ", "タップでアプリを即起動").forEach { b ->
+        listOf("今日の残り時間(深夜0時まで)", "週間達成率と進捗リング", "相棒キャラのひとことメッセージ", "タップでアプリを即起動").forEach { b ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = palette.primary, modifier = Modifier.size(14.dp))
                 Text(b, style = AppType.caption, color = palette.textSecondary)

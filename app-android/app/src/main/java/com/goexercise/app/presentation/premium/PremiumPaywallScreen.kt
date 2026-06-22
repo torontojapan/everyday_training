@@ -161,7 +161,7 @@ fun PremiumPaywallContent(
                 benefit(Icons.Filled.AcUnit, "保険チケット 月4回(無料は月1回)", palette)
                 benefit(Icons.Filled.AutoAwesome, "減量ご褒美マイルストーン(-3 / -5 / -10 kg)", palette)
                 // iOS にある「全11種の猫」特典(Android で欠落していた)。
-                benefit(Icons.Filled.Pets, "全11種の猫から好きな子を選べる", palette)
+                benefit(Icons.Filled.Pets, "猫11種・犬9種から好きな子を選べる", palette)
             }
         }
 

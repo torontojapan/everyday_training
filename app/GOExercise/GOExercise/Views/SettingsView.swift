@@ -342,7 +342,7 @@ private struct CustomizationSettingsPage: View {
                     isShowingUserCatPicker = true
                 } label: {
                     HStack {
-                        Label("自分のキャラを変更", systemImage: "cat.fill")
+                        Label("自分のキャラを変更", systemImage: "pawprint.fill")
                             .foregroundStyle(Palette.textPrimary)
                         Spacer()
                         Text(UserCatPreferences.shared.myPet.displayName)
@@ -704,7 +704,7 @@ struct WidgetSetupGuideSheet: View {
 
                     bullet("今日の残り時間（深夜0時まで）")
                     bullet("週間達成率と進捗リング")
-                    bullet("猫キャラのひとことメッセージ")
+                    bullet("相棒キャラのひとことメッセージ")
                     bullet("タップでアプリを即起動")
 
                     Spacer().frame(height: 40)
