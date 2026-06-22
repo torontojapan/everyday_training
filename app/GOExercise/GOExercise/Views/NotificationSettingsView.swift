@@ -52,8 +52,8 @@ struct NotificationSettingsView: View {
                 Text("通知の性格")
             } footer: {
                 Text(AppFeatureFlags.friendsEnabled
-                     ? "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。"
-                     : "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。")
+                     ? "相棒の声かけのトーンを選べます。「静かに待つ」は通知を最小限に、「友達が動いた時だけ」は友達 push 中心 (push 基盤完成後に有効)、ほかは朝夕に届きます。"
+                     : "相棒の声かけのトーンを選べます。「静かに待つ」は通知を最小限に、ほかは朝夕にひとこと届きます。")
                     .font(Typography.caption)
             }
 

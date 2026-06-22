@@ -38,7 +38,7 @@ struct UserCatPickerView: View {
     private var breedsForSpecies: [PetBreed] {
         switch species {
         case .cat: return CatBreed.allCases.map { PetBreed.cat($0) }
-        case .dog: return DogBreed.allCases.map { PetBreed.dog($0) }
+        case .dog: return DogBreed.selectable.map { PetBreed.dog($0) }   // アーカイブ(ブルドッグ)除外
         }
     }
 

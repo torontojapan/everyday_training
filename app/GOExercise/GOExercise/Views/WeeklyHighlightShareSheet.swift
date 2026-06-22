@@ -229,6 +229,8 @@ struct WeeklyHighlightShareCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
+        // 保存/共有の書き出し(fillFrame)時は内容(キャラ・文字)を 1.5 倍に拡大(中央寄せのまま)。
+        .scaleEffect(fillFrame ? 1.5 : 1)
         .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
         .background {
             let gradient = LinearGradient(

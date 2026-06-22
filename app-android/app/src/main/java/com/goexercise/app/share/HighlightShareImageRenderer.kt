@@ -67,6 +67,11 @@ object HighlightShareImageRenderer {
             },
         )
 
+        // 保存/共有の書き出し(全画面比 H)時は内容(キャラ・文字)を 1.5 倍に拡大(中央基準。プレビューは等倍)。
+        val contentScale = if (h == H) 1.5f else 1f
+        canvas.save()
+        canvas.scale(contentScale, contentScale, cx, h / 2f)
+
         // 内容を縦中央寄せ(stat 行数で高さが変わるので概算で上端を決める)。
         val statRows = buildStatRows(review, streakLabel)
         val contentHeight = 1270f + statRows.size * 64f
@@ -111,6 +116,7 @@ object HighlightShareImageRenderer {
         // アプリ名(iOS MonthlyReviewCard は "GO エクササイズ" 1 行のみ。英字 "GO Exercise" 副題は iOS に無い)。
         canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 0f)
 
+        canvas.restore()   // 内容スケール解除
         return bmp
     }
 

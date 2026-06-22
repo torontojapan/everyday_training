@@ -25,7 +25,11 @@ enum class DogBreed(val rawValue: String, val displayName: String, val tintArgb:
     Dachshund("dachshund", "ダックス", 0xFFB36B47),
     Corgi("corgi", "コーギー", 0xFFE69E61),
     Schnauzer("schnauzer", "シュナウザー", 0xFF8C8C94),
-    Pomeranian("pomeranian", "ポメラニアン", 0xFFF2B366);
+    Pomeranian("pomeranian", "ポメラニアン", 0xFFF2B366),
+    BorderCollie("bordercollie", "ボーダーコリー", 0xFF61616B),
+    Husky("husky", "ハスキー", 0xFF99A8BD),
+    Dalmatian("dalmatian", "ダルメシアン", 0xFFE0E0E6),
+    Pug("pug", "パグ", 0xFFD1B88C);
 
     fun assetName(state: CatState): String = "dog_${rawValue}_${state.rawValue.lowercase()}"
     val avatarAssetName: String get() = "dog_${rawValue}_waitingmorning"
@@ -34,6 +38,11 @@ enum class DogBreed(val rawValue: String, val displayName: String, val tintArgb:
     companion object {
         val Default = Shiba
         fun fromRaw(raw: String?): DogBreed = entries.firstOrNull { it.rawValue == raw } ?: Default
+
+        /** ピッカー非表示の「アーカイブ済み」犬種。case とアセットは残し既存選択/友達表示は解決可。 */
+        val archived: Set<DogBreed> = setOf(Bulldog)
+        /** ピッカーで選択可能な犬種(アーカイブを除く、定義順)。 */
+        val selectable: List<DogBreed> get() = entries.filter { it !in archived }
 
         /** 生成漏れ時のフォールバック(柴犬の同 state)。iOS DogBreed.fallbackAssetName 相当。 */
         fun fallbackAssetName(state: CatState): String = "dog_shiba_${state.rawValue.lowercase()}"

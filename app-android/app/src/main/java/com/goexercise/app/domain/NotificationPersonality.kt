@@ -9,7 +9,11 @@ package com.goexercise.app.domain
 enum class NotificationPersonality(val rawValue: String, val displayName: String, val hint: String) {
     // hint は iOS NotificationPersonality.hint に一致させる(2026-06-19 パリティ)。
     Quiet("quiet", "静かに待つ", "通知は最小限。週末の最後の砦だけ。"),
-    Voice("voice", "ひとこと呼ぶ", "朝と夕方、相棒からひとこと呼ぶ (デフォルト)"),
+    Voice("voice", "ひとこと呼ぶ", "朝と夕方、相棒からやさしくひとこと (デフォルト)"),
+    Cheer("cheer", "元気いっぱい", "明るくテンション高めに応援してくれる"),
+    Spartan("spartan", "スパルタ", "厳しめ・熱血に背中を押してくれる"),
+    Cool("cool", "クール", "淡々と、大人っぽく声をかけてくれる"),
+    Tsundere("tsundere", "ツンデレ", "照れ隠し気味に、気にかけてくれる"),
     FriendDriven("friendDriven", "友達が動いた時だけ", "友達が達成したときだけ反応する");
 
     companion object {

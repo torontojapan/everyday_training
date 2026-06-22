@@ -228,6 +228,9 @@ struct StreakShareCard: View {
                 .padding(.top, 10)
         }
         .padding(28)
+        // 保存/共有の書き出し(fillFrame)時は、背景に対して内容(キャラ・文字)が小さく
+        // 見えるため 1.5 倍に拡大して主役を大きく見せる(ユーザー要望 2026-06)。中央寄せのまま拡大。
+        .scaleEffect(fillFrame ? 1.5 : 1)
         .frame(maxWidth: .infinity, maxHeight: fillFrame ? .infinity : nil)
         .background {
             let gradient = LinearGradient(

@@ -737,7 +737,7 @@ private fun PetBreedPicker(
     var species by remember(selected) { mutableStateOf(selected.species) }
     val breeds: List<PetBreed> = when (species) {
         PetSpecies.Cat -> CatBreed.entries.map { PetBreed.Cat(it) }
-        PetSpecies.Dog -> DogBreed.entries.map { PetBreed.Dog(it) }
+        PetSpecies.Dog -> DogBreed.selectable.map { PetBreed.Dog(it) }
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // 選択中キャラの大プレビュー(オンボと同一)。
@@ -1277,9 +1277,12 @@ private fun ReminderSection(
             }
         }
         Text(reminder.personality.hint, style = AppType.caption, color = palette.textSecondary, modifier = Modifier.padding(start = 4.dp))
-        // iOS footer: 3 性格の解説。
+        // iOS footer: 声かけトーンの汎用解説(7種を列挙せず、頻度の違いだけ補足)。
         Text(
-            "静かに待つ: 通知最小限。ひとこと呼ぶ: 朝夕の標準。友達が動いた時だけ: 友達 push 中心 (push 基盤完成後に有効)。",
+            if (com.goexercise.app.AppFeatureFlags.FRIENDS_ENABLED)
+                "相棒の声かけのトーンを選べます。「静かに待つ」は通知を最小限に、「友達が動いた時だけ」は友達 push 中心 (push 基盤完成後に有効)、ほかは朝夕に届きます。"
+            else
+                "相棒の声かけのトーンを選べます。「静かに待つ」は通知を最小限に、ほかは朝夕にひとこと届きます。",
             style = AppType.caption, color = palette.textSecondary, modifier = Modifier.padding(start = 4.dp),
         )
     }

@@ -72,6 +72,12 @@ object StreakShareImageRenderer {
             },
         )
 
+        // 保存/共有の書き出し(全画面比 H)時は、内容(キャラ・文字)が背景に対して小さく見えるため
+        // 1.5 倍に拡大して主役を大きく見せる(中央 cx,h/2 を基準に拡大。プレビュー COMPACT_H は等倍)。
+        val contentScale = if (h == H) 1.5f else 1f
+        canvas.save()
+        canvas.scale(contentScale, contentScale, cx, h / 2f)
+
         // 内容を縦中央寄せ(上下対称マージン)。iOS の縦長カードの構図に合わせる。
         var top = ((h - CONTENT_HEIGHT) / 2f).coerceAtLeast(96f)
 
@@ -113,6 +119,7 @@ object StreakShareImageRenderer {
         // アプリ名(iOS StreakShareCard は "GO エクササイズ" の 1 行のみ。英字 "GO Exercise" 副題は iOS に無いため出さない)。
         canvas.drawCentered("GO エクササイズ", cx, top, textPaint(34f, bold = true).apply { alpha = 235 }, gap = 0f)
 
+        canvas.restore()   // 内容スケール解除
         return bmp
     }
 

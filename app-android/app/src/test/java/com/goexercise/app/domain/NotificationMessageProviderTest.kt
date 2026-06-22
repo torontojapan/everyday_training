@@ -41,7 +41,22 @@ class NotificationMessageProviderTest {
         val msg = NotificationMessageProvider.message(
             NotificationSlot.Morning, NotificationPersonality.Voice, currentStreak = 0, weeklyProgressRate = 0.0, seedDate = day,
         )
-        assertTrue(msg.startsWith("🐱"))
+        assertTrue(msg.startsWith("🐾"))   // 種中立の肉球(犬種追加で🐱から変更)
+    }
+
+    @Test
+    fun newTones_produceDistinctVoices() {
+        // 同一入力でも声掛けトーンごとに文面が変わる(スパルタ/元気/クール/ツンデレ)。
+        val inputs = Triple(NotificationSlot.Morning, 0, 0.0)
+        val voice = NotificationMessageProvider.message(inputs.first, NotificationPersonality.Voice, inputs.second, inputs.third, day)
+        val spartan = NotificationMessageProvider.message(inputs.first, NotificationPersonality.Spartan, inputs.second, inputs.third, day)
+        val cheer = NotificationMessageProvider.message(inputs.first, NotificationPersonality.Cheer, inputs.second, inputs.third, day)
+        val cool = NotificationMessageProvider.message(inputs.first, NotificationPersonality.Cool, inputs.second, inputs.third, day)
+        val tsundere = NotificationMessageProvider.message(inputs.first, NotificationPersonality.Tsundere, inputs.second, inputs.third, day)
+        // 4トーンはいずれも標準(voice)と異なる文面で、互いにも重複しない。
+        val all = listOf(voice, spartan, cheer, cool, tsundere)
+        assertEquals(all.size, all.toSet().size)
+        all.forEach { assertTrue(it.startsWith("🐾")) }
     }
 
     @Test

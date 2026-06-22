@@ -80,6 +80,6 @@ class CatBreedTest {
                 assert(pattern.matches(name)) { "invalid resource name: $name" }
             }
         }
-        assertEquals(77, CatBreed.entries.size * CatState.entries.size)
+        assertEquals(84, CatBreed.entries.size * CatState.entries.size)
     }
 }

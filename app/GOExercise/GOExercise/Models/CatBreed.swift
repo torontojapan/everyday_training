@@ -16,6 +16,7 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
     case tuxedo
     case persian
     case scottish
+    case kijitora     // キジトラ(茶黒の縞)
 
     var id: String { rawValue }
 
@@ -33,6 +34,7 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .tuxedo:      return Color(red: 0.35, green: 0.35, blue: 0.38)
         case .persian:     return Color(red: 0.93, green: 0.88, blue: 0.78)
         case .scottish:    return Color(red: 0.70, green: 0.75, blue: 0.80)
+        case .kijitora:    return Color(red: 0.58, green: 0.50, blue: 0.40)
         }
     }
 
@@ -49,6 +51,7 @@ enum CatBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .tuxedo:      return "ハチワレ"
         case .persian:     return "ペルシャ"
         case .scottish:    return "スコティッシュ"
+        case .kijitora:    return "キジトラ"
         }
     }
 

@@ -28,8 +28,18 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
     case corgi        // ウェルシュ・コーギー
     case schnauzer    // ミニチュアシュナウザー
     case pomeranian   // ポメラニアン
+    case bordercollie // ボーダー・コリー
+    case husky        // シベリアン・ハスキー
+    case dalmatian    // ダルメシアン
+    case pug          // パグ
 
     var id: String { rawValue }
+
+    /// ピッカーに出さない「アーカイブ済み」犬種。case とアセットは残し、既存ユーザーの
+    /// 選択(永続値)や友達表示は引き続き解決できる。新規選択肢としては出さない(ブルドッグ→パグ置換)。
+    static let archived: Set<DogBreed> = [.bulldog]
+    /// ピッカーで選択可能な犬種(アーカイブを除く、定義順)。
+    static var selectable: [DogBreed] { allCases.filter { !archived.contains($0) } }
 
     /// 円形背景の tint。各犬種の主色味に寄せる。
     var tintColor: Color {
@@ -43,6 +53,10 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .corgi:     return Color(red: 0.90, green: 0.62, blue: 0.38)
         case .schnauzer: return Color(red: 0.55, green: 0.55, blue: 0.58)
         case .pomeranian:return Color(red: 0.95, green: 0.70, blue: 0.40)
+        case .bordercollie: return Color(red: 0.38, green: 0.38, blue: 0.42)
+        case .husky:        return Color(red: 0.60, green: 0.66, blue: 0.74)
+        case .dalmatian:    return Color(red: 0.88, green: 0.88, blue: 0.90)
+        case .pug:          return Color(red: 0.82, green: 0.72, blue: 0.55)
         }
     }
 
@@ -57,6 +71,10 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .corgi:     return "コーギー"
         case .schnauzer: return "シュナウザー"
         case .pomeranian:return "ポメラニアン"
+        case .bordercollie: return "ボーダーコリー"
+        case .husky:        return "ハスキー"
+        case .dalmatian:    return "ダルメシアン"
+        case .pug:          return "パグ"
         }
     }
 

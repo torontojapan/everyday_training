@@ -16,7 +16,8 @@ enum class CatBreed(val rawValue: String, val displayName: String, val tintArgb:
     Siamese("siamese", "シャム", 0xFFEBDBBF),
     Tuxedo("tuxedo", "ハチワレ", 0xFF595961),
     Persian("persian", "ペルシャ", 0xFFEDE0C7),
-    Scottish("scottish", "スコティッシュ", 0xFFB3BFCC);
+    Scottish("scottish", "スコティッシュ", 0xFFB3BFCC),
+    Kijitora("kijitora", "キジトラ", 0xFF947F66);
 
     /** breed × state の drawable 名。例: cat_orange_celebrating。iOS assetName(for:) 相当。 */
     fun assetName(state: CatState): String = "cat_${rawValue}_${state.rawValue.lowercase()}"

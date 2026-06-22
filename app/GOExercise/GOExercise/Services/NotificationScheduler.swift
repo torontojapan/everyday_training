@@ -103,7 +103,9 @@ final class NotificationScheduler {
             // 今日達成済みなら今日分だけスキップ。将来分は残す (= B-Major-2 の肝)。
             if isToday && todayAchieved { continue }
 
-            if personality == .voice {
+            if personality != .quiet {
+                // voice / cheer / spartan / cool / tsundere: 朝+夕の標準スケジュール。
+                // トーン(声掛けの性格)が違うだけで頻度は voice と同じ。
                 await scheduleOneShot(slot: .morning, time: settings.morning, day: day,
                                       isToday: isToday, now: now, personality: personality,
                                       currentStreak: currentStreak, weeklyProgressRate: weeklyProgressRate)

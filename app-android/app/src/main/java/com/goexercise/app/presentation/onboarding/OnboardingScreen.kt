@@ -72,7 +72,7 @@ fun OnboardingScreen(
     val currentSpecies = PetSpecies.fromRaw(species)
     val breeds: List<PetBreed> = when (currentSpecies) {
         PetSpecies.Cat -> CatBreed.entries.map { PetBreed.Cat(it) }
-        PetSpecies.Dog -> DogBreed.entries.map { PetBreed.Dog(it) }
+        PetSpecies.Dog -> DogBreed.selectable.map { PetBreed.Dog(it) }
     }
     // 2ステップ: 0=猫選択 / 1=サインイン(任意)。iOS の2ステップ ウィザード パリティ(#15)。
     var step by rememberSaveable { mutableStateOf(0) }
