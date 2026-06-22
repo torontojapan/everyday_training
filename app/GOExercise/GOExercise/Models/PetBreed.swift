@@ -24,6 +24,10 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
     case toypoodle    // トイプードル
     case golden       // ゴールデンレトリバー
     case bulldog      // ブルドッグ
+    case dachshund    // ミニチュアダックスフンド
+    case corgi        // ウェルシュ・コーギー
+    case schnauzer    // ミニチュアシュナウザー
+    case pomeranian   // ポメラニアン
 
     var id: String { rawValue }
 
@@ -35,6 +39,10 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .toypoodle: return Color(red: 0.92, green: 0.82, blue: 0.65)
         case .golden:    return Color(red: 0.95, green: 0.72, blue: 0.35)
         case .bulldog:   return Color(red: 0.88, green: 0.80, blue: 0.70)
+        case .dachshund: return Color(red: 0.70, green: 0.42, blue: 0.28)
+        case .corgi:     return Color(red: 0.90, green: 0.62, blue: 0.38)
+        case .schnauzer: return Color(red: 0.55, green: 0.55, blue: 0.58)
+        case .pomeranian:return Color(red: 0.95, green: 0.70, blue: 0.40)
         }
     }
 
@@ -45,6 +53,10 @@ enum DogBreed: String, CaseIterable, Identifiable, Codable, Sendable {
         case .toypoodle: return "トイプードル"
         case .golden:    return "ゴールデン"
         case .bulldog:   return "ブルドッグ"
+        case .dachshund: return "ダックス"
+        case .corgi:     return "コーギー"
+        case .schnauzer: return "シュナウザー"
+        case .pomeranian:return "ポメラニアン"
         }
     }
 

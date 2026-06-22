@@ -21,7 +21,11 @@ enum class DogBreed(val rawValue: String, val displayName: String, val tintArgb:
     Chihuahua("chihuahua", "チワワ", 0xFFD9AE73),
     ToyPoodle("toypoodle", "トイプードル", 0xFFEBD2A6),
     Golden("golden", "ゴールデン", 0xFFF2B85A),
-    Bulldog("bulldog", "ブルドッグ", 0xFFE0CCB3);
+    Bulldog("bulldog", "ブルドッグ", 0xFFE0CCB3),
+    Dachshund("dachshund", "ダックス", 0xFFB36B47),
+    Corgi("corgi", "コーギー", 0xFFE69E61),
+    Schnauzer("schnauzer", "シュナウザー", 0xFF8C8C94),
+    Pomeranian("pomeranian", "ポメラニアン", 0xFFF2B366);
 
     fun assetName(state: CatState): String = "dog_${rawValue}_${state.rawValue.lowercase()}"
     val avatarAssetName: String get() = "dog_${rawValue}_waitingmorning"
