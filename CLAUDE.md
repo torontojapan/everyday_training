@@ -49,6 +49,15 @@ iOS↔Android のUI/UX一致作業では、**甘い検証は禁止**。以下を
 - 検証ワークフロー: 実装 → 2LLM(Claude 並列 + Codex)監査 → **Codex で correct 収束まで**再検証して報告
   (memory `feedback_verification_workflow`)。codex は ChatGPT アカウントだと `gpt-5.x-codex` 不可 → 既定モデルで実行。
 
+### ★Codex は必ず `tools/codex-review.sh` 経由(生 `codex exec` 禁止・2026-06-23 ハング事故の恒久対策)
+- 生の `codex exec` を「sandbox 未指定 / 出力を `| tail` にパイプ / タイムアウト無し / stdin 未クローズ」で
+  回した結果、`git diff` 実行の **承認待ちで 7.5 時間ハング**して空転した(memory `gotcha_codex_exec_hang`)。
+- **再発防止**: Codex 監査は **必ず `tools/codex-review.sh "<prompt>"`(または `-f promptfile`)で実行**する。
+  このラッパが `--sandbox read-only`(承認待ち排除)/ `</dev/null`(stdin 待ち排除)/ ファイル直書き
+  (バッファ排除)/ 自前ハードタイムアウト+プロセスツリー kill(空転の物理停止・既定 420s, `-t` で調整)を
+  すべて強制する。生 `codex exec` は本文・サブエージェントとも使わない。
+- 長時間化したら `-t` を延ばすのではなく **プロンプトを小さく分割**(変更点ごと)して回す。
+
 ## 3. リリース(iOS)前チェック
 - `xcodegen generate` は Info.plist の手動キー(FriendsAppleLinkEnabled / FriendsGoogleLinkEnabled /
   TelemetryDeckAppID / NSCameraUsageDescription / ITSAppUsesNonExemptEncryption)を**落とす**。Archive 前に必ず再確認
