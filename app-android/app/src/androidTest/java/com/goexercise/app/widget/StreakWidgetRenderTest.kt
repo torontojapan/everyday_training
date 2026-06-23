@@ -68,4 +68,17 @@ class StreakWidgetRenderTest {
             save("$name.png", bmp)
         }
     }
+
+    // 中ウィジェット(横長=wide branch)を描画し、週ストリップ拡大(曜日13/ドット24)が
+    // 効いていることを目視確認する(iOS build 15 とのパリティ検証)。
+    @Test
+    fun renders_medium_widget_wide_to_png() {
+        val data = StreakWidgetRenderer.Data(
+            weekStrip, 5, todayAchieved = false, isRestDay = false,
+            weeklyAchieved = 4, weeklyTotal = 7, hoursLeft = 9,
+        )
+        // 中ウィジェット相当の横長サイズ(約 360x166dp @3x ≒ 1080x500px)。
+        val bmp = StreakWidgetRenderer.render(ctx, 1080, 500, data)
+        save("widget_medium_wide.png", bmp)
+    }
 }
