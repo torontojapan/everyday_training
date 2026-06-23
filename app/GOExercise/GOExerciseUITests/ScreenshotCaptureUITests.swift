@@ -353,4 +353,51 @@ final class ScreenshotCaptureUITests: XCTestCase {
             shoot(app, "set_cat_picker_LINK_MISSING")
         }
     }
+
+    /// App Store 1.4 用: 犬の相棒(柴犬)で「ペット選択(犬セグメント)」「ホーム」「連続シェア」を撮る。
+    /// 設定→カスタマイズ→自分のキャラを変更 でピッカーを開き、犬へ切替→柴犬を決定して永続化し、
+    /// 以後の relaunch でホーム/シェアカードが犬で出る(myPet は UserDefaults に保存される)。
+    func testCaptureDogShots() {
+        let app = launch(["--skip-onboarding", "--mock-premium", "--initial-tab", "settings"] + seed)
+        sleep(2)
+        func customizeRow() -> XCUIElement {
+            let b = app.buttons["カスタマイズ"]
+            return b.exists ? b : app.staticTexts["カスタマイズ"]
+        }
+        var t = 0
+        while !customizeRow().exists && t < 6 { app.swipeUp(); t += 1; sleep(1) }
+        guard customizeRow().waitForExistence(timeout: 4) else { shoot(app, "dog_CUSTOMIZE_MISSING"); return }
+        customizeRow().tap(); sleep(2)
+        let catLink = app.descendants(matching: .any).matching(identifier: "user-cat-link").firstMatch
+        guard catLink.waitForExistence(timeout: 4) else { shoot(app, "dog_LINK_MISSING"); return }
+        catLink.tap(); sleep(2)
+
+        // 猫/犬セグメントを「犬」へ切替 → 犬一覧のピッカーを撮る。
+        let seg = app.segmentedControls["pet-species-segment"]
+        if seg.waitForExistence(timeout: 4), seg.buttons["犬"].exists {
+            seg.buttons["犬"].tap()
+        } else if app.buttons["犬"].exists {
+            app.buttons["犬"].tap()
+        }
+        sleep(1)
+        shoot(app, "dog_picker")
+
+        // 柴犬を選んで決定 → myPet=dog:shiba を永続化。
+        let shiba = app.descendants(matching: .any).matching(identifier: "user-dog-shiba").firstMatch
+        if shiba.waitForExistence(timeout: 4) { shiba.tap(); sleep(1) }
+        let confirm = app.buttons["user-cat-confirm"].firstMatch
+        if confirm.waitForExistence(timeout: 4) { confirm.tap(); sleep(2) }
+
+        // ホームを犬で撮る(永続化済みなので relaunch で犬が出る)。
+        let home = launch(["--skip-onboarding", "--initial-tab", "home"] + seed)
+        sleep(2)
+        shoot(home, "home_dog")
+
+        // 連続記録シェアカードも犬で。
+        let badge = home.buttons.matching(NSPredicate(format: "label CONTAINS '連続'")).firstMatch
+        if badge.waitForExistence(timeout: 5) {
+            badge.tap(); sleep(2)
+            shoot(home, "streak_share_dog")
+        }
+    }
 }
