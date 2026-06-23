@@ -22,25 +22,25 @@ struct WidgetWeekStrip: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 4 : 6) {
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             HStack(spacing: 5) {
                 Image(systemName: "pawprint.fill")
-                    .font(.system(size: compact ? 12 : 14, weight: .bold))
+                    .font(.system(size: compact ? 12 : 16, weight: .bold))
                     .foregroundStyle(Self.pawColor)
                 Text("今週")
-                    .font(.system(size: compact ? 11 : 12, weight: .heavy, design: .rounded))
+                    .font(.system(size: compact ? 11 : 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color(red: 0.40, green: 0.34, blue: 0.28))
                 Spacer(minLength: 0)
                 Text("\(weeklyAchieved)/\(max(weeklyTotal, 7))")
-                    .font(.system(size: compact ? 12 : 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: compact ? 12 : 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(Self.pawColor)
             }
-            HStack(spacing: compact ? 3 : 5) {
+            HStack(spacing: compact ? 3 : 6) {
                 ForEach(Array(normalized.enumerated()), id: \.offset) { idx, status in
-                    VStack(spacing: 2) {
+                    VStack(spacing: compact ? 2 : 4) {
                         dot(for: status)
                         Text(Self.dayLabels[idx])
-                            .font(.system(size: compact ? 8 : 9, weight: .semibold, design: .rounded))
+                            .font(.system(size: compact ? 8 : 13, weight: compact ? .semibold : .bold, design: .rounded))
                             .foregroundStyle(Color(red: 0.60, green: 0.54, blue: 0.47))
                     }
                     .frame(maxWidth: .infinity)
@@ -51,21 +51,21 @@ struct WidgetWeekStrip: View {
 
     @ViewBuilder
     private func dot(for status: DailyStatus) -> some View {
-        let size: CGFloat = compact ? 14 : 18
+        let size: CGFloat = compact ? 14 : 24
         switch status {
         case .achieved, .todayAchieved:
             Circle().fill(Self.pawColor).frame(width: size, height: size)
         case .rescued:
-            Circle().strokeBorder(Self.pawColor, lineWidth: 2).frame(width: size, height: size)
+            Circle().strokeBorder(Self.pawColor, lineWidth: compact ? 2 : 3).frame(width: size, height: size)
         case .rest:
             Text("休")
-                .font(.system(size: compact ? 9 : 11, weight: .bold, design: .rounded))
+                .font(.system(size: compact ? 9 : 14, weight: .bold, design: .rounded))
                 .foregroundStyle(Color(red: 0.45, green: 0.62, blue: 0.85))
                 .frame(width: size, height: size)
                 .background(Circle().fill(Color(red: 0.45, green: 0.62, blue: 0.85).opacity(0.16)))
         case .missed:
             Image(systemName: "xmark")
-                .font(.system(size: compact ? 8 : 10, weight: .bold))
+                .font(.system(size: compact ? 8 : 13, weight: .bold))
                 .foregroundStyle(Color(red: 0.80, green: 0.45, blue: 0.40))
                 .frame(width: size, height: size)
         case .future, .todayPending:

@@ -30,7 +30,7 @@ settings:
     #   (V1/V2/V3 + iOS/Android at-rest 暗号化)を載せた版。1.3(build 12・猫のみ)が
     #   審査中のため、犬+セキュリティは次バージョン 1.4 として別途 Archive→提出する。
     MARKETING_VERSION: "1.4"
-    CURRENT_PROJECT_VERSION: "13"
+    CURRENT_PROJECT_VERSION: "14"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
@@ -56,6 +56,7 @@ targets:
       # 実描画するため app target にも含める(WidgetSnapshot と同一モジュール→ @testable で到達)。
       # widget 拡張ターゲットにも従来どおり含まれる(別モジュールなので衝突しない)。
       - path: GOExerciseWidget/Views/SmallWidgetView.swift
+      - path: GOExerciseWidget/Views/MediumWidgetView.swift
       - path: GOExerciseWidget/Views/WidgetCatView.swift
       - path: GOExerciseWidget/Views/WidgetWeekStrip.swift
       - path: GOExerciseWidget/Views/RecordPromptChipView.swift

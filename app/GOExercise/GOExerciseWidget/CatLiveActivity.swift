@@ -118,7 +118,7 @@ struct CatLockScreenView: View {
                 statuses: weekStatuses,
                 weeklyAchieved: state.weeklyAchieved,
                 weeklyTotal: state.weeklyTotal,
-                compact: true
+                compact: false
             )
         }
         .padding(.horizontal, 14)
