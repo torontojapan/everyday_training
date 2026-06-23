@@ -81,8 +81,14 @@ enum AppModelContainer {
         }
         // フォールバック: ローカルに保存。永続化自体が不能なら致命的として trap。
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
+        // フォールバック経路でも健康データの at-rest 保護を維持する (App Group 経路と同じ
+        // 二段構え)。これが無いと万一フォールバックした端末で健康データが既定保護のまま残る
+        // (Codex P3)。開く前にディレクトリ既定保護 → 開いた後に個別ファイル保護。
+        applyDirectoryProtection(forStoreAt: local.url)
         // swiftlint:disable:next force_try
-        return try! ModelContainer(for: schema, configurations: local)
+        let localContainer = try! ModelContainer(for: schema, configurations: local)
+        applyFileProtection(to: local.url)
+        return localContainer
     }
 
     /// 共有ストア (.sqlite) と SQLite の同伴ファイル (-wal / -shm) に

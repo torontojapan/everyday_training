@@ -85,10 +85,28 @@ object PlaintextDbMigrator {
                 if (backup.renameTo(dbFile)) {
                     Log.w(TAG, "Recovered plaintext DB from interrupted migration backup; will re-migrate.")
                 } else {
-                    Log.e(TAG, "Recovery rename failed; leaving backup intact for next-launch retry.")
+                    // 復元 rename が失敗 = データは backup にのみ存在し、dbFile は上で削除済み。
+                    // ここで素通りすると下の hasPassphrase()=false → dbFile 不在 → ENCRYPTED_READY で
+                    // **空の暗号化 DB** を作って backup の唯一のデータを孤児化し、さらに次回回復が
+                    // その空 DB への新規書込を破棄し得る(GPT-5.5 監査 P2)。空 DB へ進ませず起動を中止し、
+                    // 次回の健全な起動で再回復させる(データは backup に保持=喪失しない)。
+                    Log.e(TAG, "Recovery rename failed; aborting open to preserve backup for next-launch retry.")
+                    throw IllegalStateException(
+                        "interrupted-migration recovery failed (restore rename); " +
+                            "data preserved in '${backup.name}', aborting DB open for next-launch retry",
+                    )
                 }
             } else {
-                Log.e(TAG, "Could not durably clear passphrase; deferring recovery (data preserved in backup).")
+                // clear が耐久失敗 = passphrase を消せない。ここで素通りすると、原本が既に backup へ
+                // 退避済み(dbFile 不在)かつ passphrase 不在の中断状態では、下の hasPassphrase()=false →
+                // dbFile 不在 → ENCRYPTED_READY で **空の暗号化 DB** を作り backup の唯一のデータを
+                // 孤児化し得る(rename 失敗時と同型・GPT-5.5 監査 P2)。データは backup に保持されて
+                // いるので、空 DB へ進ませず起動を中止し、次回の健全な起動で再回復させる。
+                Log.e(TAG, "Could not durably clear passphrase; aborting open to preserve backup for next-launch retry.")
+                throw IllegalStateException(
+                    "interrupted-migration recovery deferred (passphrase clear not durable); " +
+                        "data preserved in '${backup.name}', aborting DB open for next-launch retry",
+                )
             }
         }
 

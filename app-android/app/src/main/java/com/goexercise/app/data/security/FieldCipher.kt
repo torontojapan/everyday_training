@@ -68,19 +68,33 @@ class FieldCipher private constructor(private val key: ByteArray) : StringCipher
         private const val TAG_BITS = 128
         private const val KEY_BYTES = 32
 
+        // create() の read→generate→commit を atomic にするためのプロセス内ロック。
+        // 無同期だと2つの並行 create() が共に「鍵なし」を観測して別々の鍵を生成し、後勝ちの
+        // commit が先の鍵を上書き → 先の呼び出し元が失われた鍵の cipher を握る競合になる
+        // (GPT-5.5 監査)。実運用は Hilt @Singleton で1回構築だが、create() 自体を安全にする。
+        private val createLock = Any()
+
         /**
          * 指定名の暗号化ストアから AES 鍵を読み(無ければ生成し)、FieldCipher を返す。
          * @param keyName 同一暗号化ストア内で鍵を区別する名前(用途ごとに別鍵にできる)。
          */
-        fun create(context: Context, prefsFile: String, keyName: String): FieldCipher {
+        fun create(context: Context, prefsFile: String, keyName: String): FieldCipher = synchronized(createLock) {
             val prefs = SecurePreferencesFactory.create(context, prefsFile)
             val existing = prefs.getString(keyName, null)
             val key = existing?.let { runCatching { Base64.decode(it, Base64.NO_WRAP) }.getOrNull() }
                 ?.takeIf { it.size == KEY_BYTES }
                 ?: ByteArray(KEY_BYTES).also { SecureRandom().nextBytes(it) }.also { fresh ->
-                    prefs.edit().putString(keyName, Base64.encodeToString(fresh, Base64.NO_WRAP)).apply()
+                    // 鍵は **同期 commit** で耐久化する。apply() の非同期書込だと、暗号文が DataStore に
+                    // 耐久書込された後・鍵 pref の永続化が完了する前にクラッシュすると鍵を失い、次回
+                    // decryptOrNull が失敗 → 旧平文 JSON 扱い → decode 失敗でデータ消失する。DB パス
+                    // フレーズと同じ commit ベースの耐久性に揃え、耐久化できなければ書込自体を失敗させる
+                    // (鍵不在の暗号文を残さない)(GPT-5.5 監査 P2)。
+                    val persisted = prefs.edit()
+                        .putString(keyName, Base64.encodeToString(fresh, Base64.NO_WRAP))
+                        .commit()
+                    check(persisted) { "FieldCipher: failed to durably persist field key '$keyName'" }
                 }
-            return FieldCipher(key)
+            FieldCipher(key)
         }
     }
 }
