@@ -26,8 +26,11 @@ settings:
     # build 11 = 上記までを Upload 済み(ただしバックアップ表示バグ修正は未含)。
     # build 12 = バックアップ中プロバイダ表示が並び順依存で誤表示するバグ修正(c6893b8)を含めた版。
     #   build 11 は ASC にアップ済みのため番号を 12 に上げて差し替える(同番号は ASC が拒否)。
-    MARKETING_VERSION: "1.3"
-    CURRENT_PROJECT_VERSION: "12"
+    # build 13 / 1.4 = 犬キャラ12種+アプリアイコン肉球○刷新+セキュリティ堅牢化
+    #   (V1/V2/V3 + iOS/Android at-rest 暗号化)を載せた版。1.3(build 12・猫のみ)が
+    #   審査中のため、犬+セキュリティは次バージョン 1.4 として別途 Archive→提出する。
+    MARKETING_VERSION: "1.4"
+    CURRENT_PROJECT_VERSION: "13"
 packages:
   # プライバシー配慮型の行動分析 SDK。App ID (Info.plist の TelemetryDeckAppID)
   # を設定するまでは送信されない (Analytics.configureIfPossible 参照)。
