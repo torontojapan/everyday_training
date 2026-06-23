@@ -48,6 +48,9 @@ object StreakWidgetRenderer {
         val h = heightPx.toFloat()
         val density = context.resources.displayMetrics.density
         fun dp(v: Float) = v * density
+        // iOS WidgetWeekStrip の compact(小)/非compact(中)に相当。幅が広い中ウィジェットでは
+        // 曜日・達成ドット・件数を拡大して読みやすくする(iOS build 15 とパリティ)。
+        val wide = (w / density) >= 250f
 
         val bmp = Bitmap.createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
@@ -69,14 +72,14 @@ object StreakWidgetRenderer {
         val pawSize = dp(18f)
         drawPaw(c, context, pad, pad, pawSize, paw, data.pawResId)
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = rgb(0.40, 0.34, 0.28); textSize = dp(12f)
+            color = rgb(0.40, 0.34, 0.28); textSize = dp(if (wide) 15f else 12f)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
         val headerBaseline = pad + pawSize / 2f - (titlePaint.fontMetrics.ascent + titlePaint.fontMetrics.descent) / 2f
         c.drawText("今週", pad + pawSize + dp(5f), headerBaseline, titlePaint)
         val total = data.weeklyTotal.coerceAtLeast(7)
         val countPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = paw; textSize = dp(14f); textAlign = Paint.Align.RIGHT
+            color = paw; textSize = dp(if (wide) 17f else 14f); textAlign = Paint.Align.RIGHT
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
         c.drawText("${data.weeklyAchieved}/$total", w - pad, headerBaseline, countPaint)
@@ -84,10 +87,10 @@ object StreakWidgetRenderer {
         // --- 7日ストリップ(月〜日 + ドット) ---
         val statuses = normalize(data.weeklyStatuses)
         val stripTop = pad + pawSize + dp(8f)
-        val dotSize = dp(16f)
+        val dotSize = dp(if (wide) 24f else 16f)
         val colW = (w - pad * 2f) / 7f
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = rgb(0.60, 0.54, 0.47); textSize = dp(9f); textAlign = Paint.Align.CENTER
+            color = rgb(0.60, 0.54, 0.47); textSize = dp(if (wide) 13f else 9f); textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
         for (i in 0 until 7) {
@@ -98,7 +101,7 @@ object StreakWidgetRenderer {
         }
 
         // --- 見出し(達成済み/回復日/1分だけでも) ---
-        var y = stripTop + dotSize + dp(20f)
+        var y = stripTop + dotSize + dp(if (wide) 26f else 20f)
         val headline = when {
             data.todayAchieved -> "達成済み！"
             data.isRestDay -> "回復日"
@@ -140,7 +143,7 @@ object StreakWidgetRenderer {
                 val blue = rgb(0.45, 0.62, 0.85)
                 c.drawCircle(cx, cy, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = rgb(0.45, 0.62, 0.85, 0.16) })
                 val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = blue; textSize = dp(10f); textAlign = Paint.Align.CENTER
+                    color = blue; textSize = size * 0.58f; textAlign = Paint.Align.CENTER
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 }
                 c.drawText("休", cx, cy - (tp.fontMetrics.ascent + tp.fontMetrics.descent) / 2f, tp)
