@@ -2,6 +2,12 @@
 
 最終更新: 2026-05-29
 
+> ⚠️ **【2026-06-23 注記: 一部内容が古い】** 本書のバックエンド前提は **CloudKit のままで古い**。
+> 現行のバックエンドは **Supabase**(友達/応援/紹介/クラウドバックアップ)。「CloudKit」と書かれた
+> 友達・同期系の節(主にセクション I)は **Supabase の友達 E2E に読み替える**こと(サインイン往復/
+> 機種変更復元/応援受信は Supabase 経路)。課金(StoreKit Sandbox)・通知・ウィジェット・Live Activity・
+> 権限の実機項目は引き続き有効。リポジトリ実体は `~/Developer/serial_training`(旧 ~/Documents は廃止)。
+
 横断監査のうち **静的監査・自動テストでは検証できない** 項目
 (実機 / StoreKit Sandbox / 権限 / Live Activity / ウィジェット / 通知配信) を、
 **Apple Developer 加入後** に順番どおり実施するための手順書。

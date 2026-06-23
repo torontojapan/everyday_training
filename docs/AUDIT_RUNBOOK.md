@@ -14,7 +14,7 @@
 
 ### iOS ユニット (期待: 400 passed / 0 failed)
 ```bash
-ROOT=/Users/jun/Documents/Business_Project_Management/serial_training
+ROOT=/Users/jun/Developer/serial_training
 cd "$ROOT/app/GOExercise" && xcodegen generate      # pbxproj は gitignore(生成物)
 # 新規シミュレータを作る(既存sim破損での "hung before establishing connection" 回避)
 RT=$(xcrun simctl list runtimes | grep -i ios | tail -1 | grep -oE 'com.apple.CoreSimulator.SimRuntime.iOS-[0-9-]+')
@@ -31,7 +31,7 @@ xcrun xcresulttool get test-results summary --path /tmp/ios_unit.xcresult | grep
 
 ### Android ユニット (期待: ~231 passed)
 ```bash
-ROOT=/Users/jun/Documents/Business_Project_Management/serial_training
+ROOT=/Users/jun/Developer/serial_training
 find "$ROOT/app-android/app/build" -name "* [0-9].*" -delete   # iCloud重複の掃除(これがビルドを壊す)
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   "$ROOT/app-android/gradlew" -p "$ROOT/app-android" --console=plain testDebugUnitTest
@@ -40,7 +40,7 @@ JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
 
 ### Supabase RLS / trigger 回帰 (期待: S8-S11 PASS, docker不要)
 ```bash
-ROOT=/Users/jun/Documents/Business_Project_Management/serial_training
+ROOT=/Users/jun/Developer/serial_training
 PG=/opt/homebrew/opt/postgresql@16/bin
 DATA=/tmp/pgqa_$$; rm -rf "$DATA"
 "$PG/initdb" -D "$DATA" -U postgres >/dev/null 2>&1
