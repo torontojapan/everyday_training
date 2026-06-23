@@ -17,7 +17,7 @@ enum PerkGuide {
         PerkGuideItem(icon: "rosette", title: "称号 & 背景の進化",
                       detail: "連続記録を続けると相棒の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
         PerkGuideItem(icon: "pawprint.fill", title: "キャラの種類",
-                      detail: "無料は最初に選んだ相棒のまま。プレミアム、または⭐10で猫12種・犬13種から自由に選べます。"),
+                      detail: "無料は最初に選んだ相棒のまま。プレミアム、または⭐10で猫12種・犬12種から自由に選べます。"),
         PerkGuideItem(icon: "pawprint.fill", title: "連続記録の節目",
                       detail: "連続記録のマイルストーンでお祝い演出が出ます。"),
     ]
