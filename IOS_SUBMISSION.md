@@ -63,7 +63,7 @@ Premium (weight charts, cycle overlay, reports) is ¥500/mo or ¥3,800/yr with a
 
 | Apple カテゴリ | 項目 | トラッキング | リンク(本人紐付) | 目的 |
 |---|---|---|---|---|
-| User Content → その他のユーザーコンテンツ | 表示名・ユーザー名・共有プロフィール(連続記録/週次達成/今日のカテゴリ/猫種/応援) | しない | する | App 機能 |
+| User Content → その他のユーザーコンテンツ | 表示名・ユーザー名・共有プロフィール(連続記録/週次達成/今日のカテゴリ/相棒(猫・犬)の種類/応援) | しない | する | App 機能 |
 | Identifiers → ユーザーID | 匿名認証ID /(連携時)Apple識別子 | しない | する | App 機能 / アカウント |
 
 - **Used to Track You: なし**。

@@ -43,10 +43,10 @@ android {
         applicationId = "com.goexercise.app"
         minSdk = 26
         targetSdk = 36
-        // iOS の機能バージョン(1.3)に合わせた初回 Play リリース。versionCode は Play への
-        // アップロードごとに +1(初回=1)。値はリリース時に調整可。
+        // iOS の機能バージョン(1.4=犬12種+セキュリティ堅牢化+ウィジェット拡大)に合わせた
+        // 初回 Play リリース。versionCode は Play へのアップロードごとに +1(初回=1)。
         versionCode = 1
-        versionName = "1.3.0"
+        versionName = "1.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // iOS と同一 Supabase プロジェクトを共有(friend code 名前空間共有)。

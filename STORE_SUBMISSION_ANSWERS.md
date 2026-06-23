@@ -29,7 +29,7 @@
 | データ種別(Google分類) | 該当項目 | 収集 | 共有 | 目的 | 任意 |
 |---|---|---|---|---|---|
 | Personal info → Name | 表示名(ニックネーム)・ユーザー名 | ✅ | ✅ | アプリ機能(友達検索・表示) | 任意 |
-| App activity → Other user-generated content | 共有プロフィール: 連続記録・累計達成日数・今日の達成/カテゴリ名/(設定ON時)種目名・週間達成状況・週/月の運動時間・装飾ランク・猫の種類 | ✅ | ✅ | アプリ機能(友達一覧・週間ランキング) | 任意 |
+| App activity → Other user-generated content | 共有プロフィール: 連続記録・累計達成日数・今日の達成/カテゴリ名/(設定ON時)種目名・週間達成状況・週/月の運動時間・装飾ランク・相棒(猫・犬)の種類 | ✅ | ✅ | アプリ機能(友達一覧・週間ランキング) | 任意 |
 | App activity → App interactions | 応援(cheer)の送信 | ✅ | ✅(送信先のみ) | アプリ機能(友達への応援) | 任意 |
 | Device or other IDs | 匿名認証ID / (連携時)Apple・Google の識別子 | ✅ | ❌ | アプリ機能・アカウント管理(復元) | 任意 |
 | App activity → App interactions(分析) | 匿名イベント(app_open/record_created/view_paywall 等)+ category/product | ✅ | ❌(TelemetryDeck=処理者) | **分析(Analytics)** | 任意(設定でオプトアウト可) |
