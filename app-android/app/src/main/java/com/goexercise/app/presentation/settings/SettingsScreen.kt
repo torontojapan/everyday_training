@@ -936,7 +936,7 @@ private fun PerkGuideSection(palette: AppTheme) {
         Perk(Icons.Filled.AcUnit, "保険チケット", "無料は月1 / プレミアムは月4。友達紹介で +1(上限5)。招待された人はウェルカム +1。"),
         Perk(Icons.Filled.Star, "友達紹介", "1人紹介ごとに⭐と保険チケット。⭐10個で好きなキャラが無料で選べるようになります。"),
         Perk(Icons.Filled.MilitaryTech, "称号 & 背景の進化", "連続記録を続けると相棒の称号が上がり(全11段)、背景も豪華に進化します。下の「称号一覧」で目標を確認できます。"),
-        Perk(Icons.Filled.Pets, "キャラの種類", "無料は最初に選んだ相棒のまま。プレミアム、または⭐10で猫11種・犬9種から自由に選べます。"),
+        Perk(Icons.Filled.Pets, "キャラの種類", "無料は最初に選んだ相棒のまま。プレミアム、または⭐10で猫12種・犬13種から自由に選べます。"),
         Perk(Icons.Filled.Pets, "連続記録の節目", "連続記録のマイルストーンでお祝い演出が出ます。"), // iOS pawprint.fill
     )
     SettingsCard {
